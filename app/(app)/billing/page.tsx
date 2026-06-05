@@ -59,7 +59,7 @@ export default async function BillingPage({ searchParams }: Props) {
   const stripeReady = isStripeConfigured()
 
   return (
-    <div className="px-8 py-8 max-w-2xl mx-auto space-y-8">
+    <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
       <h1 className="text-xl font-semibold">Billing</h1>
 
       {/* Toast-style notifications from Stripe redirect */}
@@ -129,8 +129,8 @@ export default async function BillingPage({ searchParams }: Props) {
                 <tr className="border-b border-border">
                   <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Action</th>
                   <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Amount</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Balance</th>
-                  <th className="text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">When</th>
+                  <th className="hidden sm:table-cell text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">Balance</th>
+                  <th className="hidden sm:table-cell text-right px-4 py-2.5 text-xs font-medium text-muted-foreground">When</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -142,10 +142,10 @@ export default async function BillingPage({ searchParams }: Props) {
                     <td className={`px-4 py-2.5 text-right font-mono text-xs ${entry.delta > 0 ? 'text-green-400' : 'text-muted-foreground'}`}>
                       {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">
+                    <td className="hidden sm:table-cell px-4 py-2.5 text-right font-mono text-xs text-muted-foreground">
                       {entry.balance_after}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">
+                    <td className="hidden sm:table-cell px-4 py-2.5 text-right text-xs text-muted-foreground">
                       {timeAgo(entry.created_at)}
                     </td>
                   </tr>

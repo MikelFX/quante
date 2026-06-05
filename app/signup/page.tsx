@@ -43,8 +43,8 @@ export default function SignupPage() {
           <Link href="/" className="font-mono text-sm text-muted-foreground hover:text-foreground transition-colors">
             ← quante
           </Link>
-          <h1 className="text-xl font-semibold">Create account</h1>
-          <p className="text-sm text-muted-foreground">25 free credits to start.</p>
+          <h1 className="text-xl font-semibold">Create your account</h1>
+          <p className="text-sm text-muted-foreground">You get 25 free credits when you sign up. No card needed.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

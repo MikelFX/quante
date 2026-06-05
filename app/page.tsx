@@ -10,10 +10,10 @@ import { CREDIT_PACKS } from '@/lib/credit-packs'
 const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
 
 const STACK_CARDS = [
-  { n: '01', title: 'You own the output', desc: 'Every export is a clean Next.js project — no lock-in, deploy anywhere, modify anything.' },
-  { n: '02', title: 'Reliable by design', desc: "The AI fills in your brand; a hardened scaffold means it compiles every time. No broken output." },
-  { n: '03', title: 'Iterate in chat', desc: '"Warmer palette." "Split-layout hero." One instruction, one credit, live preview refresh.' },
-  { n: '04', title: 'Version history', desc: 'Every generation and patch is saved as a version. Restore any state in one click.' },
+  { n: '01', title: "It's yours to keep", desc: "Download your store, host it anywhere, change whatever you want. No lock-in, no strings attached." },
+  { n: '02', title: 'It just works', desc: "The AI handles your design and copy. The code underneath is solid — it builds and runs without issues every time." },
+  { n: '03', title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
+  { n: '04', title: 'Nothing gets lost', desc: "Every change is saved automatically. Went too far? Jump back to any earlier version in one tap." },
 ]
 
 const STORE_TYPES = [
@@ -237,22 +237,16 @@ export default function HomePage() {
         <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 14, fontWeight: 600, letterSpacing: '-.01em' }}>
           quante
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-          {['Showcase /showcase', 'Pricing /pricing'].map(s => {
-            const [label, href] = s.split(' ')
-            return (
-              <Link key={href} href={href} style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>
-                {label}
-              </Link>
-            )
-          })}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <Link href="/showcase" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Showcase</Link>
+          <Link href="/pricing" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Pricing</Link>
           <Link href="/login" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Log in</Link>
           <Link href="/signup" style={{
             fontSize: 13, fontWeight: 600, textDecoration: 'none',
             color: '#070709', background: '#f4f4f6',
             padding: '0.4rem 0.9rem', borderRadius: 6,
           }}>
-            Get started →
+            Try free →
           </Link>
         </div>
       </header>
@@ -295,7 +289,7 @@ export default function HomePage() {
                 width: 7, height: 7, borderRadius: '50%',
                 background: '#6f78e6', display: 'inline-block',
               }} />
-              early access — 25 free credits
+              try free — 25 credits on us
             </motion.div>
 
             <div style={{ position: 'relative' }} className="headline-sheen">
@@ -308,7 +302,7 @@ export default function HomePage() {
               transition={{ duration: 0.8, delay: 0.34 }}
               style={{ fontSize: 15, lineHeight: 1.6, color: '#8a8a93', maxWidth: 430, margin: '18px auto 0' }}
             >
-              A plain-English brief goes in. A production-ready Next.js storefront comes out.
+              Describe what you want. Get a real, working online shop — yours to download and host anywhere.
             </motion.p>
           </motion.div>
 
@@ -367,7 +361,7 @@ export default function HomePage() {
             position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
           }}>
-            02 — built differently
+            02 — why it's different
           </div>
 
           <div style={{ position: 'relative', width: '100%', maxWidth: 460, height: 296, zIndex: 2 }}>
@@ -396,7 +390,7 @@ export default function HomePage() {
             position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
           }}>
-            03 — what quante can build →
+            03 — what you can build →
           </div>
 
           <motion.div
@@ -454,13 +448,13 @@ export default function HomePage() {
             04 — pricing
           </p>
           <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 12 }}>
-            Simple, credit-based
+            Pay only when you create
           </h2>
           <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 48, maxWidth: 380, margin: '0 auto 48px' }}>
-            Buy credits when you need them. No subscription. Start with 25 free.
+            No subscription. Get 25 free credits when you sign up — enough for two complete stores, no card needed.
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 32 }}>
+          <div className="pricing-grid">
             {CREDIT_PACKS.map(pack => (
               <div key={pack.id} style={{
                 background: pack.popular ? '#101016' : 'transparent',
@@ -505,29 +499,25 @@ export default function HomePage() {
         <GrainVignette />
         <div style={{ position: 'relative', zIndex: 2 }}>
           <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-.03em', marginBottom: 16 }}>
-            Build yours in minutes.
+            Ready to try it?
           </h2>
           <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 32 }}>
-            25 free credits. No card required.
+            Sign up in 30 seconds. 25 free credits included.
           </p>
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none',
             color: '#070709', background: '#f4f4f6',
             padding: '0.75rem 2rem', borderRadius: 8, display: 'inline-block',
           }}>
-            Start for free →
+            Try it free →
           </Link>
         </div>
       </section>
 
       {/* ── Footer ── */}
-      <footer style={{
-        borderTop: '1px solid rgba(255,255,255,.07)',
-        padding: '1.5rem 2rem',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
+      <footer className="landing-footer" style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: '1.5rem 1.25rem' }}>
         <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#5b5b64' }}>quante</span>
-        <div style={{ display: 'flex', gap: '1.5rem' }}>
+        <div className="footer-links">
           {[['Pricing', '/pricing'], ['Showcase', '/showcase'], ['Log in', '/login']].map(([l, h]) => (
             <Link key={h} href={h} style={{ fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>{l}</Link>
           ))}
