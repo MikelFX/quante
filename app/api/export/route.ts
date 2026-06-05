@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import archiver from 'archiver'
+import JSZip from 'jszip'
 import path from 'path'
+import fs from 'fs'
 import type { ShopManifest } from '@/types/manifest'
 
 const EXPORT_COST = 5
@@ -92,26 +93,19 @@ function toSlug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-function buildStoreZip(manifest: ShopManifest): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
-    const archive = archiver('zip', { zlib: { level: 6 } })
-
-    archive.on('data', (chunk: Buffer) => chunks.push(chunk))
-    archive.on('end', () => resolve(Buffer.concat(chunks)))
-    archive.on('error', reject)
-
+async function buildStoreZip(manifest: ShopManifest): Promise<Buffer> {
+    const zip = new JSZip()
     const slug = toSlug(manifest.brand.name) || 'my-store'
     const pre = `${slug}/`
     const cwd = process.cwd()
     const sfBase = path.join(cwd, 'components', 'storefront')
 
     function add(name: string, content: string) {
-      archive.append(Buffer.from(content, 'utf8'), { name: pre + name })
+      zip.file(pre + name, content)
     }
 
     function addFile(name: string, src: string) {
-      archive.file(src, { name: pre + name })
+      zip.file(pre + name, fs.readFileSync(src))
     }
 
     // ── package.json ──────────────────────────────────────────────────────────
@@ -426,6 +420,5 @@ export function generateStaticParams() {
       '',
     ].join('\n'))
 
-    archive.finalize()
-  })
+    return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE', compressionOptions: { level: 6 } })
 }
