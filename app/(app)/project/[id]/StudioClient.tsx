@@ -32,6 +32,8 @@ interface Props {
   initialBalance: number
 }
 
+type StudioTab = 'chat' | 'preview' | 'sections'
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 async function* readNdjsonStream(response: Response): AsyncGenerator<StreamEvent> {
@@ -55,16 +57,9 @@ async function* readNdjsonStream(response: Response): AsyncGenerator<StreamEvent
 }
 
 const SECTION_LABELS: Record<string, string> = {
-  hero: 'Hero',
-  productGrid: 'Product grid',
-  featureRow: 'Feature row',
-  testimonials: 'Testimonials',
-  richText: 'Rich text',
-  banner: 'Banner',
-  newsletter: 'Newsletter',
-  gallery: 'Gallery',
-  faq: 'FAQ',
-  customComponent: 'Custom',
+  hero: 'Hero', productGrid: 'Product grid', featureRow: 'Feature row',
+  testimonials: 'Testimonials', richText: 'Rich text', banner: 'Banner',
+  newsletter: 'Newsletter', gallery: 'Gallery', faq: 'FAQ', customComponent: 'Custom',
 }
 
 function sectionSummary(section: Section): string {
@@ -72,12 +67,12 @@ function sectionSummary(section: Section): string {
     case 'hero': return section.props.headline.replace(/\n/g, ' ').slice(0, 48)
     case 'productGrid': return section.props.title || 'Product grid'
     case 'featureRow': return `${section.props.features.length} features${section.props.title ? ` · ${section.props.title}` : ''}`
-    case 'testimonials': return `${section.props.items.length} reviews${section.props.title ? ` · ${section.props.title}` : ''}`
+    case 'testimonials': return `${section.props.items.length} reviews`
     case 'richText': return section.props.content.replace(/\n/g, ' ').slice(0, 48)
     case 'banner': return section.props.text.slice(0, 48)
     case 'newsletter': return section.props.title
     case 'gallery': return `${section.props.images.length} images`
-    case 'faq': return `${section.props.items.length} items${section.props.title ? ` · ${section.props.title}` : ''}`
+    case 'faq': return `${section.props.items.length} items`
     case 'customComponent': return `ref: ${section.ref}`
   }
 }
@@ -104,7 +99,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [iframeKey, setIframeKey] = useState(0)
   const [balance, setBalance] = useState(initialBalance)
   const [currentManifest, setCurrentManifest] = useState<ShopManifest | null>(initialManifest)
-  const [activeTab, setActiveTab] = useState<'chat' | 'sections'>('chat')
+  const [activeTab, setActiveTab] = useState<StudioTab>('chat')
   const [versions, setVersions] = useState<VersionEntry[]>([])
   const [showVersions, setShowVersions] = useState(false)
   const [expandedSection, setExpandedSection] = useState<number | null>(null)
@@ -135,7 +130,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
   useEffect(() => { fetchVersions() }, [fetchVersions])
 
-  // Shared stream consumer — updates the last assistant message with status/done/error
   async function consumeStream(
     endpoint: string,
     body: object,
@@ -189,7 +183,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
     try {
       await consumeStream(endpoint, body, (manifest) => {
-        const summary = `**${manifest.brand.name}** — ${manifest.catalog.products.length} products. Preview refreshed.`
+        const summary = `**${manifest.brand.name}** ready. ${manifest.catalog.products.length} products.`
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = { role: 'assistant', content: summary, type: 'done' }
@@ -199,11 +193,13 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         setIframeKey((k) => k + 1)
         refreshBalance()
         fetchVersions()
+        // Auto-switch to preview after generation
+        setActiveTab('preview')
       })
     } catch {
       setMessages((prev) => {
         const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', content: 'Something went wrong. Please try again.', type: 'error' }
+        updated[updated.length - 1] = { role: 'assistant', content: 'Something went wrong. Try again.', type: 'error' }
         return updated
       })
     } finally {
@@ -217,8 +213,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     setIsGenerating(true)
     setRegeneratingSection(sectionIndex)
     setExpandedSection(null)
-
-    // Add status messages to chat as context
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: instruction || `Improve section ${sectionIndex + 1}` },
@@ -235,7 +229,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             const updated = [...prev]
             updated[updated.length - 1] = {
               role: 'assistant',
-              content: `**${sectionName}** regenerated. Preview refreshed.`,
+              content: `**${sectionName}** regenerated.`,
               type: 'done',
             }
             return updated
@@ -272,10 +266,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         setCurrentManifest(manifest)
         setIframeKey((k) => k + 1)
         fetchVersions()
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: 'Version restored. Preview updated.', type: 'done' },
-        ])
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Version restored.', type: 'done' }])
       }
     } catch {}
   }
@@ -291,7 +282,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        alert(data.error ?? 'Export failed. Please try again.')
+        alert(data.error ?? 'Export failed.')
         return
       }
       const blob = await res.blob()
@@ -299,13 +290,11 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       const filename = disposition.match(/filename="([^"]+)"/)?.[1] ?? 'store.zip'
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.click()
+      a.href = url; a.download = filename; a.click()
       URL.revokeObjectURL(url)
       refreshBalance()
     } catch {
-      alert('Export failed. Please try again.')
+      alert('Export failed.')
     } finally {
       setIsExporting(false)
     }
@@ -315,275 +304,319 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const latestVersion = versions[0]
 
   return (
-    <div className="flex flex-col" style={{ height: '100vh' }}>
-      {/* ── Top bar ── */}
-      <header
-        className="shrink-0 border-b border-border px-4 flex items-center justify-between"
-        style={{ height: '3.25rem' }}
-      >
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-sm font-medium truncate">{projectName}</span>
-        </div>
+    // Covers full screen from top to bottom nav
+    <div style={{
+      position: 'fixed', top: 0, left: 0, right: 0, bottom: '4rem',
+      zIndex: 30, display: 'flex', flexDirection: 'column',
+      background: 'var(--background)',
+    }}>
+      {/* ── Studio top bar ── */}
+      <header style={{
+        flexShrink: 0, height: '3rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 0.875rem',
+        borderBottom: '1px solid var(--border)',
+        background: 'var(--background)',
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 600, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {projectName}
+        </span>
 
-        <div className="flex items-center gap-2">
-          {/* Version history */}
-          <div className="relative">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Version picker */}
+          <div style={{ position: 'relative' }}>
             <button
-              onClick={() => {
-                const next = !showVersions
-                setShowVersions(next)
-                if (next) fetchVersions()
+              onClick={() => { const next = !showVersions; setShowVersions(next); if (next) fetchVersions() }}
+              style={{
+                fontFamily: 'var(--font-geist-mono)', fontSize: 11,
+                padding: '3px 8px', borderRadius: 5,
+                border: '1px solid var(--border)',
+                color: 'var(--muted-foreground)',
+                background: 'transparent', cursor: 'pointer',
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-mono rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
             >
-              {latestVersion ? `v${latestVersion.version_no}` : 'v—'}
-              <span className="text-muted-foreground/50">▾</span>
+              {latestVersion ? `v${latestVersion.version_no}` : 'v—'} ▾
             </button>
 
             {showVersions && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowVersions(false)} />
-                <div className="absolute right-0 top-full mt-1 w-72 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Version history</p>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowVersions(false)} />
+                <div style={{
+                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                  width: 280, background: 'var(--card)',
+                  border: '1px solid var(--border)', borderRadius: 10,
+                  boxShadow: '0 8px 32px rgba(0,0,0,.4)', zIndex: 50, overflow: 'hidden',
+                }}>
+                  <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.04em' }}>History</p>
                   </div>
-                  <div className="max-h-64 overflow-y-auto">
+                  <div style={{ maxHeight: 240, overflowY: 'auto' }}>
                     {versions.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-3">No versions yet.</p>
-                    ) : (
-                      versions.map((v) => (
-                        <div
-                          key={v.id}
-                          className="flex items-start justify-between gap-2 px-3 py-2.5 hover:bg-secondary/50 transition-colors border-b border-border/50 last:border-0"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-xs font-mono text-muted-foreground">v{v.version_no}</p>
-                            <p className="text-xs text-foreground truncate mt-0.5">{v.prompt || 'Generated'}</p>
-                            <p className="text-xs text-muted-foreground/60 mt-0.5">{timeAgo(v.created_at)}</p>
-                          </div>
-                          {versions[0]?.id !== v.id && (
-                            <button
-                              onClick={() => handleRestore(v.id)}
-                              className="shrink-0 text-xs text-accent hover:text-accent/80 transition-colors mt-0.5"
-                            >
-                              Restore
-                            </button>
-                          )}
-                          {versions[0]?.id === v.id && (
-                            <span className="shrink-0 text-xs text-muted-foreground/40 mt-0.5">current</span>
-                          )}
+                      <p style={{ fontSize: 12, color: 'var(--muted-foreground)', padding: 12 }}>No versions yet.</p>
+                    ) : versions.map((v) => (
+                      <div key={v.id} style={{
+                        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8,
+                        padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.05)',
+                      }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: 'var(--muted-foreground)' }}>v{v.version_no}</p>
+                          <p style={{ fontSize: 12, color: 'var(--foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {v.prompt || 'Generated'}
+                          </p>
+                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
                         </div>
-                      ))
-                    )}
+                        {versions[0]?.id !== v.id ? (
+                          <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                            Restore
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', flexShrink: 0 }}>current</span>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
               </>
             )}
           </div>
 
-          <span className="text-xs font-mono text-muted-foreground">{balance} cr</span>
+          <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: 'var(--muted-foreground)' }}>
+            {balance} cr
+          </span>
 
           <button
-            className={cn(
-              'text-xs px-3 py-1.5 rounded border border-border transition-colors',
-              currentManifest && !isExporting
-                ? 'text-foreground border-white/20 hover:bg-white/5'
-                : 'text-muted-foreground opacity-50 cursor-not-allowed'
-            )}
             onClick={handleExport}
             disabled={!currentManifest || isExporting}
-            title={!currentManifest ? 'Generate a store first' : 'Download as ZIP (5 credits)'}
+            style={{
+              fontSize: 11, fontWeight: 600,
+              padding: '4px 10px', borderRadius: 5,
+              border: '1px solid rgba(255,255,255,.15)',
+              background: currentManifest && !isExporting ? 'rgba(255,255,255,.06)' : 'transparent',
+              color: currentManifest && !isExporting ? 'var(--foreground)' : 'var(--muted-foreground)',
+              cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
+              opacity: currentManifest ? 1 : 0.4,
+            }}
           >
-            {isExporting ? 'Exporting…' : 'Export ZIP'}
+            {isExporting ? '…' : 'Export'}
           </button>
         </div>
       </header>
 
-      {/* ── Body ── */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left panel */}
-        <div className="flex flex-col border-r border-border shrink-0" style={{ width: '380px' }}>
-          {/* Tabs */}
-          <div className="shrink-0 flex border-b border-border">
-            {(['chat', 'sections'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  'flex-1 py-2 text-xs font-medium capitalize transition-colors',
-                  activeTab === tab
-                    ? 'text-foreground border-b-2 border-accent'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+      {/* ── Tab switcher ── */}
+      <div style={{
+        flexShrink: 0, display: 'flex',
+        borderBottom: '1px solid var(--border)',
+      }}>
+        {(['chat', 'preview', 'sections'] as StudioTab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1, padding: '0.55rem 0', fontSize: 12, fontWeight: activeTab === tab ? 600 : 400,
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: activeTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
+              borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+              textTransform: 'capitalize', transition: 'color 0.15s',
+            }}
+          >
+            {tab}
+            {tab === 'preview' && currentManifest && isGenerating && (
+              <span style={{ marginLeft: 4, fontSize: 9, opacity: 0.6 }}>●</span>
+            )}
+          </button>
+        ))}
+      </div>
 
-          {/* Chat tab */}
-          {activeTab === 'chat' && (
-            <>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.length === 0 && (
-                  <div className="text-center py-12 px-4">
-                    <p className="text-sm font-mono text-muted-foreground mb-2">quante</p>
-                    <p className="text-sm text-muted-foreground">Describe the store you want to build.</p>
-                    <p className="text-xs text-muted-foreground mt-1">Brand, products, vibe, currency.</p>
-                  </div>
-                )}
-                {messages.map((msg, i) => (
-                  <ChatMessage key={i} message={msg} />
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
+      {/* ── Content ── */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
 
-              <div className="shrink-0 p-3 border-t border-border">
-                <div className="flex gap-2 items-end">
-                  <textarea
-                    ref={textareaRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-                    }}
-                    disabled={isGenerating}
-                    placeholder={
-                      !currentManifest
-                        ? 'A minimal skincare brand. Products: serum, moisturiser, cleanser. EUR currency…'
-                        : 'Change the accent color to deep green…'
-                    }
-                    rows={3}
-                    className={cn(
-                      'flex-1 resize-none text-sm rounded border border-border bg-secondary/50 px-3 py-2 placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring',
-                      isGenerating && 'opacity-50 cursor-not-allowed'
-                    )}
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={isGenerating || !input.trim()}
-                    className={cn(
-                      'shrink-0 px-3 py-2 text-xs font-semibold rounded bg-primary text-primary-foreground',
-                      (isGenerating || !input.trim()) && 'opacity-40 cursor-not-allowed'
-                    )}
-                  >
-                    {isGenerating ? '…' : 'Send'}
-                  </button>
+        {/* CHAT TAB */}
+        {activeTab === 'chat' && (
+          <>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {messages.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                  <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 6 }}>quante</p>
+                  <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Describe the store you want to build.</p>
+                  <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 4, opacity: 0.6 }}>Brand, products, vibe, currency.</p>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1.5">
-                  {!currentManifest ? '10 credits' : '1 credit'} · shift+enter for newline
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* Sections tab */}
-          {activeTab === 'sections' && (
-            <div className="flex-1 overflow-y-auto">
-              {!currentManifest ? (
-                <div className="text-center py-12 px-4">
-                  <p className="text-sm text-muted-foreground">Generate a store first.</p>
-                  <button
-                    className="text-xs text-accent hover:text-accent/80 transition-colors mt-2"
-                    onClick={() => setActiveTab('chat')}
-                  >
-                    Go to Chat
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className="px-3 py-2 border-b border-border">
-                    <p className="text-xs text-muted-foreground">Home page · {homeSections.length} sections · 2 credits each</p>
-                  </div>
-                  {homeSections.map((section, i) => (
-                    <div key={i} className="border-b border-border/60 last:border-0">
-                      <div className="flex items-center justify-between px-3 py-2.5 hover:bg-secondary/30 transition-colors">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium text-foreground">
-                            {SECTION_LABELS[section.type] ?? section.type}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {sectionSummary(section)}
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (expandedSection === i) { setExpandedSection(null); setSectionInput('') }
-                            else { setExpandedSection(i); setSectionInput('') }
-                          }}
-                          disabled={isGenerating}
-                          className={cn(
-                            'shrink-0 ml-2 text-xs px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors',
-                            regeneratingSection === i && 'opacity-50',
-                            isGenerating && 'cursor-not-allowed opacity-40'
-                          )}
-                        >
-                          {regeneratingSection === i ? '…' : 'Improve'}
-                        </button>
-                      </div>
-
-                      {expandedSection === i && (
-                        <div className="px-3 pb-3 space-y-2">
-                          <textarea
-                            value={sectionInput}
-                            onChange={(e) => setSectionInput(e.target.value)}
-                            placeholder="Optional: describe what to change, or leave blank for automatic improvement"
-                            rows={2}
-                            className="w-full resize-none text-xs rounded border border-border bg-secondary/50 px-2.5 py-1.5 placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                            autoFocus
-                          />
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleSectionRegenerate(i, sectionInput)}
-                              disabled={isGenerating}
-                              className={cn(
-                                'flex-1 text-xs py-1.5 rounded bg-primary text-primary-foreground font-semibold',
-                                isGenerating && 'opacity-40 cursor-not-allowed'
-                              )}
-                            >
-                              Regenerate
-                            </button>
-                            <button
-                              onClick={() => { setExpandedSection(null); setSectionInput('') }}
-                              className="text-xs px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </>
               )}
+              {messages.map((msg, i) => <ChatMessage key={i} message={msg} />)}
+              <div ref={messagesEndRef} />
             </div>
-          )}
-        </div>
 
-        {/* Preview panel */}
-        <div className="flex-1 relative bg-[#111] overflow-hidden">
-          {!currentManifest ? (
-            <PreviewPlaceholder />
-          ) : (
-            <iframe
-              key={iframeKey}
-              src={`/preview/${projectId}`}
-              className="w-full h-full border-none"
-              title="Store preview"
-            />
-          )}
-          {isGenerating && (
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center backdrop-blur-sm">
-              <div className="flex flex-col items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80"
-                  style={{ animation: 'spin 0.8s linear infinite' }}
+            <div style={{ flexShrink: 0, padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+                  disabled={isGenerating}
+                  placeholder={!currentManifest ? 'Minimal skincare brand, 3 products, EUR…' : 'Change accent to deep green…'}
+                  rows={3}
+                  style={{
+                    flex: 1, resize: 'none', fontSize: 14, borderRadius: 8,
+                    border: '1px solid var(--border)', background: 'var(--secondary)',
+                    color: 'var(--foreground)', padding: '8px 10px',
+                    outline: 'none', fontFamily: 'inherit',
+                    opacity: isGenerating ? 0.5 : 1,
+                  }}
                 />
-                <p className="text-xs text-white/70 font-mono">generating…</p>
+                <button
+                  onClick={handleSend}
+                  disabled={isGenerating || !input.trim()}
+                  style={{
+                    flexShrink: 0, padding: '8px 14px', fontSize: 13, fontWeight: 600,
+                    borderRadius: 8, border: 'none', cursor: isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
+                    background: 'var(--primary)', color: 'var(--primary-foreground)',
+                    opacity: isGenerating || !input.trim() ? 0.4 : 1,
+                  }}
+                >
+                  {isGenerating ? '…' : '→'}
+                </button>
               </div>
+              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 6 }}>
+                {!currentManifest ? '10 credits' : '1 credit'} · shift+enter for newline
+              </p>
             </div>
-          )}
-        </div>
+          </>
+        )}
+
+        {/* PREVIEW TAB */}
+        {activeTab === 'preview' && (
+          <div style={{ flex: 1, position: 'relative', background: '#111', overflow: 'hidden' }}>
+            {!currentManifest ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
+                <div>
+                  <p style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, fontFamily: 'var(--font-geist-mono)' }}>no preview yet</p>
+                  <button
+                    onClick={() => setActiveTab('chat')}
+                    style={{ marginTop: 12, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
+                  >
+                    Generate a store →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <iframe
+                key={iframeKey}
+                src={`/preview/${projectId}`}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="Store preview"
+              />
+            )}
+            {isGenerating && (
+              <div style={{
+                position: 'absolute', inset: 0, background: 'rgba(0,0,0,.4)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                backdropFilter: 'blur(4px)',
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    border: '2px solid rgba(255,255,255,.2)', borderTopColor: 'rgba(255,255,255,.8)',
+                    animation: 'spin 0.8s linear infinite', margin: '0 auto 10px',
+                  }} />
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', fontFamily: 'var(--font-geist-mono)' }}>generating…</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTIONS TAB */}
+        {activeTab === 'sections' && (
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {!currentManifest ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Generate a store first.</p>
+                <button onClick={() => setActiveTab('chat')} style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 8 }}>
+                  Go to Chat →
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
+                    Home · {homeSections.length} sections · 2 credits each
+                  </p>
+                </div>
+                {homeSections.map((section, i) => (
+                  <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)' }}>
+                          {SECTION_LABELS[section.type] ?? section.type}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {sectionSummary(section)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (expandedSection === i) { setExpandedSection(null); setSectionInput('') }
+                          else { setExpandedSection(i); setSectionInput('') }
+                        }}
+                        disabled={isGenerating}
+                        style={{
+                          flexShrink: 0, marginLeft: 10, fontSize: 11, padding: '5px 12px',
+                          borderRadius: 6, border: '1px solid var(--border)',
+                          background: 'none', color: 'var(--muted-foreground)', cursor: isGenerating ? 'not-allowed' : 'pointer',
+                          opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1,
+                        }}
+                      >
+                        {regeneratingSection === i ? '…' : 'Improve'}
+                      </button>
+                    </div>
+
+                    {expandedSection === i && (
+                      <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <textarea
+                          value={sectionInput}
+                          onChange={(e) => setSectionInput(e.target.value)}
+                          placeholder="Describe what to change, or leave blank for auto-improvement"
+                          rows={2}
+                          autoFocus
+                          style={{
+                            width: '100%', resize: 'none', fontSize: 12,
+                            borderRadius: 6, border: '1px solid var(--border)',
+                            background: 'var(--secondary)', color: 'var(--foreground)',
+                            padding: '7px 10px', outline: 'none', fontFamily: 'inherit',
+                          }}
+                        />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            onClick={() => handleSectionRegenerate(i, sectionInput)}
+                            disabled={isGenerating}
+                            style={{
+                              flex: 1, fontSize: 12, fontWeight: 600, padding: '7px',
+                              borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer',
+                              background: 'var(--primary)', color: 'var(--primary-foreground)',
+                              opacity: isGenerating ? 0.4 : 1,
+                            }}
+                          >
+                            Regenerate
+                          </button>
+                          <button
+                            onClick={() => { setExpandedSection(null); setSectionInput('') }}
+                            style={{
+                              fontSize: 12, padding: '7px 14px', borderRadius: 6,
+                              border: '1px solid var(--border)', background: 'none',
+                              color: 'var(--muted-foreground)', cursor: 'pointer',
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -597,35 +630,18 @@ function ChatMessage({ message }: { message: Message }) {
   const isStatus = message.type === 'status'
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[88%] rounded px-3 py-2 text-sm leading-relaxed',
-          isUser
-            ? 'bg-primary text-primary-foreground'
-            : isError
-            ? 'bg-destructive/10 text-destructive border border-destructive/20 text-xs'
-            : isStatus
-            ? 'text-muted-foreground italic text-xs'
-            : 'bg-secondary text-foreground'
-        )}
-      >
+    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
+      <div style={{
+        maxWidth: '88%', borderRadius: 10, padding: '8px 12px',
+        fontSize: isStatus ? 12 : 14, lineHeight: 1.5,
+        background: isUser ? 'var(--primary)' : isError ? 'rgba(220,60,60,.12)' : isStatus ? 'transparent' : 'var(--secondary)',
+        color: isUser ? 'var(--primary-foreground)' : isError ? '#f87171' : isStatus ? 'var(--muted-foreground)' : 'var(--foreground)',
+        border: isError ? '1px solid rgba(220,60,60,.25)' : 'none',
+        fontStyle: isStatus ? 'italic' : 'normal',
+      }}>
         {message.content.split('**').map((part, i) =>
           i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
         )}
-      </div>
-    </div>
-  )
-}
-
-function PreviewPlaceholder() {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center">
-        <div className="w-16 h-16 rounded-xl border border-white/10 flex items-center justify-center mx-auto mb-4">
-          <span className="font-mono text-white/20 text-xl">∅</span>
-        </div>
-        <p className="text-white/30 text-sm font-mono">preview will appear here</p>
       </div>
     </div>
   )

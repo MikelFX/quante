@@ -13,7 +13,7 @@ export default async function DashboardPage() {
     .order('updated_at', { ascending: false })
 
   return (
-    <div className="px-8 py-8 max-w-4xl mx-auto">
+    <div className="px-4 py-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-xl font-semibold">Projects</h1>
         <Link href="/new" className={cn(buttonVariants({ size: 'sm' }))}>

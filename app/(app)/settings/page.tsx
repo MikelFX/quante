@@ -18,7 +18,7 @@ export default async function SettingsPage() {
   const balance = ledger?.balance_after ?? 0
 
   return (
-    <div className="px-8 py-8 max-w-2xl mx-auto space-y-8">
+    <div className="px-4 py-6 max-w-2xl mx-auto space-y-6">
       <h1 className="text-xl font-semibold">Settings</h1>
 
       {/* Account */}
