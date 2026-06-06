@@ -25,8 +25,8 @@ export function Hero({ props, basePath = '' }: Props) {
 
   const prefixed = {
     ...props,
-    ctaHref: prefixHref(ctaHref, basePath),
-    secondaryCtaHref: prefixHref(secondaryCtaHref, basePath),
+    ctaHref: prefixHref(ctaHref, basePath) ?? ctaHref,
+    secondaryCtaHref: prefixHref(secondaryCtaHref, basePath) ?? secondaryCtaHref,
   }
 
   if (layout === 'split') {
