@@ -109,6 +109,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [isExporting, setIsExporting] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
   const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
+  const [streamingText, setStreamingText] = useState('')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -160,7 +161,10 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           updated[updated.length - 1] = { role: 'assistant', content: event.text, type: 'status' }
           return updated
         })
+      } else if (event.type === 'chunk') {
+        setStreamingText((prev) => (prev + event.text).slice(-400))
       } else if (event.type === 'error') {
+        setStreamingText('')
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = { role: 'assistant', content: event.message, type: 'error' }
@@ -169,6 +173,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         onError?.(event.message)
         return
       } else if (event.type === 'done' && event.manifest) {
+        setStreamingText('')
         onDone(event.manifest)
         return
       }
@@ -418,6 +423,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           </div>
         )}
         {messages.map((msg, i) => <ChatMessage key={i} message={msg} />)}
+        {isGenerating && streamingText && (
+          <StreamingView text={streamingText} />
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -671,6 +679,46 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function StreamingView({ text }: { text: string }) {
+  return (
+    <div style={{
+      borderRadius: 8,
+      background: 'rgba(111,120,230,.06)',
+      border: '1px solid rgba(111,120,230,.15)',
+      padding: '10px 12px',
+      overflow: 'hidden',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
+      }}>
+        <span style={{
+          width: 5, height: 5, borderRadius: '50%',
+          background: '#6f78e6',
+          boxShadow: '0 0 6px rgba(111,120,230,.8)',
+          animation: 'pulse 1.5s ease-in-out infinite',
+          flexShrink: 0,
+        }} />
+        <span style={{ fontSize: 10, color: 'rgba(111,120,230,.7)', fontFamily: 'var(--font-geist-mono)', letterSpacing: '.04em' }}>
+          AI writing
+        </span>
+      </div>
+      <p style={{
+        fontFamily: 'var(--font-geist-mono)', fontSize: 10,
+        color: 'rgba(255,255,255,.25)', lineHeight: 1.6,
+        wordBreak: 'break-all', margin: 0,
+        display: '-webkit-box', WebkitLineClamp: 4,
+        WebkitBoxOrient: 'vertical', overflow: 'hidden',
+      }}>
+        {text}<span style={{ animation: 'blink 1s step-end infinite', opacity: 1, color: 'rgba(111,120,230,.6)' }}>▋</span>
+      </p>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+      `}</style>
+    </div>
+  )
+}
 
 function ChatMessage({ message }: { message: Message }) {
   const isUser = message.role === 'user'
