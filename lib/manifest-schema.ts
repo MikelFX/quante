@@ -171,11 +171,19 @@ export const ShopManifestSchema = z.object({
 export type ValidatedShopManifest = z.infer<typeof ShopManifestSchema>
 
 export function parseManifestJson(raw: string): ValidatedShopManifest {
-  const cleaned = raw
+  // Strip markdown code fences
+  let cleaned = raw
     .replace(/^```(?:json)?\s*/m, '')
     .replace(/\s*```\s*$/m, '')
     .trim()
+
+  // If Claude prepended prose, extract the JSON object
+  const firstBrace = cleaned.indexOf('{')
+  const lastBrace = cleaned.lastIndexOf('}')
+  if (firstBrace > 0 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1)
+  }
+
   const json = JSON.parse(cleaned)
-  // strip() removes unknown fields instead of throwing; coerce handles minor type mismatches
   return ShopManifestSchema.strip().parse(json)
 }
