@@ -80,6 +80,7 @@ export async function POST(request: Request) {
     try {
       manifest = parseManifestJson(rawOutput) as ShopManifest
     } catch (primaryErr) {
+      const errMsg = String(primaryErr).slice(0, 300)
       console.error('[iterate] primary parse failed:', primaryErr)
       send({ type: 'status', text: 'Repairing manifest…' })
       try {
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
         manifest = parseManifestJson(repairText) as ShopManifest
       } catch (repairErr) {
         console.error('[iterate] repair also failed:', repairErr)
-        send({ type: 'error', message: 'Could not apply that change. Try breaking it into smaller steps.' }); return
+        send({ type: 'error', message: `Validation error: ${errMsg}` }); return
       }
     }
 
