@@ -308,7 +308,7 @@ export default function AboutPage() {
 
   const { scrollYProgress: heroP } = useScroll({ target: heroRef, offset: ['start start', 'end end'] })
   const { scrollYProgress: trapP } = useScroll({ target: trapRef, offset: ['start start', 'end end'] })
-  const { scrollYProgress: manifestoP } = useScroll({ target: manifestoRef, offset: ['start end', 'end start'] })
+  const { scrollYProgress: manifestoP } = useScroll({ target: manifestoRef, offset: ['start start', 'end end'] })
   const { scrollYProgress: roadmapP } = useScroll({ target: roadmapRef, offset: ['start start', 'end end'] })
 
   useEffect(() => {
@@ -331,15 +331,21 @@ export default function AboutPage() {
   const heroCopyFilter = useTransform(heroP, p => `blur(${(p * 5).toFixed(2)}px)`)
   const cueOp = useTransform(heroP, [0, 0.05], [1, 0])
 
-  // manifesto — large words slide in based on scroll
-  const mLine1Op = useTransform(manifestoP, [0.05, 0.25], [0, 1])
-  const mLine1Y = useTransform(manifestoP, [0.05, 0.25], [40, 0])
-  const mLine2Op = useTransform(manifestoP, [0.18, 0.38], [0, 1])
-  const mLine2Y = useTransform(manifestoP, [0.18, 0.38], [40, 0])
-  const mLine3Op = useTransform(manifestoP, [0.32, 0.52], [0, 1])
-  const mLine3Y = useTransform(manifestoP, [0.32, 0.52], [40, 0])
-  const mLine4Op = useTransform(manifestoP, [0.5, 0.7], [0, 1])
-  const mLine4Y = useTransform(manifestoP, [0.5, 0.7], [40, 0])
+  // manifesto — pinned section, reveals span the full scroll range
+  const mLine1Op = useTransform(manifestoP, [0.02, 0.14], [0, 1])
+  const mLine1Y = useTransform(manifestoP, [0.02, 0.14], [50, 0])
+  const mLine1Blur = useTransform(manifestoP, [0.02, 0.14], ['blur(10px)', 'blur(0px)'])
+  const mLine2Op = useTransform(manifestoP, [0.12, 0.24], [0, 1])
+  const mLine2Y = useTransform(manifestoP, [0.12, 0.24], [50, 0])
+  const mLine2Blur = useTransform(manifestoP, [0.12, 0.24], ['blur(10px)', 'blur(0px)'])
+  const mLine3Op = useTransform(manifestoP, [0.26, 0.38], [0, 1])
+  const mLine3Y = useTransform(manifestoP, [0.26, 0.38], [40, 0])
+  const mLine3Blur = useTransform(manifestoP, [0.26, 0.38], ['blur(10px)', 'blur(0px)'])
+  const mLine4Op = useTransform(manifestoP, [0.36, 0.5], [0, 1])
+  const mLine4Y = useTransform(manifestoP, [0.36, 0.5], [50, 0])
+  const mLine4Blur = useTransform(manifestoP, [0.36, 0.5], ['blur(10px)', 'blur(0px)'])
+  const mCompareOp = useTransform(manifestoP, [0.6, 0.78], [0, 1])
+  const mCompareY = useTransform(manifestoP, [0.6, 0.78], [40, 0])
 
   // roadmap horizontal scroll — measured in pixels so cards align correctly
   const roadmapX = useTransform(roadmapP, p => -cl(p) * maxX)
@@ -463,70 +469,81 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* ── MANIFESTO — large staggered text ── */}
-      <section ref={manifestoRef} style={{
-        position: 'relative', padding: '8rem 1.5rem', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
+      {/* ── MANIFESTO — pinned, staggered reveals ── */}
+      <section ref={manifestoRef} style={{ height: 3200, position: 'relative' }}>
+        <div style={{
+          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '0 1.5rem',
+        }}>
+          <Ambient />
+          <GrainVignette />
 
-        <div style={{ maxWidth: 1080, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <p style={{
-            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
-            color: '#5b5b64', marginBottom: 36, textTransform: 'uppercase', textAlign: 'center',
-          }}>
-            02 — what we believe
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45em', fontSize: 'clamp(28px,4.6vw,52px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.08 }}>
-            <motion.span style={{ opacity: mLine1Op, y: mLine1Y, color: '#f4f4f6' }}>
-              The AI you use should make you <span style={{ color: '#6f78e6', textShadow: '0 0 32px rgba(111,120,230,.55)' }}>more independent</span>,
-            </motion.span>
-            <motion.span style={{ opacity: mLine2Op, y: mLine2Y, color: '#f4f4f6' }}>
-              not <span style={{ fontStyle: 'italic', color: '#8a8a93' }}>more dependent.</span>
-            </motion.span>
-            <motion.span style={{ opacity: mLine3Op, y: mLine3Y, color: '#a4a4ad', fontSize: 'clamp(20px,3.2vw,32px)', fontWeight: 600, marginTop: '0.4em' }}>
-              So we built something different —
-            </motion.span>
-            <motion.span style={{ opacity: mLine4Op, y: mLine4Y, color: '#f4f4f6' }}>
-              a builder that <span style={{ color: '#3ecf8e', textShadow: '0 0 32px rgba(62,207,142,.55)' }}>hands you everything</span> when it's done.
-            </motion.span>
-          </div>
-
-          {/* Comparison strip */}
-          <div style={{
-            marginTop: 80, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
-            maxWidth: 880, marginInline: 'auto',
-          }} className="manifesto-compare">
-            <div style={{
-              padding: '24px 22px', borderRadius: 14,
-              border: '1px solid rgba(248,113,113,.18)',
-              background: 'rgba(248,113,113,.04)',
+          <div style={{ maxWidth: 1080, width: '100%', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+            <p style={{
+              fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
+              color: '#5b5b64', marginBottom: 36, textTransform: 'uppercase', textAlign: 'center',
             }}>
-              <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#f87171', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
-                Other AI builders
-              </p>
-              {['Monthly subscription forever', 'Export is a premium add-on', 'Your code lives in their cloud', 'Pricing changes = held hostage'].map(t => (
-                <p key={t} style={{ fontSize: 13.5, color: '#c4c4cc', margin: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#f87171' }}>✕</span> {t}
-                </p>
-              ))}
-            </div>
+              02 — what we believe
+            </p>
+
             <div style={{
-              padding: '24px 22px', borderRadius: 14,
-              border: '1px solid rgba(62,207,142,.25)',
-              background: 'rgba(62,207,142,.05)',
-              boxShadow: '0 0 50px rgba(62,207,142,.08)',
+              display: 'flex', flexDirection: 'column', gap: '0.4em',
+              fontSize: 'clamp(26px,4.4vw,48px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.08,
             }}>
-              <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#3ecf8e', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
-                Quante
-              </p>
-              {['Pay only when you create', 'Export ships day one', 'Your code, in your hands', 'Host anywhere, forever'].map(t => (
-                <p key={t} style={{ fontSize: 13.5, color: '#c4c4cc', margin: '6px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: '#3ecf8e' }}>✓</span> {t}
-                </p>
-              ))}
+              <motion.span style={{ opacity: mLine1Op, y: mLine1Y, filter: mLine1Blur, color: '#f4f4f6' }}>
+                The AI you use should make you <span style={{ color: '#6f78e6', textShadow: '0 0 32px rgba(111,120,230,.55)' }}>more independent</span>,
+              </motion.span>
+              <motion.span style={{ opacity: mLine2Op, y: mLine2Y, filter: mLine2Blur, color: '#f4f4f6' }}>
+                not <span style={{ fontStyle: 'italic', color: '#8a8a93' }}>more dependent.</span>
+              </motion.span>
+              <motion.span style={{
+                opacity: mLine3Op, y: mLine3Y, filter: mLine3Blur,
+                color: '#a4a4ad', fontSize: 'clamp(18px,3vw,28px)', fontWeight: 600, marginTop: '0.4em',
+              }}>
+                So we built something different —
+              </motion.span>
+              <motion.span style={{ opacity: mLine4Op, y: mLine4Y, filter: mLine4Blur, color: '#f4f4f6' }}>
+                a builder that <span style={{ color: '#3ecf8e', textShadow: '0 0 32px rgba(62,207,142,.55)' }}>hands you everything</span> when it's done.
+              </motion.span>
             </div>
+
+            {/* Comparison strip — revealed last */}
+            <motion.div style={{
+              opacity: mCompareOp, y: mCompareY,
+              marginTop: 56, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
+              maxWidth: 880, marginInline: 'auto',
+            }} className="manifesto-compare">
+              <div style={{
+                padding: '20px 20px', borderRadius: 14,
+                border: '1px solid rgba(248,113,113,.18)',
+                background: 'rgba(248,113,113,.04)',
+              }}>
+                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#f87171', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
+                  Other AI builders
+                </p>
+                {['Monthly subscription forever', 'Export is a premium add-on', 'Your code lives in their cloud', 'Pricing changes = held hostage'].map(t => (
+                  <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#f87171' }}>✕</span> {t}
+                  </p>
+                ))}
+              </div>
+              <div style={{
+                padding: '20px 20px', borderRadius: 14,
+                border: '1px solid rgba(62,207,142,.25)',
+                background: 'rgba(62,207,142,.05)',
+                boxShadow: '0 0 50px rgba(62,207,142,.08)',
+              }}>
+                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#3ecf8e', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
+                  Quante
+                </p>
+                {['Pay only when you create', 'Export ships day one', 'Your code, in your hands', 'Host anywhere, forever'].map(t => (
+                  <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#3ecf8e' }}>✓</span> {t}
+                  </p>
+                ))}
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
