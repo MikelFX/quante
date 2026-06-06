@@ -16,13 +16,87 @@ const STACK_CARDS = [
   { n: '04', title: 'Nothing gets lost', desc: "Every change is saved automatically. Went too far? Jump back to any earlier version in one tap." },
 ]
 
-const STORE_TYPES = [
-  { cat: 'skincare',  title: 'Minimal skincare ritual',     desc: 'Clean · editorial · warm neutral palette' },
-  { cat: 'fashion',   title: 'Sustainable streetwear',      desc: 'Bold · playful · high contrast' },
-  { cat: 'homeware',  title: 'Artisan ceramics studio',     desc: 'Earthy · spacious · editorial' },
-  { cat: 'tech',      title: 'Developer tools & SaaS',      desc: 'Technical · minimal · mono accents' },
-  { cat: 'food',      title: 'Specialty coffee roastery',   desc: 'Warm · rich · strong CTA focus' },
-  { cat: 'wellness',  title: 'Yoga studio & apparel',       desc: 'Soft · playful · pastel palette' },
+const SHOWCASE_PROJECTS = [
+  {
+    url: 'Alegant.eu',
+    label: 'fashion · CZ/SK',
+    brand: 'ALEGANT',
+    tagline: 'Dress with intention.',
+    cta: 'Shop collection',
+    navRight: 'Cart (0)',
+    bg: '#f7f4ef',
+    navBg: '#f7f4ef',
+    heroBg: '#f0ece4',
+    brandColor: '#1a1714',
+    accentBg: '#b8955a',
+    accentText: '#fff',
+    brandFont: 'Georgia,serif',
+    taglineSize: 15,
+  },
+  {
+    url: 'Alegant.cz',
+    label: 'fashion · CZ',
+    brand: 'ALEGANT',
+    tagline: 'Styl, který zůstane.',
+    cta: 'Prozkoumat kolekci',
+    navRight: 'Košík (0)',
+    bg: '#f5f0ea',
+    navBg: '#f5f0ea',
+    heroBg: '#ede7dd',
+    brandColor: '#1a1714',
+    accentBg: '#9c7a46',
+    accentText: '#fff',
+    brandFont: 'Georgia,serif',
+    taglineSize: 14,
+  },
+  {
+    url: 'FromageBox.cz',
+    label: 'food · subscription',
+    brand: 'FromageBox',
+    tagline: 'The world\'s finest cheeses, curated monthly.',
+    cta: 'Start your box',
+    navRight: 'My box',
+    bg: '#faf5ec',
+    navBg: '#faf5ec',
+    heroBg: '#f2e9d8',
+    brandColor: '#2d1f0e',
+    accentBg: '#c9913a',
+    accentText: '#fff',
+    brandFont: 'Georgia,serif',
+    taglineSize: 13,
+  },
+  {
+    url: 'DocThink.app',
+    label: 'SaaS · medtech',
+    brand: 'DocThink',
+    tagline: 'Think clearer. Decide faster.',
+    cta: 'Try for free',
+    navRight: 'Sign in',
+    bg: '#f0f5ff',
+    navBg: '#ffffff',
+    heroBg: '#e8efff',
+    brandColor: '#0f1729',
+    accentBg: '#2563eb',
+    accentText: '#fff',
+    brandFont: 'system-ui,sans-serif',
+    taglineSize: 15,
+  },
+  {
+    url: 'QuanteCode',
+    label: 'AI builder · meta',
+    brand: 'quante',
+    tagline: 'Describe your store.\nWe build it.',
+    cta: 'Try it free →',
+    navRight: 'Log in',
+    bg: '#070709',
+    navBg: 'rgba(7,7,9,.9)',
+    heroBg: '#0c0c12',
+    brandColor: '#f4f4f6',
+    accentBg: '#6f78e6',
+    accentText: '#fff',
+    brandFont: 'var(--font-geist-mono)',
+    taglineSize: 14,
+  },
 ]
 
 // ─── Math helpers ─────────────────────────────────────────────────────────────
@@ -390,32 +464,92 @@ export default function HomePage() {
             position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
           }}>
-            03 — what you can build →
+            03 — built with quante →
           </div>
 
           <motion.div
             ref={hTrackRef}
             style={{
-              display: 'flex', gap: 18, padding: '0 56px',
+              display: 'flex', gap: 20, padding: '0 64px',
               position: 'relative', zIndex: 2,
               x: hTrackX,
             }}
           >
-            {STORE_TYPES.map(s => (
-              <div key={s.title} style={{
-                flex: '0 0 248px', height: 232,
+            {SHOWCASE_PROJECTS.map(p => (
+              <div key={p.url} style={{
+                flex: '0 0 272px',
                 background: '#0c0c10',
-                border: '1px solid rgba(255,255,255,.07)',
-                borderRadius: 14, padding: 22,
-                display: 'flex', flexDirection: 'column', textAlign: 'left',
+                border: '1px solid rgba(255,255,255,.1)',
+                borderRadius: 16, overflow: 'hidden',
+                display: 'flex', flexDirection: 'column',
+                boxShadow: '0 8px 32px rgba(0,0,0,.5)',
               }}>
-                <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#5b5b64' }}>
-                  {s.cat}
-                </span>
-                <b style={{ margin: 'auto 0 8px', fontSize: 17, fontWeight: 600, letterSpacing: '-.01em', color: '#f4f4f6' }}>
-                  {s.title}
-                </b>
-                <p style={{ margin: 0, fontSize: 12.5, color: '#8a8a93' }}>{s.desc}</p>
+                {/* browser chrome */}
+                <div style={{ height: 26, background: '#1a1a20', display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', flexShrink: 0 }}>
+                  {[0,1,2].map(i => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: i === 0 ? '#ff5f57' : i === 1 ? '#febc2e' : '#28c840', display: 'inline-block', opacity: 0.85 }} />)}
+                  <span style={{
+                    flex: 1, marginLeft: 8, fontSize: 9.5, color: '#5b5b64',
+                    fontFamily: 'var(--font-geist-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {p.url}
+                  </span>
+                </div>
+
+                {/* store content */}
+                <div style={{ background: p.bg, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  {/* store nav */}
+                  <div style={{
+                    background: p.navBg, borderBottom: `1px solid rgba(0,0,0,${p.bg === '#070709' ? '.3' : '.06'})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 14px',
+                  }}>
+                    <b style={{ fontFamily: p.brandFont, letterSpacing: p.brandFont.includes('mono') ? '-.01em' : '.18em', fontSize: 11, color: p.brandColor, fontWeight: p.brandFont.includes('mono') ? 600 : 700 }}>
+                      {p.brand}
+                    </b>
+                    <span style={{ fontSize: 9, color: p.brandColor, opacity: 0.45 }}>{p.navRight}</span>
+                  </div>
+
+                  {/* hero */}
+                  <div style={{
+                    flex: 1, background: p.heroBg,
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center',
+                    padding: '22px 16px',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{
+                      fontFamily: p.brandFont,
+                      fontSize: p.taglineSize,
+                      color: p.brandColor,
+                      lineHeight: 1.25,
+                      fontWeight: p.brandFont.includes('mono') ? 700 : 400,
+                      letterSpacing: p.brandFont.includes('mono') ? '-.02em' : '-.01em',
+                      marginBottom: 16,
+                      whiteSpace: 'pre-line',
+                      ...(p.bg === '#070709' ? { textShadow: '0 0 24px rgba(111,120,230,.4)' } : {}),
+                    }}>
+                      {p.tagline}
+                    </div>
+                    <div style={{
+                      fontSize: 10, fontWeight: 600,
+                      padding: '6px 14px', borderRadius: 6,
+                      background: p.accentBg, color: p.accentText,
+                      boxShadow: `0 0 18px ${p.accentBg}55`,
+                      letterSpacing: '-.005em',
+                    }}>
+                      {p.cta}
+                    </div>
+                  </div>
+                </div>
+
+                {/* label */}
+                <div style={{
+                  flexShrink: 0, padding: '9px 14px',
+                  borderTop: '1px solid rgba(255,255,255,.06)',
+                  background: '#0c0c10',
+                }}>
+                  <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10, color: '#5b5b64' }}>{p.label}</span>
+                </div>
               </div>
             ))}
           </motion.div>
