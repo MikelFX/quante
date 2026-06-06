@@ -79,19 +79,21 @@ export async function POST(request: Request) {
     let manifest: ShopManifest
     try {
       manifest = parseManifestJson(rawOutput) as ShopManifest
-    } catch {
+    } catch (primaryErr) {
+      console.error('[iterate] primary parse failed:', primaryErr)
       send({ type: 'status', text: 'Repairing manifest…' })
       try {
         const repair = await anthropic.messages.create({
           model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
           messages: [{
             role: 'user',
-            content: `Fix this invalid ShopManifest JSON and return ONLY the corrected JSON. Keep ALL original content — only fix syntax/schema errors:\n${rawOutput}`,
+            content: `The following ShopManifest JSON failed validation with this error:\n${String(primaryErr)}\n\nFix ONLY the validation errors and return the corrected JSON. No prose, no fences, raw JSON only:\n${rawOutput}`,
           }],
         })
         const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
         manifest = parseManifestJson(repairText) as ShopManifest
-      } catch {
+      } catch (repairErr) {
+        console.error('[iterate] repair also failed:', repairErr)
         send({ type: 'error', message: 'Could not apply that change. Try breaking it into smaller steps.' }); return
       }
     }

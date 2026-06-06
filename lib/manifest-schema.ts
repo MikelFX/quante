@@ -33,8 +33,8 @@ const HeroPropsSchema = z.object({
 const ProductGridPropsSchema = z.object({
   title: z.string().optional(),
   collectionId: z.string().optional(),
-  limit: z.number().optional(),
-  columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  limit: z.coerce.number().optional(),
+  columns: z.coerce.number().min(1).max(4).optional(),
 })
 
 const FeatureRowPropsSchema = z.object({
@@ -77,7 +77,7 @@ const NewsletterPropsSchema = z.object({
 
 const GalleryPropsSchema = z.object({
   images: z.array(z.object({ src: z.string(), alt: z.string() })),
-  columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+  columns: z.coerce.number().min(1).max(4).optional(),
 })
 
 const FaqPropsSchema = z.object({
