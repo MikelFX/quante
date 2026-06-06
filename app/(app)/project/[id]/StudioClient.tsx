@@ -33,6 +33,7 @@ interface Props {
 }
 
 type StudioTab = 'chat' | 'preview' | 'sections'
+type DesktopTab = 'chat' | 'sections'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -106,9 +107,18 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [sectionInput, setSectionInput] = useState('')
   const [regeneratingSection, setRegeneratingSection] = useState<number | null>(null)
   const [isExporting, setIsExporting] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
+  const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 900)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -303,110 +313,334 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const homeSections = currentManifest?.pages.home ?? []
   const latestVersion = versions[0]
 
+  const TopBar = (
+    <header style={{
+      flexShrink: 0, height: '3rem',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '0 0.875rem',
+      borderBottom: '1px solid var(--border)',
+      background: 'rgba(7,7,9,.95)',
+      backdropFilter: 'blur(10px)',
+    }}>
+      <span style={{ fontSize: 13, fontWeight: 600, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {projectName}
+      </span>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Version picker */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => { const next = !showVersions; setShowVersions(next); if (next) fetchVersions() }}
+            style={{
+              fontFamily: 'var(--font-geist-mono)', fontSize: 11,
+              padding: '3px 8px', borderRadius: 5,
+              border: '1px solid var(--border)',
+              color: 'var(--muted-foreground)',
+              background: 'transparent', cursor: 'pointer',
+            }}
+          >
+            {latestVersion ? `v${latestVersion.version_no}` : 'v—'} ▾
+          </button>
+
+          {showVersions && (
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowVersions(false)} />
+              <div style={{
+                position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                width: 280, background: '#0c0c10',
+                border: '1px solid rgba(255,255,255,.1)', borderRadius: 10,
+                boxShadow: '0 8px 32px rgba(0,0,0,.5)', zIndex: 50, overflow: 'hidden',
+              }}>
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.04em' }}>History</p>
+                </div>
+                <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                  {versions.length === 0 ? (
+                    <p style={{ fontSize: 12, color: 'var(--muted-foreground)', padding: 12 }}>No versions yet.</p>
+                  ) : versions.map((v) => (
+                    <div key={v.id} style={{
+                      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8,
+                      padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.05)',
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: 'var(--muted-foreground)' }}>v{v.version_no}</p>
+                        <p style={{ fontSize: 12, color: 'var(--foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {v.prompt || 'Generated'}
+                        </p>
+                        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
+                      </div>
+                      {versions[0]?.id !== v.id ? (
+                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                          Restore
+                        </button>
+                      ) : (
+                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', flexShrink: 0 }}>current</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: 'var(--muted-foreground)' }}>
+          {balance} cr
+        </span>
+
+        <button
+          onClick={handleExport}
+          disabled={!currentManifest || isExporting}
+          style={{
+            fontSize: 11, fontWeight: 600,
+            padding: '4px 10px', borderRadius: 5,
+            border: '1px solid rgba(255,255,255,.15)',
+            background: currentManifest && !isExporting ? 'rgba(255,255,255,.06)' : 'transparent',
+            color: currentManifest && !isExporting ? 'var(--foreground)' : 'var(--muted-foreground)',
+            cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
+            opacity: currentManifest ? 1 : 0.4,
+          }}
+        >
+          {isExporting ? '…' : 'Export ZIP'}
+        </button>
+      </div>
+    </header>
+  )
+
+  const ChatPanel = (
+    <>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+            <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 6 }}>quante</p>
+            <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Describe the store you want to build.</p>
+            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 4, opacity: 0.6 }}>Brand, products, vibe, currency.</p>
+          </div>
+        )}
+        {messages.map((msg, i) => <ChatMessage key={i} message={msg} />)}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div style={{ flexShrink: 0, padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+            disabled={isGenerating}
+            placeholder={!currentManifest ? 'Minimal skincare brand, 3 products, EUR…' : 'Change accent to deep green…'}
+            rows={3}
+            style={{
+              flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--secondary)',
+              color: 'var(--foreground)', padding: '8px 10px',
+              outline: 'none', fontFamily: 'inherit',
+              opacity: isGenerating ? 0.5 : 1,
+            }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={isGenerating || !input.trim()}
+            style={{
+              flexShrink: 0, padding: '8px 14px', fontSize: 13, fontWeight: 600,
+              borderRadius: 8, border: 'none', cursor: isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
+              background: 'var(--primary)', color: 'var(--primary-foreground)',
+              opacity: isGenerating || !input.trim() ? 0.4 : 1,
+            }}
+          >
+            {isGenerating ? '…' : '→'}
+          </button>
+        </div>
+        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 6 }}>
+          {!currentManifest ? '10 credits' : '1 credit'} · shift+enter for newline
+        </p>
+      </div>
+    </>
+  )
+
+  const SectionsPanel = (
+    <div style={{ flex: 1, overflowY: 'auto' }}>
+      {!currentManifest ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Generate a store first.</p>
+        </div>
+      ) : (
+        <>
+          <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
+              Home · {homeSections.length} sections · 2 credits each
+            </p>
+          </div>
+          {homeSections.map((section, i) => (
+            <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)' }}>
+                    {SECTION_LABELS[section.type] ?? section.type}
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {sectionSummary(section)}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    if (expandedSection === i) { setExpandedSection(null); setSectionInput('') }
+                    else { setExpandedSection(i); setSectionInput('') }
+                  }}
+                  disabled={isGenerating}
+                  style={{
+                    flexShrink: 0, marginLeft: 10, fontSize: 11, padding: '5px 12px',
+                    borderRadius: 6, border: '1px solid var(--border)',
+                    background: 'none', color: 'var(--muted-foreground)', cursor: isGenerating ? 'not-allowed' : 'pointer',
+                    opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1,
+                  }}
+                >
+                  {regeneratingSection === i ? '…' : 'Improve'}
+                </button>
+              </div>
+
+              {expandedSection === i && (
+                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <textarea
+                    value={sectionInput}
+                    onChange={(e) => setSectionInput(e.target.value)}
+                    placeholder="Describe what to change, or leave blank for auto-improvement"
+                    rows={2}
+                    autoFocus
+                    style={{
+                      width: '100%', resize: 'none', fontSize: 12,
+                      borderRadius: 6, border: '1px solid var(--border)',
+                      background: 'var(--secondary)', color: 'var(--foreground)',
+                      padding: '7px 10px', outline: 'none', fontFamily: 'inherit',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => handleSectionRegenerate(i, sectionInput)}
+                      disabled={isGenerating}
+                      style={{
+                        flex: 1, fontSize: 12, fontWeight: 600, padding: '7px',
+                        borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer',
+                        background: 'var(--primary)', color: 'var(--primary-foreground)',
+                        opacity: isGenerating ? 0.4 : 1,
+                      }}
+                    >
+                      Regenerate
+                    </button>
+                    <button
+                      onClick={() => { setExpandedSection(null); setSectionInput('') }}
+                      style={{
+                        fontSize: 12, padding: '7px 14px', borderRadius: 6,
+                        border: '1px solid var(--border)', background: 'none',
+                        color: 'var(--muted-foreground)', cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  )
+
+  const PreviewPane = (
+    <div style={{ flex: 1, position: 'relative', background: '#0a0a0c', overflow: 'hidden' }}>
+      {!currentManifest ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
+          <div>
+            <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 8 }}>no preview yet</p>
+            <p style={{ color: 'rgba(255,255,255,.12)', fontSize: 11 }}>Describe a store to get started</p>
+          </div>
+        </div>
+      ) : (
+        <iframe
+          key={iframeKey}
+          src={`/preview/${projectId}`}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title="Store preview"
+        />
+      )}
+      {isGenerating && (
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,.45)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,.15)', borderTopColor: 'rgba(255,255,255,.8)',
+              animation: 'spin 0.8s linear infinite', margin: '0 auto 10px',
+            }} />
+            <p style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', fontFamily: 'var(--font-geist-mono)' }}>generating…</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── Desktop split-view ───────────────────────────────────────────────────────
+  if (isDesktop) {
+    return (
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: '4rem',
+        zIndex: 30, display: 'flex', flexDirection: 'column',
+        background: 'var(--background)',
+      }}>
+        {TopBar}
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+          {/* Left panel */}
+          <div style={{
+            width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column',
+            borderRight: '1px solid var(--border)',
+          }}>
+            {/* Desktop tab bar: Chat / Sections */}
+            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)' }}>
+              {(['chat', 'sections'] as DesktopTab[]).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setDesktopTab(tab)}
+                  style={{
+                    flex: 1, padding: '0.5rem 0', fontSize: 12,
+                    fontWeight: desktopTab === tab ? 600 : 400,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: desktopTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
+                    borderBottom: desktopTab === tab ? '2px solid #6f78e6' : '2px solid transparent',
+                    textTransform: 'capitalize', transition: 'color 0.15s',
+                  }}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {desktopTab === 'chat' ? ChatPanel : SectionsPanel}
+            </div>
+          </div>
+
+          {/* Right: always-visible preview */}
+          {PreviewPane}
+        </div>
+      </div>
+    )
+  }
+
+  // ── Mobile tabbed layout ─────────────────────────────────────────────────────
   return (
-    // Covers full screen from top to bottom nav
     <div style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: '4rem',
       zIndex: 30, display: 'flex', flexDirection: 'column',
       background: 'var(--background)',
     }}>
-      {/* ── Studio top bar ── */}
-      <header style={{
-        flexShrink: 0, height: '3rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 0.875rem',
-        borderBottom: '1px solid var(--border)',
-        background: 'var(--background)',
-      }}>
-        <span style={{ fontSize: 13, fontWeight: 600, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {projectName}
-        </span>
+      {TopBar}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Version picker */}
-          <div style={{ position: 'relative' }}>
-            <button
-              onClick={() => { const next = !showVersions; setShowVersions(next); if (next) fetchVersions() }}
-              style={{
-                fontFamily: 'var(--font-geist-mono)', fontSize: 11,
-                padding: '3px 8px', borderRadius: 5,
-                border: '1px solid var(--border)',
-                color: 'var(--muted-foreground)',
-                background: 'transparent', cursor: 'pointer',
-              }}
-            >
-              {latestVersion ? `v${latestVersion.version_no}` : 'v—'} ▾
-            </button>
-
-            {showVersions && (
-              <>
-                <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowVersions(false)} />
-                <div style={{
-                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
-                  width: 280, background: 'var(--card)',
-                  border: '1px solid var(--border)', borderRadius: 10,
-                  boxShadow: '0 8px 32px rgba(0,0,0,.4)', zIndex: 50, overflow: 'hidden',
-                }}>
-                  <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
-                    <p style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.04em' }}>History</p>
-                  </div>
-                  <div style={{ maxHeight: 240, overflowY: 'auto' }}>
-                    {versions.length === 0 ? (
-                      <p style={{ fontSize: 12, color: 'var(--muted-foreground)', padding: 12 }}>No versions yet.</p>
-                    ) : versions.map((v) => (
-                      <div key={v.id} style={{
-                        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8,
-                        padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.05)',
-                      }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: 'var(--muted-foreground)' }}>v{v.version_no}</p>
-                          <p style={{ fontSize: 12, color: 'var(--foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {v.prompt || 'Generated'}
-                          </p>
-                          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
-                        </div>
-                        {versions[0]?.id !== v.id ? (
-                          <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
-                            Restore
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', flexShrink: 0 }}>current</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: 'var(--muted-foreground)' }}>
-            {balance} cr
-          </span>
-
-          <button
-            onClick={handleExport}
-            disabled={!currentManifest || isExporting}
-            style={{
-              fontSize: 11, fontWeight: 600,
-              padding: '4px 10px', borderRadius: 5,
-              border: '1px solid rgba(255,255,255,.15)',
-              background: currentManifest && !isExporting ? 'rgba(255,255,255,.06)' : 'transparent',
-              color: currentManifest && !isExporting ? 'var(--foreground)' : 'var(--muted-foreground)',
-              cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
-              opacity: currentManifest ? 1 : 0.4,
-            }}
-          >
-            {isExporting ? '…' : 'Export'}
-          </button>
-        </div>
-      </header>
-
-      {/* ── Tab switcher ── */}
-      <div style={{
-        flexShrink: 0, display: 'flex',
-        borderBottom: '1px solid var(--border)',
-      }}>
+      {/* Mobile tab switcher */}
+      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)' }}>
         {(['chat', 'preview', 'sections'] as StudioTab[]).map((tab) => (
           <button
             key={tab}
@@ -415,7 +649,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               flex: 1, padding: '0.55rem 0', fontSize: 12, fontWeight: activeTab === tab ? 600 : 400,
               background: 'none', border: 'none', cursor: 'pointer',
               color: activeTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
-              borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+              borderBottom: activeTab === tab ? '2px solid #6f78e6' : '2px solid transparent',
               textTransform: 'capitalize', transition: 'color 0.15s',
             }}
           >
@@ -427,196 +661,10 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         ))}
       </div>
 
-      {/* ── Content ── */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-
-        {/* CHAT TAB */}
-        {activeTab === 'chat' && (
-          <>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {messages.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                  <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 6 }}>quante</p>
-                  <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Describe the store you want to build.</p>
-                  <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 4, opacity: 0.6 }}>Brand, products, vibe, currency.</p>
-                </div>
-              )}
-              {messages.map((msg, i) => <ChatMessage key={i} message={msg} />)}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div style={{ flexShrink: 0, padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-                <textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                  disabled={isGenerating}
-                  placeholder={!currentManifest ? 'Minimal skincare brand, 3 products, EUR…' : 'Change accent to deep green…'}
-                  rows={3}
-                  style={{
-                    flex: 1, resize: 'none', fontSize: 14, borderRadius: 8,
-                    border: '1px solid var(--border)', background: 'var(--secondary)',
-                    color: 'var(--foreground)', padding: '8px 10px',
-                    outline: 'none', fontFamily: 'inherit',
-                    opacity: isGenerating ? 0.5 : 1,
-                  }}
-                />
-                <button
-                  onClick={handleSend}
-                  disabled={isGenerating || !input.trim()}
-                  style={{
-                    flexShrink: 0, padding: '8px 14px', fontSize: 13, fontWeight: 600,
-                    borderRadius: 8, border: 'none', cursor: isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
-                    background: 'var(--primary)', color: 'var(--primary-foreground)',
-                    opacity: isGenerating || !input.trim() ? 0.4 : 1,
-                  }}
-                >
-                  {isGenerating ? '…' : '→'}
-                </button>
-              </div>
-              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 6 }}>
-                {!currentManifest ? '10 credits' : '1 credit'} · shift+enter for newline
-              </p>
-            </div>
-          </>
-        )}
-
-        {/* PREVIEW TAB */}
-        {activeTab === 'preview' && (
-          <div style={{ flex: 1, position: 'relative', background: '#111', overflow: 'hidden' }}>
-            {!currentManifest ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
-                <div>
-                  <p style={{ color: 'rgba(255,255,255,.25)', fontSize: 13, fontFamily: 'var(--font-geist-mono)' }}>no preview yet</p>
-                  <button
-                    onClick={() => setActiveTab('chat')}
-                    style={{ marginTop: 12, fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    Generate a store →
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <iframe
-                key={iframeKey}
-                src={`/preview/${projectId}`}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                title="Store preview"
-              />
-            )}
-            {isGenerating && (
-              <div style={{
-                position: 'absolute', inset: 0, background: 'rgba(0,0,0,.4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backdropFilter: 'blur(4px)',
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: '50%',
-                    border: '2px solid rgba(255,255,255,.2)', borderTopColor: 'rgba(255,255,255,.8)',
-                    animation: 'spin 0.8s linear infinite', margin: '0 auto 10px',
-                  }} />
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,.6)', fontFamily: 'var(--font-geist-mono)' }}>generating…</p>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* SECTIONS TAB */}
-        {activeTab === 'sections' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
-            {!currentManifest ? (
-              <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-                <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Generate a store first.</p>
-                <button onClick={() => setActiveTab('chat')} style={{ fontSize: 12, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 8 }}>
-                  Go to Chat →
-                </button>
-              </div>
-            ) : (
-              <>
-                <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-                    Home · {homeSections.length} sections · 2 credits each
-                  </p>
-                </div>
-                {homeSections.map((section, i) => (
-                  <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)' }}>
-                          {SECTION_LABELS[section.type] ?? section.type}
-                        </p>
-                        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {sectionSummary(section)}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (expandedSection === i) { setExpandedSection(null); setSectionInput('') }
-                          else { setExpandedSection(i); setSectionInput('') }
-                        }}
-                        disabled={isGenerating}
-                        style={{
-                          flexShrink: 0, marginLeft: 10, fontSize: 11, padding: '5px 12px',
-                          borderRadius: 6, border: '1px solid var(--border)',
-                          background: 'none', color: 'var(--muted-foreground)', cursor: isGenerating ? 'not-allowed' : 'pointer',
-                          opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1,
-                        }}
-                      >
-                        {regeneratingSection === i ? '…' : 'Improve'}
-                      </button>
-                    </div>
-
-                    {expandedSection === i && (
-                      <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <textarea
-                          value={sectionInput}
-                          onChange={(e) => setSectionInput(e.target.value)}
-                          placeholder="Describe what to change, or leave blank for auto-improvement"
-                          rows={2}
-                          autoFocus
-                          style={{
-                            width: '100%', resize: 'none', fontSize: 12,
-                            borderRadius: 6, border: '1px solid var(--border)',
-                            background: 'var(--secondary)', color: 'var(--foreground)',
-                            padding: '7px 10px', outline: 'none', fontFamily: 'inherit',
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            onClick={() => handleSectionRegenerate(i, sectionInput)}
-                            disabled={isGenerating}
-                            style={{
-                              flex: 1, fontSize: 12, fontWeight: 600, padding: '7px',
-                              borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer',
-                              background: 'var(--primary)', color: 'var(--primary-foreground)',
-                              opacity: isGenerating ? 0.4 : 1,
-                            }}
-                          >
-                            Regenerate
-                          </button>
-                          <button
-                            onClick={() => { setExpandedSection(null); setSectionInput('') }}
-                            style={{
-                              fontSize: 12, padding: '7px 14px', borderRadius: 6,
-                              border: '1px solid var(--border)', background: 'none',
-                              color: 'var(--muted-foreground)', cursor: 'pointer',
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </>
-            )}
-          </div>
-        )}
+        {activeTab === 'chat' && ChatPanel}
+        {activeTab === 'preview' && PreviewPane}
+        {activeTab === 'sections' && SectionsPanel}
       </div>
     </div>
   )

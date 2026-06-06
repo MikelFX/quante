@@ -1,92 +1,30 @@
-'use client'
-
-import { useState } from 'react'
+import { SignUp } from '@clerk/nextjs'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { createClient } from '@/lib/supabase/client'
 
-export default function SignupPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-
-    const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${location.origin}/auth/callback` },
-    })
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    router.push('/dashboard')
-  }
-
+export default function SignUpPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="space-y-1">
-          <Link href="/" className="font-mono text-sm text-muted-foreground hover:text-foreground transition-colors">
-            ← quante
-          </Link>
-          <h1 className="text-xl font-semibold">Create your account</h1>
-          <p className="text-sm text-muted-foreground">You get 25 free credits when you sign up. No card needed.</p>
-        </div>
+    <div style={{
+      minHeight: '100dvh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: '#070709', padding: '2rem 1rem',
+      position: 'relative', overflow: 'hidden',
+    }}>
+      <div style={{
+        position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)',
+        width: 480, height: 320, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse at center,rgba(79,91,213,.22),transparent 70%)',
+        filter: 'blur(40px)',
+      }} />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="min 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              minLength={8}
-              required
-            />
-          </div>
-
-          {error && (
-            <p className="text-xs text-destructive">{error}</p>
-          )}
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating account…' : 'Create account'}
-          </Button>
-        </form>
-
-        <p className="text-xs text-muted-foreground text-center">
-          Already have an account?{' '}
-          <Link href="/login" className="text-foreground hover:underline">
-            Sign in
-          </Link>
-        </p>
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
+        <Link href="/" style={{
+          display: 'block', marginBottom: 28, textAlign: 'center',
+          fontFamily: 'var(--font-geist-mono)', fontSize: 14, fontWeight: 600,
+          color: '#f4f4f6', textDecoration: 'none', letterSpacing: '-.01em',
+        }}>
+          quante
+        </Link>
+        <SignUp routing="hash" />
       </div>
     </div>
   )

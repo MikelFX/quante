@@ -1,3 +1,4 @@
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
 import { PurchaseButtons } from './PurchaseButtons'
@@ -35,21 +36,23 @@ interface Props {
 
 export default async function BillingPage({ searchParams }: Props) {
   const params = await searchParams
+  const { userId } = await auth()
+  if (!userId) return null
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
 
   const [balanceResult, historyResult] = await Promise.all([
     supabase
       .from('credit_ledger')
       .select('balance_after')
-      .eq('user_id', user!.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
       .from('credit_ledger')
       .select('id, delta, reason, balance_after, created_at')
-      .eq('user_id', user!.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(25),
   ])

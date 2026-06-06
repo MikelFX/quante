@@ -1,3 +1,4 @@
+import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { StudioClient } from './StudioClient'
@@ -9,27 +10,17 @@ interface Props {
 
 export default async function StudioPage({ params }: Props) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { userId } = await auth()
+  if (!userId) redirect('/login')
 
-  if (!user) redirect('/login')
+  const supabase = await createClient()
 
   const [projectResult, manifestResult, ledgerResult] = await Promise.all([
-    supabase.from('projects').select('*').eq('id', id).eq('user_id', user.id).single(),
-    supabase
-      .from('manifest_versions')
-      .select('manifest')
-      .eq('project_id', id)
-      .order('version_no', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from('credit_ledger')
-      .select('balance_after')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    supabase.from('projects').select('*').eq('id', id).eq('user_id', userId).single(),
+    supabase.from('manifest_versions').select('manifest').eq('project_id', id)
+      .order('version_no', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('credit_ledger').select('balance_after').eq('user_id', userId)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ])
 
   if (projectResult.error || !projectResult.data) redirect('/dashboard')

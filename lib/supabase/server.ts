@@ -1,30 +1,7 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { supabaseAdmin } from './admin'
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'http://localhost:54321'
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder'
-
+// All server-side DB operations use the service-role client.
+// Clerk handles authentication; we filter by userId explicitly in every query.
 export async function createClient() {
-  const cookieStore = await cookies()
-
-  return createServerClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Server Component — cookie setting handled by middleware
-          }
-        },
-      },
-    }
-  )
+  return supabaseAdmin
 }

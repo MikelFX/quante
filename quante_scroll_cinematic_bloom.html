@@ -1,0 +1,189 @@
+<style>
+#qroot{--blue:#4f5bd5;--blue2:#6f78e6;--green:#3ecf8e;--bg:#070709;--bg2:#0c0c10;--panel:#101016;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.13);--fg:#f4f4f6;--mut:#8a8a93;--dim:#5b5b64;--mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,monospace;--sans:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-family:var(--sans);max-width:760px;margin:0 auto;color:var(--fg);}
+#qroot *{box-sizing:border-box;}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
+.q-frame{border:1px solid var(--line2);border-radius:16px;overflow:hidden;background:var(--bg);}
+.q-chrome{display:flex;align-items:center;gap:12px;height:42px;padding:0 14px;background:#0d0d11;border-bottom:1px solid var(--line);position:relative;z-index:10;}
+.q-dots{display:flex;gap:7px;}.q-dots span{width:11px;height:11px;border-radius:50%;background:#2a2a31;display:inline-block;}
+.q-url{flex:1;text-align:center;font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.04em;}
+.q-scrollnote{font-family:var(--mono);font-size:11px;color:var(--mut);display:flex;align-items:center;gap:6px;}
+.q-stage{height:600px;overflow-y:auto;overflow-x:hidden;position:relative;background:var(--bg);overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#2a2a31 transparent;}
+.q-stage::-webkit-scrollbar{width:8px;}.q-stage::-webkit-scrollbar-thumb{background:#23232a;border-radius:8px;}
+.scene{position:relative;}
+.pin{position:sticky;top:0;height:600px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px;}
+.ambient{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;}
+.blob{position:absolute;border-radius:50%;pointer-events:none;}
+.blob.b1{width:520px;height:520px;background:radial-gradient(circle at center,rgba(79,91,213,.42),transparent 66%);top:-120px;left:-60px;animation:drift1 20s ease-in-out infinite;}
+.blob.b2{width:460px;height:460px;background:radial-gradient(circle at center,rgba(62,207,142,.16),transparent 66%);bottom:-150px;right:-90px;animation:drift2 24s ease-in-out infinite;}
+.blob.b3{width:380px;height:380px;background:radial-gradient(circle at center,rgba(111,120,230,.3),transparent 68%);top:38%;left:54%;animation:drift1 17s ease-in-out infinite reverse;}
+@keyframes drift1{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(50px,40px) scale(1.18);}}
+@keyframes drift2{0%,100%{transform:translate(0,0) scale(1);}50%{transform:translate(-60px,-30px) scale(1.12);}}
+.mote{position:absolute;width:3px;height:3px;border-radius:50%;background:rgba(184,192,255,.55);animation:float 7s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);opacity:.25;}50%{transform:translateY(-24px);opacity:.7;}}
+.vignette{position:absolute;inset:0;z-index:5;pointer-events:none;background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.6) 100%);}
+.grain{position:absolute;inset:0;z-index:6;pointer-events:none;opacity:.045;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-size:160px 160px;}
+.q-eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--dim);display:inline-flex;align-items:center;gap:8px;}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.dot.blue{background:var(--blue2);box-shadow:0 0 10px rgba(111,120,230,.8);animation:pulse 2.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(111,120,230,.55);}50%{box-shadow:0 0 18px rgba(111,120,230,.95);}}
+.q-sub{font-size:15px;line-height:1.6;color:var(--mut);max-width:430px;margin:18px auto 0;}
+.q-h2{font-size:clamp(26px,4.4vw,40px);font-weight:700;line-height:1.05;letter-spacing:-.03em;margin:0;}
+.hero-wrap{height:1320px;}
+.hero-copy{text-align:center;position:relative;z-index:2;will-change:transform,opacity,filter;}
+.hero-head{margin-top:20px;position:relative;}
+.hero-head::after{content:'';position:absolute;inset:-12% -22%;background:linear-gradient(105deg,transparent 36%,rgba(255,255,255,.16) 50%,transparent 64%);transform:translateX(-60%);animation:sheen 5.5s 1.2s ease-in-out infinite;pointer-events:none;mix-blend-mode:overlay;}
+@keyframes sheen{0%{transform:translateX(-60%);}58%,100%{transform:translateX(125%);}}
+.mask{display:block;overflow:hidden;}
+.line{display:block;font-size:clamp(34px,6.2vw,56px);font-weight:800;letter-spacing:-.035em;line-height:1.07;transform:translateY(112%);opacity:0;filter:blur(8px);animation:rise 1s cubic-bezier(.16,.84,.24,1) forwards;}
+.line.blue{color:var(--blue2);text-shadow:0 0 26px rgba(79,91,213,.55),0 0 64px rgba(79,91,213,.28);}
+@keyframes rise{to{transform:none;opacity:1;filter:none;}}
+#heroEyebrow{opacity:0;animation:fadeup .8s ease .05s forwards;}
+.hero-copy .q-sub{opacity:0;animation:fadeup .8s ease .34s forwards;}
+@keyframes fadeup{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:none;}}
+.sf-glow{position:absolute;left:50%;top:60%;transform:translate(-50%,-50%) scale(.7);width:62%;height:300px;background:radial-gradient(ellipse at center,rgba(79,91,213,.55),transparent 70%);opacity:0;z-index:1;pointer-events:none;filter:blur(26px);}
+.store-frame{margin-top:32px;width:50%;height:210px;background:#f2efe9;border:1px solid var(--line2);border-radius:16px;overflow:hidden;opacity:0;position:relative;z-index:2;will-change:transform,width,height;}
+.sf-chrome{height:24px;background:#e6e3db;display:flex;align-items:center;gap:5px;padding:0 10px;}
+.sf-chrome span{width:7px;height:7px;border-radius:50%;background:#c4c0b5;}
+.sf-bar{display:flex;align-items:center;justify-content:space-between;padding:9px 16px;border-bottom:1px solid rgba(0,0,0,.06);}
+.sf-bar b{font-family:Georgia,serif;letter-spacing:.2em;font-size:12px;color:#1a1a18;}
+.sf-bar span{font-size:10px;color:#7a7a74;}
+.sf-hero{padding:26px 16px;text-align:center;}
+.sf-h{font-family:Georgia,serif;font-size:clamp(16px,2.6vw,24px);color:#1a1a18;line-height:1.08;}
+.sf-cta{margin-top:16px;display:inline-block;font-size:11px;padding:8px 16px;border-radius:6px;background:#c8a06a;color:#2a1e0c;box-shadow:0 0 24px rgba(200,160,106,.35);}
+.hero-cue{position:absolute;bottom:18px;left:50%;color:var(--dim);font-size:20px;z-index:2;animation:bob 1.7s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(7px);}}
+.stack-wrap{height:1440px;}
+.stack-eyebrow{position:absolute;top:42px;left:0;right:0;text-align:center;justify-content:center;z-index:2;}
+.deck{position:relative;width:100%;max-width:460px;height:296px;z-index:2;}
+.scard{position:absolute;left:50%;top:50%;width:100%;transform:translate(-50%,-50%);background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:30px;text-align:left;will-change:transform,opacity,filter;transition:box-shadow .25s ease,border-color .25s ease;}
+.scard.front{box-shadow:0 0 70px rgba(79,91,213,.22);border-color:rgba(111,120,230,.45);}
+.sc-n{font-family:var(--mono);font-size:12px;color:var(--blue2);}
+.scard b{display:block;margin:14px 0 10px;font-size:21px;font-weight:700;letter-spacing:-.02em;}
+.scard p{margin:0;font-size:14px;color:var(--mut);line-height:1.55;}
+.h-wrap{height:1560px;}
+.h-stage{justify-content:center;padding:0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);mask-image:linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent);}
+.h-head{position:absolute;top:42px;left:0;right:0;text-align:center;justify-content:center;z-index:2;}
+.h-track{display:flex;gap:18px;padding:0 56px;will-change:transform;position:relative;z-index:2;}
+.hcard{flex:0 0 248px;height:232px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;text-align:left;}
+.hc-tag{font-family:var(--mono);font-size:11px;color:var(--dim);}
+.hcard b{margin:auto 0 8px;font-size:17px;font-weight:600;letter-spacing:-.01em;}
+.hcard p{margin:0;font-size:12.5px;color:var(--mut);}
+.h-prog{position:absolute;bottom:34px;left:56px;right:56px;height:2px;background:var(--line);border-radius:2px;z-index:2;}
+.h-prog span{display:block;height:100%;width:0;background:var(--blue2);border-radius:2px;box-shadow:0 0 10px rgba(111,120,230,.8);}
+.cta-wrap{min-height:560px;display:flex;align-items:center;justify-content:center;text-align:center;border-top:1px solid var(--line);}
+.cta-inner{position:relative;z-index:2;}
+@media(prefers-reduced-motion:reduce){.line{animation:none;transform:none;opacity:1;filter:none;}.hero-cue,.dot.blue,.blob,.mote,.hero-head::after{animation:none;}}
+</style>
+
+<div id="qroot">
+<h2 class="sr-only">An enhanced cinematic prototype of the Quante landing page with glowing bloom, depth-of-field blur, film grain, a light sweep across the headline, floating particles, and scroll-driven section transitions.</h2>
+<div class="q-frame">
+  <div class="q-chrome">
+    <div class="q-dots"><span></span><span></span><span></span></div>
+    <div class="q-url">quante.app</div>
+    <div class="q-scrollnote"><i class="ti ti-mouse" aria-hidden="true"></i>scroll to explore</div>
+  </div>
+  <div class="q-stage" id="stage">
+
+    <section class="scene hero-wrap" data-scene="hero">
+      <div class="pin hero-stage">
+        <div class="ambient">
+          <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+          <span class="mote" style="left:16%;top:28%;animation-delay:0s"></span>
+          <span class="mote" style="left:78%;top:34%;animation-delay:1.4s"></span>
+          <span class="mote" style="left:30%;top:66%;animation-delay:2.6s"></span>
+          <span class="mote" style="left:64%;top:72%;animation-delay:.8s"></span>
+          <span class="mote" style="left:48%;top:20%;animation-delay:3.4s"></span>
+        </div>
+        <div class="sf-glow" id="sfGlow"></div>
+        <div class="hero-copy" id="heroCopy">
+          <div class="q-eyebrow" id="heroEyebrow"><span class="dot blue"></span>early access — 25 free credits</div>
+          <div class="hero-head">
+            <span class="mask"><span class="line">Describe your store.</span></span>
+            <span class="mask"><span class="line blue" style="animation-delay:.13s">We build it.</span></span>
+          </div>
+          <p class="q-sub">A plain-English brief goes in. A production-ready Next.js storefront comes out.</p>
+        </div>
+        <div class="store-frame" id="storeFrame">
+          <div class="sf-chrome"><span></span><span></span><span></span></div>
+          <div class="sf-bar"><b>AURA</b><span>Cart (0)</span></div>
+          <div class="sf-hero"><div class="sf-h">Skin that speaks for itself.</div><div class="sf-cta">Shop the ritual</div></div>
+        </div>
+        <div class="hero-cue" id="heroCue"><i class="ti ti-chevron-down" aria-hidden="true"></i></div>
+        <div class="vignette"></div><div class="grain"></div>
+      </div>
+    </section>
+
+    <section class="scene stack-wrap" data-scene="stack">
+      <div class="pin stack-stage">
+        <div class="ambient"><span class="blob b1"></span><span class="blob b3"></span></div>
+        <div class="stack-eyebrow q-eyebrow">02 — built differently</div>
+        <div class="deck" id="deck">
+          <div class="scard"><span class="sc-n">01</span><b>You own the output</b><p>Every export is a clean Next.js project — no lock-in, deploy anywhere.</p></div>
+          <div class="scard"><span class="sc-n">02</span><b>Reliable by design</b><p>The AI fills in your brand; a hardened scaffold means it compiles every time.</p></div>
+          <div class="scard"><span class="sc-n">03</span><b>Iterate in chat</b><p>"Warmer palette." "Split-layout hero." One instruction, one credit, live preview.</p></div>
+          <div class="scard"><span class="sc-n">04</span><b>Version history</b><p>Every generation is saved. Restore any version in a single click.</p></div>
+        </div>
+        <div class="vignette"></div><div class="grain"></div>
+      </div>
+    </section>
+
+    <section class="scene h-wrap" data-scene="horizontal">
+      <div class="pin h-stage">
+        <div class="ambient"><span class="blob b2"></span><span class="blob b3"></span></div>
+        <div class="h-head q-eyebrow">03 — what quante can build →</div>
+        <div class="h-track" id="hTrack">
+          <div class="hcard"><span class="hc-tag">skincare</span><b>Minimal skincare ritual</b><p>Clean · editorial · warm neutral palette</p></div>
+          <div class="hcard"><span class="hc-tag">fashion</span><b>Sustainable streetwear</b><p>Bold · playful · high contrast</p></div>
+          <div class="hcard"><span class="hc-tag">homeware</span><b>Artisan ceramics studio</b><p>Earthy · spacious · editorial</p></div>
+          <div class="hcard"><span class="hc-tag">tech</span><b>Developer tools & SaaS</b><p>Technical · minimal · mono accents</p></div>
+          <div class="hcard"><span class="hc-tag">food</span><b>Specialty coffee roastery</b><p>Warm · rich · strong CTA focus</p></div>
+          <div class="hcard"><span class="hc-tag">wellness</span><b>Yoga studio & apparel</b><p>Soft · playful · pastel palette</p></div>
+        </div>
+        <div class="h-prog"><span id="hProg"></span></div>
+        <div class="vignette"></div><div class="grain"></div>
+      </div>
+    </section>
+
+    <section class="scene cta-wrap">
+      <div class="pin" style="position:relative;height:auto;">
+        <div class="ambient"><span class="blob b1"></span></div>
+        <div class="cta-inner">
+          <h2 class="q-h2">Build yours in minutes.</h2>
+          <p class="q-sub">Scroll back up to watch it again.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  var stage=document.getElementById('stage'); if(!stage)return;
+  var heroWrap=document.querySelector('.hero-wrap'), heroCopy=document.getElementById('heroCopy'), storeFrame=document.getElementById('storeFrame'), sfGlow=document.getElementById('sfGlow'), heroCue=document.getElementById('heroCue');
+  var stackWrap=document.querySelector('.stack-wrap'), deckCards=document.querySelectorAll('.deck .scard');
+  var hWrap=document.querySelector('.h-wrap'), hStage=hWrap?hWrap.querySelector('.h-stage'):null, hTrack=document.getElementById('hTrack'), hProg=document.getElementById('hProg');
+  var H=600;
+  function cl(v,a,b){a=(a==null)?0:a;b=(b==null)?1:b;return v<a?a:(v>b?b:v);}
+  function eOut(p){return 1-Math.pow(1-p,3);}
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function prog(w){ if(!w)return 0; var d=w.offsetHeight-H; if(d<=0)return 0; return cl((stage.scrollTop-w.offsetTop)/d); }
+  function hero(p){
+    if(heroCopy){ heroCopy.style.transform='translateY('+(-p*72).toFixed(1)+'px)'; heroCopy.style.opacity=cl(1-p*0.92).toFixed(3); heroCopy.style.filter='blur('+(p*5).toFixed(2)+'px)'; }
+    var fp=eOut(cl((p-0.12)/0.7));
+    if(sfGlow){ sfGlow.style.opacity=(cl((p-0.1)/0.3)*0.95).toFixed(3); sfGlow.style.transform='translate(-50%,-50%) scale('+lerp(.7,1.28,fp).toFixed(3)+')'; }
+    if(storeFrame){ storeFrame.style.opacity=cl((p-0.08)/0.18).toFixed(3); storeFrame.style.width=lerp(50,98,fp).toFixed(2)+'%'; storeFrame.style.height=lerp(210,332,fp).toFixed(1)+'px'; storeFrame.style.borderRadius=lerp(16,8,fp).toFixed(1)+'px'; storeFrame.style.transform='translateY('+lerp(28,-42,fp).toFixed(1)+'px) scale('+lerp(.955,1,fp).toFixed(3)+')'; }
+    if(heroCue) heroCue.style.opacity=cl(1-p/0.05).toFixed(2);
+  }
+  function stackf(p){ var N=deckCards.length; if(!N)return; var f=p*(N-1); for(var i=0;i<N;i++){ var c=deckCards[i], d=f-i, ty,sc,op, ad=Math.abs(d); if(d<=0){var k=-d; ty=k*72; sc=cl(1-k*0.05,.8,1); op=cl(1-k*0.62);} else {ty=-d*22; sc=cl(1-d*0.07,.78,1); op=cl(1-d*0.32);} var bl=(d>0? cl(d,0,3)*2.4 : cl(-d,0,3)*1.3); var br=(1-cl(ad,0,3)*0.1); c.style.transform='translate(-50%,calc(-50% + '+ty.toFixed(1)+'px)) scale('+sc.toFixed(3)+')'; c.style.opacity=op.toFixed(3); c.style.filter='blur('+bl.toFixed(2)+'px) brightness('+br.toFixed(3)+')'; c.style.zIndex=String(120-Math.round(ad*12)); if(ad<0.45)c.classList.add('front'); else c.classList.remove('front'); } }
+  function horiz(p){ if(!hTrack||!hStage)return; var maxX=hTrack.scrollWidth-hStage.clientWidth; if(maxX<0)maxX=0; hTrack.style.transform='translateX('+(-p*maxX).toFixed(1)+'px)'; if(hProg)hProg.style.width=(p*100).toFixed(1)+'%'; }
+  var ticking=false;
+  function update(){ ticking=false; H=stage.clientHeight||600; hero(prog(heroWrap)); stackf(prog(stackWrap)); horiz(prog(hWrap)); }
+  function onScroll(){ if(!ticking){ticking=true; requestAnimationFrame(update);} }
+  stage.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',function(){requestAnimationFrame(update);});
+  requestAnimationFrame(update); setTimeout(update,80); setTimeout(update,400);
+})();
+</script>

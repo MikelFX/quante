@@ -1,3 +1,4 @@
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import JSZip from 'jszip'
@@ -8,9 +9,10 @@ import type { ShopManifest } from '@/types/manifest'
 const EXPORT_COST = 5
 
 export async function POST(request: Request) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { projectId } = await request.json()
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
@@ -19,7 +21,7 @@ export async function POST(request: Request) {
     .from('projects')
     .select('id, name')
     .eq('id', projectId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle()
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
@@ -37,7 +39,7 @@ export async function POST(request: Request) {
   const { data: ledger } = await supabase
     .from('credit_ledger')
     .select('balance_after')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
     .single()
 
   await supabase.from('credit_ledger').insert({
-    user_id: user.id,
+    user_id: userId,
     delta: -EXPORT_COST,
     reason: 'export',
     ref_id: exportRecord?.id ?? null,

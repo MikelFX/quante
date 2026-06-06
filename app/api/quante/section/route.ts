@@ -1,3 +1,4 @@
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_SECTION } from '@/lib/claude'
 import { ShopManifestSchema, SectionSchema } from '@/lib/manifest-schema'
@@ -29,14 +30,15 @@ export async function POST(request: Request) {
       return
     }
 
+    const { userId } = await auth()
+    if (!userId) { send({ type: 'error', message: 'Unauthorized.' }); return }
+
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { send({ type: 'error', message: 'Unauthorized.' }); return }
 
     const { data: ledger } = await supabase
       .from('credit_ledger')
       .select('balance_after')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -52,7 +54,7 @@ export async function POST(request: Request) {
     const { count: recentCount } = await supabase
       .from('credit_ledger')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('reason', 'section')
       .gte('created_at', oneHourAgo)
 
@@ -149,7 +151,7 @@ export async function POST(request: Request) {
 
     await Promise.all([
       supabase.from('credit_ledger').insert({
-        user_id: user.id,
+        user_id: userId,
         delta: -SECTION_COST,
         reason: 'section',
         ref_id: version.id,
