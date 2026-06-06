@@ -2,9 +2,6 @@ import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type Stripe from 'stripe'
 
-// Disable body parsing — we need the raw bytes for signature verification
-export const config = { api: { bodyParser: false } }
-
 export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get('stripe-signature')
