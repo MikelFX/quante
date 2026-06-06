@@ -119,6 +119,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
 
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 900)
@@ -146,6 +147,16 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   }, [])
 
   useEffect(() => { fetchVersions() }, [fetchVersions])
+
+  // Reset iframe if it ever navigates away from the /preview/ prefix
+  const handleIframeLoad = useCallback(() => {
+    try {
+      const pathname = iframeRef.current?.contentWindow?.location.pathname ?? ''
+      if (pathname && !pathname.startsWith('/preview/')) {
+        setIframeKey((k) => k + 1)
+      }
+    } catch {}
+  }, [])
 
   async function consumeStream(
     endpoint: string,
@@ -637,10 +648,12 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         </div>
       ) : (
         <iframe
+          ref={iframeRef}
           key={iframeKey}
           src={`/preview/${projectId}`}
           style={{ width: '100%', height: '100%', border: 'none' }}
           title="Store preview"
+          onLoad={handleIframeLoad}
         />
       )}
       {isGenerating && (
