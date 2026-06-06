@@ -1,12 +1,12 @@
--- Quante database schema
--- Run this in Supabase SQL Editor after creating your project
+-- Quante database schema (Clerk auth — user_id is TEXT)
+-- Run this in Supabase SQL Editor on a fresh project.
 
 -- Projects
 create table if not exists projects (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   name text not null,
-  status text not null default 'draft', -- draft | generating | ready
+  status text not null default 'draft',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -25,10 +25,10 @@ create table if not exists manifest_versions (
 -- Credit ledger (immutable audit trail)
 create table if not exists credit_ledger (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  delta integer not null, -- positive = credit, negative = debit
-  reason text not null,   -- 'signup_grant' | 'generate' | 'iterate' | 'export' | 'purchase' | 'refund'
-  ref_id uuid,            -- optional: project_id, purchase_id, etc.
+  user_id text not null,
+  delta integer not null,
+  reason text not null,
+  ref_id uuid,
   balance_after integer not null,
   created_at timestamptz not null default now()
 );
@@ -36,7 +36,7 @@ create table if not exists credit_ledger (
 -- Purchases (Stripe)
 create table if not exists purchases (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   stripe_session_id text not null unique,
   credits integer not null,
   amount_cents integer not null,
@@ -52,7 +52,7 @@ create table if not exists exports (
   created_at timestamptz not null default now()
 );
 
--- updated_at trigger for projects
+-- updated_at trigger
 create or replace function update_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -72,45 +72,37 @@ alter table credit_ledger enable row level security;
 alter table purchases enable row level security;
 alter table exports enable row level security;
 
--- RLS Policies: users can only access their own data
+-- RLS Policies (Clerk JWT — sub claim = Clerk user_id)
 create policy "users own projects"
   on projects for all
-  using (user_id = auth.uid())
-  with check (user_id = auth.uid());
+  using  ((auth.jwt() ->> 'sub') = user_id)
+  with check ((auth.jwt() ->> 'sub') = user_id);
 
 create policy "users own manifest_versions"
   on manifest_versions for all
-  using (
-    project_id in (select id from projects where user_id = auth.uid())
-  )
-  with check (
-    project_id in (select id from projects where user_id = auth.uid())
-  );
+  using  (project_id in (select id from projects where user_id = (auth.jwt() ->> 'sub')))
+  with check (project_id in (select id from projects where user_id = (auth.jwt() ->> 'sub')));
 
 create policy "users own credit_ledger"
   on credit_ledger for select
-  using (user_id = auth.uid());
+  using  ((auth.jwt() ->> 'sub') = user_id);
 
 create policy "users own purchases"
   on purchases for select
-  using (user_id = auth.uid());
+  using  ((auth.jwt() ->> 'sub') = user_id);
 
 create policy "users own exports"
   on exports for select
-  using (
-    project_id in (select id from projects where user_id = auth.uid())
-  );
+  using  (project_id in (select id from projects where user_id = (auth.jwt() ->> 'sub')));
 
 create policy "users insert own exports"
   on exports for insert
-  with check (
-    project_id in (select id from projects where user_id = auth.uid())
-  );
+  with check (project_id in (select id from projects where user_id = (auth.jwt() ->> 'sub')));
 
--- Service role can write to credit_ledger and purchases (webhooks, server actions)
+-- Service role can write credit_ledger and purchases (webhooks, server actions)
 create policy "service writes credit_ledger"
   on credit_ledger for insert
-  with check (true); -- restricted by service_role key at app level
+  with check (true);
 
 create policy "service writes purchases"
   on purchases for insert
