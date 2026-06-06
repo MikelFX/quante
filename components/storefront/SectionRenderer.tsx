@@ -8,6 +8,7 @@ import { Banner } from './sections/Banner'
 import { Newsletter } from './sections/Newsletter'
 import { Gallery } from './sections/Gallery'
 import { Faq } from './sections/Faq'
+import { Animations } from './sections/Animations'
 
 interface Props {
   section: Section
@@ -35,6 +36,8 @@ export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
       return <Gallery props={section.props} />
     case 'faq':
       return <Faq props={section.props} />
+    case 'animations':
+      return <Animations props={section.props} catalog={manifest.catalog} />
     case 'customComponent':
       return null
     default:

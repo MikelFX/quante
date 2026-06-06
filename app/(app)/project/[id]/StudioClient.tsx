@@ -60,7 +60,8 @@ async function* readNdjsonStream(response: Response): AsyncGenerator<StreamEvent
 const SECTION_LABELS: Record<string, string> = {
   hero: 'Hero', productGrid: 'Product grid', featureRow: 'Feature row',
   testimonials: 'Testimonials', richText: 'Rich text', banner: 'Banner',
-  newsletter: 'Newsletter', gallery: 'Gallery', faq: 'FAQ', customComponent: 'Custom',
+  newsletter: 'Newsletter', gallery: 'Gallery', faq: 'FAQ',
+  animations: 'Animations', customComponent: 'Custom',
 }
 
 function sectionSummary(section: Section): string {
@@ -74,6 +75,7 @@ function sectionSummary(section: Section): string {
     case 'newsletter': return section.props.title
     case 'gallery': return `${section.props.images.length} images`
     case 'faq': return `${section.props.items.length} items`
+    case 'animations': return `${section.props.variant}${section.props.title ? ` · ${section.props.title}` : ''}`
     case 'customComponent': return `ref: ${section.ref}`
   }
 }
@@ -110,6 +112,10 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [isDesktop, setIsDesktop] = useState(false)
   const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
   const [streamingText, setStreamingText] = useState('')
+  const [addingAdmin, setAddingAdmin] = useState(false)
+  const [hasAdminPanel, setHasAdminPanel] = useState(
+    () => !!(initialManifest && (initialManifest as unknown as Record<string, unknown>).adminPanel === true)
+  )
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -312,6 +318,28 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       alert('Export failed.')
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  async function handleAddAdminPanel() {
+    if (addingAdmin || hasAdminPanel) return
+    setAddingAdmin(true)
+    try {
+      const res = await fetch('/api/quante/admin-panel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: data.error ?? 'Failed to add admin panel.', type: 'error' }])
+      } else {
+        setHasAdminPanel(true)
+        setBalance(data.balance)
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Admin panel added. It will be included in your Export ZIP. Use the **ADMIN_PASSWORD** env var to set the login password.', type: 'done' }])
+      }
+    } finally {
+      setAddingAdmin(false)
     }
   }
 
@@ -551,6 +579,48 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               )}
             </div>
           ))}
+
+          {/* ── Add-ons ─────────────────────────────────────────────────── */}
+          <div style={{ padding: '10px 14px 4px', borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 4 }}>
+            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Add-ons</p>
+          </div>
+
+          {/* Animations hint */}
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,.05)', padding: '12px 14px' }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', margin: '0 0 2px' }}>Animations</p>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
+              3 credits · CSS animated section — ask Quante to add one in chat
+            </p>
+          </div>
+
+          {/* Admin Panel card */}
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,.05)', padding: '12px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', margin: '0 0 2px' }}>Admin Panel</p>
+                <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>5 credits · Product &amp; order management</p>
+              </div>
+              {hasAdminPanel ? (
+                <span style={{ flexShrink: 0, marginLeft: 10, fontSize: 11, padding: '5px 12px', borderRadius: 6, background: 'rgba(52,211,153,.12)', color: '#34d399', border: '1px solid rgba(52,211,153,.2)' }}>
+                  Installed
+                </span>
+              ) : (
+                <button
+                  onClick={handleAddAdminPanel}
+                  disabled={addingAdmin || isGenerating || !currentManifest}
+                  style={{
+                    flexShrink: 0, marginLeft: 10, fontSize: 11, padding: '5px 12px',
+                    borderRadius: 6, border: '1px solid rgba(111,120,230,.4)',
+                    background: 'rgba(111,120,230,.1)', color: '#6f78e6',
+                    cursor: (addingAdmin || isGenerating || !currentManifest) ? 'not-allowed' : 'pointer',
+                    opacity: (addingAdmin || isGenerating || !currentManifest) ? 0.5 : 1,
+                  }}
+                >
+                  {addingAdmin ? '…' : 'Add'}
+                </button>
+              )}
+            </div>
+          </div>
         </>
       )}
     </div>

@@ -85,6 +85,14 @@ const FaqPropsSchema = z.object({
   items: z.array(z.object({ question: z.string(), answer: z.string() })),
 })
 
+const AnimationsPropsSchema = z.object({
+  variant: z.enum(['marquee', 'stats', 'spotlight']),
+  title: z.string().optional(),
+  items: z.array(z.string()).optional(),
+  stats: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
+  productSlug: z.string().optional(),
+})
+
 export const SectionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hero'), props: HeroPropsSchema }),
   z.object({ type: z.literal('productGrid'), props: ProductGridPropsSchema }),
@@ -95,6 +103,7 @@ export const SectionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('newsletter'), props: NewsletterPropsSchema }),
   z.object({ type: z.literal('gallery'), props: GalleryPropsSchema }),
   z.object({ type: z.literal('faq'), props: FaqPropsSchema }),
+  z.object({ type: z.literal('animations'), props: AnimationsPropsSchema }),
   z.object({ type: z.literal('customComponent'), ref: z.string() }),
 ])
 

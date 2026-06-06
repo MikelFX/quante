@@ -73,6 +73,7 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
 { "type": "newsletter",   "props": { title, description?, placeholder?, buttonLabel? } }
 { "type": "gallery",      "props": { images: [{ src, alt }], columns?: 2|3|4 } }
 { "type": "faq",          "props": { title?, items: [{ question, answer }] } }
+{ "type": "animations",   "props": { "variant": "marquee"|"stats"|"spotlight", "title"?: string, "items"?: string[], "stats"?: [{"value": string, "label": string}], "productSlug"?: string } }
 
 Feature icons (allowlisted strings): leaf, flask, recycle, star, zap, shield, check, package, truck, heart, globe, sparkles, award, clock, lock, mail
 
@@ -130,4 +131,5 @@ Rules:
 - pages.contact should have: a richText with contact info and a newsletter section.
 - All section types and props must conform strictly to the schema.
 - imageSrc / image src fields: leave as empty string "".
-- Product slugs must be kebab-case. Product IDs must be short strings.`
+- Product slugs must be kebab-case. Product IDs must be short strings.
+- Animations section variants: "marquee" uses items[] (scrolling keywords), "stats" uses stats[] ({value,label}), "spotlight" uses productSlug to feature one product.`

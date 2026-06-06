@@ -33,6 +33,7 @@ export type Section =
   | { type: 'newsletter'; props: NewsletterProps }
   | { type: 'gallery'; props: GalleryProps }
   | { type: 'faq'; props: FaqProps }
+  | { type: 'animations'; props: AnimationsProps }
   | { type: 'customComponent'; ref: string }
 
 export interface HeroProps {
@@ -90,6 +91,14 @@ export interface GalleryProps {
 export interface FaqProps {
   title?: string
   items: Array<{ question: string; answer: string }>
+}
+
+export interface AnimationsProps {
+  variant: 'marquee' | 'stats' | 'spotlight'
+  title?: string
+  items?: string[]
+  stats?: { value: string; label: string }[]
+  productSlug?: string
 }
 
 export interface NavItem {
