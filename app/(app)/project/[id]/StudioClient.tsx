@@ -502,6 +502,23 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 6 }}>
           {!currentManifest ? '10 credits' : '1 credit'} · shift+enter for newline
         </p>
+        {currentManifest && (
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            style={{
+              marginTop: 8, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600,
+              borderRadius: 8, border: '1px solid rgba(111,120,230,.4)',
+              background: isExporting ? 'transparent' : 'rgba(111,120,230,.12)',
+              color: isExporting ? 'var(--muted-foreground)' : '#6f78e6',
+              cursor: isExporting ? 'not-allowed' : 'pointer',
+              opacity: isExporting ? 0.5 : 1,
+              transition: 'background 0.15s',
+            }}
+          >
+            {isExporting ? 'Preparing ZIP…' : '↓ Export ZIP  ·  5 credits'}
+          </button>
+        )}
       </div>
     </>
   )
@@ -679,7 +696,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   if (isDesktop) {
     return (
       <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: '4rem',
+        position: 'fixed', top: '3rem', left: 0, right: 0, bottom: '4rem',
         zIndex: 30, display: 'flex', flexDirection: 'column',
         background: 'var(--background)',
       }}>
@@ -724,7 +741,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   // ── Mobile tabbed layout ─────────────────────────────────────────────────────
   return (
     <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: '4rem',
+      position: 'fixed', top: '3rem', left: 0, right: 0, bottom: '4rem',
       zIndex: 30, display: 'flex', flexDirection: 'column',
       background: 'var(--background)',
     }}>
