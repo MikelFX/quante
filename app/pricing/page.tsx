@@ -1,137 +1,425 @@
-import Link from 'next/link'
-import { buttonVariants } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { CREDIT_PACKS } from '@/lib/stripe'
+'use client'
 
-export const metadata = {
-  title: 'Pricing — Quante',
-  description: 'No subscription. Get 25 free credits when you sign up.',
+import { useRef } from 'react'
+import { motion, useScroll, useTransform } from 'framer-motion'
+import Link from 'next/link'
+import { CREDIT_PACKS } from '@/lib/credit-packs'
+
+const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+
+function cl(v: number, a = 0, b = 1) { return v < a ? a : v > b ? b : v }
+
+function Ambient() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
+      <span className="blob-drift1" style={{
+        position: 'absolute', borderRadius: '50%', width: 520, height: 520,
+        background: 'radial-gradient(circle at center,rgba(79,91,213,.42),transparent 66%)',
+        top: -120, left: -60,
+      }} />
+      <span className="blob-drift2" style={{
+        position: 'absolute', borderRadius: '50%', width: 460, height: 460,
+        background: 'radial-gradient(circle at center,rgba(62,207,142,.16),transparent 66%)',
+        bottom: -150, right: -90,
+      }} />
+      <span className="blob-drift1r" style={{
+        position: 'absolute', borderRadius: '50%', width: 380, height: 380,
+        background: 'radial-gradient(circle at center,rgba(111,120,230,.3),transparent 68%)',
+        top: '38%', left: '54%',
+      }} />
+      {[
+        { left: '16%', top: '28%', delay: '0s' },
+        { left: '78%', top: '34%', delay: '1.4s' },
+        { left: '30%', top: '66%', delay: '2.6s' },
+        { left: '64%', top: '72%', delay: '0.8s' },
+      ].map((m, i) => (
+        <span key={i} className="mote-float" style={{
+          position: 'absolute', width: 3, height: 3, borderRadius: '50%',
+          background: 'rgba(184,192,255,.55)', left: m.left, top: m.top, animationDelay: m.delay,
+        }} />
+      ))}
+    </div>
+  )
 }
 
-export default function PricingPage() {
+function GrainVignette() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <>
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
+        opacity: 0.045, mixBlendMode: 'overlay',
+        backgroundImage: `url("${GRAIN_SVG}")`, backgroundSize: '160px 160px',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none',
+        background: 'radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.6) 100%)',
+      }} />
+    </>
+  )
+}
+
+function LineReveal({ children, delay = 0, blue = false }: { children: string; delay?: number; blue?: boolean }) {
+  return (
+    <span style={{ display: 'block', overflow: 'hidden' }}>
+      <motion.span
+        initial={{ y: '112%', opacity: 0, filter: 'blur(8px)' }}
+        animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
+        transition={{ duration: 1, delay, ease: [0.16, 0.84, 0.24, 1] }}
+        style={{
+          display: 'block',
+          fontSize: 'clamp(34px,6vw,54px)',
+          fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.07,
+          color: blue ? '#6f78e6' : '#f4f4f6',
+          ...(blue ? { textShadow: '0 0 26px rgba(79,91,213,.55),0 0 64px rgba(79,91,213,.28)' } : {}),
+        }}
+      >
+        {children}
+      </motion.span>
+    </span>
+  )
+}
+
+const COSTS = [
+  { action: 'Build a store from scratch', cost: '10', unit: 'credits' },
+  { action: 'Make a change in chat', cost: '1', unit: 'credit' },
+  { action: 'Redo one section', cost: '2', unit: 'credits' },
+  { action: 'Add a custom component', cost: '3', unit: 'credits' },
+  { action: 'Download your store', cost: '5', unit: 'credits' },
+  { action: 'Welcome bonus on signup', cost: '+25', unit: 'free' },
+]
+
+const FAQ = [
+  { q: 'Do credits expire?', a: 'No. Credits never expire. Buy once and use them whenever you feel like it.' },
+  { q: 'What if something goes wrong during generation?', a: "Credits are only taken on success. If a generation fails and we can't auto-fix it, nothing is charged." },
+  { q: 'Can I export the same store more than once?', a: 'Yes — each export costs 5 credits. Useful when you want to grab the latest version after iterating.' },
+  { q: 'Can I deploy to Vercel for free?', a: "Yes. The downloaded ZIP is a standard Next.js project. Vercel's free Hobby plan handles it perfectly." },
+  { q: 'Do you charge a monthly fee?', a: 'Never. Quante is pay-per-use. The only money that leaves your pocket is when you actively choose to top up.' },
+]
+
+export default function PricingPage() {
+  const heroRef = useRef<HTMLElement>(null)
+  const { scrollYProgress: heroP } = useScroll({ target: heroRef, offset: ['start start', 'end end'] })
+
+  const heroCopyY = useTransform(heroP, p => -p * 60)
+  const heroCopyOp = useTransform(heroP, p => cl(1 - p * 0.92))
+  const heroCopyFilter = useTransform(heroP, p => `blur(${(p * 4).toFixed(2)}px)`)
+  const cueOp = useTransform(heroP, [0, 0.05], [1, 0])
+
+  return (
+    <div style={{ background: '#070709', color: '#f4f4f6', overflowX: 'clip' }}>
       {/* Nav */}
-      <header className="border-b border-border px-4 sticky top-0 z-50 bg-background/90 backdrop-blur-sm">
-        <div className="max-w-5xl mx-auto h-14 flex items-center justify-between">
-          <Link href="/" className="font-mono text-sm font-semibold tracking-tight">quante</Link>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Log in</Link>
-            <Link href="/signup" className={cn(buttonVariants({ size: 'sm' }))}>Try free →</Link>
-          </div>
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+        height: '3.5rem', display: 'flex', alignItems: 'center',
+        padding: '0 2rem', justifyContent: 'space-between',
+        borderBottom: '1px solid rgba(255,255,255,.07)',
+        background: 'rgba(7,7,9,.88)', backdropFilter: 'blur(10px)',
+      }}>
+        <Link href="/" style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 14, fontWeight: 600, color: '#f4f4f6', textDecoration: 'none' }}>quante</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <Link href="/showcase" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Showcase</Link>
+          <Link href="/pricing" className="hidden sm:block" style={{ fontSize: 13, color: '#f4f4f6', textDecoration: 'none' }}>Pricing</Link>
+          <Link href="/about" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>About</Link>
+          <Link href="/login" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Log in</Link>
+          <Link href="/signup" style={{
+            fontSize: 13, fontWeight: 600, textDecoration: 'none',
+            color: '#070709', background: '#f4f4f6',
+            padding: '0.4rem 0.9rem', borderRadius: 6,
+          }}>Try free →</Link>
         </div>
       </header>
 
-      <main className="flex-1 max-w-3xl mx-auto px-4 py-12 w-full">
+      {/* HERO */}
+      <section ref={heroRef} style={{ height: 1400, position: 'relative' }}>
+        <div style={{
+          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: 44,
+        }}>
+          <Ambient />
+          <GrainVignette />
 
-        {/* Header */}
-        <div className="text-center mb-12">
-          <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">Pricing</p>
-          <h1 className="text-3xl font-bold tracking-tight mb-4">Pay only when you create</h1>
-          <p className="text-muted-foreground max-w-md mx-auto leading-relaxed">
-            No monthly fee. No surprises. Buy credits when you need them —
-            and get <strong className="text-foreground">25 for free</strong> when you sign up, no card required.
-          </p>
-        </div>
-
-        {/* Credit packs */}
-        <div className="grid sm:grid-cols-3 gap-4 mb-14">
-          {CREDIT_PACKS.map((pack) => (
-            <div
-              key={pack.id}
-              className={cn(
-                'rounded-lg border px-5 py-6 flex flex-col gap-3 relative',
-                pack.popular ? 'border-white/20 bg-secondary' : 'border-border'
-              )}
+          <motion.div style={{
+            textAlign: 'center', position: 'relative', zIndex: 2, maxWidth: 800,
+            y: heroCopyY, opacity: heroCopyOp, filter: heroCopyFilter,
+          }}>
+            <motion.div
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.05 }}
+              style={{
+                fontFamily: 'var(--font-geist-mono)', fontSize: 11.5,
+                letterSpacing: '.06em', color: '#5b5b64',
+                display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 22,
+                textTransform: 'uppercase',
+              }}
             >
-              {pack.popular && (
-                <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 rounded-full bg-white text-black text-[10px] font-bold uppercase tracking-wider">
-                  Most popular
-                </span>
-              )}
-              <div>
-                <p className="text-3xl font-bold font-mono">{pack.priceDisplay}</p>
-                <p className="text-sm font-semibold mt-1">{pack.label}</p>
-              </div>
-              <p className="text-sm text-muted-foreground flex-1">{pack.description}</p>
-              <p className="text-xs text-muted-foreground font-mono">{pack.perCreditDisplay}</p>
-              <Link
-                href="/signup"
-                className={cn(
-                  buttonVariants({ size: 'sm' }),
-                  'mt-1 w-full justify-center',
-                  !pack.popular && 'bg-secondary text-foreground border border-border hover:bg-secondary/80'
-                )}
-              >
-                Get started
-              </Link>
+              <span className="dot-pulse-el" style={{
+                width: 7, height: 7, borderRadius: '50%', background: '#6f78e6', display: 'inline-block',
+              }} />
+              no subscriptions · no surprises
+            </motion.div>
+
+            <div style={{ position: 'relative' }} className="headline-sheen">
+              <LineReveal>Pay only when</LineReveal>
+              <LineReveal delay={0.12} blue>you create.</LineReveal>
             </div>
+
+            <motion.p
+              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              style={{ fontSize: 16, lineHeight: 1.7, color: '#a4a4ad', maxWidth: 520, margin: '24px auto 0' }}
+            >
+              No monthly fee. Buy credits when you need them, use them whenever.
+              Start with <span style={{ color: '#3ecf8e', fontWeight: 600 }}>25 free credits</span> when you sign up. No card required.
+            </motion.p>
+
+            {/* Mini stat strip */}
+            <motion.div
+              initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.9, delay: 0.65 }}
+              style={{
+                marginTop: 40, display: 'flex', justifyContent: 'center', gap: 32,
+                flexWrap: 'wrap',
+              }}
+            >
+              {[
+                { value: '€0', label: 'monthly fee' },
+                { value: '25', label: 'free credits' },
+                { value: '∞', label: 'never expire' },
+              ].map(s => (
+                <div key={s.label} style={{ textAlign: 'center' }}>
+                  <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 28, fontWeight: 700, color: '#f4f4f6', letterSpacing: '-.02em', textShadow: '0 0 24px rgba(111,120,230,.3)' }}>
+                    {s.value}
+                  </p>
+                  <p style={{ fontSize: 11, color: '#5b5b64', marginTop: 4, letterSpacing: '.04em', textTransform: 'uppercase', fontFamily: 'var(--font-geist-mono)' }}>
+                    {s.label}
+                  </p>
+                </div>
+              ))}
+            </motion.div>
+          </motion.div>
+
+          <motion.div className="bob-anim" style={{
+            position: 'absolute', bottom: 26, left: '50%', x: '-50%',
+            color: '#5b5b64', fontSize: 20, zIndex: 2, opacity: cueOp,
+          }}>↓</motion.div>
+        </div>
+      </section>
+
+      {/* CREDIT PACKS */}
+      <section style={{
+        position: 'relative', padding: '6rem 1.5rem', borderTop: '1px solid rgba(255,255,255,.07)',
+        overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+
+        <div style={{ maxWidth: 1000, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
+            color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
+          }}>
+            01 — credit packs
+          </p>
+          <h2 style={{
+            fontSize: 'clamp(26px,4vw,38px)', fontWeight: 700, letterSpacing: '-.025em',
+            textAlign: 'center', marginBottom: 12, color: '#f4f4f6',
+          }}>
+            Buy what you need. Stop when you want.
+          </h2>
+          <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center', maxWidth: 480, margin: '0 auto 56px', lineHeight: 1.65 }}>
+            One-time payment. Credits never expire. Top up only when you actually run out.
+          </p>
+
+          <div className="pricing-grid">
+            {CREDIT_PACKS.map((pack, i) => (
+              <motion.div
+                key={pack.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.7, delay: i * 0.1, ease: [0.16, 0.84, 0.24, 1] }}
+                whileHover={{ y: -4, transition: { duration: 0.25 } }}
+                style={{
+                  background: pack.popular ? '#101016' : 'rgba(12,12,16,.6)',
+                  border: `1px solid ${pack.popular ? 'rgba(111,120,230,.4)' : 'rgba(255,255,255,.07)'}`,
+                  borderRadius: 16, padding: '28px 22px', textAlign: 'left', position: 'relative',
+                  ...(pack.popular ? { boxShadow: '0 0 50px rgba(79,91,213,.18)' } : {}),
+                }}
+              >
+                {pack.popular && (
+                  <span style={{
+                    position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+                    fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+                    background: '#6f78e6', color: '#f4f4f6', padding: '3px 10px', borderRadius: 99,
+                    boxShadow: '0 0 16px rgba(111,120,230,.5)',
+                  }}>
+                    Popular
+                  </span>
+                )}
+                <p style={{
+                  fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', marginBottom: 6,
+                  letterSpacing: '-.02em',
+                }}>
+                  {pack.priceDisplay}
+                </p>
+                <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: '#f4f4f6' }}>{pack.label}</p>
+                <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55, marginBottom: 14 }}>{pack.description}</p>
+                <p style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', marginBottom: 18 }}>
+                  {pack.perCreditDisplay}
+                </p>
+                <Link href="/signup" style={{
+                  display: 'block', textAlign: 'center', textDecoration: 'none',
+                  padding: '9px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  background: pack.popular ? '#6f78e6' : 'rgba(255,255,255,.06)',
+                  color: pack.popular ? '#fff' : '#f4f4f6',
+                  border: pack.popular ? 'none' : '1px solid rgba(255,255,255,.1)',
+                }}>
+                  Get started
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* COST TABLE */}
+      <section style={{
+        position: 'relative', padding: '5rem 1.5rem', borderTop: '1px solid rgba(255,255,255,.07)',
+        overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
+            color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
+          }}>
+            02 — what each action costs
+          </p>
+          <h2 style={{
+            fontSize: 'clamp(24px,3.6vw,32px)', fontWeight: 700, letterSpacing: '-.025em',
+            textAlign: 'center', marginBottom: 44, color: '#f4f4f6',
+          }}>
+            Transparent, predictable, fair.
+          </h2>
+
+          <div style={{
+            background: 'rgba(12,12,16,.6)',
+            border: '1px solid rgba(255,255,255,.08)',
+            borderRadius: 14, overflow: 'hidden',
+          }}>
+            {COSTS.map((c, i) => (
+              <motion.div
+                key={c.action}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true, amount: 0.5 }}
+                transition={{ duration: 0.55, delay: i * 0.06 }}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '16px 22px',
+                  borderBottom: i < COSTS.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none',
+                }}
+              >
+                <span style={{ fontSize: 14, color: '#f4f4f6' }}>{c.action}</span>
+                <span style={{
+                  fontFamily: 'var(--font-geist-mono)', fontSize: 13, fontWeight: 600,
+                  color: c.unit === 'free' ? '#3ecf8e' : '#a4a4ad',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  {c.cost}<span style={{ fontSize: 11, color: '#5b5b64' }}>{c.unit}</span>
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section style={{
+        position: 'relative', padding: '5rem 1.5rem 6rem',
+        borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
+            color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
+          }}>
+            03 — questions
+          </p>
+          <h2 style={{
+            fontSize: 'clamp(24px,3.6vw,32px)', fontWeight: 700, letterSpacing: '-.025em',
+            textAlign: 'center', marginBottom: 44, color: '#f4f4f6',
+          }}>
+            Common questions
+          </h2>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            {FAQ.map((item, i) => (
+              <motion.div
+                key={item.q}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.5 }}
+                transition={{ duration: 0.6, delay: i * 0.07 }}
+                style={{
+                  padding: '20px 24px',
+                  background: 'rgba(12,12,16,.6)',
+                  border: '1px solid rgba(255,255,255,.07)',
+                  borderRadius: 12,
+                }}
+              >
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>
+                  {item.q}
+                </p>
+                <p style={{ fontSize: 13.5, color: '#a4a4ad', lineHeight: 1.65 }}>
+                  {item.a}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{
+        minHeight: 420, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        textAlign: 'center', borderTop: '1px solid rgba(255,255,255,.07)',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+        <div style={{ position: 'relative', zIndex: 2, padding: '0 1.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-.03em', marginBottom: 14 }}>
+            Give it a try.
+          </h2>
+          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 30 }}>
+            25 free credits included. No card needed.
+          </p>
+          <Link href="/signup" style={{
+            fontSize: 14, fontWeight: 600, textDecoration: 'none',
+            color: '#070709', background: '#f4f4f6',
+            padding: '0.75rem 2rem', borderRadius: 8, display: 'inline-block',
+          }}>
+            Start for free →
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="landing-footer" style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: '1.5rem 1.25rem' }}>
+        <Link href="/" style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>quante</Link>
+        <div className="footer-links">
+          {[['Pricing', '/pricing'], ['Showcase', '/showcase'], ['About', '/about'], ['Log in', '/login']].map(([l, h]) => (
+            <Link key={h} href={h} style={{ fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>{l}</Link>
           ))}
         </div>
-
-        {/* Cost table */}
-        <div className="mb-14">
-          <h2 className="text-sm font-semibold mb-4">What each action costs</h2>
-          <div className="rounded-lg border border-border divide-y divide-border overflow-hidden">
-            {[
-              { action: 'Build a store from scratch', cost: '10 credits' },
-              { action: 'Make a change in chat', cost: '1 credit' },
-              { action: 'Redo one section', cost: '2 credits' },
-              { action: 'Add a custom component', cost: '3 credits' },
-              { action: 'Download your store', cost: '5 credits' },
-              { action: 'Sign-up bonus', cost: '+25 free' },
-            ].map(({ action, cost }) => (
-              <div key={action} className="flex items-center justify-between px-4 py-3 text-sm gap-4">
-                <span className="font-medium">{action}</span>
-                <span className="font-mono text-xs shrink-0 text-muted-foreground">{cost}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* FAQ */}
-        <div className="mb-14">
-          <h2 className="text-sm font-semibold mb-6">Common questions</h2>
-          <div className="space-y-6">
-            {[
-              {
-                q: 'Do credits expire?',
-                a: 'No. Credits never expire. Buy once and use them whenever you feel like it.',
-              },
-              {
-                q: 'What if something goes wrong during generation?',
-                a: "Credits are only taken on success. If the generation fails and we can't fix it automatically, nothing is charged.",
-              },
-              {
-                q: 'Can I export the same store more than once?',
-                a: 'Yes — each export costs 5 credits. Useful when you want to grab the latest version after iterating.',
-              },
-              {
-                q: 'Can I deploy to Vercel for free?',
-                a: "Yes. The downloaded ZIP is a standard Next.js project. Vercel's free Hobby plan handles it perfectly.",
-              },
-            ].map(({ q, a }) => (
-              <div key={q}>
-                <p className="text-sm font-medium mb-1.5">{q}</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">{a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="rounded-lg border border-border bg-secondary/40 px-6 py-8 text-center flex flex-col items-center gap-4">
-          <p className="font-semibold">Give it a try</p>
-          <p className="text-sm text-muted-foreground">25 free credits included. No card needed.</p>
-          <Link href="/signup" className={cn(buttonVariants())}>Start for free →</Link>
-        </div>
-      </main>
-
-      <footer className="border-t border-border px-4 py-5">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <Link href="/" className="font-mono text-xs text-muted-foreground">quante</Link>
-          <p className="text-xs text-muted-foreground">© 2026 Quante</p>
-        </div>
+        <p style={{ fontSize: 12, color: '#5b5b64', margin: 0 }}>© 2026 Quante</p>
       </footer>
     </div>
   )
