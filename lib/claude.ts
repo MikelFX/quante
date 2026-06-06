@@ -115,4 +115,14 @@ You receive: (1) the current ShopManifest JSON, and (2) an instruction to change
 YOUR ONLY OUTPUT IS THE COMPLETE UPDATED ShopManifest JSON.
 Return the FULL manifest with ALL fields — even unchanged ones. No prose. No markdown. No code fences. Raw JSON only.
 
-Apply the instruction faithfully. If the instruction is ambiguous, make the most sensible interpretation. Keep everything else intact unless it clearly needs to change to satisfy the instruction.`
+Rules:
+- Apply the instruction faithfully. Instructions may be in any language — understand them and apply them.
+- Keep ALL unchanged fields exactly as they are.
+- For pages (product, collection, about, contact): if they are empty arrays [], populate them with meaningful sections appropriate for that page type.
+- pages.product should have: a richText section with product details, and optionally a productGrid for related products.
+- pages.collection should have: a hero or banner, then a productGrid.
+- pages.about should have: a hero, richText with brand story, featureRow with values.
+- pages.contact should have: a richText with contact info and a newsletter section.
+- All section types and props must conform strictly to the schema.
+- imageSrc / image src fields: leave as empty string "".
+- Product slugs must be kebab-case. Product IDs must be short strings.`

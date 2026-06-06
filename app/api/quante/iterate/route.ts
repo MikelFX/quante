@@ -6,7 +6,7 @@ import type { ShopManifest } from '@/types/manifest'
 
 const ITERATE_COST = 1
 const ITERATE_RATE_LIMIT = 30
-const MAX_TOKENS = 8192
+const MAX_TOKENS = 16000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()
@@ -78,7 +78,20 @@ export async function POST(request: Request) {
     try {
       manifest = parseManifestJson(rawOutput) as ShopManifest
     } catch {
-      send({ type: 'error', message: 'Could not produce a valid manifest. Please rephrase your instruction.' }); return
+      send({ type: 'status', text: 'Repairing manifest…' })
+      try {
+        const repair = await anthropic.messages.create({
+          model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
+          messages: [{
+            role: 'user',
+            content: `Fix this invalid ShopManifest JSON and return ONLY the corrected JSON. Keep ALL original content — only fix syntax/schema errors:\n${rawOutput}`,
+          }],
+        })
+        const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
+        manifest = parseManifestJson(repairText) as ShopManifest
+      } catch {
+        send({ type: 'error', message: 'Could not apply that change. Try breaking it into smaller steps.' }); return
+      }
     }
 
     const { data: version, error: versionError } = await supabase
