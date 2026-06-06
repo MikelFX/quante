@@ -4,10 +4,10 @@ const ProductSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  price: z.number(),
+  price: z.coerce.number(),
   images: z.array(z.string()),
   slug: z.string(),
-  available: z.boolean(),
+  available: z.coerce.boolean(),
   tags: z.array(z.string()).optional(),
 })
 
@@ -171,10 +171,11 @@ export const ShopManifestSchema = z.object({
 export type ValidatedShopManifest = z.infer<typeof ShopManifestSchema>
 
 export function parseManifestJson(raw: string): ValidatedShopManifest {
-  // Strip markdown code fences if present
   const cleaned = raw
     .replace(/^```(?:json)?\s*/m, '')
     .replace(/\s*```\s*$/m, '')
     .trim()
-  return ShopManifestSchema.parse(JSON.parse(cleaned))
+  const json = JSON.parse(cleaned)
+  // strip() removes unknown fields instead of throwing; coerce handles minor type mismatches
+  return ShopManifestSchema.strip().parse(json)
 }

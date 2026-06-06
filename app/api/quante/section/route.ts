@@ -1,3 +1,5 @@
+export const maxDuration = 120
+
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_SECTION } from '@/lib/claude'

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_GENERATION } from '@/lib/claude'
 import { parseManifestJson } from '@/lib/manifest-schema'
 
+export const maxDuration = 300
+
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
 const MAX_TOKENS = 50000

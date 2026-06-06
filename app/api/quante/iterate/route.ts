@@ -4,6 +4,8 @@ import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_ITERATION } from '@/lib/claud
 import { parseManifestJson } from '@/lib/manifest-schema'
 import type { ShopManifest } from '@/types/manifest'
 
+export const maxDuration = 300
+
 const ITERATE_COST = 1
 const ITERATE_RATE_LIMIT = 30
 const MAX_TOKENS = 50000
