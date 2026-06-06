@@ -162,3 +162,13 @@
   display: flex;
   gap: 1.5rem;
 }
+
+/* About — comparison grid responsive */
+.manifesto-compare {
+  grid-template-columns: 1fr !important;
+}
+@media (min-width: 640px) {
+  .manifesto-compare {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}

@@ -314,6 +314,7 @@ export default function HomePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <Link href="/showcase" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Showcase</Link>
           <Link href="/pricing" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Pricing</Link>
+          <Link href="/about" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>About</Link>
           <Link href="/login" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Log in</Link>
           <Link href="/signup" style={{
             fontSize: 13, fontWeight: 600, textDecoration: 'none',
@@ -652,7 +653,7 @@ export default function HomePage() {
       <footer className="landing-footer" style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: '1.5rem 1.25rem' }}>
         <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#5b5b64' }}>quante</span>
         <div className="footer-links">
-          {[['Pricing', '/pricing'], ['Showcase', '/showcase'], ['Log in', '/login']].map(([l, h]) => (
+          {[['Pricing', '/pricing'], ['Showcase', '/showcase'], ['About', '/about'], ['Log in', '/login']].map(([l, h]) => (
             <Link key={h} href={h} style={{ fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>{l}</Link>
           ))}
         </div>
