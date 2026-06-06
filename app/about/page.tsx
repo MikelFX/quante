@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import Link from 'next/link'
 
@@ -70,8 +70,6 @@ const ROADMAP = [
 // ─── Math helpers ─────────────────────────────────────────────────────────────
 
 function cl(v: number, a = 0, b = 1) { return v < a ? a : v > b ? b : v }
-function eOut(p: number) { return 1 - Math.pow(1 - p, 3) }
-function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
 
 // ─── Shared chrome ────────────────────────────────────────────────────────────
 
@@ -208,46 +206,41 @@ function TrapCard({ card, index, total, progress }: {
 
 // ─── Roadmap node ─────────────────────────────────────────────────────────────
 
-function RoadmapNode({ node, progress, index, total }: {
+function RoadmapNode({ node, trackX, cardCenter, stageW, index, cardRef }: {
   node: typeof ROADMAP[0]
-  progress: MotionValue<number>
+  trackX: MotionValue<number>
+  cardCenter: number
+  stageW: number
   index: number
-  total: number
+  cardRef: (el: HTMLDivElement | null) => void
 }) {
-  // each node has its own "zone" of the scroll
-  const seg = 1 / total
-  const start = index * seg
-  const end = start + seg
-
-  const localOpacity = useTransform(progress, p => {
-    const local = (p - start) / seg
-    if (local < 0) return 0.18
-    if (local > 1.2) return 0.32
-    return cl(0.18 + local * 0.95, 0.18, 1)
+  // distance from screen center, normalised by ~40% of stage width
+  const dist = useTransform(trackX, x => {
+    if (!stageW) return 1
+    const screenX = cardCenter + x // card center after translation, in stage-relative px
+    return Math.abs(screenX - stageW / 2) / (stageW * 0.4)
   })
 
-  const localScale = useTransform(progress, p => {
-    const local = (p - start) / seg
-    if (local < 0) return 0.92
-    if (local > 1) return 0.96
-    return lerp(0.92, 1.02, eOut(cl(local)))
-  })
-
-  const nodeGlow = useTransform(progress, p => {
-    const local = (p - start) / seg
-    const inZone = local >= -0.1 && local <= 1.1
-    return inZone ? `0 0 80px ${node.glow}, 0 0 160px ${node.glow.replace(/[\d.]+\)$/, '.25)')}` : `0 0 0 ${node.glow}`
+  const localOpacity = useTransform(dist, d => cl(1 - d * 0.85, 0.16, 1))
+  const localScale = useTransform(dist, d => cl(1.02 - d * 0.07, 0.92, 1.02))
+  const nodeGlow = useTransform(dist, d => {
+    const intensity = cl(1 - d, 0, 1)
+    if (intensity < 0.15) return `0 0 0 ${node.glow.replace(/[\d.]+\)$/, '0)')}`
+    const softGlow = node.glow.replace(/[\d.]+\)$/, `${(0.25 * intensity).toFixed(3)})`)
+    return `0 0 ${(80 * intensity).toFixed(0)}px ${node.glow.replace(/[\d.]+\)$/, `${(0.55 * intensity).toFixed(3)})`)}, 0 0 ${(160 * intensity).toFixed(0)}px ${softGlow}`
   })
 
   return (
-    <motion.div style={{
-      flex: '0 0 460px', display: 'flex', flexDirection: 'column', gap: 20,
-      padding: '36px 32px', background: '#0c0c10',
-      border: `1px solid ${node.accent}33`,
-      borderRadius: 20, position: 'relative',
-      opacity: localOpacity, scale: localScale,
-      boxShadow: nodeGlow,
-    }}>
+    <motion.div
+      ref={cardRef}
+      style={{
+        flex: '0 0 460px', display: 'flex', flexDirection: 'column', gap: 20,
+        padding: '36px 32px', background: '#0c0c10',
+        border: `1px solid ${node.accent}33`,
+        borderRadius: 20, position: 'relative',
+        opacity: localOpacity, scale: localScale,
+        boxShadow: nodeGlow,
+      }}>
       {/* badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{
@@ -306,11 +299,31 @@ export default function AboutPage() {
   const trapRef = useRef<HTMLElement>(null)
   const manifestoRef = useRef<HTMLElement>(null)
   const roadmapRef = useRef<HTMLElement>(null)
+  const hStageRef = useRef<HTMLDivElement>(null)
+  const hTrackRef = useRef<HTMLDivElement>(null)
+  const cardElsRef = useRef<(HTMLDivElement | null)[]>([])
+  const [maxX, setMaxX] = useState(0)
+  const [stageW, setStageW] = useState(0)
+  const [cardCenters, setCardCenters] = useState<number[]>([])
 
   const { scrollYProgress: heroP } = useScroll({ target: heroRef, offset: ['start start', 'end end'] })
   const { scrollYProgress: trapP } = useScroll({ target: trapRef, offset: ['start start', 'end end'] })
   const { scrollYProgress: manifestoP } = useScroll({ target: manifestoRef, offset: ['start end', 'end start'] })
   const { scrollYProgress: roadmapP } = useScroll({ target: roadmapRef, offset: ['start start', 'end end'] })
+
+  useEffect(() => {
+    function measure() {
+      if (!hTrackRef.current || !hStageRef.current) return
+      const trackW = hTrackRef.current.scrollWidth
+      const stageWidth = hStageRef.current.clientWidth
+      setStageW(stageWidth)
+      setMaxX(Math.max(0, trackW - stageWidth))
+      setCardCenters(cardElsRef.current.map(el => el ? el.offsetLeft + el.offsetWidth / 2 : 0))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   // hero
   const heroCopyY = useTransform(heroP, p => -p * 72)
@@ -328,8 +341,8 @@ export default function AboutPage() {
   const mLine4Op = useTransform(manifestoP, [0.5, 0.7], [0, 1])
   const mLine4Y = useTransform(manifestoP, [0.5, 0.7], [40, 0])
 
-  // roadmap horizontal scroll
-  const roadmapX = useTransform(roadmapP, p => `${lerp(20, -130, cl(p))}vw`)
+  // roadmap horizontal scroll — measured in pixels so cards align correctly
+  const roadmapX = useTransform(roadmapP, p => -cl(p) * maxX)
   const roadmapProgress = useTransform(roadmapP, p => `${(cl(p) * 100).toFixed(1)}%`)
 
   return (
@@ -520,10 +533,15 @@ export default function AboutPage() {
 
       {/* ── ROADMAP — horizontal scroll ── */}
       <section ref={roadmapRef} style={{ height: 3600, position: 'relative' }}>
-        <div style={{
-          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        }}>
+        <div
+          ref={hStageRef}
+          style={{
+            position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+            display: 'flex', flexDirection: 'column', justifyContent: 'center',
+            WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)',
+            maskImage: 'linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)',
+          }}
+        >
           <Ambient />
           <GrainVignette />
 
@@ -549,8 +567,9 @@ export default function AboutPage() {
 
           {/* Track */}
           <motion.div
+            ref={hTrackRef}
             style={{
-              display: 'flex', gap: 32, padding: '0 0',
+              display: 'flex', gap: 32, padding: '0 calc(50vw - 230px)',
               position: 'relative', zIndex: 2,
               x: roadmapX,
               alignItems: 'center',
@@ -558,7 +577,14 @@ export default function AboutPage() {
           >
             {ROADMAP.map((node, i) => (
               <div key={node.code} style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-                <RoadmapNode node={node} progress={roadmapP} index={i} total={ROADMAP.length} />
+                <RoadmapNode
+                  node={node}
+                  trackX={roadmapX}
+                  cardCenter={cardCenters[i] ?? 0}
+                  stageW={stageW}
+                  index={i}
+                  cardRef={el => { cardElsRef.current[i] = el }}
+                />
                 {i < ROADMAP.length - 1 && (
                   <div style={{
                     flex: '0 0 120px', height: 2,
