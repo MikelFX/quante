@@ -6,7 +6,7 @@ import type { ShopManifest } from '@/types/manifest'
 
 const ITERATE_COST = 1
 const ITERATE_RATE_LIMIT = 30
-const MAX_TOKENS = 16000
+const MAX_TOKENS = 50000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()

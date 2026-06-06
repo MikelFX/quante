@@ -5,7 +5,7 @@ import { parseManifestJson } from '@/lib/manifest-schema'
 
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
-const MAX_TOKENS = 8192
+const MAX_TOKENS = 50000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()
