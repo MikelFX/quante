@@ -22,12 +22,12 @@ const CollectionSchema = z.object({
 const HeroPropsSchema = z.object({
   headline: z.string(),
   subheadline: z.string().optional(),
-  ctaLabel: z.string(),
-  ctaHref: z.string(),
+  ctaLabel: z.string().optional(),
+  ctaHref: z.string().optional(),
   secondaryCtaLabel: z.string().optional(),
   secondaryCtaHref: z.string().optional(),
   imageSrc: z.string().optional(),
-  layout: z.enum(['centered', 'split', 'fullbleed']),
+  layout: z.enum(['centered', 'split', 'fullbleed']).optional().default('centered'),
 })
 
 const ProductGridPropsSchema = z.object({
@@ -58,18 +58,18 @@ const TestimonialsPropsSchema = z.object({
 })
 
 const RichTextPropsSchema = z.object({
-  content: z.string(),
+  content: z.string().default(''),
   align: z.enum(['left', 'center']).optional(),
 })
 
 const BannerPropsSchema = z.object({
-  text: z.string(),
+  text: z.string().default(''),
   ctaLabel: z.string().optional(),
   ctaHref: z.string().optional(),
 })
 
 const NewsletterPropsSchema = z.object({
-  title: z.string(),
+  title: z.string().default(''),
   description: z.string().optional(),
   placeholder: z.string().optional(),
   buttonLabel: z.string().optional(),
