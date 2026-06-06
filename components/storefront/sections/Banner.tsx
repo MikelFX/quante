@@ -2,10 +2,18 @@ import type { BannerProps } from '@/types/manifest'
 
 interface Props {
   props: BannerProps
+  basePath?: string
 }
 
-export function Banner({ props }: Props) {
-  const { text, ctaLabel, ctaHref } = props
+function prefixHref(href: string | undefined, basePath: string): string | undefined {
+  if (!href || !basePath) return href
+  if (href.startsWith('http') || href.startsWith('#')) return href
+  return `${basePath}${href.startsWith('/') ? href : `/${href}`}`
+}
+
+export function Banner({ props, basePath = '' }: Props) {
+  const { text, ctaLabel } = props
+  const ctaHref = prefixHref(props.ctaHref, basePath)
 
   return (
     <div

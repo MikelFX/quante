@@ -19,7 +19,7 @@ interface Props {
 export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
   switch (section.type) {
     case 'hero':
-      return <Hero props={section.props} />
+      return <Hero props={section.props} basePath={basePath} />
     case 'productGrid':
       return <ProductGrid props={section.props} catalog={manifest.catalog} basePath={basePath} />
     case 'featureRow':
@@ -29,7 +29,7 @@ export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
     case 'richText':
       return <RichText props={section.props} />
     case 'banner':
-      return <Banner props={section.props} />
+      return <Banner props={section.props} basePath={basePath} />
     case 'newsletter':
       return <Newsletter props={section.props} />
     case 'gallery':

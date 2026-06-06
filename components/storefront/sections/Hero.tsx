@@ -2,9 +2,16 @@ import type { HeroProps } from '@/types/manifest'
 
 interface Props {
   props: HeroProps
+  basePath?: string
 }
 
-export function Hero({ props }: Props) {
+function prefixHref(href: string | undefined, basePath: string): string | undefined {
+  if (!href || !basePath) return href
+  if (href.startsWith('http') || href.startsWith('#')) return href
+  return `${basePath}${href.startsWith('/') ? href : `/${href}`}`
+}
+
+export function Hero({ props, basePath = '' }: Props) {
   const {
     headline,
     subheadline,
@@ -15,6 +22,12 @@ export function Hero({ props }: Props) {
     imageSrc,
     layout,
   } = props
+
+  const prefixed = {
+    ...props,
+    ctaHref: prefixHref(ctaHref, basePath),
+    secondaryCtaHref: prefixHref(secondaryCtaHref, basePath),
+  }
 
   if (layout === 'split') {
     return (
@@ -35,7 +48,7 @@ export function Hero({ props }: Props) {
             padding: `calc(5rem * var(--s-space)) calc(4rem * var(--s-space))`,
           }}
         >
-          <HeroContent {...props} />
+          <HeroContent {...prefixed} />
         </div>
         <div
           style={{
@@ -64,7 +77,7 @@ export function Hero({ props }: Props) {
         }}
       >
         <div style={{ maxWidth: '52rem' }}>
-          <HeroContent {...props} inverted />
+          <HeroContent {...prefixed} inverted />
         </div>
       </section>
     )
@@ -81,7 +94,7 @@ export function Hero({ props }: Props) {
       }}
     >
       <div style={{ maxWidth: '52rem', margin: '0 auto' }}>
-        <HeroContent {...props} />
+        <HeroContent {...prefixed} />
       </div>
     </section>
   )
