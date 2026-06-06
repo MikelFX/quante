@@ -36,5 +36,5 @@ export default async function PreviewPage({ params }: Props) {
     )
   }
 
-  return <ShopRenderer manifest={data.manifest as ShopManifest} />
+  return <ShopRenderer manifest={data.manifest as ShopManifest} basePath={`/preview/${id}`} />
 }

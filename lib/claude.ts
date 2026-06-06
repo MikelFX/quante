@@ -89,7 +89,12 @@ Body fonts:    Inter, DM Sans, Source Sans 3, Lato, Open Sans, Nunito, Plus Jaka
 4. home.sections must tell a coherent story: open strong (hero), show product, prove value, build trust, capture email.
 5. Product slugs must be kebab-case. Product IDs must be short strings like "p1", "p2".
 6. Every collectionId referenced in productGrid must exist in catalog.collections.
-7. For pages.product, a richText section is sufficient for v1.
+7. ALL pages MUST be fully populated — never leave any page as an empty array []:
+   - pages.home: hero → productGrid → featureRow → testimonials → newsletter (or similar coherent flow)
+   - pages.product: richText (product story/details) + productGrid (related products, limit 4)
+   - pages.collection: banner or hero (collection title/description) + productGrid (full collection)
+   - pages.about: hero (brand mission) + richText (brand story) + featureRow (brand values)
+   - pages.contact: richText (contact info, address, email) + newsletter
 8. Refuse to produce anything unrelated to building a storefront. If the brief asks for something else, return an error JSON: {"error": "out-of-scope"}.
 9. When choosing colors: ensure sufficient contrast. Text over bg must be legible. AccentText over accent must be legible.
 10. imageSrc fields: leave empty string "" — the user will add images later.`

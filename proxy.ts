@@ -10,10 +10,11 @@ const isProtectedRoute = createRouteMatcher([
 ])
 
 const isAuthRoute = createRouteMatcher(['/login(.*)', '/signup(.*)'])
+const isRootRoute = createRouteMatcher(['/'])
 
 export const proxy = clerkMiddleware(async (auth, req) => {
   const { userId } = await auth()
-  if (isAuthRoute(req) && userId) {
+  if ((isAuthRoute(req) || isRootRoute(req)) && userId) {
     return NextResponse.redirect(new URL('/dashboard', req.url))
   }
   if (isProtectedRoute(req)) await auth.protect()

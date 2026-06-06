@@ -3,9 +3,10 @@ import type { ProductGridProps, Product, ShopManifest } from '@/types/manifest'
 interface Props {
   props: ProductGridProps
   catalog: ShopManifest['catalog']
+  basePath?: string
 }
 
-export function ProductGrid({ props, catalog }: Props) {
+export function ProductGrid({ props, catalog, basePath = '' }: Props) {
   const { title, collectionId, limit, columns = 3 } = props
 
   let products: Product[] = catalog.products
@@ -56,7 +57,7 @@ export function ProductGrid({ props, catalog }: Props) {
           }}
         >
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} currency={catalog.currency} />
+            <ProductCard key={product.id} product={product} currency={catalog.currency} basePath={basePath} />
           ))}
         </div>
       </div>
@@ -64,7 +65,7 @@ export function ProductGrid({ props, catalog }: Props) {
   )
 }
 
-function ProductCard({ product, currency }: { product: Product; currency: string }) {
+function ProductCard({ product, currency, basePath }: { product: Product; currency: string; basePath: string }) {
   const initials = product.name
     .split(' ')
     .map((w) => w[0])
@@ -74,7 +75,7 @@ function ProductCard({ product, currency }: { product: Product; currency: string
 
   return (
     <a
-      href={`/products/${product.slug}`}
+      href={`${basePath}/products/${product.slug}`}
       style={{
         display: 'block',
         border: '1px solid var(--s-border)',

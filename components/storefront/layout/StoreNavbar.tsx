@@ -2,9 +2,10 @@ import type { ShopManifest } from '@/types/manifest'
 
 interface Props {
   manifest: ShopManifest
+  basePath?: string
 }
 
-export function StoreNavbar({ manifest }: Props) {
+export function StoreNavbar({ manifest, basePath = '' }: Props) {
   return (
     <header
       style={{
@@ -27,7 +28,7 @@ export function StoreNavbar({ manifest }: Props) {
         }}
       >
         <a
-          href="/"
+          href={basePath || '/'}
           style={{
             fontFamily: 'var(--s-font-heading)',
             fontWeight: 700,
@@ -44,7 +45,7 @@ export function StoreNavbar({ manifest }: Props) {
           {manifest.nav.map((item) => (
             <a
               key={item.href}
-              href={item.href}
+              href={basePath + item.href}
               style={{
                 color: 'var(--s-muted)',
                 textDecoration: 'none',

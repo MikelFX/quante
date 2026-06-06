@@ -7,9 +7,10 @@ import { SectionRenderer } from './SectionRenderer'
 interface Props {
   manifest: ShopManifest
   page?: keyof ShopManifest['pages']
+  basePath?: string
 }
 
-export function ShopRenderer({ manifest, page = 'home' }: Props) {
+export function ShopRenderer({ manifest, page = 'home', basePath = '' }: Props) {
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
   const sections = manifest.pages[page] ?? []
@@ -26,18 +27,17 @@ export function ShopRenderer({ manifest, page = 'home' }: Props) {
         } as React.CSSProperties
       }
     >
-      {/* Font loading — React 19 hoists <link> to <head> automatically */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href={fontUrl} />
 
-      <StoreNavbar manifest={manifest} />
+      <StoreNavbar manifest={manifest} basePath={basePath} />
 
       {sections.map((section, i) => (
-        <SectionRenderer key={i} section={section} manifest={manifest} />
+        <SectionRenderer key={i} section={section} manifest={manifest} basePath={basePath} />
       ))}
 
-      <StoreFooter manifest={manifest} />
+      <StoreFooter manifest={manifest} basePath={basePath} />
     </div>
   )
 }

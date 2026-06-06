@@ -345,6 +345,46 @@ export function generateStaticParams() {
 }
 `)
 
+    // ── app/collections/[slug]/page.tsx ──────────────────────────────────────
+    add('app/collections/[slug]/page.tsx', `\
+import { notFound } from 'next/navigation'
+import { manifest } from '@/data/manifest'
+import { ShopRenderer } from '@/components/storefront/ShopRenderer'
+
+interface Props { params: Promise<{ slug: string }> }
+
+export default async function CollectionPage({ params }: Props) {
+  const { slug } = await params
+  const collection = manifest.catalog.collections?.find((c) => c.slug === slug)
+  if (!collection) notFound()
+  return <ShopRenderer manifest={manifest} page="collection" />
+}
+
+export function generateStaticParams() {
+  return (manifest.catalog.collections ?? []).map((c) => ({ slug: c.slug }))
+}
+`)
+
+    // ── app/about/page.tsx ────────────────────────────────────────────────────
+    add('app/about/page.tsx', `\
+import { manifest } from '@/data/manifest'
+import { ShopRenderer } from '@/components/storefront/ShopRenderer'
+
+export default function AboutPage() {
+  return <ShopRenderer manifest={manifest} page="about" />
+}
+`)
+
+    // ── app/contact/page.tsx ──────────────────────────────────────────────────
+    add('app/contact/page.tsx', `\
+import { manifest } from '@/data/manifest'
+import { ShopRenderer } from '@/components/storefront/ShopRenderer'
+
+export default function ContactPage() {
+  return <ShopRenderer manifest={manifest} page="contact" />
+}
+`)
+
     // ── types/manifest.ts — verbatim copy ─────────────────────────────────────
     addFile('types/manifest.ts', path.join(cwd, 'types', 'manifest.ts'))
 

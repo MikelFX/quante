@@ -12,14 +12,15 @@ import { Faq } from './sections/Faq'
 interface Props {
   section: Section
   manifest: ShopManifest
+  basePath?: string
 }
 
-export function SectionRenderer({ section, manifest }: Props) {
+export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
   switch (section.type) {
     case 'hero':
-      return <Hero props={section.props} />
+      return <Hero props={section.props} basePath={basePath} />
     case 'productGrid':
-      return <ProductGrid props={section.props} catalog={manifest.catalog} />
+      return <ProductGrid props={section.props} catalog={manifest.catalog} basePath={basePath} />
     case 'featureRow':
       return <FeatureRow props={section.props} />
     case 'testimonials':

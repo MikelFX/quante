@@ -11,9 +11,10 @@ const SOCIAL_LABELS: Record<string, string> = {
 
 interface Props {
   manifest: ShopManifest
+  basePath?: string
 }
 
-export function StoreFooter({ manifest }: Props) {
+export function StoreFooter({ manifest, basePath = '' }: Props) {
   const { footer, brand } = manifest
   const colCount = footer.columns.length + 1
 
@@ -44,7 +45,7 @@ export function StoreFooter({ manifest }: Props) {
           {/* Brand column */}
           <div>
             <a
-              href="/"
+              href={basePath || '/'}
               style={{
                 fontFamily: 'var(--s-font-heading)',
                 fontWeight: 700,
