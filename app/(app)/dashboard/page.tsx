@@ -45,6 +45,23 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ padding: '1.5rem 1rem', maxWidth: 680, margin: '0 auto' }}>
+      <style>{`
+        .project-card {
+          background: #0c0c10;
+          border: 1px solid rgba(255,255,255,.07);
+          border-radius: 12px;
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .project-card:hover {
+          border-color: rgba(255,255,255,.15);
+          box-shadow: 0 0 0 1px rgba(111,120,230,.12);
+        }
+      `}</style>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
         <h1 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em' }}>Projects</h1>
         <Link href="/new" style={{
@@ -81,25 +98,7 @@ export default async function DashboardPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {projects.map((project: { id: string; name: string; status: string; updated_at: string }) => (
             <Link key={project.id} href={`/project/${project.id}`} style={{ textDecoration: 'none' }}>
-              <div style={{
-                background: '#0c0c10',
-                border: '1px solid rgba(255,255,255,.07)',
-                borderRadius: 12, padding: '14px 16px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                transition: 'border-color 0.15s, box-shadow 0.15s',
-                cursor: 'pointer',
-              }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'rgba(255,255,255,.15)'
-                  el.style.boxShadow = '0 0 0 1px rgba(111,120,230,.12)'
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'rgba(255,255,255,.07)'
-                  el.style.boxShadow = 'none'
-                }}
-              >
+              <div className="project-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
                   <span style={{
                     width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
