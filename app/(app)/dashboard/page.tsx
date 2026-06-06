@@ -22,11 +22,24 @@ const STATUS_DOT: Record<string, string> = {
   ready: '#34c759',
 }
 
+async function ensureWelcomeGrant(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data } = await supabase
+    .from('credit_ledger').select('id').eq('user_id', userId).limit(1).maybeSingle()
+  if (!data) {
+    await supabase.from('credit_ledger').insert({
+      user_id: userId, delta: 25, reason: 'welcome_grant', ref_id: null, balance_after: 25,
+    })
+  }
+}
+
 export default async function DashboardPage() {
   const { userId } = await auth()
   if (!userId) return null
 
   const supabase = await createClient()
+
+  await ensureWelcomeGrant(userId, supabase)
+
   const { data: projects } = await supabase
     .from('projects').select('*').eq('user_id', userId).order('updated_at', { ascending: false })
 
