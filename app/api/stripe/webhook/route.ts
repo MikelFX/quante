@@ -37,9 +37,9 @@ export async function POST(request: Request) {
     const session = event.data.object as Stripe.Checkout.Session
     const { userId, credits, type, project_id: projectId } = session.metadata ?? {}
 
-    // Store sale — notify the shop owner
+    // Store sale — record earning + notify the shop owner
     if (type === 'store_sale' && projectId) {
-      await notifyStoreSale(projectId, session)
+      await recordStoreSale(projectId, session)
       return new Response('ok', { status: 200 })
     }
 
@@ -149,7 +149,27 @@ export async function POST(request: Request) {
   return new Response('ok', { status: 200 })
 }
 
-// ─── Notify store owner of a sale via Resend ─────────────────────────────────
+// ─── Record store sale + notify owner ────────────────────────────────────────
+
+async function recordStoreSale(projectId: string, session: Stripe.Checkout.Session) {
+  const grossCents = session.amount_total ?? 0
+  const platformFeeCents = parseInt(session.metadata?.platform_fee_cents ?? '0', 10)
+  const netCents = grossCents - platformFeeCents
+
+  // Idempotent insert — unique constraint on stripe_session_id prevents duplicates
+  await supabaseAdmin.from('store_earnings').upsert({
+    project_id: projectId,
+    stripe_session_id: session.id,
+    gross_amount_cents: grossCents,
+    platform_fee_cents: platformFeeCents,
+    net_amount_cents: netCents,
+    currency: (session.currency ?? 'eur').toLowerCase(),
+    customer_email: session.customer_details?.email ?? null,
+    customer_name: session.customer_details?.name ?? null,
+  }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
+
+  await notifyStoreSale(projectId, session)
+}
 
 async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Session) {
   const resendKey = process.env.RESEND_API_KEY

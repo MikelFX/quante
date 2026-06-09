@@ -167,11 +167,16 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [settingsSecKey, setSettingsSecKey] = useState('')
   const [settingsSecKeySet, setSettingsSecKeySet] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
-  // Stripe Connect
-  const [stripeConnect, setStripeConnect] = useState<{
-    accountId: string | null; onboarded: boolean; chargesEnabled: boolean
+  // Earnings + payout
+  const [earnings, setEarnings] = useState<{
+    available: number; netTotal: number; saleCount: number; currency: string
   } | null>(null)
-  const [isConnectingStripe, setIsConnectingStripe] = useState(false)
+  const [payoutAccount, setPayoutAccount] = useState<{ iban: string | null; account_holder_name: string | null } | null>(null)
+  const [ibanInput, setIbanInput] = useState('')
+  const [holderInput, setHolderInput] = useState('')
+  const [isSavingIban, setIsSavingIban] = useState(false)
+  const [isRequestingPayout, setIsRequestingPayout] = useState(false)
+  const [payoutMsg, setPayoutMsg] = useState<string | null>(null)
   // Hosting panel
   const [customDomainInput, setCustomDomainInput] = useState('')
   const [isAddingDomain, setIsAddingDomain] = useState(false)
@@ -241,9 +246,17 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   }, [projectId])
 
   useEffect(() => {
-    fetch(`/api/stripe/connect/status?project_id=${projectId}`)
+    fetch(`/api/earnings?project_id=${projectId}`)
       .then((r) => r.json())
-      .then((d) => { if (!d.error) setStripeConnect(d) })
+      .then((d) => { if (!d.error) setEarnings(d) })
+      .catch(() => {})
+    fetch(`/api/payout/account?project_id=${projectId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setPayoutAccount(d)
+        if (d.iban) setIbanInput(d.iban)
+        if (d.account_holder_name) setHolderInput(d.account_holder_name)
+      })
       .catch(() => {})
   }, [projectId])
 
@@ -634,18 +647,43 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     }
   }
 
-  async function handleConnectStripe() {
-    setIsConnectingStripe(true)
+  async function handleSaveIban() {
+    if (!ibanInput.trim() || !holderInput.trim()) return
+    setIsSavingIban(true)
     try {
-      const res = await fetch('/api/stripe/connect/onboard', {
+      const res = await fetch('/api/payout/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, iban: ibanInput.trim(), accountHolderName: holderInput.trim() }),
+      })
+      const data = await res.json()
+      if (data.ok) setPayoutAccount({ iban: ibanInput.trim(), account_holder_name: holderInput.trim() })
+    } catch { /* non-fatal */ }
+    setIsSavingIban(false)
+  }
+
+  async function handleRequestPayout() {
+    setIsRequestingPayout(true)
+    setPayoutMsg(null)
+    try {
+      const res = await fetch('/api/payout/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId }),
       })
       const data = await res.json()
-      if (data.url) window.location.href = data.url
-    } catch { /* non-fatal */ }
-    setIsConnectingStripe(false)
+      if (data.ok) {
+        setPayoutMsg(`Payout of €${(data.amountCents / 100).toFixed(2)} requested. We'll process it within 2 business days.`)
+        // Refresh earnings
+        fetch(`/api/earnings?project_id=${projectId}`)
+          .then((r) => r.json())
+          .then((d) => { if (!d.error) setEarnings(d) })
+          .catch(() => {})
+      } else {
+        setPayoutMsg(data.error ?? 'Request failed.')
+      }
+    } catch { setPayoutMsg('Something went wrong.') }
+    setIsRequestingPayout(false)
   }
 
   async function handleSaveManifest(updatedManifest: ShopManifest, prompt: string) {
@@ -1537,46 +1575,63 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         </div>
       )}
 
-      {/* Stripe Connect — Payments */}
-      <div style={{ borderRadius: 10, border: stripeConnect?.chargesEnabled ? '1px solid rgba(52,211,153,.25)' : '1px solid var(--border)', padding: '14px', background: stripeConnect?.chargesEnabled ? 'rgba(52,211,153,.03)' : 'transparent' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>Payments</p>
-          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'var(--font-geist-mono)' }}>2% per sale</span>
+      {/* Earnings */}
+      <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>Earnings</p>
+          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'var(--font-geist-mono)' }}>5% platform fee</span>
         </div>
-        {stripeConnect?.chargesEnabled ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 10, color: '#34d399' }}>●</span>
-            <span style={{ fontSize: 12, color: '#34d399', fontWeight: 500 }}>Connected · Ready to accept payments</span>
-          </div>
-        ) : stripeConnect?.accountId && !stripeConnect.chargesEnabled ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <span style={{ fontSize: 10, color: '#fbbf24' }}>●</span>
-              <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 500 }}>
-                {stripeConnect.onboarded ? 'Verification in progress' : 'Setup incomplete'}
-              </span>
-            </div>
-            <button
-              onClick={handleConnectStripe}
-              disabled={isConnectingStripe}
-              style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isConnectingStripe ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isConnectingStripe ? 0.6 : 1 }}
-            >
-              {isConnectingStripe ? '…' : 'Continue setup →'}
-            </button>
-          </>
-        ) : (
-          <>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 10, lineHeight: 1.6 }}>
-              Connect your bank account to receive payments directly. Quante takes 2% per transaction — no monthly fees.
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <div style={{ flex: 1, background: 'var(--secondary)', borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 2 }}>Available</p>
+            <p style={{ fontSize: 18, fontWeight: 700, color: '#34d399', fontFamily: 'var(--font-geist-mono)' }}>
+              {earnings ? `€${earnings.available.toFixed(2)}` : '—'}
             </p>
+          </div>
+          <div style={{ flex: 1, background: 'var(--secondary)', borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 2 }}>Sales</p>
+            <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', fontFamily: 'var(--font-geist-mono)' }}>
+              {earnings ? String(earnings.saleCount) : '—'}
+            </p>
+          </div>
+        </div>
+
+        {/* IBAN form */}
+        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--foreground)', marginBottom: 6 }}>Payout account</p>
+        <input
+          value={holderInput}
+          onChange={(e) => setHolderInput(e.target.value)}
+          placeholder="Account holder name"
+          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--foreground)', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
+        />
+        <input
+          value={ibanInput}
+          onChange={(e) => setIbanInput(e.target.value)}
+          placeholder="IBAN (e.g. CZ65 0800 0000 1920 0014 5399)"
+          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--foreground)', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={handleSaveIban}
+            disabled={isSavingIban || !ibanInput.trim() || !holderInput.trim()}
+            style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid var(--border)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'var(--secondary)', color: 'var(--foreground)', opacity: isSavingIban ? 0.5 : 1 }}
+          >
+            {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
+          </button>
+          {payoutAccount?.iban && (earnings?.available ?? 0) > 0 && (
             <button
-              onClick={handleConnectStripe}
-              disabled={isConnectingStripe}
-              style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isConnectingStripe ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isConnectingStripe ? 0.6 : 1 }}
+              onClick={handleRequestPayout}
+              disabled={isRequestingPayout}
+              style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
             >
-              {isConnectingStripe ? '…' : 'Connect Stripe →'}
+              {isRequestingPayout ? '…' : 'Request payout'}
             </button>
-          </>
+          )}
+        </div>
+        {payoutMsg && (
+          <p style={{ fontSize: 11, marginTop: 8, color: payoutMsg.startsWith('Payout') ? '#34d399' : '#f87171', lineHeight: 1.5 }}>
+            {payoutMsg}
+          </p>
         )}
       </div>
 

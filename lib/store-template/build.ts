@@ -40,12 +40,10 @@ export function buildStoreFiles(manifest: ShopManifest): GeneratedFile[] {
     private: true,
     scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
     dependencies: {
-      '@stripe/stripe-js': '^9.7.0',
       'lucide-react': '^1.17.0',
       next: '16.2.7',
       react: '19.2.4',
       'react-dom': '19.2.4',
-      stripe: '^22.2.0',
     },
     devDependencies: {
       '@tailwindcss/postcss': '^4',
@@ -615,72 +613,28 @@ export default function CartPage() {
   // ── app/api/checkout/route.ts ─────────────────────────────────────────────
   add('app/api/checkout/route.ts', `\
 import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
-
-interface CartItem {
-  id: string
-  name: string
-  price: number
-  currency: string
-  quantity: number
-}
 
 export async function POST(request: Request) {
-  // Support both Quante Connect (STRIPE_PLATFORM_KEY) and self-hosted (STRIPE_SECRET_KEY)
-  const stripeKey = process.env.STRIPE_PLATFORM_KEY || process.env.STRIPE_SECRET_KEY
-  if (!stripeKey) {
-    return NextResponse.json({ error: 'Stripe not configured.' }, { status: 500 })
+  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
+  const projectId = process.env.QUANTE_PROJECT_ID
+
+  if (!projectId) {
+    return NextResponse.json({ error: 'Store not configured.' }, { status: 500 })
   }
 
-  const { items } = await request.json() as { items: CartItem[] }
+  const { items } = await request.json()
   if (!items?.length) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
   }
 
-  const stripe = new Stripe(stripeKey, { apiVersion: '2026-05-27.dahlia' as '2026-05-27.dahlia' })
-  const origin = request.headers.get('origin') || ''
+  const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId, items }),
+  })
 
-  const connectAccountId = process.env.STRIPE_CONNECT_ACCOUNT_ID
-  const projectId = process.env.STRIPE_PROJECT_ID ?? ''
-  const platformFeePercent = parseFloat(process.env.PLATFORM_FEE_PERCENT ?? '0')
-
-  const totalCents = items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0)
-  const applicationFeeAmount = connectAccountId && platformFeePercent > 0
-    ? Math.round(totalCents * platformFeePercent / 100)
-    : 0
-
-  try {
-    const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ['card'],
-      line_items: items.map((item) => ({
-        price_data: {
-          currency: item.currency.toLowerCase(),
-          product_data: { name: item.name },
-          unit_amount: Math.round(item.price * 100),
-        },
-        quantity: item.quantity,
-      })),
-      mode: 'payment',
-      success_url: origin + '/success?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: origin + '/cart',
-      metadata: { type: 'store_sale', project_id: projectId },
-    }
-
-    if (connectAccountId) {
-      sessionParams.payment_intent_data = {
-        application_fee_amount: applicationFeeAmount,
-        transfer_data: { destination: connectAccountId },
-        on_behalf_of: connectAccountId,
-        metadata: { type: 'store_sale', project_id: projectId },
-      }
-    }
-
-    const session = await stripe.checkout.sessions.create(sessionParams)
-    return NextResponse.json({ url: session.url })
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Stripe error'
-    return NextResponse.json({ error: msg }, { status: 500 })
-  }
+  const data = await res.json()
+  return NextResponse.json(data, { status: res.status })
 }
 `)
 
@@ -726,57 +680,6 @@ export default function SuccessPage() {
 }
 `)
 
-  // ── app/api/webhook/route.ts ───────────────────────────────────────────────
-  add('app/api/webhook/route.ts', `\
-export const runtime = 'nodejs'
-
-import { NextResponse } from 'next/server'
-import Stripe from 'stripe'
-
-export async function POST(request: Request) {
-  const secretKey = process.env.STRIPE_SECRET_KEY
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-
-  if (!secretKey || !webhookSecret) {
-    return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
-  }
-
-  const body = await request.text()
-  const sig = request.headers.get('stripe-signature') ?? ''
-  const stripe = new Stripe(secretKey, { apiVersion: '2026-05-27.dahlia' as '2026-05-27.dahlia' })
-
-  let event: Stripe.Event
-  try {
-    event = stripe.webhooks.constructEvent(body, sig, webhookSecret)
-  } catch {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
-    const notifyUrl = process.env.QUANTE_NOTIFY_URL
-    const notifySecret = process.env.QUANTE_NOTIFY_SECRET
-
-    if (notifyUrl && notifySecret) {
-      try {
-        await fetch(notifyUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + notifySecret },
-          body: JSON.stringify({
-            sessionId: session.id,
-            customerEmail: session.customer_details?.email ?? null,
-            customerName: session.customer_details?.name ?? null,
-            amount: session.amount_total ? session.amount_total / 100 : 0,
-            currency: (session.currency ?? 'usd').toUpperCase(),
-          }),
-        })
-      } catch { /* non-fatal */ }
-    }
-  }
-
-  return NextResponse.json({ received: true })
-}
-`)
 
   // ── data/manifest.ts — baked manifest ─────────────────────────────────────
   add('data/manifest.ts', [
@@ -789,21 +692,11 @@ export async function POST(request: Request) {
   // ── .env.example ──────────────────────────────────────────────────────────
   const hasAdmin = (manifest as unknown as Record<string, unknown>).adminPanel === true
   const envLines = [
-    '# ── Option A: Quante-hosted (auto-configured, do not edit) ───────────────',
-    '# STRIPE_PLATFORM_KEY=rk_live_...          # Quante restricted key',
-    '# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...',
-    '# STRIPE_CONNECT_ACCOUNT_ID=acct_...       # Your connected Stripe account',
-    '# STRIPE_PROJECT_ID=...                    # Your Quante project ID',
-    '# PLATFORM_FEE_PERCENT=2',
-    '',
-    '# ── Option B: Self-hosted (add your own Stripe keys) ─────────────────────',
-    'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...',
-    'STRIPE_SECRET_KEY=sk_live_...',
-    'STRIPE_WEBHOOK_SECRET=whsec_...',
-    '',
-    '# Order notifications (self-hosted only)',
-    '# QUANTE_NOTIFY_URL=https://your-quante-app.com/api/notify/order',
-    '# QUANTE_NOTIFY_SECRET=your-per-store-secret',
+    '# ── Quante managed payments (auto-configured when deployed via Quante) ────',
+    '# These are set automatically. Only needed for local dev or self-hosting.',
+    'QUANTE_API_URL=https://quante.vercel.app',
+    'QUANTE_PROJECT_ID=your-project-id',
+    'QUANTE_API_KEY=your-api-key',
     '',
     '# Optional: Supabase for a dynamic product catalog',
     '# NEXT_PUBLIC_SUPABASE_URL=',
@@ -1119,35 +1012,25 @@ export async function POST(request: Request) {
   add('app/api/admin/orders/route.ts', `\
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import Stripe from 'stripe'
 
 export async function GET() {
   const cookieStore = await cookies()
   const auth = cookieStore.get('admin_auth')
   if (!auth?.value) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const key = process.env.STRIPE_SECRET_KEY
-  if (!key) return NextResponse.json({ error: 'STRIPE_SECRET_KEY not configured' }, { status: 400 })
+  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
+  const apiKey = process.env.QUANTE_API_KEY
+
+  if (!apiKey) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
 
   try {
-    const stripe = new Stripe(key, { apiVersion: '2026-05-27.dahlia' as '2026-05-27.dahlia' })
-    const sessions = await stripe.checkout.sessions.list({ limit: 100, expand: ['data.line_items'] })
-
-    const orders = sessions.data
-      .filter((s) => s.payment_status === 'paid')
-      .map((s) => ({
-        id: s.id,
-        customerEmail: s.customer_details?.email ?? '—',
-        customerName: s.customer_details?.name ?? '—',
-        amount: s.amount_total ? s.amount_total / 100 : 0,
-        currency: (s.currency ?? 'usd').toUpperCase(),
-        createdAt: new Date(s.created * 1000).toISOString(),
-      }))
-
-    const revenue = orders.reduce((sum, o) => sum + o.amount, 0)
-    return NextResponse.json({ orders, revenue })
+    const res = await fetch(\`\${quanteUrl}/api/store/orders\`, {
+      headers: { Authorization: \`Bearer \${apiKey}\` },
+    })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Stripe error'
+    const msg = err instanceof Error ? err.message : 'Fetch error'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
@@ -1171,9 +1054,9 @@ function buildReadme(manifest: ShopManifest, hasAdmin: boolean, slug: string): s
     '```bash', 'cp .env.example .env.local', '```', '',
     '| Variable | Required | Description |',
     '|---|---|---|',
-    `| \`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY\` | For checkout | Stripe publishable key |`,
-    `| \`STRIPE_SECRET_KEY\` | For checkout | Stripe secret key |`,
-    `| \`STRIPE_WEBHOOK_SECRET\` | For webhooks | From Stripe webhook dashboard |`,
+    `| \`QUANTE_API_URL\` | For checkout | Quante platform URL |`,
+    `| \`QUANTE_PROJECT_ID\` | For checkout | Your project ID on Quante |`,
+    `| \`QUANTE_API_KEY\` | For admin | API key for order access |`,
     ...(hasAdmin ? [`| \`ADMIN_PASSWORD\` | **Required for admin** | Password for /admin |`] : []),
     '', '> Never commit `.env.local`. It is in `.gitignore`.', '', '---', '',
     '## Customizing', '',
