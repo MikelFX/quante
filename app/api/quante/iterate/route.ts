@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_ITERATION } from '@/lib/claude'
 import { parseManifestJson } from '@/lib/manifest-schema'
 import type { ShopManifest } from '@/types/manifest'
@@ -7,8 +8,13 @@ import type { ShopManifest } from '@/types/manifest'
 export const maxDuration = 300
 
 const ITERATE_COST = 1
-const ITERATE_RATE_LIMIT = 30
-const MAX_TOKENS = 50000
+const ITERATE_RATE_LIMIT = 60
+const MAX_TOKENS = 64000
+
+interface HistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()
@@ -23,8 +29,12 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
 
 export async function POST(request: Request) {
   return makeStream(async (send) => {
-    const { projectId, instruction } = await request.json()
-    if (!projectId || !instruction?.trim()) {
+    const body = await request.json()
+    const projectId: string = body.projectId
+    const instruction: string = body.instruction?.trim() ?? ''
+    const history: HistoryMessage[] = body.history ?? []
+
+    if (!projectId || !instruction) {
       send({ type: 'error', message: 'projectId and instruction are required.' }); return
     }
 
@@ -33,24 +43,17 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
-    const { data: project } = await supabase.from('projects').select('id').eq('id', projectId).eq('user_id', userId).maybeSingle()
+    const { data: project } = await supabase
+      .from('projects').select('id').eq('id', projectId).eq('user_id', userId).maybeSingle()
     if (!project) { send({ type: 'error', message: 'Project not found.' }); return }
 
-    const { data: ledger } = await supabase
-      .from('credit_ledger').select('balance_after')
-      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-
-    const balance = ledger?.balance_after ?? 0
-    if (balance < ITERATE_COST) {
-      send({ type: 'error', message: `Insufficient credits. Need ${ITERATE_COST}, have ${balance}.` }); return
-    }
-
+    // Rate limit — count only paid iterations
     const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
     const { count: recentCount } = await supabase
       .from('credit_ledger').select('*', { count: 'exact', head: true })
       .eq('user_id', userId).eq('reason', 'iterate').gte('created_at', oneHourAgo)
     if ((recentCount ?? 0) >= ITERATE_RATE_LIMIT) {
-      send({ type: 'error', message: `Rate limit reached — max ${ITERATE_RATE_LIMIT} iterations per hour.` }); return
+      send({ type: 'error', message: `Rate limit reached — max ${ITERATE_RATE_LIMIT} store updates per hour.` }); return
     }
 
     const { data: current } = await supabase
@@ -58,59 +61,123 @@ export async function POST(request: Request) {
       .eq('project_id', projectId).order('version_no', { ascending: false }).limit(1).maybeSingle()
     if (!current) { send({ type: 'error', message: 'No manifest found for this project.' }); return }
 
-    send({ type: 'status', text: 'Updating your store…' })
+    // System prompt with current manifest (prompt-cached)
+    const systemWithManifest = `${SYSTEM_PROMPT_ITERATION}
 
+═══ CURRENT STORE MANIFEST ═════════════════════════════════════════════════════
+${JSON.stringify(current.manifest)}
+════════════════════════════════════════════════════════════════════════════════`
+
+    // Build conversation: last 8 history messages + current instruction
+    const historyMessages = history
+      .filter((m) => m.content && m.content !== '…')
+      .slice(-8)
+      .map((m) => ({ role: m.role, content: m.content }))
+
+    const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = [
+      ...historyMessages,
+      { role: 'user', content: instruction },
+    ]
+
+    // Stream Claude's response, sending the <reply> portion in real time
     let rawOutput = ''
+    let replyDone = false
+    let sentReplyLength = 0
+
     const claudeStream = anthropic.messages.stream({
-      model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: SYSTEM_PROMPT_ITERATION, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: `Current manifest:\n${JSON.stringify(current.manifest, null, 2)}\n\nInstruction: ${instruction.trim()}` }],
+      model: ITERATION_MODEL,
+      max_tokens: MAX_TOKENS,
+      system: [{ type: 'text', text: systemWithManifest, cache_control: { type: 'ephemeral' } }],
+      messages: conversationMessages,
     })
 
     for await (const event of claudeStream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
         rawOutput += event.delta.text
-        send({ type: 'chunk', text: event.delta.text })
+
+        if (!replyDone) {
+          const replyStart = rawOutput.indexOf('<reply>')
+          const replyEndIdx = rawOutput.indexOf('</reply>')
+          if (replyEndIdx !== -1) replyDone = true
+
+          if (replyStart !== -1) {
+            const contentStart = replyStart + '<reply>'.length
+            const contentEnd = replyDone ? replyEndIdx : rawOutput.length
+            const replyContent = rawOutput.slice(contentStart, contentEnd)
+            if (replyContent.length > sentReplyLength) {
+              send({ type: 'text_chunk', text: replyContent.slice(sentReplyLength) })
+              sentReplyLength = replyContent.length
+            }
+          }
+        }
       }
     }
 
-    send({ type: 'status', text: 'Validating…' })
+    // Extract reply and optional manifest
+    const replyMatch = rawOutput.match(/<reply>([\s\S]*?)<\/reply>/)
+    const replyText = replyMatch?.[1]?.trim() ?? rawOutput.trim()
+    const manifestMatch = rawOutput.match(/<manifest>([\s\S]*?)<\/manifest>/)
+
+    // No manifest → free Q&A, no credit debit
+    if (!manifestMatch) {
+      send({ type: 'done', reply: replyText, manifest: null })
+      return
+    }
+
+    // Has manifest → check credits, validate, save
+    const { data: ledger } = await supabase
+      .from('credit_ledger').select('balance_after')
+      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const balance = ledger?.balance_after ?? 0
+    if (balance < ITERATE_COST) {
+      send({ type: 'error', message: `Insufficient credits. Need ${ITERATE_COST}, have ${balance}.` }); return
+    }
 
     let manifest: ShopManifest
     try {
-      manifest = parseManifestJson(rawOutput) as ShopManifest
+      manifest = parseManifestJson(manifestMatch[1]) as ShopManifest
     } catch (primaryErr) {
-      const errMsg = String(primaryErr).slice(0, 300)
-      console.error('[iterate] primary parse failed:', primaryErr)
-      send({ type: 'status', text: 'Repairing manifest…' })
+      console.error('[iterate] parse failed:', primaryErr)
+      send({ type: 'status', text: 'Repairing…' })
       try {
         const repair = await anthropic.messages.create({
           model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
           messages: [{
             role: 'user',
-            content: `The following ShopManifest JSON failed validation with this error:\n${String(primaryErr)}\n\nFix ONLY the validation errors and return the corrected JSON. No prose, no fences, raw JSON only:\n${rawOutput}`,
+            content: `Fix ONLY the validation errors. Return raw JSON only, no fences.\nError: ${String(primaryErr).slice(0, 300)}\nJSON:\n${manifestMatch[1]}`,
           }],
         })
         const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
         manifest = parseManifestJson(repairText) as ShopManifest
-      } catch (repairErr) {
-        console.error('[iterate] repair also failed:', repairErr)
-        send({ type: 'error', message: `Validation error: ${errMsg}` }); return
+      } catch {
+        send({ type: 'error', message: 'Could not parse the updated manifest. Try again.' }); return
       }
     }
 
     const { data: version, error: versionError } = await supabase
-      .from('manifest_versions').insert({ project_id: projectId, version_no: current.version_no + 1, manifest, prompt: instruction })
+      .from('manifest_versions').insert({
+        project_id: projectId,
+        version_no: current.version_no + 1,
+        manifest,
+        prompt: instruction,
+      })
       .select().single()
-    if (versionError || !version) { send({ type: 'error', message: 'Failed to save updated manifest.' }); return }
+
+    if (versionError || !version) {
+      send({ type: 'error', message: 'Failed to save updated manifest.' }); return
+    }
 
     await Promise.all([
-      supabase.from('credit_ledger').insert({
-        user_id: userId, delta: -ITERATE_COST, reason: 'iterate', ref_id: version.id, balance_after: balance - ITERATE_COST,
+      supabaseAdmin.from('credit_ledger').insert({
+        user_id: userId,
+        delta: -ITERATE_COST,
+        reason: 'iterate',
+        ref_id: version.id,
+        balance_after: balance - ITERATE_COST,
       }),
-      supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId),
+      supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId),
     ])
 
-    send({ type: 'done', projectId, versionId: version.id, manifest })
+    send({ type: 'done', reply: replyText, manifest, projectId, versionId: version.id })
   })
 }

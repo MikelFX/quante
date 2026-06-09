@@ -23,7 +23,8 @@ interface VersionEntry {
 type StreamEvent =
   | { type: 'status'; text: string }
   | { type: 'chunk'; text: string }
-  | { type: 'done'; manifest?: ShopManifest; projectId?: string; versionId?: string }
+  | { type: 'text_chunk'; text: string }
+  | { type: 'done'; manifest?: ShopManifest | null; reply?: string; projectId?: string; versionId?: string }
   | { type: 'error'; message: string }
 
 interface HostingInfo {
@@ -300,7 +301,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   async function consumeStream(
     endpoint: string,
     body: object,
-    onDone: (manifest: ShopManifest) => void,
+    onDone: (manifest: ShopManifest | null, reply?: string) => void,
     onError?: (msg: string) => void
   ) {
     const response = await fetch(endpoint, {
@@ -314,7 +315,24 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       if (event.type === 'status') {
         setMessages((prev) => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: event.text, type: 'status' }
+          // Only show status if no text_chunk has arrived yet
+          if (updated[updated.length - 1]?.content === '…') {
+            updated[updated.length - 1] = { role: 'assistant', content: event.text, type: 'status' }
+          }
+          return updated
+        })
+      } else if (event.type === 'text_chunk') {
+        // Stream the AI's conversational reply in real time
+        setMessages((prev) => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last?.role === 'assistant' && (last.type === 'status' || last.type === undefined)) {
+            updated[updated.length - 1] = {
+              role: 'assistant',
+              content: (last.type === 'status' ? '' : last.content) + event.text,
+              type: undefined,
+            }
+          }
           return updated
         })
       } else if (event.type === 'chunk') {
@@ -328,9 +346,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         })
         onError?.(event.message)
         return
-      } else if (event.type === 'done' && event.manifest) {
+      } else if (event.type === 'done') {
         setStreamingText('')
-        onDone(event.manifest)
+        onDone(event.manifest ?? null, event.reply)
         return
       }
     }
@@ -341,6 +359,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     if (!text || isGenerating) return
 
     setInput('')
+    const snapshot = [...messages]
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text },
@@ -349,24 +368,75 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     setIsGenerating(true)
 
     const hasManifest = !!currentManifest
-    const endpoint = hasManifest ? '/api/quante/iterate' : '/api/quante/generate'
-    const body = hasManifest ? { projectId, instruction: text } : { brief: text, projectId }
 
-    try {
-      await consumeStream(endpoint, body, (manifest) => {
-        const summary = `**${manifest.brand.name}** ready. ${manifest.catalog.products.length} products.`
+    if (!hasManifest) {
+      // Generation flow — unchanged
+      try {
+        await consumeStream('/api/quante/generate', { brief: text, projectId }, (manifest) => {
+          if (!manifest) return
+          const summary = `**${manifest.brand.name}** ready. ${manifest.catalog.products.length} products.`
+          setMessages((prev) => {
+            const updated = [...prev]
+            updated[updated.length - 1] = { role: 'assistant', content: summary, type: 'done' }
+            return updated
+          })
+          setCurrentManifest(manifest)
+          setIframeKey((k) => k + 1)
+          refreshBalance()
+          fetchVersions()
+          setActiveTab('preview')
+        })
+      } catch {
         setMessages((prev) => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: summary, type: 'done' }
+          updated[updated.length - 1] = { role: 'assistant', content: 'Something went wrong. Try again.', type: 'error' }
           return updated
         })
-        setCurrentManifest(manifest)
-        setIframeKey((k) => k + 1)
-        refreshBalance()
-        fetchVersions()
-        // Auto-switch to preview after generation
-        setActiveTab('preview')
-      })
+      } finally {
+        setIsGenerating(false)
+        setTimeout(() => textareaRef.current?.focus(), 50)
+      }
+      return
+    }
+
+    // Iteration / chat flow — with history
+    const history = snapshot
+      .filter((m) => m.type !== 'status' && m.content !== '…')
+      .map((m) => ({ role: m.role, content: m.content }))
+
+    try {
+      await consumeStream(
+        '/api/quante/iterate',
+        { projectId, instruction: text, history },
+        (manifest, reply) => {
+          setMessages((prev) => {
+            const updated = [...prev]
+            const last = updated[updated.length - 1]
+            if (manifest) {
+              // Store was updated — append a subtle indicator to the reply
+              updated[updated.length - 1] = {
+                role: 'assistant',
+                content: reply ?? last.content,
+                type: 'done',
+              }
+            } else {
+              // Free Q&A — just finalize the reply text
+              updated[updated.length - 1] = {
+                role: 'assistant',
+                content: reply ?? last.content,
+                type: 'done',
+              }
+            }
+            return updated
+          })
+          if (manifest) {
+            setCurrentManifest(manifest)
+            setIframeKey((k) => k + 1)
+            refreshBalance()
+            fetchVersions()
+          }
+        }
+      )
     } catch {
       setMessages((prev) => {
         const updated = [...prev]
@@ -395,6 +465,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         '/api/quante/section',
         { projectId, page: 'home', sectionIndex, instruction },
         (manifest) => {
+          if (!manifest) return
           const sectionName = SECTION_LABELS[(manifest.pages.home[sectionIndex] as { type: string })?.type ?? ''] ?? 'Section'
           setMessages((prev) => {
             const updated = [...prev]
