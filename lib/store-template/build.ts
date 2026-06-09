@@ -626,9 +626,10 @@ interface CartItem {
 }
 
 export async function POST(request: Request) {
-  const secretKey = process.env.STRIPE_SECRET_KEY
-  if (!secretKey) {
-    return NextResponse.json({ error: 'Stripe not configured. Set STRIPE_SECRET_KEY.' }, { status: 500 })
+  // Support both Quante Connect (STRIPE_PLATFORM_KEY) and self-hosted (STRIPE_SECRET_KEY)
+  const stripeKey = process.env.STRIPE_PLATFORM_KEY || process.env.STRIPE_SECRET_KEY
+  if (!stripeKey) {
+    return NextResponse.json({ error: 'Stripe not configured.' }, { status: 500 })
   }
 
   const { items } = await request.json() as { items: CartItem[] }
@@ -636,11 +637,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
   }
 
-  const stripe = new Stripe(secretKey, { apiVersion: '2026-05-27.dahlia' as '2026-05-27.dahlia' })
+  const stripe = new Stripe(stripeKey, { apiVersion: '2026-05-27.dahlia' as '2026-05-27.dahlia' })
   const origin = request.headers.get('origin') || ''
 
+  const connectAccountId = process.env.STRIPE_CONNECT_ACCOUNT_ID
+  const projectId = process.env.STRIPE_PROJECT_ID ?? ''
+  const platformFeePercent = parseFloat(process.env.PLATFORM_FEE_PERCENT ?? '0')
+
+  const totalCents = items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0)
+  const applicationFeeAmount = connectAccountId && platformFeePercent > 0
+    ? Math.round(totalCents * platformFeePercent / 100)
+    : 0
+
   try {
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       payment_method_types: ['card'],
       line_items: items.map((item) => ({
         price_data: {
@@ -653,8 +663,19 @@ export async function POST(request: Request) {
       mode: 'payment',
       success_url: origin + '/success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: origin + '/cart',
-    })
+      metadata: { type: 'store_sale', project_id: projectId },
+    }
 
+    if (connectAccountId) {
+      sessionParams.payment_intent_data = {
+        application_fee_amount: applicationFeeAmount,
+        transfer_data: { destination: connectAccountId },
+        on_behalf_of: connectAccountId,
+        metadata: { type: 'store_sale', project_id: projectId },
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams)
     return NextResponse.json({ url: session.url })
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Stripe error'
@@ -768,12 +789,19 @@ export async function POST(request: Request) {
   // ── .env.example ──────────────────────────────────────────────────────────
   const hasAdmin = (manifest as unknown as Record<string, unknown>).adminPanel === true
   const envLines = [
-    '# Stripe — required for checkout',
+    '# ── Option A: Quante-hosted (auto-configured, do not edit) ───────────────',
+    '# STRIPE_PLATFORM_KEY=rk_live_...          # Quante restricted key',
+    '# NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...',
+    '# STRIPE_CONNECT_ACCOUNT_ID=acct_...       # Your connected Stripe account',
+    '# STRIPE_PROJECT_ID=...                    # Your Quante project ID',
+    '# PLATFORM_FEE_PERCENT=2',
+    '',
+    '# ── Option B: Self-hosted (add your own Stripe keys) ─────────────────────',
     'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...',
     'STRIPE_SECRET_KEY=sk_live_...',
     'STRIPE_WEBHOOK_SECRET=whsec_...',
     '',
-    '# Order notifications (auto-configured on Quante-hosted stores)',
+    '# Order notifications (self-hosted only)',
     '# QUANTE_NOTIFY_URL=https://your-quante-app.com/api/notify/order',
     '# QUANTE_NOTIFY_SECRET=your-per-store-secret',
     '',

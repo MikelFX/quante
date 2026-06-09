@@ -133,8 +133,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to provision hosting project.' }, { status: 500 })
   }
 
-  // Generate a per-project notification token and store it
+  // Generate a per-project notification token and persist it
   const notificationToken = crypto.randomUUID()
+  const { data: existingSecrets } = await supabaseAdmin
+    .from('project_secrets')
+    .select('stripe_connect_account_id, stripe_connect_charges_enabled')
+    .eq('project_id', projectId)
+    .maybeSingle()
+
   await supabaseAdmin.from('project_secrets').upsert({
     project_id: projectId,
     user_id: userId,
@@ -142,22 +148,35 @@ export async function POST(request: Request) {
     updated_at: new Date().toISOString(),
   }, { onConflict: 'project_id', ignoreDuplicates: false })
 
-  // Set placeholder Stripe keys + notification callback env vars
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
-  try {
-    await setEnvVars(
-      vercelProjectId,
-      {
+  const connectAccountId = existingSecrets?.stripe_connect_account_id as string | null
+  const chargesEnabled = existingSecrets?.stripe_connect_charges_enabled ?? false
+
+  // Build env vars for the deployed store
+  const envVars: Record<string, string> = chargesEnabled && connectAccountId
+    ? {
+        // Stripe Connect — Quante acts as payment platform
+        STRIPE_PLATFORM_KEY: process.env.STRIPE_CONNECT_RESTRICTED_KEY ?? 'rk_live_replace_me',
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? 'pk_live_replace_me',
+        STRIPE_CONNECT_ACCOUNT_ID: connectAccountId,
+        STRIPE_PROJECT_ID: projectId,
+        PLATFORM_FEE_PERCENT: process.env.PLATFORM_FEE_PERCENT ?? '2',
+      }
+    : {
+        // Fallback — self-managed Stripe (user adds their own keys)
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: 'pk_live_replace_me',
         STRIPE_SECRET_KEY: 'sk_live_replace_me',
         STRIPE_WEBHOOK_SECRET: 'whsec_replace_me',
         QUANTE_NOTIFY_URL: `${appUrl}/api/notify/order`,
         QUANTE_NOTIFY_SECRET: notificationToken,
-      },
-      { encrypted: ['STRIPE_SECRET_KEY', 'QUANTE_NOTIFY_SECRET'] },
-    )
+      }
+
+  try {
+    const encrypted = chargesEnabled
+      ? ['STRIPE_PLATFORM_KEY']
+      : ['STRIPE_SECRET_KEY', 'QUANTE_NOTIFY_SECRET']
+    await setEnvVars(vercelProjectId, envVars, { encrypted })
   } catch (err) {
-    // Non-fatal — deployment can proceed without these; user adds Stripe keys later
     console.warn('[deploy] setEnvVars failed (non-fatal):', err)
   }
 

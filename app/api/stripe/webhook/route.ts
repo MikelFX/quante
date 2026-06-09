@@ -1,5 +1,6 @@
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { clerkClient } from '@clerk/nextjs/server'
 import type Stripe from 'stripe'
 
 export async function POST(request: Request) {
@@ -17,34 +18,51 @@ export async function POST(request: Request) {
     return new Response('Signature verification failed.', { status: 400 })
   }
 
-  // ── Credit pack purchase ────────────────────────────────────────────────────
+  // ── Stripe Connect: connected account onboarding completed ──────────────────
+  if (event.type === 'account.updated') {
+    const account = event.data.object as Stripe.Account
+    await supabaseAdmin
+      .from('project_secrets')
+      .update({
+        stripe_connect_onboarded: account.details_submitted,
+        stripe_connect_charges_enabled: account.charges_enabled,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('stripe_connect_account_id', account.id)
+    return new Response('ok', { status: 200 })
+  }
+
+  // ── checkout.session.completed ───────────────────────────────────────────────
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    const { userId, credits, type } = session.metadata ?? {}
+    const { userId, credits, type, project_id: projectId } = session.metadata ?? {}
 
-    // Hosting subscription checkout — subscription webhook handles the rest
+    // Store sale — notify the shop owner
+    if (type === 'store_sale' && projectId) {
+      await notifyStoreSale(projectId, session)
+      return new Response('ok', { status: 200 })
+    }
+
+    // Hosting subscription checkout — subscription webhook handles credits
     if (type === 'hosting') {
       return new Response('ok', { status: 200 })
     }
 
+    // Credit pack purchase
     if (!userId || !credits) {
       return new Response('Missing metadata.', { status: 400 })
     }
 
     const creditAmount = parseInt(credits, 10)
 
-    // Idempotency — check if this session was already processed
     const { data: existing } = await supabaseAdmin
       .from('purchases')
       .select('id')
       .eq('stripe_session_id', session.id)
       .maybeSingle()
 
-    if (existing) {
-      return new Response('Already processed.', { status: 200 })
-    }
+    if (existing) return new Response('Already processed.', { status: 200 })
 
-    // Get current balance
     const { data: lastEntry } = await supabaseAdmin
       .from('credit_ledger')
       .select('balance_after')
@@ -56,7 +74,6 @@ export async function POST(request: Request) {
     const currentBalance = lastEntry?.balance_after ?? 0
     const newBalance = currentBalance + creditAmount
 
-    // Record purchase
     const { data: purchase, error: purchaseError } = await supabaseAdmin
       .from('purchases')
       .insert({
@@ -73,7 +90,6 @@ export async function POST(request: Request) {
       return new Response('Failed to record purchase.', { status: 500 })
     }
 
-    // Credit the ledger
     const { error: ledgerError } = await supabaseAdmin
       .from('credit_ledger')
       .insert({
@@ -131,4 +147,76 @@ export async function POST(request: Request) {
   }
 
   return new Response('ok', { status: 200 })
+}
+
+// ─── Notify store owner of a sale via Resend ─────────────────────────────────
+
+async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Session) {
+  const resendKey = process.env.RESEND_API_KEY
+  if (!resendKey) return
+
+  const { data: secret } = await supabaseAdmin
+    .from('project_secrets')
+    .select('user_id')
+    .eq('project_id', projectId)
+    .maybeSingle()
+
+  if (!secret?.user_id) return
+
+  let ownerEmail: string | null = null
+  try {
+    const clerk = await clerkClient()
+    const user = await clerk.users.getUser(secret.user_id as string)
+    ownerEmail = user.emailAddresses.find((e) => e.id === user.primaryEmailAddressId)?.emailAddress
+      ?? user.emailAddresses[0]?.emailAddress
+      ?? null
+  } catch (err) {
+    console.error('[webhook] failed to get owner email:', err)
+  }
+
+  if (!ownerEmail) return
+
+  const amount = ((session.amount_total ?? 0) / 100).toFixed(2)
+  const currency = (session.currency ?? 'usd').toUpperCase()
+  const customerName = session.customer_details?.name ?? '—'
+  const customerEmail = session.customer_details?.email ?? '—'
+
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
+      body: JSON.stringify({
+        from: 'orders@quante.io',
+        to: ownerEmail,
+        subject: `New order — ${currency} ${amount}`,
+        html: `
+          <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:520px;margin:0 auto;padding:2rem 1rem;color:#111">
+            <h2 style="margin:0 0 1.5rem;font-size:22px;font-weight:700">New order received 🎉</h2>
+            <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb">
+              <tr style="background:#f9fafb">
+                <td style="padding:12px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb">Customer</td>
+                <td style="padding:12px 16px;font-size:14px;font-weight:600;border-bottom:1px solid #e5e7eb">${customerName}</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb">Email</td>
+                <td style="padding:12px 16px;font-size:14px;border-bottom:1px solid #e5e7eb">${customerEmail}</td>
+              </tr>
+              <tr style="background:#f9fafb">
+                <td style="padding:12px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb">Amount</td>
+                <td style="padding:12px 16px;font-size:18px;font-weight:700;color:#059669;border-bottom:1px solid #e5e7eb">${currency} ${amount}</td>
+              </tr>
+              <tr>
+                <td style="padding:12px 16px;font-size:13px;color:#6b7280">Order ID</td>
+                <td style="padding:12px 16px;font-size:12px;color:#9ca3af;font-family:monospace">${session.id}</td>
+              </tr>
+            </table>
+            <p style="margin:2rem 0 0;font-size:12px;color:#9ca3af">Sent by <a href="https://quante.io" style="color:#6f78e6;text-decoration:none">Quante</a></p>
+          </div>
+        `,
+      }),
+    })
+    if (!res.ok) console.error('[webhook] Resend error:', res.status, await res.text())
+  } catch (err) {
+    console.error('[webhook] email send failed:', err)
+  }
 }

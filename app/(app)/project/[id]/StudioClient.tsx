@@ -167,6 +167,11 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [settingsSecKey, setSettingsSecKey] = useState('')
   const [settingsSecKeySet, setSettingsSecKeySet] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  // Stripe Connect
+  const [stripeConnect, setStripeConnect] = useState<{
+    accountId: string | null; onboarded: boolean; chargesEnabled: boolean
+  } | null>(null)
+  const [isConnectingStripe, setIsConnectingStripe] = useState(false)
   // Hosting panel
   const [customDomainInput, setCustomDomainInput] = useState('')
   const [isAddingDomain, setIsAddingDomain] = useState(false)
@@ -232,6 +237,13 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         if (d.stripePublishableKey) setSettingsPubKey(d.stripePublishableKey)
         if (d.stripeSecretKeySet) setSettingsSecKeySet(true)
       })
+      .catch(() => {})
+  }, [projectId])
+
+  useEffect(() => {
+    fetch(`/api/stripe/connect/status?project_id=${projectId}`)
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setStripeConnect(d) })
       .catch(() => {})
   }, [projectId])
 
@@ -620,6 +632,20 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     } finally {
       setIsAddingDomain(false)
     }
+  }
+
+  async function handleConnectStripe() {
+    setIsConnectingStripe(true)
+    try {
+      const res = await fetch('/api/stripe/connect/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+    } catch { /* non-fatal */ }
+    setIsConnectingStripe(false)
   }
 
   async function handleSaveManifest(updatedManifest: ShopManifest, prompt: string) {
@@ -1510,6 +1536,49 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           )}
         </div>
       )}
+
+      {/* Stripe Connect — Payments */}
+      <div style={{ borderRadius: 10, border: stripeConnect?.chargesEnabled ? '1px solid rgba(52,211,153,.25)' : '1px solid var(--border)', padding: '14px', background: stripeConnect?.chargesEnabled ? 'rgba(52,211,153,.03)' : 'transparent' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>Payments</p>
+          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'var(--font-geist-mono)' }}>2% per sale</span>
+        </div>
+        {stripeConnect?.chargesEnabled ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 10, color: '#34d399' }}>●</span>
+            <span style={{ fontSize: 12, color: '#34d399', fontWeight: 500 }}>Connected · Ready to accept payments</span>
+          </div>
+        ) : stripeConnect?.accountId && !stripeConnect.chargesEnabled ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{ fontSize: 10, color: '#fbbf24' }}>●</span>
+              <span style={{ fontSize: 12, color: '#fbbf24', fontWeight: 500 }}>
+                {stripeConnect.onboarded ? 'Verification in progress' : 'Setup incomplete'}
+              </span>
+            </div>
+            <button
+              onClick={handleConnectStripe}
+              disabled={isConnectingStripe}
+              style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isConnectingStripe ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isConnectingStripe ? 0.6 : 1 }}
+            >
+              {isConnectingStripe ? '…' : 'Continue setup →'}
+            </button>
+          </>
+        ) : (
+          <>
+            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 10, lineHeight: 1.6 }}>
+              Connect your bank account to receive payments directly. Quante takes 2% per transaction — no monthly fees.
+            </p>
+            <button
+              onClick={handleConnectStripe}
+              disabled={isConnectingStripe}
+              style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isConnectingStripe ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isConnectingStripe ? 0.6 : 1 }}
+            >
+              {isConnectingStripe ? '…' : 'Connect Stripe →'}
+            </button>
+          </>
+        )}
+      </div>
 
       {/* Subscription */}
       <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px' }}>
