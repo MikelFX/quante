@@ -101,6 +101,12 @@ export interface AnimationsProps {
   productSlug?: string
 }
 
+export interface CustomPage {
+  slug: string      // kebab-case, no leading slash, e.g. "doprava" or "vraceni-zbozi"
+  title: string     // page title shown in <title> and as hero heading
+  sections: Section[]
+}
+
 export interface NavItem {
   label: string
   href: string
@@ -160,6 +166,9 @@ export interface ShopManifest {
     about?: Section[]
     contact?: Section[]
   }
+
+  /** Arbitrary extra pages — each gets a URL at /<slug> */
+  customPages?: CustomPage[]
 
   nav: NavItem[]
   footer: {

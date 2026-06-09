@@ -175,6 +175,13 @@ export const ShopManifestSchema = z.object({
     ),
   }),
   seo: z.object({ title: z.string(), description: z.string() }),
+  customPages: z.array(
+    z.object({
+      slug: z.string(),
+      title: z.string(),
+      sections: z.array(SectionSchema),
+    })
+  ).optional(),
 })
 
 export type ValidatedShopManifest = z.infer<typeof ShopManifestSchema>

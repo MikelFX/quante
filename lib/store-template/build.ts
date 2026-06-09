@@ -258,6 +258,46 @@ export default function ContactPage() {
 }
 `)
 
+  // ── app/[slug]/page.tsx — catch-all for custom pages ─────────────────────
+  add('app/[slug]/page.tsx', `\
+import { notFound } from 'next/navigation'
+import { manifest } from '@/data/manifest'
+import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
+import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
+import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
+import { SectionRenderer } from '@/components/storefront/SectionRenderer'
+
+interface Props { params: Promise<{ slug: string }> }
+
+export default async function CustomPage({ params }: Props) {
+  const { slug } = await params
+  const page = manifest.customPages?.find((p) => p.slug === slug)
+  if (!page) notFound()
+
+  const cssVars = manifestToCssVars(manifest)
+  const fontUrl = buildFontUrl(manifest)
+
+  return (
+    <div style={{ ...cssVars, background: 'var(--s-bg)', color: 'var(--s-text)', fontFamily: 'var(--s-font-body)', minHeight: '100vh' } as React.CSSProperties}>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link rel="stylesheet" href={fontUrl} />
+      <StoreNavbar manifest={manifest} />
+      <main style={{ maxWidth: '80rem', margin: '0 auto', padding: 'calc(4rem * var(--s-space)) 2rem' }}>
+        {page.sections.map((section, i) => (
+          <SectionRenderer key={i} section={section} manifest={manifest} />
+        ))}
+      </main>
+      <StoreFooter manifest={manifest} />
+    </div>
+  )
+}
+
+export function generateStaticParams() {
+  return (manifest.customPages ?? []).map((p) => ({ slug: p.slug }))
+}
+`)
+
   // ── types/manifest.ts — verbatim copy ─────────────────────────────────────
   addFile('types/manifest.ts', path.join(cwd, 'types', 'manifest.ts'))
 

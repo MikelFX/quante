@@ -7,13 +7,16 @@ import { SectionRenderer } from './SectionRenderer'
 interface Props {
   manifest: ShopManifest
   page?: keyof ShopManifest['pages']
+  customSlug?: string
   basePath?: string
 }
 
-export function ShopRenderer({ manifest, page = 'home', basePath = '' }: Props) {
+export function ShopRenderer({ manifest, page = 'home', customSlug, basePath = '' }: Props) {
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
-  const sections = manifest.pages[page] ?? []
+  const sections = customSlug
+    ? (manifest.customPages?.find((p) => p.slug === customSlug)?.sections ?? [])
+    : (manifest.pages[page] ?? [])
 
   return (
     <div

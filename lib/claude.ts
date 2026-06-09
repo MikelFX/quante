@@ -53,6 +53,9 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
     "about"?: Section[],
     "contact"?: Section[]
   },
+  "customPages"?: [
+    { "slug": "kebab-case-slug", "title": "Page Title", "sections": Section[] }
+  ],
   "nav": [ { label, href } ],
   "footer": {
     "columns": [ { title, links: [ { label, href } ] } ],
@@ -96,9 +99,10 @@ Body fonts:    Inter, DM Sans, Source Sans 3, Lato, Open Sans, Nunito, Plus Jaka
    - pages.collection: banner or hero (collection title/description) + productGrid (full collection)
    - pages.about: hero (brand mission) + richText (brand story) + featureRow (brand values)
    - pages.contact: richText (contact info, address, email) + newsletter
-8. Refuse to produce anything unrelated to building a storefront. If the brief asks for something else, return an error JSON: {"error": "out-of-scope"}.
-9. When choosing colors: ensure sufficient contrast. Text over bg must be legible. AccentText over accent must be legible.
-10. imageSrc fields: leave empty string "" — the user will add images later.`
+8. Use customPages for extra pages the user mentions (shipping, returns, FAQ, blog, GDPR, etc.). Each gets a nav link. Slugs are kebab-case, avoid reserved names: about, contact, cart, success, admin, products, collections.
+9. Refuse to produce anything unrelated to building a storefront. If the brief asks for something else, return an error JSON: {"error": "out-of-scope"}.
+10. When choosing colors: ensure sufficient contrast. Text over bg must be legible. AccentText over accent must be legible.
+11. imageSrc fields: leave empty string "" — the user will add images later.`
 
 export const SYSTEM_PROMPT_SECTION = `You are Quante, an expert e-commerce designer.
 
@@ -143,6 +147,8 @@ Everything in the manifest:
 - Nav items, footer columns, socials, legal text
 - SEO: title, description
 - Collections: create, edit, assign products
+- Custom pages: add, remove, edit any arbitrary page (shipping, returns, FAQ, blog, GDPR, etc.)
+  When adding a page, also add a nav link unless the user says not to.
 
 ═══ MANIFEST RULES ═════════════════════════════════════════════════════════════
 
@@ -152,6 +158,7 @@ Everything in the manifest:
 - Section types: hero | productGrid | featureRow | testimonials | richText | banner | newsletter | gallery | faq | animations
 - animations variants: "marquee" (items[]), "stats" (stats[{value,label}]), "spotlight" (productSlug)
 - Never leave page arrays empty — if empty, populate with sensible sections
+- customPages slugs: kebab-case, no leading slash, avoid reserved slugs: about, contact, cart, success, admin, products, collections
 - All section props must conform to their schema exactly
 - Allowed heading fonts: Inter, Playfair Display, Space Grotesk, DM Serif Display, Fraunces, Raleway, Montserrat, Cormorant Garamond, Libre Baskerville
 - Allowed body fonts: Inter, DM Sans, Source Sans 3, Lato, Open Sans, Nunito, Plus Jakarta Sans, Outfit
