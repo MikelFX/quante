@@ -11,3 +11,8 @@ export function isStripeConfigured(): boolean {
   const key = process.env.STRIPE_SECRET_KEY
   return !!key && key !== 'sk_test_placeholder' && key.startsWith('sk_')
 }
+
+// Hosting annual subscription — create a recurring Price in Stripe dashboard
+// (€99.00 / year, currency EUR) and paste the Price ID into STRIPE_HOSTING_PRICE_ID
+export const HOSTING_PRICE_ID = process.env.STRIPE_HOSTING_PRICE_ID ?? ''
+export const HOSTING_ANNUAL_EUR = 99

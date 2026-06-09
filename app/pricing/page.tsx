@@ -84,7 +84,8 @@ const COSTS = [
   { action: 'Make a change in chat', cost: '1', unit: 'credit' },
   { action: 'Redo one section', cost: '2', unit: 'credits' },
   { action: 'Add a custom component', cost: '3', unit: 'credits' },
-  { action: 'Download your store', cost: '5', unit: 'credits' },
+  { action: 'Download your store (ZIP)', cost: '5', unit: 'credits' },
+  { action: 'Deploy to Quante hosting', cost: '15', unit: 'credits' },
   { action: 'Welcome bonus on signup', cost: '+25', unit: 'free' },
 ]
 
@@ -92,7 +93,9 @@ const FAQ = [
   { q: 'Do credits expire?', a: 'No. Credits never expire. Buy once and use them whenever you feel like it.' },
   { q: 'What if something goes wrong during generation?', a: "Credits are only taken on success. If a generation fails and we can't auto-fix it, nothing is charged." },
   { q: 'Can I export the same store more than once?', a: 'Yes — each export costs 5 credits. Useful when you want to grab the latest version after iterating.' },
-  { q: 'Can I deploy to Vercel for free?', a: "Yes. The downloaded ZIP is a standard Next.js project. Vercel's free Hobby plan handles it perfectly." },
+  { q: 'What does "Deploy to Quante hosting" mean?', a: 'One click in the Studio and your store goes live on a URL like my-store.quante.app — SSL included, no server setup. You can also bring your own domain. Costs 15 credits per deploy.' },
+  { q: 'Can I self-host instead?', a: "Yes. Export the ZIP (5 credits) and deploy anywhere — Vercel's free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency." },
+  { q: 'Is hosting a subscription?', a: 'No. Each deploy costs a flat 15 credits. No recurring fee on top — consistent with the rest of Quante pricing.' },
   { q: 'Do you charge a monthly fee?', a: 'Never. Quante is pay-per-use. The only money that leaves your pocket is when you actively choose to top up.' },
 ]
 
@@ -337,6 +340,66 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* HOSTING */}
+      <section style={{
+        position: 'relative', padding: '5rem 1.5rem',
+        borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+        <div style={{ maxWidth: 720, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
+            color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
+          }}>
+            03 — hosting &amp; domains
+          </p>
+          <h2 style={{
+            fontSize: 'clamp(24px,3.6vw,32px)', fontWeight: 700, letterSpacing: '-.025em',
+            textAlign: 'center', marginBottom: 12, color: '#f4f4f6',
+          }}>
+            Your store, live in 3 minutes.
+          </h2>
+          <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center', maxWidth: 460, margin: '0 auto 40px', lineHeight: 1.65 }}>
+            No Vercel account, no server config, no DNS headaches. Click Deploy in the Studio and Quante handles everything.
+          </p>
+
+          <div style={{
+            background: 'rgba(12,12,16,.6)',
+            border: '1px solid rgba(255,255,255,.08)',
+            borderRadius: 14, overflow: 'hidden',
+          }}>
+            {[
+              { label: 'URL format', value: 'my-store.quante.app', mono: true },
+              { label: 'Custom domain', value: 'Bring your own — CNAME verified automatically', mono: false },
+              { label: 'SSL certificate', value: 'Included, auto-renewed', mono: false },
+              { label: 'Cost per deploy', value: '15 credits · charged on success only', mono: true },
+              { label: 'Re-deploy after edits', value: 'Same URL, same domain — just updated', mono: false },
+            ].map((row, i, arr) => (
+              <div key={row.label} style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                padding: '14px 22px',
+                borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none',
+              }}>
+                <span style={{ fontSize: 13, color: '#8a8a93' }}>{row.label}</span>
+                <span style={{
+                  fontSize: 13, fontWeight: 500,
+                  color: '#f4f4f6',
+                  fontFamily: row.mono ? 'var(--font-geist-mono)' : 'inherit',
+                  textAlign: 'right',
+                }}>
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ fontSize: 12, color: '#5b5b64', textAlign: 'center', marginTop: 16 }}>
+            Prefer self-hosting? Export the ZIP (5 credits) and deploy anywhere.
+          </p>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section style={{
         position: 'relative', padding: '5rem 1.5rem 6rem',
@@ -350,7 +413,7 @@ export default function PricingPage() {
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
             color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
           }}>
-            03 — questions
+            04 — questions
           </p>
           <h2 style={{
             fontSize: 'clamp(24px,3.6vw,32px)', fontWeight: 700, letterSpacing: '-.025em',

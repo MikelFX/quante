@@ -17,9 +17,15 @@ export async function POST(request: Request) {
     return new Response('Signature verification failed.', { status: 400 })
   }
 
+  // ── Credit pack purchase ────────────────────────────────────────────────────
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
-    const { userId, credits } = session.metadata ?? {}
+    const { userId, credits, type } = session.metadata ?? {}
+
+    // Hosting subscription checkout — subscription webhook handles the rest
+    if (type === 'hosting') {
+      return new Response('ok', { status: 200 })
+    }
 
     if (!userId || !credits) {
       return new Response('Missing metadata.', { status: 400 })
@@ -82,6 +88,46 @@ export async function POST(request: Request) {
       console.error('Failed to update ledger:', ledgerError)
       return new Response('Failed to update credit ledger.', { status: 500 })
     }
+  }
+
+  // ── Hosting subscription events ──────────────────────────────────────────────
+  if (
+    event.type === 'customer.subscription.created' ||
+    event.type === 'customer.subscription.updated'
+  ) {
+    const sub = event.data.object as Stripe.Subscription
+    const { userId, projectId } = sub.metadata ?? {}
+    if (!userId || !projectId) return new Response('ok', { status: 200 })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const subAny = sub as any
+    const periodEnd = subAny.current_period_end
+      ? new Date(subAny.current_period_end * 1000).toISOString()
+      : null
+
+    await supabaseAdmin
+      .from('hosting_subscriptions')
+      .upsert(
+        {
+          user_id: userId,
+          project_id: projectId,
+          stripe_subscription_id: sub.id,
+          stripe_customer_id: sub.customer as string,
+          status: sub.status,
+          current_period_end: periodEnd,
+          cancel_at_period_end: subAny.cancel_at_period_end ?? false,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'stripe_subscription_id' }
+      )
+  }
+
+  if (event.type === 'customer.subscription.deleted') {
+    const sub = event.data.object as Stripe.Subscription
+    await supabaseAdmin
+      .from('hosting_subscriptions')
+      .update({ status: 'canceled', updated_at: new Date().toISOString() })
+      .eq('stripe_subscription_id', sub.id)
   }
 
   return new Response('ok', { status: 200 })

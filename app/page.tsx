@@ -10,10 +10,11 @@ import { CREDIT_PACKS } from '@/lib/credit-packs'
 const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
 
 const STACK_CARDS = [
-  { n: '01', title: "It's yours to keep", desc: "Download your store, host it anywhere, change whatever you want. No lock-in, no strings attached." },
-  { n: '02', title: 'It just works', desc: "The AI handles your design and copy. The code underneath is solid — it builds and runs without issues every time." },
-  { n: '03', title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
-  { n: '04', title: 'Nothing gets lost', desc: "Every change is saved automatically. Went too far? Jump back to any earlier version in one tap." },
+  { n: '01', title: 'Live in 3 minutes', desc: 'Click Deploy. Quante provisions hosting, SSL, and your subdomain automatically. Zero server setup, zero DevOps.' },
+  { n: '02', title: "It's yours to keep", desc: "Download the source, host it anywhere, change whatever you want. No lock-in, no strings attached." },
+  { n: '03', title: 'It just works', desc: "The AI handles your design and copy. The code underneath is solid — it builds and runs without issues every time." },
+  { n: '04', title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
+  { n: '05', title: 'Nothing gets lost', desc: "Every change is saved automatically. Went too far? Jump back to any earlier version in one tap." },
 ]
 
 const SHOWCASE_PROJECTS = [
@@ -254,16 +255,18 @@ function StackCard({ card, index, total, progress }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
-  const heroRef  = useRef<HTMLElement>(null)
-  const stackRef = useRef<HTMLElement>(null)
-  const horizRef = useRef<HTMLElement>(null)
-  const hTrackRef = useRef<HTMLDivElement>(null)
-  const hStageRef = useRef<HTMLDivElement>(null)
+  const heroRef    = useRef<HTMLElement>(null)
+  const revealRef  = useRef<HTMLElement>(null)
+  const stackRef   = useRef<HTMLElement>(null)
+  const horizRef   = useRef<HTMLElement>(null)
+  const hTrackRef  = useRef<HTMLDivElement>(null)
+  const hStageRef  = useRef<HTMLDivElement>(null)
   const [maxX, setMaxX] = useState(900)
 
-  const { scrollYProgress: heroP  } = useScroll({ target: heroRef,  offset: ['start start', 'end end'] })
-  const { scrollYProgress: stackP } = useScroll({ target: stackRef, offset: ['start start', 'end end'] })
-  const { scrollYProgress: horizP } = useScroll({ target: horizRef, offset: ['start start', 'end end'] })
+  const { scrollYProgress: heroP   } = useScroll({ target: heroRef,   offset: ['start start', 'end end'] })
+  const { scrollYProgress: revealP } = useScroll({ target: revealRef, offset: ['start start', 'end end'] })
+  const { scrollYProgress: stackP  } = useScroll({ target: stackRef,  offset: ['start start', 'end end'] })
+  const { scrollYProgress: horizP  } = useScroll({ target: horizRef,  offset: ['start start', 'end end'] })
 
   useEffect(() => {
     function measure() {
@@ -292,6 +295,22 @@ export default function HomePage() {
     `translateY(${lerp(28, -42, fp(p)).toFixed(1)}px) scale(${lerp(0.955, 1, fp(p)).toFixed(3)})`
   )
   const cueOp = useTransform(heroP, [0, 0.05], [1, 0])
+
+  // ── Reveal (hosting) section ─────────────────────────────────────────────
+  const rLine1Op   = useTransform(revealP, [0.02, 0.14], [0, 1])
+  const rLine1Y    = useTransform(revealP, [0.02, 0.14], [50, 0])
+  const rLine1Blur = useTransform(revealP, [0.02, 0.14], ['blur(10px)', 'blur(0px)'])
+  const rLine2Op   = useTransform(revealP, [0.14, 0.26], [0, 1])
+  const rLine2Y    = useTransform(revealP, [0.14, 0.26], [50, 0])
+  const rLine2Blur = useTransform(revealP, [0.14, 0.26], ['blur(10px)', 'blur(0px)'])
+  const rLine3Op   = useTransform(revealP, [0.30, 0.42], [0, 1])
+  const rLine3Y    = useTransform(revealP, [0.30, 0.42], [40, 0])
+  const rLine3Blur = useTransform(revealP, [0.30, 0.42], ['blur(10px)', 'blur(0px)'])
+  const rLine4Op   = useTransform(revealP, [0.44, 0.58], [0, 1])
+  const rLine4Y    = useTransform(revealP, [0.44, 0.58], [50, 0])
+  const rLine4Blur = useTransform(revealP, [0.44, 0.58], ['blur(10px)', 'blur(0px)'])
+  const rCompOp    = useTransform(revealP, [0.68, 0.84], [0, 1])
+  const rCompY     = useTransform(revealP, [0.68, 0.84], [40, 0])
 
   // ── Horizontal track ─────────────────────────────────────────────────────
   const hTrackX    = useTransform(horizP, p => -(p * maxX))
@@ -377,7 +396,7 @@ export default function HomePage() {
               transition={{ duration: 0.8, delay: 0.34 }}
               style={{ fontSize: 15, lineHeight: 1.6, color: '#8a8a93', maxWidth: 430, margin: '18px auto 0' }}
             >
-              Describe what you want. Get a real, working online shop — yours to download and host anywhere.
+              Describe what you want. Get a real, working online shop — deploy it with one click or download and host anywhere.
             </motion.p>
           </motion.div>
 
@@ -422,6 +441,85 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── REVEAL — hosting & domains manifesto ── */}
+      <section ref={revealRef} style={{ height: 3200, position: 'relative' }}>
+        <div style={{
+          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '0 1.5rem',
+        }}>
+          <Ambient />
+          <GrainVignette />
+
+          <div style={{ maxWidth: 1080, width: '100%', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+            <p style={{
+              fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em',
+              color: '#5b5b64', marginBottom: 36, textAlign: 'center',
+            }}>
+              02 — from idea to live store
+            </p>
+
+            <div style={{
+              display: 'flex', flexDirection: 'column', gap: '0.4em',
+              fontSize: 'clamp(26px,4.4vw,48px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.08,
+            }}>
+              <motion.span style={{ opacity: rLine1Op, y: rLine1Y, filter: rLine1Blur, color: '#f4f4f6' }}>
+                Describe what you want.
+              </motion.span>
+              <motion.span style={{ opacity: rLine2Op, y: rLine2Y, filter: rLine2Blur, color: '#f4f4f6' }}>
+                Quante <span style={{ color: '#6f78e6', textShadow: '0 0 32px rgba(111,120,230,.55)' }}>builds the store</span> —
+              </motion.span>
+              <motion.span style={{
+                opacity: rLine3Op, y: rLine3Y, filter: rLine3Blur,
+                color: '#a4a4ad', fontSize: 'clamp(18px,3vw,28px)', fontWeight: 600, marginTop: '0.4em',
+              }}>
+                copy, design, products. All of it. Then hit Deploy —
+              </motion.span>
+              <motion.span style={{ opacity: rLine4Op, y: rLine4Y, filter: rLine4Blur, color: '#f4f4f6' }}>
+                and you&apos;re <span style={{ color: '#3ecf8e', textShadow: '0 0 32px rgba(62,207,142,.55)' }}>live on your own domain</span> in minutes.
+              </motion.span>
+            </div>
+
+            {/* Comparison strip */}
+            <motion.div style={{
+              opacity: rCompOp, y: rCompY,
+              marginTop: 56, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
+              maxWidth: 880, marginInline: 'auto',
+            }} className="manifesto-compare">
+              <div style={{
+                padding: '20px 20px', borderRadius: 14,
+                border: '1px solid rgba(255,255,255,.1)',
+                background: 'rgba(255,255,255,.03)',
+              }}>
+                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#5b5b64', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
+                  The old way
+                </p>
+                {['Set up a server or Vercel account', 'Configure DNS and SSL yourself', 'DevOps before your first sale', 'Hours before you can share a link'].map(t => (
+                  <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#f87171' }}>✕</span> {t}
+                  </p>
+                ))}
+              </div>
+              <div style={{
+                padding: '20px 20px', borderRadius: 14,
+                border: '1px solid rgba(62,207,142,.25)',
+                background: 'rgba(62,207,142,.05)',
+                boxShadow: '0 0 50px rgba(62,207,142,.08)',
+              }}>
+                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#3ecf8e', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
+                  Quante
+                </p>
+                {['One click in the Studio', 'SSL included automatically', 'Live on your-store.quante.app', 'Ready in about 3 minutes'].map(t => (
+                  <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#3ecf8e' }}>✓</span> {t}
+                  </p>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* ── STACK — "built differently" ── */}
       <section ref={stackRef} style={{ height: 2800, position: 'relative' }}>
         <div style={{
@@ -436,7 +534,7 @@ export default function HomePage() {
             position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
           }}>
-            02 — why it's different
+            03 — why it's different
           </div>
 
           <div style={{ position: 'relative', width: '100%', maxWidth: 460, height: 296, zIndex: 2 }}>
@@ -465,7 +563,7 @@ export default function HomePage() {
             position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
           }}>
-            03 — built with quante →
+            04 — built with quante →
           </div>
 
           <motion.div
@@ -570,6 +668,64 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── HOSTING ── */}
+      <section style={{
+        borderTop: '1px solid rgba(255,255,255,.07)',
+        padding: '7rem 2rem',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+        <div style={{ maxWidth: 960, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64', marginBottom: 12, textAlign: 'center' }}>
+            05 — hosting &amp; domains
+          </p>
+          <h2 style={{ fontSize: 'clamp(26px,4.4vw,42px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 14, textAlign: 'center' }}>
+            Click Deploy. You&apos;re live.
+          </h2>
+          <p style={{ fontSize: 15, color: '#8a8a93', maxWidth: 420, margin: '0 auto 56px', textAlign: 'center', lineHeight: 1.65 }}>
+            No servers to configure. No Vercel account needed. One click and your store is live on a real URL with SSL included.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
+            {[
+              { icon: '⬆', title: 'One-click deploy', desc: 'Hit Deploy in the Studio. Quante handles the build, CDN and SSL certificate in about 3 minutes.' },
+              { icon: '🌐', title: 'Your own subdomain', desc: 'Every store gets a clean URL like my-store.quante.app — live and shareable the moment it\'s ready.' },
+              { icon: '🔗', title: 'Custom domain', desc: 'Already own a domain? Point your CNAME and Quante verifies it automatically. No DNS nightmare.' },
+              { icon: '↓', title: 'Or take the code', desc: 'Prefer self-hosting? Export the full Next.js source as a ZIP and deploy anywhere you want.' },
+            ].map(({ icon, title, desc }) => (
+              <div key={title} style={{
+                background: 'rgba(12,12,16,.6)',
+                border: '1px solid rgba(255,255,255,.07)',
+                borderRadius: 14, padding: '22px 20px',
+              }}>
+                <span style={{ fontSize: 20, display: 'block', marginBottom: 12 }}>{icon}</span>
+                <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>{title}</p>
+                <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6 }}>{desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Live URL pill */}
+          <div style={{ marginTop: 44, display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              background: 'rgba(52,211,153,.07)',
+              border: '1px solid rgba(52,211,153,.2)',
+              borderRadius: 99, padding: '8px 20px',
+            }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 8px rgba(52,211,153,.8)' }} />
+              <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: '#34d399' }}>
+                my-store.quante.app
+              </span>
+              <span style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>
+                · live · ssl ✓
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── PRICING PREVIEW ── */}
       <section style={{
         borderTop: '1px solid rgba(255,255,255,.07)',
@@ -580,7 +736,7 @@ export default function HomePage() {
         <GrainVignette />
         <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
           <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64', marginBottom: 12 }}>
-            04 — pricing
+            06 — pricing
           </p>
           <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 12 }}>
             Pay only when you create
