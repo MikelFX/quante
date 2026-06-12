@@ -91,6 +91,7 @@ export function buildStoreFiles(manifest: ShopManifest): GeneratedFile[] {
   add('app/globals.css', `@import "tailwindcss";\n\n* { box-sizing: border-box; margin: 0; padding: 0; }\nbody { -webkit-font-smoothing: antialiased; }\n`)
 
   // ── app/layout.tsx ────────────────────────────────────────────────────────
+  const lang = manifest.catalog.currency === 'CZK' ? 'cs' : 'en'
   add('app/layout.tsx', `\
 import type { Metadata } from 'next'
 import { manifest } from '@/data/manifest'
@@ -104,7 +105,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="${lang}">
       <body>
         <CartProvider>{children}</CartProvider>
       </body>
@@ -126,6 +127,7 @@ export default function HomePage() {
   // ── app/products/[slug]/page.tsx ──────────────────────────────────────────
   add('app/products/[slug]/page.tsx', `\
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
 import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
@@ -137,10 +139,34 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const product = manifest.catalog.products.find((p) => p.slug === slug)
+  if (!product) return {}
+  return { title: \`\${product.name} – \${manifest.seo.title}\`, description: product.description }
+}
+
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params
   const product = manifest.catalog.products.find((p) => p.slug === slug)
   if (!product) notFound()
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: product.description,
+    image: product.images,
+    offers: {
+      '@type': 'Offer',
+      price: product.price,
+      priceCurrency: manifest.catalog.currency,
+      availability: product.available
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      seller: { '@type': 'Organization', name: manifest.brand.name },
+    },
+  }
 
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
@@ -157,6 +183,7 @@ export default async function ProductPage({ params }: Props) {
         } as React.CSSProperties
       }
     >
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href={fontUrl} />
@@ -188,6 +215,21 @@ export default async function ProductPage({ params }: Props) {
                 {manifest.catalog.currency} {product.price.toFixed(2)}
               </p>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                padding: '0.25rem 0.625rem', borderRadius: 99, fontSize: '0.8125rem', fontWeight: 600,
+                background: product.available ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)',
+                color: product.available ? '#059669' : '#dc2626',
+                border: \`1px solid \${product.available ? 'rgba(52,211,153,0.25)' : 'rgba(248,113,113,0.25)'}\`,
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: product.available ? '#34d399' : '#f87171', display: 'inline-block' }} />
+                {product.available ? 'Skladem' : 'Vyprodáno'}
+              </span>
+              {product.available && (
+                <span style={{ fontSize: '0.8125rem', color: 'var(--s-muted)' }}>Expedice 1–2 pracovní dny</span>
+              )}
+            </div>
             <p style={{ color: 'var(--s-muted)', fontSize: '1rem', lineHeight: 1.75 }}>{product.description}</p>
             <AddToCartButton
               productId={product.id}
@@ -195,6 +237,7 @@ export default async function ProductPage({ params }: Props) {
               price={product.price}
               currency={manifest.catalog.currency}
               image={product.images[0]}
+              available={product.available}
             />
           </div>
         </div>
@@ -385,6 +428,7 @@ export function StoreNavbar({ manifest, basePath = '' }: Props) {
   addFile('components/storefront/sections/Gallery.tsx', path.join(sfBase, 'sections', 'Gallery.tsx'))
   addFile('components/storefront/sections/Faq.tsx', path.join(sfBase, 'sections', 'Faq.tsx'))
   addFile('components/storefront/sections/Animations.tsx', path.join(sfBase, 'sections', 'Animations.tsx'))
+  addFile('components/storefront/CookieConsent.tsx', path.join(sfBase, 'CookieConsent.tsx'))
 
   // ── Cart context ──────────────────────────────────────────────────────────
   add('context/cart.tsx', `'use client'
@@ -476,7 +520,7 @@ export function CartIcon({ basePath = '' }: { basePath?: string }) {
         gap: '0.375rem',
       }}
     >
-      Cart
+      Košík
       {count > 0 && (
         <span
           style={{
@@ -508,16 +552,40 @@ interface Props {
   price: number
   currency: string
   image?: string
+  available?: boolean
 }
 
-export function AddToCartButton({ productId, name, price, currency, image }: Props) {
+export function AddToCartButton({ productId, name, price, currency, image, available = true }: Props) {
   const { add } = useCart()
   const [added, setAdded] = useState(false)
 
   function handleAdd() {
+    if (!available) return
     add({ id: productId, name, price, currency, image })
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
+  }
+
+  if (!available) {
+    return (
+      <button
+        disabled
+        style={{
+          padding: '1rem 2.5rem',
+          background: 'var(--s-surface)',
+          color: 'var(--s-muted)',
+          border: '1px solid var(--s-border)',
+          borderRadius: 'var(--s-radius)',
+          fontWeight: 600,
+          fontSize: '1rem',
+          fontFamily: 'var(--s-font-body)',
+          cursor: 'not-allowed',
+          alignSelf: 'flex-start',
+        }}
+      >
+        Vyprodáno
+      </button>
+    )
   }
 
   return (
@@ -537,7 +605,7 @@ export function AddToCartButton({ productId, name, price, currency, image }: Pro
         transition: 'background 0.2s, color 0.2s',
       }}
     >
-      {added ? '\\u2713 Added to cart' : 'Add to cart'}
+      {added ? '\\u2713 Přidáno do košíku' : 'Přidat do košíku'}
     </button>
   )
 }
@@ -545,103 +613,357 @@ export function AddToCartButton({ productId, name, price, currency, image }: Pro
 
   // ── app/cart/page.tsx ──────────────────────────────────────────────────────
   add('app/cart/page.tsx', `'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
 import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
 import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 
+const SHIPPING_LABELS: Record<string, string> = {
+  zasilkovna: 'Zásilkovna',
+  ppl: 'PPL — doručení na adresu',
+  dpd: 'DPD — doručení na adresu',
+  balikovna: 'Balíkovna',
+  osobni_odber: 'Osobní odběr',
+  custom: 'Doprava',
+}
+
+const PAYMENT_LABELS: Record<string, string> = {
+  comgate: 'Platba online (karta, Apple Pay, bankovní tlačítka)',
+  gopay: 'Platba online (GoPay)',
+  stripe: 'Platba kartou',
+  dobirka: 'Dobírka',
+  prevod: 'Bankovní převod',
+}
+
 export default function CartPage() {
-  const { items, updateQty, remove, total } = useCart()
+  const { items, updateQty, remove, total, clear } = useCart()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [termsAccepted, setTermsAccepted] = useState(false)
+
+  const shippingMethods = manifest.shipping?.methods ?? []
+  const paymentProviders = manifest.payments?.providers ?? []
+  const hasDobirka = manifest.payments?.dobirka?.enabled ?? false
+  const dobirkaSurcharge = manifest.payments?.dobirka?.priplatek_czk ?? 0
+  const hasPrevod = manifest.payments?.prevod?.enabled ?? false
+  const freeShippingThreshold = manifest.shipping?.doprava_zdarma_od_czk ?? 0
+
+  const allPaymentOptions = [
+    ...paymentProviders.map((p) => ({ key: p, label: PAYMENT_LABELS[p] ?? p })),
+    ...(hasDobirka ? [{ key: 'dobirka', label: PAYMENT_LABELS.dobirka }] : []),
+    ...(hasPrevod ? [{ key: 'prevod', label: PAYMENT_LABELS.prevod }] : []),
+  ]
+
+  const defaultShipping = shippingMethods[0]?.type ?? ''
+  const defaultPayment = allPaymentOptions[0]?.key ?? 'stripe'
+
+  const [selectedShipping, setSelectedShipping] = useState(defaultShipping)
+  const [selectedPayment, setSelectedPayment] = useState(defaultPayment)
+  const [zasilkovnaId, setZasilkovnaId] = useState('')
+  const [zasilkovnaName, setZasilkovnaName] = useState('')
+  const [customerName, setCustomerName] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [addrUlice, setAddrUlice] = useState('')
+  const [addrMesto, setAddrMesto] = useState('')
+  const [addrPsc, setAddrPsc] = useState('')
+
+  const shippingObj = shippingMethods.find((m) => m.type === selectedShipping)
+  const shippingCost = (freeShippingThreshold > 0 && total >= freeShippingThreshold) ? 0 : (shippingObj?.cena_czk ?? 0)
+  const dobirkaFee = selectedPayment === 'dobirka' ? dobirkaSurcharge : 0
+  const orderTotal = total + shippingCost + dobirkaFee
+  const currency = items[0]?.currency ?? manifest.catalog.currency
+
+  const needsAddress = selectedShipping !== 'zasilkovna' && selectedShipping !== 'osobni_odber'
+  const needsZasilkovna = selectedShipping === 'zasilkovna'
 
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
+  const zasilkovnaApiKey = process.env.NEXT_PUBLIC_ZASILKOVNA_API_KEY ?? ''
 
-  async function handleCheckout() {
+  function openZasilkovnaWidget() {
+    // @ts-expect-error Packeta loaded via CDN
+    if (!window.Packeta?.Widget?.pick) { alert('Widget se načítá, zkuste znovu.'); return }
+    // @ts-expect-error Packeta loaded via CDN
+    window.Packeta.Widget.pick(zasilkovnaApiKey, (point: { id: string; name: string } | null) => {
+      if (point) { setZasilkovnaId(point.id); setZasilkovnaName(point.name) }
+    }, { language: 'cs' })
+  }
+
+  async function handleCheckout(e: React.FormEvent) {
+    e.preventDefault()
+    if (!termsAccepted) { setError('Potvrďte prosím souhlas s obchodními podmínkami.'); return }
+    if (needsZasilkovna && !zasilkovnaId) { setError('Vyberte výdejní místo Zásilkovny.'); return }
+    if (!customerEmail) { setError('Zadejte e-mailovou adresu.'); return }
     setLoading(true)
     setError('')
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({
+          items,
+          paymentMethod: selectedPayment,
+          shippingMethod: selectedShipping,
+          shippingCents: Math.round(shippingCost * 100),
+          dobirkaCents: Math.round(dobirkaFee * 100),
+          zasilkovnaBranchId: zasilkovnaId || undefined,
+          zasilkovnaBranchName: zasilkovnaName || undefined,
+          customerEmail,
+          customerName: customerName || undefined,
+          customerPhone: customerPhone || undefined,
+          shippingAddress: needsAddress ? { ulice: addrUlice, mesto: addrMesto, psc: addrPsc } : undefined,
+        }),
       })
       const data = await res.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        setError(data.error || 'Checkout failed. Please try again.')
-        setLoading(false)
-      }
+      if (data.url) { window.location.href = data.url }
+      else { setError(data.error || 'Chyba při odesílání objednávky.'); setLoading(false) }
     } catch {
-      setError('Network error. Please try again.')
+      setError('Chyba sítě. Zkuste to prosím znovu.')
       setLoading(false)
     }
   }
 
-  const currency = items[0]?.currency ?? manifest.catalog.currency
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '0.625rem 0.875rem', fontSize: '0.9375rem',
+    background: 'var(--s-surface)', border: '1px solid var(--s-border)',
+    borderRadius: 'var(--s-radius)', color: 'var(--s-text)', fontFamily: 'var(--s-font-body)',
+    boxSizing: 'border-box',
+  }
+  const labelStyle: React.CSSProperties = { fontSize: '0.8125rem', fontWeight: 500, marginBottom: '0.375rem', display: 'block', color: 'var(--s-text)' }
+  const sectionHead: React.CSSProperties = { fontFamily: 'var(--s-font-heading)', fontSize: '1rem', fontWeight: 700, marginBottom: '0.875rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--s-border)' }
 
   return (
     <div style={{ ...cssVars, background: 'var(--s-bg)', color: 'var(--s-text)', fontFamily: 'var(--s-font-body)', minHeight: '100vh' } as React.CSSProperties}>
+      {needsZasilkovna && (
+        <script src="https://widget.packeta.com/v6/www/js/library.js" async />
+      )}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href={fontUrl} />
       <StoreNavbar manifest={manifest} />
-      <main style={{ maxWidth: '52rem', margin: '0 auto', padding: 'calc(4rem * var(--s-space)) 2rem' }}>
+      <main style={{ maxWidth: '62rem', margin: '0 auto', padding: 'calc(4rem * var(--s-space)) 2rem' }}>
         <h1 style={{ fontFamily: 'var(--s-font-heading)', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '2rem' }}>
-          Your cart
+          Košík
         </h1>
 
         {items.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--s-muted)' }}>
-            <p style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>Your cart is empty.</p>
+            <p style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>Váš košík je prázdný.</p>
             <a href="/" style={{ display: 'inline-block', padding: '0.875rem 2rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', borderRadius: 'var(--s-radius)', textDecoration: 'none', fontWeight: 600, fontSize: '0.9375rem' }}>
-              Continue shopping
+              Pokračovat v nákupu
             </a>
           </div>
         ) : (
-          <>
-            <div style={{ border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)', overflow: 'hidden', marginBottom: '2rem' }}>
-              {items.map((item, i) => (
-                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', background: 'var(--s-surface)', borderBottom: i < items.length - 1 ? '1px solid var(--s-border)' : 'none' }}>
-                  {item.image && (
-                    <img src={item.image} alt={item.name} style={{ width: '3.5rem', height: '3.5rem', objectFit: 'cover', borderRadius: 'calc(var(--s-radius) / 2)', flexShrink: 0 }} />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontWeight: 600, marginBottom: '0.2rem', fontSize: '0.9375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
-                    <p style={{ color: 'var(--s-muted)', fontSize: '0.8125rem' }}>{item.currency} {item.price.toFixed(2)} each</p>
+          <form onSubmit={handleCheckout} style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '2.5rem', alignItems: 'start' }}>
+            {/* LEFT — items + options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+              {/* Items */}
+              <div>
+                {/* Free shipping progress bar */}
+                {freeShippingThreshold > 0 && total < freeShippingThreshold && (
+                  <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', background: 'var(--s-surface)', border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                      <span style={{ fontSize: '0.8125rem', color: 'var(--s-muted)' }}>Doprava zdarma od {freeShippingThreshold} {currency}</span>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--s-accent)' }}>zbývá {(freeShippingThreshold - total).toFixed(0)} {currency}</span>
+                    </div>
+                    <div style={{ height: '4px', background: 'var(--s-border)', borderRadius: 99 }}>
+                      <div style={{ height: '4px', background: 'var(--s-accent)', borderRadius: 99, width: \`\${Math.min(100, (total / freeShippingThreshold) * 100).toFixed(1)}%\`, transition: 'width 0.4s' }} />
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                    <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: '1.875rem', height: '1.875rem', background: 'var(--s-bg)', border: '1px solid var(--s-border)', borderRadius: 'calc(var(--s-radius) / 2)', cursor: 'pointer', color: 'var(--s-text)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
-                    <span style={{ width: '1.5rem', textAlign: 'center', fontWeight: 600, fontSize: '0.9375rem' }}>{item.quantity}</span>
-                    <button onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: '1.875rem', height: '1.875rem', background: 'var(--s-bg)', border: '1px solid var(--s-border)', borderRadius: 'calc(var(--s-radius) / 2)', cursor: 'pointer', color: 'var(--s-text)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                )}
+                {freeShippingThreshold > 0 && total >= freeShippingThreshold && (
+                  <div style={{ marginBottom: '1rem', padding: '0.625rem 1rem', background: 'rgba(52,211,153,.08)', border: '1px solid rgba(52,211,153,.2)', borderRadius: 'var(--s-radius)', fontSize: '0.8125rem', color: '#059669', fontWeight: 600 }}>
+                    ✓ Doprava zdarma
                   </div>
-                  <p style={{ fontWeight: 700, width: '5.5rem', textAlign: 'right', flexShrink: 0, fontSize: '0.9375rem' }}>
-                    {item.currency} {(item.price * item.quantity).toFixed(2)}
-                  </p>
-                  <button onClick={() => remove(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--s-muted)', padding: '0.25rem', fontSize: '1.25rem', lineHeight: 1, flexShrink: 0 }} aria-label="Remove">\\u00d7</button>
+                )}
+
+                <div style={{ border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)', overflow: 'hidden' }}>
+                  {items.map((item, i) => (
+                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', background: 'var(--s-surface)', borderBottom: i < items.length - 1 ? '1px solid var(--s-border)' : 'none' }}>
+                      {item.image && <img src={item.image} alt={item.name} style={{ width: '3rem', height: '3rem', objectFit: 'cover', borderRadius: 'calc(var(--s-radius) / 2)', flexShrink: 0 }} />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontWeight: 600, marginBottom: '0.2rem', fontSize: '0.9375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
+                        <p style={{ color: 'var(--s-muted)', fontSize: '0.8125rem' }}>{item.currency} {item.price.toFixed(2)} ks</p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                        <button type="button" onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: '1.75rem', height: '1.75rem', background: 'var(--s-bg)', border: '1px solid var(--s-border)', borderRadius: 'calc(var(--s-radius) / 2)', cursor: 'pointer', color: 'var(--s-text)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                        <span style={{ width: '1.5rem', textAlign: 'center', fontWeight: 600, fontSize: '0.9375rem' }}>{item.quantity}</span>
+                        <button type="button" onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: '1.75rem', height: '1.75rem', background: 'var(--s-bg)', border: '1px solid var(--s-border)', borderRadius: 'calc(var(--s-radius) / 2)', cursor: 'pointer', color: 'var(--s-text)', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                      </div>
+                      <p style={{ fontWeight: 700, width: '5rem', textAlign: 'right', flexShrink: 0, fontSize: '0.9375rem' }}>{item.currency} {(item.price * item.quantity).toFixed(2)}</p>
+                      <button type="button" onClick={() => remove(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--s-muted)', padding: '0.25rem', fontSize: '1.25rem', lineHeight: 1, flexShrink: 0 }} aria-label="Odebrat">\\u00d7</button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Shipping */}
+              {shippingMethods.length > 0 && (
+                <div>
+                  <p style={sectionHead}>Způsob doručení</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {shippingMethods.map((method) => {
+                      const effectiveCost = freeShippingThreshold > 0 && total >= freeShippingThreshold ? 0 : method.cena_czk
+                      return (
+                        <label key={method.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', border: \`1px solid \${selectedShipping === method.type ? 'var(--s-accent)' : 'var(--s-border)'}\`, borderRadius: 'var(--s-radius)', cursor: 'pointer', background: 'var(--s-surface)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <input type="radio" name="shipping" value={method.type} checked={selectedShipping === method.type} onChange={() => { setSelectedShipping(method.type); setZasilkovnaId(''); setZasilkovnaName('') }} style={{ accentColor: 'var(--s-accent)', margin: 0 }} />
+                            <span style={{ fontSize: '0.9375rem', fontWeight: selectedShipping === method.type ? 600 : 400 }}>{SHIPPING_LABELS[method.type] ?? method.nazev ?? method.type}</span>
+                          </div>
+                          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: effectiveCost === 0 ? '#059669' : 'var(--s-text)' }}>
+                            {effectiveCost === 0 ? 'Zdarma' : \`\${effectiveCost} \${currency}\`}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                  {needsZasilkovna && (
+                    <div style={{ marginTop: '0.75rem', padding: '0.875rem 1rem', background: 'var(--s-surface)', border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)' }}>
+                      {zasilkovnaId ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div>
+                            <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>{zasilkovnaName}</p>
+                            <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--s-muted)' }}>Pobočka Zásilkovny</p>
+                          </div>
+                          <button type="button" onClick={openZasilkovnaWidget} style={{ fontSize: '0.8125rem', color: 'var(--s-accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Změnit</button>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={openZasilkovnaWidget} style={{ width: '100%', padding: '0.625rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', border: 'none', borderRadius: 'var(--s-radius)', fontWeight: 600, fontSize: '0.9375rem', fontFamily: 'var(--s-font-body)', cursor: 'pointer' }}>
+                          Vybrat výdejní místo Zásilkovny
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Payment */}
+              {allPaymentOptions.length > 0 && (
+                <div>
+                  <p style={sectionHead}>Způsob platby</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {allPaymentOptions.map((opt) => (
+                      <label key={opt.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', border: \`1px solid \${selectedPayment === opt.key ? 'var(--s-accent)' : 'var(--s-border)'}\`, borderRadius: 'var(--s-radius)', cursor: 'pointer', background: 'var(--s-surface)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <input type="radio" name="payment" value={opt.key} checked={selectedPayment === opt.key} onChange={() => setSelectedPayment(opt.key)} style={{ accentColor: 'var(--s-accent)', margin: 0 }} />
+                          <span style={{ fontSize: '0.9375rem', fontWeight: selectedPayment === opt.key ? 600 : 400 }}>{opt.label}</span>
+                        </div>
+                        {opt.key === 'dobirka' && dobirkaSurcharge > 0 && (
+                          <span style={{ fontSize: '0.875rem', color: 'var(--s-muted)' }}>+{dobirkaSurcharge} {currency}</span>
+                        )}
+                        {opt.key === 'prevod' && <span style={{ fontSize: '0.8125rem', color: 'var(--s-muted)' }}>bez poplatku</span>}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Customer info */}
+              <div>
+                <p style={sectionHead}>Kontaktní a dodací údaje</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.875rem' }}>
+                    <div>
+                      <label style={labelStyle}>Jméno a příjmení</label>
+                      <input style={inputStyle} value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Jan Novák" />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Telefon</label>
+                      <input style={inputStyle} type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="+420 777 123 456" />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>E-mail *</label>
+                    <input style={inputStyle} type="email" required value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} placeholder="jan@example.cz" />
+                  </div>
+                  {needsAddress && (
+                    <>
+                      <div>
+                        <label style={labelStyle}>Ulice a číslo popisné</label>
+                        <input style={inputStyle} value={addrUlice} onChange={(e) => setAddrUlice(e.target.value)} placeholder="Příkladná 1" />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '0.875rem' }}>
+                        <div>
+                          <label style={labelStyle}>Město</label>
+                          <input style={inputStyle} value={addrMesto} onChange={(e) => setAddrMesto(e.target.value)} placeholder="Praha" />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>PSČ</label>
+                          <input style={inputStyle} value={addrPsc} onChange={(e) => setAddrPsc(e.target.value)} placeholder="11000" maxLength={6} />
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
-              {error && <p style={{ color: '#f87171', fontSize: '0.875rem' }}>{error}</p>}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '22rem', maxWidth: '100%' }}>
-                <span style={{ color: 'var(--s-muted)', fontSize: '0.9375rem' }}>Total</span>
-                <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>{currency} {total.toFixed(2)}</span>
+            {/* RIGHT — order summary */}
+            <div style={{ position: 'sticky', top: '5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ background: 'var(--s-surface)', border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)', padding: '1.5rem' }}>
+                <p style={{ fontFamily: 'var(--s-font-heading)', fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }}>Shrnutí objednávky</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                    <span style={{ color: 'var(--s-muted)' }}>Zboží ({items.reduce((s, i) => s + i.quantity, 0)} ks)</span>
+                    <span>{currency} {total.toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                    <span style={{ color: 'var(--s-muted)' }}>Doprava</span>
+                    <span style={{ color: shippingCost === 0 ? '#059669' : 'var(--s-text)' }}>
+                      {shippingCost === 0 ? 'Zdarma' : \`\${currency} \${shippingCost.toFixed(2)}\`}
+                    </span>
+                  </div>
+                  {dobirkaFee > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
+                      <span style={{ color: 'var(--s-muted)' }}>Dobírka</span>
+                      <span>{currency} {dobirkaFee.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.875rem', borderTop: '1px solid var(--s-border)', fontSize: '1.125rem', fontWeight: 700 }}>
+                  <span>Celkem s DPH</span>
+                  <span>{currency} {orderTotal.toFixed(2)}</span>
+                </div>
+                {manifest.merchant?.platce_dph && (
+                  <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--s-border)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: 'var(--s-muted)' }}>
+                      <span>Základ daně (bez DPH)</span>
+                      <span>{currency} {(orderTotal / 1.21).toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: 'var(--s-muted)' }}>
+                      <span>DPH 21 %</span>
+                      <span>{currency} {(orderTotal - orderTotal / 1.21).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} style={{ marginTop: '2px', accentColor: 'var(--s-accent)', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.8125rem', color: 'var(--s-muted)', lineHeight: 1.5 }}>
+                  Souhlasím s <a href="/obchodni-podminky" style={{ color: 'var(--s-accent)', textDecoration: 'none' }}>obchodními podmínkami</a> a beru na vědomí <a href="/ochrana-osobnich-udaju" style={{ color: 'var(--s-accent)', textDecoration: 'none' }}>zásady ochrany osobních údajů</a>.
+                </span>
+              </label>
+
+              {error && <p style={{ fontSize: '0.875rem', color: '#f87171', margin: 0 }}>{error}</p>}
+
               <button
-                onClick={handleCheckout}
-                disabled={loading}
-                style={{ padding: '0.9375rem 3rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', border: 'none', borderRadius: 'var(--s-radius)', fontWeight: 700, fontSize: '1rem', fontFamily: 'var(--s-font-body)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'opacity 0.2s' }}
+                type="submit"
+                disabled={loading || !termsAccepted}
+                style={{ padding: '1rem 2rem', background: termsAccepted ? 'var(--s-accent)' : 'var(--s-border)', color: termsAccepted ? 'var(--s-accent-text)' : 'var(--s-muted)', border: 'none', borderRadius: 'var(--s-radius)', fontWeight: 700, fontSize: '1rem', fontFamily: 'var(--s-font-body)', cursor: loading || !termsAccepted ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, transition: 'all 0.2s', lineHeight: 1.3, textAlign: 'center' as const }}
               >
-                {loading ? 'Redirecting to checkout…' : 'Checkout \\u2192'}
+                {loading ? 'Odesílám…' : 'Objednat s povinností platby'}
               </button>
+
+              <p style={{ fontSize: '0.75rem', color: 'var(--s-muted)', textAlign: 'center' as const, lineHeight: 1.5 }}>
+                Stisknutím tlačítka odesíláte závaznou objednávku.
+              </p>
             </div>
-          </>
+          </form>
         )}
       </main>
       <StoreFooter manifest={manifest} />
@@ -662,15 +984,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Store not configured.' }, { status: 500 })
   }
 
-  const { items } = await request.json()
-  if (!items?.length) {
+  const body = await request.json()
+  if (!body?.items?.length) {
     return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
   }
 
   const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, items }),
+    body: JSON.stringify({ projectId, ...body }),
   })
 
   const data = await res.json()
@@ -680,7 +1002,8 @@ export async function POST(request: Request) {
 
   // ── app/success/page.tsx ───────────────────────────────────────────────────
   add('app/success/page.tsx', `'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
@@ -689,10 +1012,28 @@ import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 
 export default function SuccessPage() {
   const { clear } = useCart()
+  const searchParams = useSearchParams()
+  const method = searchParams.get('method')
+  const orderNumber = searchParams.get('order')
+  const qr = searchParams.get('qr')
+  const amount = searchParams.get('amount')
+  const acc = searchParams.get('acc')
+
+  const [qrSrc, setQrSrc] = useState('')
+
   useEffect(() => { clear() }, [])
+
+  useEffect(() => {
+    if (method === 'prevod' && qr) {
+      setQrSrc(\`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=\${qr}\`)
+    }
+  }, [method, qr])
 
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
+
+  const isPrevod = method === 'prevod'
+  const isDobirka = method === 'dobirka'
 
   return (
     <div style={{ ...cssVars, background: 'var(--s-bg)', color: 'var(--s-text)', fontFamily: 'var(--s-font-body)', minHeight: '100vh' } as React.CSSProperties}>
@@ -705,13 +1046,56 @@ export default function SuccessPage() {
           \\u2713
         </div>
         <h1 style={{ fontFamily: 'var(--s-font-heading)', fontSize: 'clamp(2rem, 5vw, 2.75rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '1rem' }}>
-          Order confirmed!
+          Objednávka přijata!
         </h1>
-        <p style={{ color: 'var(--s-muted)', fontSize: '1rem', lineHeight: 1.75, marginBottom: '2.5rem' }}>
-          Thank you for your purchase. A confirmation email will be sent to you shortly.
-        </p>
-        <a href="/" style={{ display: 'inline-block', padding: '0.875rem 2rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', borderRadius: 'var(--s-radius)', textDecoration: 'none', fontWeight: 600, fontSize: '1rem' }}>
-          Continue shopping
+        {orderNumber && (
+          <p style={{ color: 'var(--s-muted)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+            Číslo objednávky: <strong style={{ color: 'var(--s-text)', fontFamily: 'monospace' }}>{orderNumber}</strong>
+          </p>
+        )}
+
+        {isPrevod ? (
+          <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--s-surface)', border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)', textAlign: 'left' }}>
+            <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '1rem' }}>Platební instrukce</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9375rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--s-muted)' }}>Číslo účtu</span>
+                <strong style={{ fontFamily: 'monospace' }}>{acc ? decodeURIComponent(acc) : '—'}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--s-muted)' }}>Částka</span>
+                <strong>{amount} {manifest.catalog.currency}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--s-muted)' }}>Variabilní symbol</span>
+                <strong style={{ fontFamily: 'monospace' }}>{orderNumber?.replace(/\\D/g, '') ?? ''}</strong>
+              </div>
+            </div>
+            {qrSrc && (
+              <div style={{ textAlign: 'center' }}>
+                <img src={qrSrc} alt="QR platba" width={180} height={180} style={{ borderRadius: 8 }} />
+                <p style={{ fontSize: '0.8125rem', color: 'var(--s-muted)', marginTop: '0.5rem' }}>Naskenujte v mobilním bankovnictví</p>
+              </div>
+            )}
+            <p style={{ fontSize: '0.8125rem', color: 'var(--s-muted)', marginTop: '1rem', lineHeight: 1.5 }}>
+              Zboží expedujeme po připsání platby. Potvrzení objednávky vám přišlo e-mailem.
+            </p>
+          </div>
+        ) : isDobirka ? (
+          <div style={{ marginTop: '2rem', padding: '1.25rem 1.5rem', background: 'var(--s-surface)', border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)' }}>
+            <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Platba na dobírku</p>
+            <p style={{ color: 'var(--s-muted)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              Platbu uhradíte při převzetí zásilky. Potvrzení objednávky vám přišlo e-mailem.
+            </p>
+          </div>
+        ) : (
+          <p style={{ color: 'var(--s-muted)', fontSize: '1rem', lineHeight: 1.75, marginTop: '1rem', marginBottom: '2.5rem' }}>
+            Platba proběhla úspěšně. Potvrzení objednávky vám přišlo e-mailem.
+          </p>
+        )}
+
+        <a href="/" style={{ display: 'inline-block', marginTop: '2.5rem', padding: '0.875rem 2rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', borderRadius: 'var(--s-radius)', textDecoration: 'none', fontWeight: 600, fontSize: '1rem' }}>
+          Pokračovat v nákupu
         </a>
       </main>
       <StoreFooter manifest={manifest} />
@@ -731,6 +1115,7 @@ export default function SuccessPage() {
 
   // ── .env.example ──────────────────────────────────────────────────────────
   const hasAdmin = (manifest as unknown as Record<string, unknown>).adminPanel === true
+  const hasZasilkovna = manifest.shipping?.methods?.some((m) => m.type === 'zasilkovna') ?? false
   const envLines = [
     '# ── Quante managed payments (auto-configured when deployed via Quante) ────',
     '# These are set automatically. Only needed for local dev or self-hosting.',
@@ -738,6 +1123,12 @@ export default function SuccessPage() {
     'QUANTE_PROJECT_ID=your-project-id',
     'QUANTE_API_KEY=your-api-key',
     '',
+    ...(hasZasilkovna ? [
+      '# ── Zásilkovna / Packeta widget ──────────────────────────────────────────',
+      '# Get your API key at https://client.packeta.com/cs/tools/web-widget',
+      'NEXT_PUBLIC_ZASILKOVNA_API_KEY=your-zasilkovna-api-key',
+      '',
+    ] : []),
     '# Optional: Supabase for a dynamic product catalog',
     '# NEXT_PUBLIC_SUPABASE_URL=',
     '# NEXT_PUBLIC_SUPABASE_ANON_KEY=',
@@ -939,11 +1330,29 @@ import { useEffect, useState } from 'react'
 
 interface Order {
   id: string
+  orderNumber: string
   customerEmail: string
   customerName: string
   amount: number
   currency: string
+  status: string
+  paymentStatus: string
+  paymentMethod: string
+  invoiceUrl: string | null
   createdAt: string
+}
+
+const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
+  paid:      { bg: 'rgba(52,211,153,0.12)', color: '#34d399', label: 'Zaplaceno' },
+  pending:   { bg: 'rgba(251,191,36,0.12)', color: '#fbbf24', label: 'Čeká' },
+  shipped:   { bg: 'rgba(96,165,250,0.12)', color: '#60a5fa', label: 'Odesláno' },
+  cancelled: { bg: 'rgba(248,113,113,0.12)', color: '#f87171', label: 'Zrušeno' },
+  refunded:  { bg: 'rgba(167,139,250,0.12)', color: '#a78bfa', label: 'Vráceno' },
+}
+
+const PAYMENT_LABELS: Record<string, string> = {
+  stripe: 'Karta', comgate: 'Online', gopay: 'GoPay',
+  dobirka: 'Dobírka', prevod: 'Převod',
 }
 
 export default function OrdersPage() {
@@ -951,6 +1360,8 @@ export default function OrdersPage() {
   const [revenue, setRevenue] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [shipping, setShipping] = useState<Record<string, { tracking: string; url: string }>>({})
+  const [sending, setSending] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/admin/orders')
@@ -964,54 +1375,84 @@ export default function OrdersPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  if (loading) return <div><h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 1.5rem' }}>Orders</h1><p style={{ fontSize: 13, color: '#8a8a93' }}>Loading…</p></div>
+  async function markShipped(orderId: string) {
+    const s = shipping[orderId] ?? {}
+    setSending(orderId)
+    await fetch(\`/api/admin/orders/\${orderId}/ship\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackingCode: s.tracking, trackingUrl: s.url }),
+    })
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'shipped' } : o))
+    setSending(null)
+  }
 
-  if (error) return (
-    <div>
-      <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 1rem' }}>Orders</h1>
-      <p style={{ fontSize: 13, color: '#f87171' }}>{error}</p>
-      {error.includes('STRIPE') && <p style={{ fontSize: 12, color: '#6b6b78', marginTop: '0.5rem' }}>Set STRIPE_SECRET_KEY in your environment variables.</p>}
-    </div>
-  )
+  if (loading) return <div><h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 1.5rem' }}>Objednávky</h1><p style={{ fontSize: 13, color: '#8a8a93' }}>Načítám…</p></div>
+  if (error) return <div><h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 1rem' }}>Objednávky</h1><p style={{ fontSize: 13, color: '#f87171' }}>{error}</p></div>
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Orders</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Objednávky</h1>
         {orders.length > 0 && (
           <p style={{ fontSize: 13, color: '#6b6b78' }}>
-            {orders.length} order{orders.length !== 1 ? 's' : ''} &middot; {orders[0].currency} {revenue.toFixed(2)} revenue
+            {orders.length} obj. · {orders[0]?.currency ?? ''} {revenue.toFixed(2)} přijato
           </p>
         )}
       </div>
       {orders.length === 0 ? (
-        <p style={{ fontSize: 13, color: '#8a8a93' }}>No orders yet.</p>
+        <p style={{ fontSize: 13, color: '#8a8a93' }}>Zatím žádné objednávky.</p>
       ) : (
-        <div style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                {['Date', 'Customer', 'Amount', 'Status'].map((h) => (
-                  <th key={h} style={{ padding: '0.875rem 1.25rem', textAlign: 'left', fontSize: 11, color: '#6b6b78', textTransform: 'uppercase' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '1rem 1.25rem', fontSize: 13, color: '#8a8a93' }}>{new Date(order.createdAt).toLocaleDateString()}</td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{order.customerName}</p>
-                    <p style={{ margin: 0, fontSize: 12, color: '#6b6b78' }}>{order.customerEmail}</p>
-                  </td>
-                  <td style={{ padding: '1rem 1.25rem', fontSize: 14, fontWeight: 600 }}>{order.currency} {order.amount.toFixed(2)}</td>
-                  <td style={{ padding: '1rem 1.25rem' }}>
-                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontSize: 11, background: 'rgba(52,211,153,0.12)', color: '#34d399' }}>Paid</span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {orders.map((order) => {
+            const s = STATUS_COLORS[order.status] ?? STATUS_COLORS.pending
+            const isPaid = order.paymentStatus === 'paid' && order.status !== 'shipped' && order.status !== 'refunded' && order.status !== 'cancelled'
+            const sh = shipping[order.id] ?? { tracking: '', url: '' }
+            return (
+              <div key={order.id} style={{ background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '1rem 1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#a0a0b0' }}>{order.orderNumber}</span>
+                      <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 99, fontSize: 11, background: s.bg, color: s.color }}>{s.label}</span>
+                      <span style={{ fontSize: 11, color: '#6b6b78' }}>{PAYMENT_LABELS[order.paymentMethod] ?? order.paymentMethod}</span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{order.customerName}</p>
+                    <p style={{ margin: 0, fontSize: 12, color: '#6b6b78' }}>{order.customerEmail} · {new Date(order.createdAt).toLocaleDateString('cs-CZ')}</p>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+                    <span style={{ fontSize: 15, fontWeight: 700 }}>{order.currency} {order.amount.toFixed(2)}</span>
+                    {order.invoiceUrl && (
+                      <a href={order.invoiceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#6f78e6', textDecoration: 'none' }}>Faktura ↗</a>
+                    )}
+                  </div>
+                </div>
+                {isPaid && (
+                  <div style={{ marginTop: '0.875rem', paddingTop: '0.875rem', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <input
+                      placeholder="Tracking číslo"
+                      value={sh.tracking}
+                      onChange={(e) => setShipping((prev) => ({ ...prev, [order.id]: { ...sh, tracking: e.target.value } }))}
+                      style={{ padding: '0.4rem 0.75rem', fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#f4f4f6', width: 160 }}
+                    />
+                    <input
+                      placeholder="Tracking URL (volitelné)"
+                      value={sh.url}
+                      onChange={(e) => setShipping((prev) => ({ ...prev, [order.id]: { ...sh, url: e.target.value } }))}
+                      style={{ padding: '0.4rem 0.75rem', fontSize: 12, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#f4f4f6', flex: 1, minWidth: 160 }}
+                    />
+                    <button
+                      onClick={() => markShipped(order.id)}
+                      disabled={sending === order.id}
+                      style={{ padding: '0.4rem 1rem', background: '#60a5fa', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', opacity: sending === order.id ? 0.6 : 1 }}
+                    >
+                      {sending === order.id ? 'Odesílám…' : 'Označit jako odesláno'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -1060,7 +1501,6 @@ export async function GET() {
 
   const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
   const apiKey = process.env.QUANTE_API_KEY
-
   if (!apiKey) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
 
   try {
@@ -1073,6 +1513,46 @@ export async function GET() {
     const msg = err instanceof Error ? err.message : 'Fetch error'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
+}
+`)
+
+  add('app/api/admin/orders/[orderId]/ship/route.ts', `\
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+
+interface Context { params: Promise<{ orderId: string }> }
+
+export async function POST(request: Request, { params }: Context) {
+  const cookieStore = await cookies()
+  const auth = cookieStore.get('admin_auth')
+  if (!auth?.value) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { orderId } = await params
+  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
+  const apiKey = process.env.QUANTE_API_KEY
+  if (!apiKey) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
+
+  const body = await request.json().catch(() => ({})) as { trackingCode?: string; trackingUrl?: string; useZasilkovna?: boolean; weight?: number }
+
+  // For Zásilkovna orders without a manual tracking code, try the Packeta API
+  if (body.useZasilkovna && !body.trackingCode) {
+    const zRes = await fetch(\`\${quanteUrl}/api/store/orders/\${orderId}/zasilkovna-shipment\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${apiKey}\` },
+      body: JSON.stringify({ weight: body.weight }),
+    })
+    const zData = await zRes.json()
+    if (zRes.ok) return NextResponse.json(zData, { status: 200 })
+    // Fall through to manual PATCH if Packeta API not configured
+  }
+
+  const res = await fetch(\`\${quanteUrl}/api/store/orders/\${orderId}\`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${apiKey}\` },
+    body: JSON.stringify({ status: 'shipped', trackingCode: body.trackingCode, trackingUrl: body.trackingUrl }),
+  })
+  const data = await res.json()
+  return NextResponse.json(data, { status: res.status })
 }
 `)
 }

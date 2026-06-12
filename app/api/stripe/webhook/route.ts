@@ -2,6 +2,8 @@ import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { clerkClient } from '@clerk/nextjs/server'
 import type Stripe from 'stripe'
+import { paymentConfirmedEmail, sendEmail } from '@/lib/email-templates'
+import type { ShopManifest } from '@/types/manifest'
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -149,14 +151,82 @@ export async function POST(request: Request) {
   return new Response('ok', { status: 200 })
 }
 
+// ─── Customer payment confirmed email ────────────────────────────────────────
+
+async function sendCustomerConfirmation(projectId: string, session: Stripe.Checkout.Session, orderId?: string) {
+  const customerEmail = session.customer_details?.email
+  if (!customerEmail) return
+
+  const { data: versionRow } = await supabaseAdmin
+    .from('manifest_versions')
+    .select('manifest')
+    .eq('project_id', projectId)
+    .order('version_no', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const manifest = versionRow?.manifest as ShopManifest | undefined
+  if (!manifest) return
+
+  // Prefer data from store_orders if we have an order ID
+  let orderNumber: string
+  let total: number
+  const currency = (session.currency ?? 'czk').toUpperCase()
+
+  if (orderId) {
+    const { data: order } = await supabaseAdmin
+      .from('store_orders')
+      .select('order_number, total_cents')
+      .eq('id', orderId)
+      .maybeSingle()
+    orderNumber = order?.order_number ?? `ORD-${session.id.slice(-8).toUpperCase()}`
+    total = order ? order.total_cents / 100 : (session.amount_total ?? 0) / 100
+  } else {
+    orderNumber = `ORD-${session.id.slice(-8).toUpperCase()}`
+    total = (session.amount_total ?? 0) / 100
+  }
+
+  const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
+  const invoiceUrl = orderId ? `${QUANTE_URL}/invoice/${orderId}` : undefined
+
+  const { subject, html } = paymentConfirmedEmail({
+    orderNumber,
+    customerName: session.customer_details?.name ?? 'zákazníku',
+    total,
+    currency,
+    storeName: manifest.brand.name,
+    accentColor: manifest.design.palette.accent,
+    merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quante.io',
+    merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
+    invoiceUrl,
+  })
+
+  await sendEmail(customerEmail, subject, html)
+}
+
 // ─── Record store sale + notify owner ────────────────────────────────────────
 
 async function recordStoreSale(projectId: string, session: Stripe.Checkout.Session) {
   const grossCents = session.amount_total ?? 0
   const platformFeeCents = parseInt(session.metadata?.platform_fee_cents ?? '0', 10)
   const netCents = grossCents - platformFeeCents
+  const orderId = session.metadata?.order_id
 
-  // Idempotent insert — unique constraint on stripe_session_id prevents duplicates
+  // Update store_orders to paid (idempotent)
+  if (orderId) {
+    await supabaseAdmin
+      .from('store_orders')
+      .update({
+        payment_status: 'paid',
+        status: 'paid',
+        payment_ref: session.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+      .eq('payment_status', 'pending') // only update if still pending (idempotent)
+  }
+
+  // Keep store_earnings for backwards compatibility / Stripe-specific reporting
   await supabaseAdmin.from('store_earnings').upsert({
     project_id: projectId,
     stripe_session_id: session.id,
@@ -169,6 +239,7 @@ async function recordStoreSale(projectId: string, session: Stripe.Checkout.Sessi
   }, { onConflict: 'stripe_session_id', ignoreDuplicates: true })
 
   await notifyStoreSale(projectId, session)
+  await sendCustomerConfirmation(projectId, session, orderId)
 }
 
 async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Session) {

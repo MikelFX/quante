@@ -1,5 +1,38 @@
 import { z } from 'zod'
 
+const MerchantSchema = z.object({
+  obchodni_nazev: z.string(),
+  ico: z.string().regex(/^\d{8}$/, 'IČO musí mít 8 číslic'),
+  dic: z.string().optional(),
+  platce_dph: z.boolean().default(false),
+  sidlo: z.object({
+    ulice: z.string(),
+    mesto: z.string(),
+    psc: z.string(),
+    zeme: z.string().default('CZ'),
+  }),
+  kontakt: z.object({ email: z.string().email(), telefon: z.string() }),
+  bankovni_ucet: z.string().optional(),
+  zodpovedna_osoba: z.string().optional(),
+})
+
+const ShippingMethodSchema = z.object({
+  type: z.enum(['zasilkovna', 'ppl', 'dpd', 'balikovna', 'osobni_odber', 'custom']),
+  nazev: z.string().optional(),
+  cena_czk: z.coerce.number(),
+})
+
+const ShippingConfigSchema = z.object({
+  methods: z.array(ShippingMethodSchema),
+  doprava_zdarma_od_czk: z.coerce.number().optional(),
+})
+
+const PaymentsConfigSchema = z.object({
+  providers: z.array(z.enum(['comgate', 'gopay', 'stripe'])),
+  dobirka: z.object({ enabled: z.boolean(), priplatek_czk: z.coerce.number() }).optional(),
+  prevod: z.object({ enabled: z.boolean(), qr: z.boolean() }).optional(),
+})
+
 const ProductSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -121,6 +154,9 @@ const NavItemSchema: z.ZodType<{
 
 export const ShopManifestSchema = z.object({
   version: z.string(),
+  merchant: MerchantSchema.optional(),
+  payments: PaymentsConfigSchema.optional(),
+  shipping: ShippingConfigSchema.optional(),
   brand: z.object({
     name: z.string(),
     tagline: z.string(),

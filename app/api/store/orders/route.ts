@@ -1,8 +1,10 @@
-// Called by deployed stores' admin panel — returns earnings records for this project.
+// Called by deployed stores' admin panel — returns all orders for this project.
 // Authenticated by QUANTE_API_KEY (per-project secret injected at deploy time).
 
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+
+const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization') ?? ''
@@ -18,23 +20,27 @@ export async function GET(request: Request) {
 
   if (!secret) return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
 
-  const { data: earnings } = await supabaseAdmin
-    .from('store_earnings')
-    .select('id, stripe_session_id, gross_amount_cents, net_amount_cents, currency, customer_email, customer_name, created_at')
+  const { data: rows } = await supabaseAdmin
+    .from('store_orders')
+    .select('id, order_number, customer_email, customer_name, total_cents, currency, status, payment_status, payment_method, invoice_number, created_at')
     .eq('project_id', secret.project_id)
     .order('created_at', { ascending: false })
     .limit(200)
 
-  const orders = (earnings ?? []).map((e) => ({
-    id: e.stripe_session_id,
-    customerEmail: e.customer_email ?? '—',
-    customerName: e.customer_name ?? '—',
-    amount: e.gross_amount_cents / 100,
-    netAmount: e.net_amount_cents / 100,
-    currency: e.currency.toUpperCase(),
-    createdAt: e.created_at,
+  const orders = (rows ?? []).map((o) => ({
+    id: o.id,
+    orderNumber: o.order_number,
+    customerEmail: o.customer_email ?? '—',
+    customerName: o.customer_name ?? '—',
+    amount: o.total_cents / 100,
+    currency: (o.currency as string).toUpperCase(),
+    status: o.status,
+    paymentStatus: o.payment_status,
+    paymentMethod: o.payment_method,
+    invoiceUrl: o.invoice_number ? `${QUANTE_URL}/invoice/${o.id}` : null,
+    createdAt: o.created_at,
   }))
 
-  const revenue = orders.reduce((sum, o) => sum + o.amount, 0)
+  const revenue = orders.filter((o) => o.paymentStatus === 'paid').reduce((sum, o) => sum + o.amount, 0)
   return NextResponse.json({ orders, revenue })
 }

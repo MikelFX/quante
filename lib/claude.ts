@@ -62,7 +62,26 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
     "legal": string,
     "socials": [ { platform: "twitter"|"instagram"|"facebook"|"tiktok"|"youtube"|"linkedin", url } ]
   },
-  "seo": { "title": string, "description": string }
+  "seo": { "title": string, "description": string },
+  "merchant"?: {
+    "obchodni_nazev": string,   // company name
+    "ico": string,              // 8-digit Czech ID
+    "dic"?: string,             // VAT number
+    "platce_dph": boolean,
+    "sidlo": { "ulice": string, "mesto": string, "psc": string, "zeme": "CZ" },
+    "kontakt": { "email": string, "telefon": string },
+    "bankovni_ucet"?: string,
+    "zodpovedna_osoba"?: string
+  },
+  "payments"?: {
+    "providers": ("comgate" | "gopay" | "stripe")[],
+    "dobirka"?: { "enabled": boolean, "priplatek_czk": number },
+    "prevod"?: { "enabled": boolean, "qr": boolean }
+  },
+  "shipping"?: {
+    "methods": [{ "type": "zasilkovna"|"ppl"|"dpd"|"balikovna"|"osobni_odber"|"custom", "nazev"?: string, "cena_czk": number }],
+    "doprava_zdarma_od_czk"?: number
+  }
 }
 
 ─── SECTION TYPES (discriminated union on "type") ─────────────────────────────
@@ -102,7 +121,8 @@ Body fonts:    Inter, DM Sans, Source Sans 3, Lato, Open Sans, Nunito, Plus Jaka
 8. Use customPages for extra pages the user mentions (shipping, returns, FAQ, blog, GDPR, etc.). Each gets a nav link. Slugs are kebab-case, avoid reserved names: about, contact, cart, success, admin, products, collections.
 9. Refuse to produce anything unrelated to building a storefront. If the brief asks for something else, return an error JSON: {"error": "out-of-scope"}.
 10. When choosing colors: ensure sufficient contrast. Text over bg must be legible. AccentText over accent must be legible.
-11. imageSrc fields: leave empty string "" — the user will add images later.`
+11. imageSrc fields: leave empty string "" — the user will add images later.
+12. For Czech stores (currency CZK): if the user provides merchant/company data (IČO, company name, address), include it in the "merchant" object. If they mention payment methods, populate "payments". If they mention shipping (Zásilkovna, PPL, personal pickup, etc.), populate "shipping". These fields are optional and only added when the user supplies the relevant data.`
 
 export const SYSTEM_PROMPT_SECTION = `You are Quante, an expert e-commerce designer.
 
@@ -149,6 +169,9 @@ Everything in the manifest:
 - Collections: create, edit, assign products
 - Custom pages: add, remove, edit any arbitrary page (shipping, returns, FAQ, blog, GDPR, etc.)
   When adding a page, also add a nav link unless the user says not to.
+- Merchant: update company data (IČO, address, contacts, VAT)
+- Payments: toggle payment providers, cash-on-delivery (dobirka), bank transfer (prevod)
+- Shipping: add/remove shipping methods, set free-shipping threshold
 
 ═══ MANIFEST RULES ═════════════════════════════════════════════════════════════
 
@@ -159,6 +182,8 @@ Everything in the manifest:
 - animations variants: "marquee" (items[]), "stats" (stats[{value,label}]), "spotlight" (productSlug)
 - Never leave page arrays empty — if empty, populate with sensible sections
 - customPages slugs: kebab-case, no leading slash, avoid reserved slugs: about, contact, cart, success, admin, products, collections
+- merchant, payments, shipping: optional fields — keep existing values if not changing, omit entirely if never set
+- Do NOT invent IČO or merchant data — only use what the user actually provides
 - All section props must conform to their schema exactly
 - Allowed heading fonts: Inter, Playfair Display, Space Grotesk, DM Serif Display, Fraunces, Raleway, Montserrat, Cormorant Garamond, Libre Baskerville
 - Allowed body fonts: Inter, DM Sans, Source Sans 3, Lato, Open Sans, Nunito, Plus Jakarta Sans, Outfit

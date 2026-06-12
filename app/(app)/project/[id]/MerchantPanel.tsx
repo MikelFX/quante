@@ -1,0 +1,427 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { validateIco } from '@/lib/ico-validator'
+import type { ShopManifest, Merchant } from '@/types/manifest'
+
+interface Props {
+  projectId: string
+  manifest: ShopManifest | null
+  onManifestUpdate: (manifest: ShopManifest) => void
+  onBalanceRefresh: () => void
+}
+
+const EMPTY_MERCHANT: Merchant = {
+  obchodni_nazev: '',
+  ico: '',
+  dic: '',
+  platce_dph: false,
+  sidlo: { ulice: '', mesto: '', psc: '', zeme: 'CZ' },
+  kontakt: { email: '', telefon: '' },
+  bankovni_ucet: '',
+  zodpovedna_osoba: '',
+}
+
+export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalanceRefresh }: Props) {
+  const [form, setForm] = useState<Merchant>(manifest?.merchant ?? EMPTY_MERCHANT)
+  const [icoError, setIcoError] = useState('')
+  const [aresLoading, setAresLoading] = useState(false)
+  const [aresMsg, setAresMsg] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
+  const [isGeneratingLegal, setIsGeneratingLegal] = useState(false)
+  const [legalMsg, setLegalMsg] = useState('')
+  const [saveMsg, setSaveMsg] = useState('')
+  const [emailFrom, setEmailFrom] = useState('')
+  const [isSavingEmail, setIsSavingEmail] = useState(false)
+  const [emailFromMsg, setEmailFromMsg] = useState('')
+  const [isSendingTest, setIsSendingTest] = useState(false)
+  const [testEmailMsg, setTestEmailMsg] = useState('')
+
+  useEffect(() => {
+    if (manifest?.merchant) setForm(manifest.merchant)
+  }, [manifest])
+
+  useEffect(() => {
+    fetch(`/api/project/secrets?projectId=${projectId}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.resendFromEmail) setEmailFrom(d.resendFromEmail) })
+      .catch(() => {})
+  }, [projectId])
+
+  function setField<K extends keyof Merchant>(key: K, val: Merchant[K]) {
+    setForm((prev) => ({ ...prev, [key]: val }))
+  }
+
+  function setKontakt(key: 'email' | 'telefon', val: string) {
+    setForm((prev) => ({ ...prev, kontakt: { ...prev.kontakt, [key]: val } }))
+  }
+
+  function setSidlo(key: keyof Merchant['sidlo'], val: string) {
+    setForm((prev) => ({ ...prev, sidlo: { ...prev.sidlo, [key]: val } }))
+  }
+
+  async function lookupAres() {
+    const ico = form.ico.replace(/\s/g, '')
+    if (!validateIco(ico)) { setIcoError('Neplatné IČO (kontrolní číslice nesouhlasí)'); return }
+    setIcoError('')
+    setAresLoading(true)
+    setAresMsg('')
+    try {
+      const res = await fetch(`/api/ares?ico=${ico}`)
+      if (!res.ok) { setAresMsg((await res.json()).error ?? 'IČO nenalezeno v ARES'); return }
+      const data = await res.json()
+      setForm((prev) => ({
+        ...prev,
+        obchodni_nazev: data.obchodni_nazev || prev.obchodni_nazev,
+        dic: data.dic || prev.dic,
+        sidlo: {
+          ulice: data.sidlo.ulice || prev.sidlo.ulice,
+          mesto: data.sidlo.mesto || prev.sidlo.mesto,
+          psc: data.sidlo.psc || prev.sidlo.psc,
+          zeme: 'CZ',
+        },
+      }))
+      setAresMsg('Data načtena z ARES')
+    } catch {
+      setAresMsg('Chyba při načítání z ARES')
+    } finally {
+      setAresLoading(false)
+    }
+  }
+
+  function icoBlur() {
+    const ico = form.ico.replace(/\s/g, '')
+    if (ico && !validateIco(ico)) setIcoError('Neplatné IČO (kontrolní číslice nesouhlasí)')
+    else setIcoError('')
+  }
+
+  async function saveMerchant() {
+    if (!manifest) return
+    const ico = form.ico.replace(/\s/g, '')
+    if (!validateIco(ico)) { setIcoError('Neplatné IČO'); return }
+    setIsSaving(true)
+    setSaveMsg('')
+    try {
+      const updatedManifest: ShopManifest = { ...manifest, merchant: { ...form, ico } }
+      const res = await fetch('/api/manifest/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, manifest: updatedManifest }),
+      })
+      if (!res.ok) { setSaveMsg('Chyba při ukládání'); return }
+      const { manifest: saved } = await res.json()
+      onManifestUpdate(saved)
+      setSaveMsg('Uloženo')
+      setTimeout(() => setSaveMsg(''), 2500)
+    } catch {
+      setSaveMsg('Chyba při ukládání')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function saveEmailFrom() {
+    setIsSavingEmail(true)
+    setEmailFromMsg('')
+    try {
+      const res = await fetch('/api/project/secrets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, resend_from_email: emailFrom || null }),
+      })
+      if (!res.ok) { setEmailFromMsg('Chyba při ukládání'); return }
+      setEmailFromMsg(emailFrom ? 'Uloženo' : 'Obnoveno na výchozí (objednavky@quante.io)')
+      setTimeout(() => setEmailFromMsg(''), 3000)
+    } catch {
+      setEmailFromMsg('Chyba při ukládání')
+    } finally {
+      setIsSavingEmail(false)
+    }
+  }
+
+  async function sendTestEmail() {
+    setIsSendingTest(true)
+    setTestEmailMsg('')
+    try {
+      const res = await fetch('/api/quante/email-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setTestEmailMsg(data.error ?? 'Chyba'); return }
+      setTestEmailMsg(`Testovací e-mail odeslán na ${data.sentTo}`)
+    } catch {
+      setTestEmailMsg('Chyba při odesílání')
+    } finally {
+      setIsSendingTest(false)
+    }
+  }
+
+  async function generateLegalPages() {
+    if (!manifest?.merchant) { setLegalMsg('Nejdříve uložte firemní data'); return }
+    setIsGeneratingLegal(true)
+    setLegalMsg('')
+    try {
+      const res = await fetch('/api/quante/legal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      if (!res.ok) { setLegalMsg((await res.json()).error ?? 'Chyba'); return }
+      const { manifest: updated } = await res.json()
+      onManifestUpdate(updated)
+      onBalanceRefresh()
+      setLegalMsg('Právní stránky vygenerovány a přidány do obchodu')
+    } catch {
+      setLegalMsg('Chyba při generování')
+    } finally {
+      setIsGeneratingLegal(false)
+    }
+  }
+
+  const fieldStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '0.4rem 0.6rem',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid var(--border)',
+    borderRadius: 6,
+    color: 'var(--foreground)',
+    fontSize: 12,
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 10,
+    fontWeight: 500,
+    color: 'var(--muted-foreground)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    marginBottom: '0.3rem',
+  }
+
+  const sectionHeadStyle: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: 'var(--foreground)',
+    marginBottom: 8,
+    paddingBottom: 6,
+    borderBottom: '1px solid var(--border)',
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+        Firemní údaje jsou povinné pro generování právních stránek a fakturace.
+        Bez nich nelze shop publikovat na ostrou doménu.
+      </p>
+
+      {/* IČO + ARES */}
+      <div>
+        <p style={sectionHeadStyle}>Identifikace</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+          <div>
+            <label style={labelStyle}>IČO *</label>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <input
+                style={{ ...fieldStyle, flex: 1 }}
+                value={form.ico}
+                onChange={(e) => { setField('ico', e.target.value.replace(/\D/g, '').slice(0, 8)); setIcoError('') }}
+                onBlur={icoBlur}
+                placeholder="12345678"
+                maxLength={8}
+              />
+              <button
+                onClick={lookupAres}
+                disabled={aresLoading || form.ico.length < 8}
+                style={{
+                  padding: '0 8px',
+                  background: 'rgba(111,120,230,0.15)',
+                  border: '1px solid rgba(111,120,230,0.3)',
+                  borderRadius: 6,
+                  color: '#6f78e6',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: form.ico.length < 8 ? 0.5 : 1,
+                }}
+              >
+                {aresLoading ? '…' : 'ARES'}
+              </button>
+            </div>
+            {icoError && <p style={{ fontSize: 10, color: '#f87171', marginTop: 3 }}>{icoError}</p>}
+            {aresMsg && <p style={{ fontSize: 10, color: aresMsg.includes('Chyba') || aresMsg.includes('nenalezeno') ? '#f87171' : '#34d399', marginTop: 3 }}>{aresMsg}</p>}
+          </div>
+          <div>
+            <label style={labelStyle}>DIČ</label>
+            <input
+              style={fieldStyle}
+              value={form.dic ?? ''}
+              onChange={(e) => setField('dic', e.target.value)}
+              placeholder="CZ12345678"
+            />
+          </div>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <label style={labelStyle}>Obchodní název *</label>
+          <input
+            style={fieldStyle}
+            value={form.obchodni_nazev}
+            onChange={(e) => setField('obchodni_nazev', e.target.value)}
+            placeholder="Moje firma s.r.o."
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            id="platce_dph"
+            checked={form.platce_dph}
+            onChange={(e) => setField('platce_dph', e.target.checked)}
+            style={{ margin: 0 }}
+          />
+          <label htmlFor="platce_dph" style={{ fontSize: 11, color: 'var(--foreground)', cursor: 'pointer' }}>
+            Plátce DPH
+          </label>
+        </div>
+      </div>
+
+      {/* Sídlo */}
+      <div>
+        <p style={sectionHeadStyle}>Sídlo</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div>
+            <label style={labelStyle}>Ulice a číslo popisné *</label>
+            <input style={fieldStyle} value={form.sidlo.ulice} onChange={(e) => setSidlo('ulice', e.target.value)} placeholder="Příkladná 1" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 6 }}>
+            <div>
+              <label style={labelStyle}>Město *</label>
+              <input style={fieldStyle} value={form.sidlo.mesto} onChange={(e) => setSidlo('mesto', e.target.value)} placeholder="Praha" />
+            </div>
+            <div>
+              <label style={labelStyle}>PSČ *</label>
+              <input style={fieldStyle} value={form.sidlo.psc} onChange={(e) => setSidlo('psc', e.target.value)} placeholder="11000" maxLength={6} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Kontakt */}
+      <div>
+        <p style={sectionHeadStyle}>Kontaktní údaje</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div>
+            <label style={labelStyle}>E-mail *</label>
+            <input style={fieldStyle} type="email" value={form.kontakt.email} onChange={(e) => setKontakt('email', e.target.value)} placeholder="info@mujshop.cz" />
+          </div>
+          <div>
+            <label style={labelStyle}>Telefon *</label>
+            <input style={fieldStyle} type="tel" value={form.kontakt.telefon} onChange={(e) => setKontakt('telefon', e.target.value)} placeholder="+420 777 123 456" />
+          </div>
+        </div>
+      </div>
+
+      {/* Bankovní účet */}
+      <div>
+        <p style={sectionHeadStyle}>Platební údaje</p>
+        <div>
+          <label style={labelStyle}>Bankovní účet (pro bankovní převod)</label>
+          <input style={fieldStyle} value={form.bankovni_ucet ?? ''} onChange={(e) => setField('bankovni_ucet', e.target.value)} placeholder="123456789/0800" />
+        </div>
+      </div>
+
+      {/* Save */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <button
+          onClick={saveMerchant}
+          disabled={isSaving || !form.ico || !form.obchodni_nazev}
+          style={{
+            padding: '0.5rem 0.75rem',
+            background: '#6f78e6',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            opacity: isSaving || !form.ico || !form.obchodni_nazev ? 0.6 : 1,
+          }}
+        >
+          {isSaving ? 'Ukládám…' : 'Uložit firemní data'}
+        </button>
+        {saveMsg && (
+          <p style={{ fontSize: 10, color: saveMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{saveMsg}</p>
+        )}
+      </div>
+
+      {/* E-mail sender */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Transakční e-maily</p>
+        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+          E-maily zákazníkům jsou odesílány od <code style={{ fontSize: 9 }}>objednavky@quante.io</code> (výchozí). Pro vlastní doménu ověřte ji v Resend a zadejte adresu níže.
+        </p>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input
+            style={{ ...fieldStyle, flex: 1 }}
+            type="email"
+            value={emailFrom}
+            onChange={(e) => setEmailFrom(e.target.value)}
+            placeholder="objednavky@vasshop.cz (volitelné)"
+          />
+          <button
+            onClick={saveEmailFrom}
+            disabled={isSavingEmail}
+            style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            {isSavingEmail ? '…' : 'Uložit'}
+          </button>
+        </div>
+        {emailFromMsg && <p style={{ fontSize: 10, color: emailFromMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{emailFromMsg}</p>}
+        <button
+          onClick={sendTestEmail}
+          disabled={isSendingTest || !manifest?.merchant?.kontakt?.email}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--foreground)', opacity: isSendingTest || !manifest?.merchant?.kontakt?.email ? 0.5 : 1 }}
+        >
+          {isSendingTest ? 'Odesílám…' : 'Odeslat testovací e-mail →'}
+        </button>
+        {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{testEmailMsg}</p>}
+      </div>
+
+      {/* Legal pages */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Právní stránky</p>
+        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+          Vygeneruje 4 povinné stránky (Obchodní podmínky, GDPR, Cookies, Kontakt) z vašich firemních dat a přidá je do obchodu. Šablony jsou deterministické — lze je znovu vygenerovat po změně dat.
+        </p>
+        <button
+          onClick={generateLegalPages}
+          disabled={isGeneratingLegal || !manifest?.merchant}
+          style={{
+            padding: '0.5rem 0.75rem',
+            background: manifest?.merchant ? 'rgba(52,211,153,0.1)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${manifest?.merchant ? 'rgba(52,211,153,0.3)' : 'var(--border)'}`,
+            borderRadius: 6,
+            color: manifest?.merchant ? '#34d399' : 'var(--muted-foreground)',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: manifest?.merchant ? 'pointer' : 'not-allowed',
+            opacity: isGeneratingLegal ? 0.6 : 1,
+          }}
+        >
+          {isGeneratingLegal ? 'Generuji…' : 'Generovat právní stránky'}
+        </button>
+        {legalMsg && (
+          <p style={{ fontSize: 10, color: legalMsg.includes('Chyba') || legalMsg.includes('Nejdříve') ? '#f87171' : '#34d399', margin: 0 }}>
+            {legalMsg}
+          </p>
+        )}
+        <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
+          Šablony jsou základ — finální odpovědnost nese provozovatel. Doporučujeme kontrolu právníkem.
+        </p>
+      </div>
+    </div>
+  )
+}

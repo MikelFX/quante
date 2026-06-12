@@ -3,6 +3,7 @@ import { manifestToCssVars, buildFontUrl } from './tokens'
 import { StoreNavbar } from './layout/StoreNavbar'
 import { StoreFooter } from './layout/StoreFooter'
 import { SectionRenderer } from './SectionRenderer'
+import { CookieConsent } from './CookieConsent'
 
 interface Props {
   manifest: ShopManifest
@@ -41,6 +42,7 @@ export function ShopRenderer({ manifest, page = 'home', customSlug, basePath = '
       ))}
 
       <StoreFooter manifest={manifest} basePath={basePath} />
+      <CookieConsent />
     </div>
   )
 }

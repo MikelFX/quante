@@ -129,9 +129,22 @@ export function StoreFooter({ manifest, basePath = '' }: Props) {
           style={{
             borderTop: '1px solid var(--s-border)',
             paddingTop: '1.5rem',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: '1.25rem',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
           }}
         >
-          <p style={{ color: 'var(--s-muted)', fontSize: '0.75rem' }}>{footer.legal}</p>
+          <p style={{ color: 'var(--s-muted)', fontSize: '0.75rem', margin: 0 }}>{footer.legal}</p>
+          {manifest.merchant && (
+            <p style={{ color: 'var(--s-muted)', fontSize: '0.7rem', margin: 0 }}>
+              IČO: {manifest.merchant.ico}
+              {manifest.merchant.dic ? ` · DIČ: ${manifest.merchant.dic}` : ''}
+              {' · '}
+              {manifest.merchant.platce_dph ? 'Plátce DPH' : 'Neplátce DPH'}
+            </p>
+          )}
         </div>
       </div>
     </footer>

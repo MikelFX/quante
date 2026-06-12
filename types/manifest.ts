@@ -123,8 +123,59 @@ export interface Social {
   url: string
 }
 
+export interface MerchantAddress {
+  ulice: string
+  mesto: string
+  psc: string
+  zeme: string
+}
+
+export interface Merchant {
+  obchodni_nazev: string
+  ico: string
+  dic?: string
+  platce_dph: boolean
+  sidlo: MerchantAddress
+  kontakt: { email: string; telefon: string }
+  bankovni_ucet?: string
+  zodpovedna_osoba?: string
+}
+
+export interface ShippingMethod {
+  type: 'zasilkovna' | 'ppl' | 'dpd' | 'balikovna' | 'osobni_odber' | 'custom'
+  nazev?: string
+  cena_czk: number
+}
+
+export interface ShippingConfig {
+  methods: ShippingMethod[]
+  doprava_zdarma_od_czk?: number
+}
+
+export interface PaymentDobirka {
+  enabled: boolean
+  priplatek_czk: number
+}
+
+export interface PaymentPrevod {
+  enabled: boolean
+  qr: boolean
+}
+
+export interface PaymentsConfig {
+  providers: Array<'comgate' | 'gopay' | 'stripe'>
+  dobirka?: PaymentDobirka
+  prevod?: PaymentPrevod
+}
+
 export interface ShopManifest {
   version: string
+
+  merchant?: Merchant
+
+  payments?: PaymentsConfig
+
+  shipping?: ShippingConfig
 
   brand: {
     name: string

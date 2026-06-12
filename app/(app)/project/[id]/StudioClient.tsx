@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { ShopManifest, Section } from '@/types/manifest'
+import { MerchantPanel } from './MerchantPanel'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,8 +43,8 @@ interface Props {
   hostingInfo: HostingInfo
 }
 
-type StudioTab = 'chat' | 'preview' | 'sections' | 'products' | 'hosting'
-type DesktopTab = 'chat' | 'sections' | 'products' | 'hosting'
+type StudioTab = 'chat' | 'preview' | 'sections' | 'products' | 'hosting' | 'merchant'
+type DesktopTab = 'chat' | 'sections' | 'products' | 'hosting' | 'merchant'
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'settings'
 
 interface StripeOrder {
@@ -1533,8 +1534,79 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     ? `https://${liveDeployment.customDomain}`
     : deployUrl || liveDeployment?.url
 
+  // ── Publish checklist ────────────────────────────────────────────────────────
+  const publishChecklist = currentManifest ? [
+    {
+      id: 'merchant',
+      label: 'Firemní data (IČO, sídlo, kontakt)',
+      ok: !!(currentManifest.merchant?.ico && currentManifest.merchant?.obchodni_nazev && currentManifest.merchant?.kontakt?.email),
+    },
+    {
+      id: 'legal',
+      label: '4 právní stránky v patičce',
+      ok: ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt'].every(
+        (slug) => currentManifest.customPages?.some((p) => p.slug === slug)
+      ),
+    },
+    {
+      id: 'payment',
+      label: 'Min. 1 platební metoda',
+      ok: !!(currentManifest.payments?.providers?.length || currentManifest.payments?.dobirka?.enabled || currentManifest.payments?.prevod?.enabled),
+    },
+    {
+      id: 'shipping',
+      label: 'Min. 1 způsob dopravy',
+      ok: !!(currentManifest.shipping?.methods?.length),
+    },
+    {
+      id: 'products',
+      label: 'Min. 1 produkt s cenou a dostupností',
+      ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every((p) => p.price > 0),
+    },
+    {
+      id: 'product_images',
+      label: 'Každý produkt má alespoň 1 fotku',
+      ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every((p) => (p.images?.length ?? 0) > 0),
+    },
+  ] : []
+  const checklistAllOk = publishChecklist.every((c) => c.ok)
+
   const HostingPanel = (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Publish checklist */}
+      {publishChecklist.length > 0 && (
+        <div style={{
+          borderRadius: 10,
+          border: `1px solid ${checklistAllOk ? 'rgba(52,211,153,.3)' : 'rgba(251,191,36,.3)'}`,
+          background: checklistAllOk ? 'rgba(52,211,153,.04)' : 'rgba(251,191,36,.04)',
+          padding: '12px 14px',
+        }}>
+          <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, color: checklistAllOk ? '#34d399' : '#fbbf24' }}>
+            {checklistAllOk ? 'Připraveno k publikaci' : 'Před publikací splňte'}
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {publishChecklist.map((item) => (
+              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ flexShrink: 0, fontSize: 12, color: item.ok ? '#34d399' : '#f87171' }}>
+                  {item.ok ? '✓' : '✗'}
+                </span>
+                <span style={{ fontSize: 11, color: item.ok ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
+                  {item.label}
+                </span>
+                {!item.ok && item.id === 'merchant' && (
+                  <button
+                    onClick={() => { setDesktopTab('merchant'); setActiveTab('merchant') }}
+                    style={{ fontSize: 9, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                  >
+                    Vyplnit
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Live URL */}
       {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && liveUrl ? (
         <div style={{ borderRadius: 10, border: '1px solid rgba(52,211,153,.25)', background: 'rgba(52,211,153,.05)', padding: '14px 14px 12px' }}>
@@ -2093,7 +2165,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           }}>
             {/* Desktop tab bar */}
             <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)' }}>
-              {(['chat', 'sections', 'products', 'hosting'] as DesktopTab[]).map((tab) => (
+              {(['chat', 'sections', 'products', 'hosting', 'merchant'] as DesktopTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setDesktopTab(tab)}
@@ -2111,6 +2183,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                   {tab === 'hosting' && deployStatus === 'ready' && (
                     <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
                   )}
+                  {tab === 'merchant' && currentManifest && !checklistAllOk && (
+                    <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: '#f87171' }} />
+                  )}
                 </button>
               ))}
             </div>
@@ -2118,6 +2193,14 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               {desktopTab === 'chat' ? ChatPanel
                 : desktopTab === 'products' ? ProductsPanel
                 : desktopTab === 'hosting' ? HostingPanel
+                : desktopTab === 'merchant' ? (
+                  <MerchantPanel
+                    projectId={projectId}
+                    manifest={currentManifest}
+                    onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
+                    onBalanceRefresh={refreshBalance}
+                  />
+                )
                 : SectionsPanel}
             </div>
           </div>
@@ -2140,7 +2223,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
       {/* Mobile tab switcher */}
       <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)' }}>
-        {(['chat', 'preview', 'sections', 'products', 'hosting'] as StudioTab[]).map((tab) => (
+        {(['chat', 'preview', 'sections', 'products', 'hosting', 'merchant'] as StudioTab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -2170,6 +2253,14 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         {activeTab === 'sections' && SectionsPanel}
         {activeTab === 'products' && ProductsPanel}
         {activeTab === 'hosting' && HostingPanel}
+        {activeTab === 'merchant' && (
+          <MerchantPanel
+            projectId={projectId}
+            manifest={currentManifest}
+            onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
+            onBalanceRefresh={refreshBalance}
+          />
+        )}
       </div>
     </div>
   )
