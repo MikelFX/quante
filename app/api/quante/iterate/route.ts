@@ -138,18 +138,36 @@ ${JSON.stringify(current.manifest)}
       manifest = parseManifestJson(manifestMatch[1]) as ShopManifest
     } catch (primaryErr) {
       console.error('[iterate] parse failed:', primaryErr)
-      send({ type: 'status', text: 'Repairing…' })
+      send({ type: 'status', text: 'Repairing manifest…' })
       try {
+        // Build a concise, structured error message for the repair model
+        let errSummary: string
+        if (primaryErr instanceof Error && primaryErr.name === 'ZodError') {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const zErr = primaryErr as any
+            const flat = zErr.flatten?.()
+            errSummary = flat
+              ? `Zod validation failed:\n${JSON.stringify(flat, null, 2).slice(0, 1500)}`
+              : String(primaryErr).slice(0, 1500)
+          } catch {
+            errSummary = String(primaryErr).slice(0, 1500)
+          }
+        } else {
+          errSummary = String(primaryErr).slice(0, 1500)
+        }
+
         const repair = await anthropic.messages.create({
           model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
           messages: [{
             role: 'user',
-            content: `Fix ONLY the validation errors. Return raw JSON only, no fences.\nError: ${String(primaryErr).slice(0, 300)}\nJSON:\n${manifestMatch[1]}`,
+            content: `The following ShopManifest JSON failed validation. Fix EVERY error listed below and return ONLY the corrected raw JSON (no code fences, no prose).\n\nErrors:\n${errSummary}\n\nJSON to fix:\n${manifestMatch[1].slice(0, 60000)}`,
           }],
         })
         const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
         manifest = parseManifestJson(repairText) as ShopManifest
-      } catch {
+      } catch (repairErr) {
+        console.error('[iterate] repair failed:', repairErr)
         send({ type: 'error', message: 'Could not parse the updated manifest. Try again.' }); return
       }
     }

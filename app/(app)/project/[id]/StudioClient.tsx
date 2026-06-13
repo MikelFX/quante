@@ -1163,54 +1163,59 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           {balance} cr
         </span>
 
-        <button
-          onClick={() => handleExport(false)}
-          disabled={!currentManifest || isExporting || isExportingAdmin}
-          style={{
-            fontSize: 11, fontWeight: 600,
-            padding: '4px 10px', borderRadius: 5,
-            border: '1px solid rgba(255,255,255,.15)',
-            background: currentManifest && !isExporting ? 'rgba(255,255,255,.06)' : 'transparent',
-            color: currentManifest && !isExporting ? 'var(--foreground)' : 'var(--muted-foreground)',
-            cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
-            opacity: currentManifest ? 1 : 0.4,
-          }}
-        >
-          {isExporting ? '…' : 'Export'}
-        </button>
+        {/* Export + Deploy visible on desktop only; on mobile they live in the Chat panel */}
+        {isDesktop && (
+          <>
+            <button
+              onClick={() => handleExport(false)}
+              disabled={!currentManifest || isExporting || isExportingAdmin}
+              style={{
+                fontSize: 11, fontWeight: 600,
+                padding: '4px 10px', borderRadius: 5,
+                border: '1px solid rgba(255,255,255,.15)',
+                background: currentManifest && !isExporting ? 'rgba(255,255,255,.06)' : 'transparent',
+                color: currentManifest && !isExporting ? 'var(--foreground)' : 'var(--muted-foreground)',
+                cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
+                opacity: currentManifest ? 1 : 0.4,
+              }}
+            >
+              {isExporting ? '…' : 'Export'}
+            </button>
 
-        {deployStatus === 'ready' && deployUrl ? (
-          <a
-            href={deployUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
-              border: '1px solid rgba(52,211,153,.4)',
-              background: 'rgba(52,211,153,.1)', color: '#34d399',
-              textDecoration: 'none',
-            }}
-          >
-            ↗ Live
-          </a>
-        ) : (
-          <button
-            onClick={handleDeploy}
-            disabled={!currentManifest || isDeploying || deployStatus === 'building'}
-            style={{
-              fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
-              border: '1px solid rgba(52,211,153,.35)',
-              background: currentManifest && !isDeploying && deployStatus !== 'building'
-                ? 'rgba(52,211,153,.1)' : 'transparent',
-              color: currentManifest && !isDeploying && deployStatus !== 'building'
-                ? '#34d399' : 'var(--muted-foreground)',
-              cursor: currentManifest && !isDeploying && deployStatus !== 'building'
-                ? 'pointer' : 'not-allowed',
-              opacity: currentManifest ? 1 : 0.4,
-            }}
-          >
-            {isDeploying || deployStatus === 'building' ? '⟳ Deploying' : 'Deploy'}
-          </button>
+            {deployStatus === 'ready' && deployUrl ? (
+              <a
+                href={deployUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
+                  border: '1px solid rgba(52,211,153,.4)',
+                  background: 'rgba(52,211,153,.1)', color: '#34d399',
+                  textDecoration: 'none',
+                }}
+              >
+                ↗ Live
+              </a>
+            ) : (
+              <button
+                onClick={handleDeploy}
+                disabled={!currentManifest || isDeploying || deployStatus === 'building'}
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
+                  border: '1px solid rgba(52,211,153,.35)',
+                  background: currentManifest && !isDeploying && deployStatus !== 'building'
+                    ? 'rgba(52,211,153,.1)' : 'transparent',
+                  color: currentManifest && !isDeploying && deployStatus !== 'building'
+                    ? '#34d399' : 'var(--muted-foreground)',
+                  cursor: currentManifest && !isDeploying && deployStatus !== 'building'
+                    ? 'pointer' : 'not-allowed',
+                  opacity: currentManifest ? 1 : 0.4,
+                }}
+              >
+                {isDeploying || deployStatus === 'building' ? '⟳ Deploying' : 'Deploy'}
+              </button>
+            )}
+          </>
         )}
       </div>
     </header>
@@ -2108,43 +2113,78 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     return (
       <div style={{ position: 'fixed', top: '3rem', left: 0, right: 0, bottom: '4rem', zIndex: 30, display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
         {TopBar}
-        <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-          {/* Admin sidebar */}
-          <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '12px 8px', gap: 2 }}>
-            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', padding: '4px 10px 8px' }}>Store admin</p>
-            {ADMIN_TABS.map((t) => (
+        {isDesktop ? (
+          // Desktop: sidebar + content
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '12px 8px', gap: 2 }}>
+              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', padding: '4px 10px 8px' }}>Store admin</p>
+              {ADMIN_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { setAdminTab(t.id); if (t.id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 7,
+                    border: 'none', cursor: 'pointer', fontSize: 13,
+                    fontWeight: adminTab === t.id ? 600 : 400,
+                    background: adminTab === t.id ? 'rgba(111,120,230,.15)' : 'none',
+                    color: adminTab === t.id ? '#6f78e6' : 'var(--foreground)',
+                    transition: 'all 0.1s',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <div style={{ flex: 1 }} />
               <button
-                key={t.id}
-                onClick={() => { setAdminTab(t.id); if (t.id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
-                style={{
-                  width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 7,
-                  border: 'none', cursor: 'pointer', fontSize: 13,
-                  fontWeight: adminTab === t.id ? 600 : 400,
-                  background: adminTab === t.id ? 'rgba(111,120,230,.15)' : 'none',
-                  color: adminTab === t.id ? '#6f78e6' : 'var(--foreground)',
-                  transition: 'all 0.1s',
-                }}
+                onClick={() => setAdminMode(false)}
+                style={{ width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, background: 'none', color: 'var(--muted-foreground)' }}
               >
-                {t.label}
+                ← AI Builder
               </button>
-            ))}
-            <div style={{ flex: 1 }} />
-            <button
-              onClick={() => setAdminMode(false)}
-              style={{ width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, background: 'none', color: 'var(--muted-foreground)' }}
-            >
-              ← AI Builder
-            </button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {adminTab === 'dashboard' && AdminDashboard}
+              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
+              {adminTab === 'orders'    && AdminOrders}
+              {adminTab === 'settings'  && AdminSettings}
+            </div>
           </div>
-
-          {/* Admin content */}
+        ) : (
+          // Mobile: horizontal tab bar at top
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {adminTab === 'dashboard' && AdminDashboard}
-            {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
-            {adminTab === 'orders'    && AdminOrders}
-            {adminTab === 'settings'  && AdminSettings}
+            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {ADMIN_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => { setAdminTab(t.id); if (t.id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
+                  style={{
+                    flexShrink: 0, padding: '0.6rem 0.875rem', fontSize: 11, whiteSpace: 'nowrap',
+                    fontWeight: adminTab === t.id ? 600 : 400,
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: adminTab === t.id ? 'var(--foreground)' : 'var(--muted-foreground)',
+                    borderBottom: adminTab === t.id ? '2px solid #6f78e6' : '2px solid transparent',
+                    transition: 'color 0.15s',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setAdminMode(false)}
+                style={{ flexShrink: 0, padding: '0.6rem 0.875rem', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', borderBottom: '2px solid transparent', whiteSpace: 'nowrap' }}
+              >
+                ← Builder
+              </button>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {adminTab === 'dashboard' && AdminDashboard}
+              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
+              {adminTab === 'orders'    && AdminOrders}
+              {adminTab === 'settings'  && AdminSettings}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     )
   }
@@ -2223,26 +2263,36 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       {TopBar}
 
       {/* Mobile tab switcher */}
-      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)' }}>
-        {(['chat', 'preview', 'sections', 'products', 'hosting', 'merchant'] as StudioTab[]).map((tab) => (
+      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {([
+          { id: 'chat', label: 'Chat' },
+          { id: 'preview', label: 'Preview' },
+          { id: 'sections', label: 'Pages' },
+          { id: 'products', label: 'Products' },
+          { id: 'hosting', label: 'Hosting' },
+          { id: 'merchant', label: 'Merchant' },
+        ] as { id: StudioTab; label: string }[]).map(({ id: tab, label }) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              flex: 1, padding: '0.55rem 0', fontSize: 10, fontWeight: activeTab === tab ? 600 : 400,
+              flexShrink: 0, padding: '0.6rem 0.75rem', fontSize: 11, fontWeight: activeTab === tab ? 600 : 400,
               background: 'none', border: 'none', cursor: 'pointer',
               color: activeTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
               borderBottom: activeTab === tab ? '2px solid #6f78e6' : '2px solid transparent',
-              textTransform: 'capitalize', transition: 'color 0.15s',
-              position: 'relative',
+              transition: 'color 0.15s',
+              position: 'relative', whiteSpace: 'nowrap',
             }}
           >
-            {tab}
+            {label}
             {tab === 'preview' && currentManifest && isGenerating && (
-              <span style={{ marginLeft: 4, fontSize: 9, opacity: 0.6 }}>●</span>
+              <span style={{ marginLeft: 3, fontSize: 8, opacity: 0.6 }}>●</span>
             )}
             {tab === 'hosting' && deployStatus === 'ready' && (
-              <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
+            )}
+            {tab === 'merchant' && currentManifest && !checklistAllOk && (
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#f87171' }} />
             )}
           </button>
         ))}

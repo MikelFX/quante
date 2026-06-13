@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const MerchantSchema = z.object({
   obchodni_nazev: z.string(),
-  ico: z.string().regex(/^\d{8}$/, 'IČO musí mít 8 číslic'),
+  ico: z.string(),
   dic: z.string().optional(),
   platce_dph: z.boolean().default(false),
   sidlo: z.object({
@@ -11,7 +11,7 @@ const MerchantSchema = z.object({
     psc: z.string(),
     zeme: z.string().default('CZ'),
   }),
-  kontakt: z.object({ email: z.string().email(), telefon: z.string() }),
+  kontakt: z.object({ email: z.string(), telefon: z.string() }),
   bankovni_ucet: z.string().optional(),
   zodpovedna_osoba: z.string().optional(),
 })
@@ -218,6 +218,7 @@ export const ShopManifestSchema = z.object({
       sections: z.array(SectionSchema),
     })
   ).optional(),
+  adminPanel: z.boolean().optional(),
 })
 
 export type ValidatedShopManifest = z.infer<typeof ShopManifestSchema>
