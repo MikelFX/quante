@@ -78,9 +78,9 @@ export class ComgateProvider implements PaymentProvider {
   }
 }
 
-export function createComgateProvider(override?: { merchantId?: string; secret?: string }): ComgateProvider | null {
-  const merchantId = override?.merchantId ?? process.env.COMGATE_MERCHANT_ID
-  const secret = override?.secret ?? process.env.COMGATE_SECRET
+export function createComgateProvider(): ComgateProvider | null {
+  const merchantId = process.env.COMGATE_MERCHANT_ID
+  const secret = process.env.COMGATE_SECRET
   if (!merchantId || !secret) return null
   return new ComgateProvider({
     merchantId,

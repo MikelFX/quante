@@ -100,10 +100,10 @@ export class GopayProvider implements PaymentProvider {
   }
 }
 
-export function createGopayProvider(override?: { clientId?: string; clientSecret?: string; goId?: string }): GopayProvider | null {
-  const clientId = override?.clientId ?? process.env.GOPAY_CLIENT_ID
-  const clientSecret = override?.clientSecret ?? process.env.GOPAY_CLIENT_SECRET
-  const goId = override?.goId ?? process.env.GOPAY_GO_ID
+export function createGopayProvider(): GopayProvider | null {
+  const clientId = process.env.GOPAY_CLIENT_ID
+  const clientSecret = process.env.GOPAY_CLIENT_SECRET
+  const goId = process.env.GOPAY_GO_ID
   if (!clientId || !clientSecret || !goId) return null
   return new GopayProvider({
     clientId,

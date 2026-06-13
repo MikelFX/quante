@@ -56,13 +56,6 @@ export async function POST(request: Request) {
     .maybeSingle()
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  // Fetch per-project payment credentials
-  const { data: secrets } = await supabaseAdmin
-    .from('project_secrets')
-    .select('comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id')
-    .eq('project_id', projectId)
-    .maybeSingle()
-
   // Fetch manifest for branding + merchant data
   const { data: versionRow } = await supabaseAdmin
     .from('manifest_versions')
@@ -150,11 +143,8 @@ export async function POST(request: Request) {
   }
 
   if (paymentMethod === 'comgate') {
-    const provider = createComgateProvider({
-      merchantId: (secrets?.comgate_merchant_id as string | null) ?? undefined,
-      secret: (secrets?.comgate_secret as string | null) ?? undefined,
-    })
-    if (!provider) return NextResponse.json({ error: 'Comgate není nakonfigurován. Zadejte přihlašovací údaje v nastavení obchodu.' }, { status: 503 })
+    const provider = createComgateProvider()
+    if (!provider) return NextResponse.json({ error: 'Comgate není nakonfigurován' }, { status: 503 })
     try {
       const result = await provider.createPayment({
         orderId,
@@ -191,12 +181,8 @@ export async function POST(request: Request) {
   }
 
   if (paymentMethod === 'gopay') {
-    const provider = createGopayProvider({
-      clientId: (secrets?.gopay_client_id as string | null) ?? undefined,
-      clientSecret: (secrets?.gopay_client_secret as string | null) ?? undefined,
-      goId: (secrets?.gopay_go_id as string | null) ?? undefined,
-    })
-    if (!provider) return NextResponse.json({ error: 'GoPay není nakonfigurován. Zadejte přihlašovací údaje v nastavení obchodu.' }, { status: 503 })
+    const provider = createGopayProvider()
+    if (!provider) return NextResponse.json({ error: 'GoPay není nakonfigurován' }, { status: 503 })
     try {
       const result = await provider.createPayment({
         orderId,

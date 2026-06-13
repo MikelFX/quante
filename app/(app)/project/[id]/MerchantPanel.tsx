@@ -43,13 +43,6 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   const [payDobirka, setPayDobirka] = useState(false)
   const [payDobirkaFee, setPayDobirkaFee] = useState(49)
   const [payPrevod, setPayPrevod] = useState(true)
-  const [comgateId, setComgateId] = useState('')
-  const [comgateSecret, setComgateSecret] = useState('')
-  const [gopayClientId, setGopayClientId] = useState('')
-  const [gopayClientSecret, setGopayClientSecret] = useState('')
-  const [gopayGoId, setGopayGoId] = useState('')
-  const [hasComgate, setHasComgate] = useState(false)
-  const [hasGopay, setHasGopay] = useState(false)
 
   // Shipping
   const [shipZasilkovna, setShipZasilkovna] = useState(false)
@@ -94,11 +87,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   useEffect(() => {
     fetch(`/api/project/secrets?projectId=${projectId}`)
       .then((r) => r.json())
-      .then((d) => {
-        if (d.resendFromEmail) setEmailFrom(d.resendFromEmail)
-        if (d.hasComgate) setHasComgate(true)
-        if (d.hasGopay) setHasGopay(true)
-      })
+      .then((d) => { if (d.resendFromEmail) setEmailFrom(d.resendFromEmail) })
       .catch(() => {})
   }, [projectId])
 
@@ -282,24 +271,6 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       if (!res.ok) { setPayShipMsg('Chyba při ukládání'); return }
       const { manifest: saved } = await res.json()
       onManifestUpdate(saved)
-
-      // Save payment gateway credentials to project_secrets
-      const creds: Record<string, string> = {}
-      if (comgateId) creds.comgate_merchant_id = comgateId
-      if (comgateSecret) creds.comgate_secret = comgateSecret
-      if (gopayClientId) creds.gopay_client_id = gopayClientId
-      if (gopayClientSecret) creds.gopay_client_secret = gopayClientSecret
-      if (gopayGoId) creds.gopay_go_id = gopayGoId
-      if (Object.keys(creds).length > 0) {
-        await fetch('/api/project/secrets', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ projectId, ...creds }),
-        })
-        if (comgateId && comgateSecret) setHasComgate(true)
-        if (gopayClientId && gopayGoId) setHasGopay(true)
-      }
-
       setPayShipMsg('Uloženo')
       setTimeout(() => setPayShipMsg(''), 2500)
     } catch {
@@ -544,39 +515,17 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Platební metody</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          Platby probíhají přímo na váš účet u příslušné platební brány. Quante nedrží vaše platby.
+          Všechny platby probíhají přes Quante platební platformu — zákazník zaplatí a částka se zobrazí ve vašem výplatním přehledu. Zvolte metody, které chcete zákazníkům nabídnout.
         </p>
 
-        {/* Comgate */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payComgate ? 8 : 0 }}>
-            <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
-            <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (karta, Apple Pay, bankovní tlačítka)</label>
-            {hasComgate && !payComgate && <span style={{ fontSize: 9, color: '#34d399' }}>✓ Klíče uloženy</span>}
-          </div>
-          {payComgate && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <input style={fieldStyle} value={comgateId} onChange={(e) => setComgateId(e.target.value)} placeholder={hasComgate ? '(uloženo — přepsat pro změnu)' : 'Comgate Merchant ID'} />
-              <input style={fieldStyle} type="password" value={comgateSecret} onChange={(e) => setComgateSecret(e.target.value)} placeholder={hasComgate ? '(uloženo — přepsat pro změnu)' : 'Comgate Secret'} />
-              <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0 }}>Merchant ID a heslo z Comgate portálu. Klíče jsou šifrovány a nikdy nejsou viditelné zákazníkům.</p>
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
+          <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer' }}>Comgate (karta, Apple Pay, bankovní tlačítka)</label>
         </div>
 
-        {/* GoPay */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payGopay ? 8 : 0 }}>
-            <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
-            <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (karta, Google Pay, bankovní převod)</label>
-            {hasGopay && !payGopay && <span style={{ fontSize: 9, color: '#34d399' }}>✓ Klíče uloženy</span>}
-          </div>
-          {payGopay && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <input style={fieldStyle} value={gopayClientId} onChange={(e) => setGopayClientId(e.target.value)} placeholder={hasGopay ? '(uloženo)' : 'Client ID'} />
-              <input style={fieldStyle} type="password" value={gopayClientSecret} onChange={(e) => setGopayClientSecret(e.target.value)} placeholder={hasGopay ? '(uloženo)' : 'Client Secret'} />
-              <input style={fieldStyle} value={gopayGoId} onChange={(e) => setGopayGoId(e.target.value)} placeholder={hasGopay ? '(uloženo)' : 'GoID'} />
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
+          <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer' }}>GoPay (karta, Google Pay, bankovní převod)</label>
         </div>
 
         {/* Dobírka */}
