@@ -1,8 +1,9 @@
-import { auth } from '@clerk/nextjs/server'
+import { auth, currentUser } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 const WELCOME_CREDITS = 25
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
 
 export async function GET() {
   const { userId } = await auth()
@@ -15,10 +16,14 @@ export async function GET() {
     .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
 
   if (!data) {
+    const user = await currentUser()
+    const email = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? ''
+    const isAdmin = ADMIN_EMAILS.includes(email)
+    const grant = isAdmin ? 1000 : WELCOME_CREDITS
     await supabase.from('credit_ledger').insert({
-      user_id: userId, delta: WELCOME_CREDITS, reason: 'welcome_grant', ref_id: null, balance_after: WELCOME_CREDITS,
+      user_id: userId, delta: grant, reason: isAdmin ? 'admin_grant' : 'welcome_grant', ref_id: null, balance_after: grant,
     })
-    return NextResponse.json({ balance: WELCOME_CREDITS })
+    return NextResponse.json({ balance: grant, isAdmin })
   }
 
   return NextResponse.json({ balance: data.balance_after })
