@@ -1443,7 +1443,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               {/* Direct edit mode */}
               {editingSection === i && sectionEditMode === 'direct' && (
                 <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <SectionEditFields />
+                  {SectionEditFields()}
                   <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                     <button
                       onClick={handleSectionDirectSave}

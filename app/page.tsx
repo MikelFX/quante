@@ -741,8 +741,8 @@ export default function HomePage() {
           <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 12 }}>
             Pay only when you create
           </h2>
-          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 48, maxWidth: 380, margin: '0 auto 48px' }}>
-            No subscription. Get 25 free credits when you sign up — enough for two complete stores, no card needed.
+          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 48, maxWidth: 420, margin: '0 auto 48px' }}>
+            Kredity za AI tvorbu. Hosting za €99/rok — SSL, subdoména a CDN v ceně. 25 kreditů zdarma při registraci, karta není potřeba.
           </p>
 
           <div className="pricing-grid">

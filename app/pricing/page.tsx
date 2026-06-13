@@ -85,7 +85,8 @@ const COSTS = [
   { action: 'Redo one section', cost: '2', unit: 'credits' },
   { action: 'Add a custom component', cost: '3', unit: 'credits' },
   { action: 'Download your store (ZIP)', cost: '5', unit: 'credits' },
-  { action: 'Deploy to Quante hosting', cost: '15', unit: 'credits' },
+  { action: 'Deploy to Quante hosting', cost: '5', unit: 'credits' },
+  { action: 'Quante Hosting Plan', cost: '€99', unit: '/rok' },
   { action: 'Welcome bonus on signup', cost: '+25', unit: 'free' },
 ]
 
@@ -93,10 +94,10 @@ const FAQ = [
   { q: 'Do credits expire?', a: 'No. Credits never expire. Buy once and use them whenever you feel like it.' },
   { q: 'What if something goes wrong during generation?', a: "Credits are only taken on success. If a generation fails and we can't auto-fix it, nothing is charged." },
   { q: 'Can I export the same store more than once?', a: 'Yes — each export costs 5 credits. Useful when you want to grab the latest version after iterating.' },
-  { q: 'What does "Deploy to Quante hosting" mean?', a: 'One click in the Studio and your store goes live on a URL like my-store.quante.app — SSL included, no server setup. You can also bring your own domain. Costs 15 credits per deploy.' },
-  { q: 'Can I self-host instead?', a: "Yes. Export the ZIP (5 credits) and deploy anywhere — Vercel's free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency." },
-  { q: 'Is hosting a subscription?', a: 'No. Each deploy costs a flat 15 credits. No recurring fee on top — consistent with the rest of Quante pricing.' },
-  { q: 'Do you charge a monthly fee?', a: 'Never. Quante is pay-per-use. The only money that leaves your pocket is when you actively choose to top up.' },
+  { q: 'What does "Deploy to Quante hosting" mean?', a: 'One click in the Studio and your store goes live on a URL like my-store.quante.app — SSL, CDN and subdomain included, no server setup. Each deploy costs 5 credits. Your store stays live as long as your annual hosting plan is active.' },
+  { q: 'Can I self-host instead?', a: "Yes. Export the ZIP (5 credits) and deploy anywhere — Vercel's free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency. No hosting plan needed." },
+  { q: 'Is hosting a subscription?', a: 'Yes — €99/year, billed annually. This covers hosting, SSL, your quante.app subdomain, CDN, and unlimited deploys (each deploy costs 5 credits on top). Cancel anytime; your store stays live until the period ends.' },
+  { q: 'What does the €99/year cover?', a: 'Everything needed to keep your store online: managed hosting, automatic SSL renewal, a quante.app subdomain (or your own custom domain), global CDN, and 24/7 uptime monitoring. You only pay credits on top when you generate, iterate, or deploy.' },
 ]
 
 export default function PricingPage() {
@@ -159,12 +160,12 @@ export default function PricingPage() {
               <span className="dot-pulse-el" style={{
                 width: 7, height: 7, borderRadius: '50%', background: '#6f78e6', display: 'inline-block',
               }} />
-              no subscriptions · no surprises
+              credits · hosting plan · transparent
             </motion.div>
 
             <div style={{ position: 'relative' }} className="headline-sheen">
-              <LineReveal>Pay only when</LineReveal>
-              <LineReveal delay={0.12} blue>you create.</LineReveal>
+              <LineReveal>Credits for AI.</LineReveal>
+              <LineReveal delay={0.12} blue>€99/rok hosting.</LineReveal>
             </div>
 
             <motion.p
@@ -172,8 +173,8 @@ export default function PricingPage() {
               transition={{ duration: 0.8, delay: 0.4 }}
               style={{ fontSize: 16, lineHeight: 1.7, color: '#a4a4ad', maxWidth: 520, margin: '24px auto 0' }}
             >
-              No monthly fee. Buy credits when you need them, use them whenever.
-              Start with <span style={{ color: '#3ecf8e', fontWeight: 600 }}>25 free credits</span> when you sign up. No card required.
+              Kredity platíte jen za to, co vytvoříte. Hosting je jedno roční předplatné — €99/rok, vše ostatní v ceně.
+              Začněte s <span style={{ color: '#3ecf8e', fontWeight: 600 }}>25 kredity zdarma</span>. Karta není potřeba.
             </motion.p>
 
             {/* Mini stat strip */}
@@ -186,7 +187,7 @@ export default function PricingPage() {
               }}
             >
               {[
-                { value: '€0', label: 'monthly fee' },
+                { value: '€99', label: 'hosting / rok' },
                 { value: '25', label: 'free credits' },
                 { value: '∞', label: 'never expire' },
               ].map(s => (
@@ -329,10 +330,10 @@ export default function PricingPage() {
                 <span style={{ fontSize: 14, color: '#f4f4f6' }}>{c.action}</span>
                 <span style={{
                   fontFamily: 'var(--font-geist-mono)', fontSize: 13, fontWeight: 600,
-                  color: c.unit === 'free' ? '#3ecf8e' : '#a4a4ad',
+                  color: c.unit === 'free' ? '#3ecf8e' : c.unit === '/rok' ? '#6f78e6' : '#a4a4ad',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  {c.cost}<span style={{ fontSize: 11, color: '#5b5b64' }}>{c.unit}</span>
+                  {c.cost}<span style={{ fontSize: 11, color: c.unit === '/rok' ? '#6f78e6' : '#5b5b64' }}>{c.unit}</span>
                 </span>
               </motion.div>
             ))}
@@ -370,10 +371,11 @@ export default function PricingPage() {
             borderRadius: 14, overflow: 'hidden',
           }}>
             {[
+              { label: 'Annual hosting plan', value: '€99 / rok · billed annually', mono: true },
               { label: 'URL format', value: 'my-store.quante.app', mono: true },
               { label: 'Custom domain', value: 'Bring your own — CNAME verified automatically', mono: false },
               { label: 'SSL certificate', value: 'Included, auto-renewed', mono: false },
-              { label: 'Cost per deploy', value: '15 credits · charged on success only', mono: true },
+              { label: 'Cost per deploy', value: '5 credits · charged on success only', mono: true },
               { label: 'Re-deploy after edits', value: 'Same URL, same domain — just updated', mono: false },
             ].map((row, i, arr) => (
               <div key={row.label} style={{

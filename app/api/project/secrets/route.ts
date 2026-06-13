@@ -11,6 +11,11 @@ const ALLOWED_FIELDS = [
   'payment_test_mode',
   'zasilkovna_api_key',
   'zasilkovna_api_password',
+  'comgate_merchant_id',
+  'comgate_secret',
+  'gopay_client_id',
+  'gopay_client_secret',
+  'gopay_go_id',
 ] as const
 
 type AllowedField = typeof ALLOWED_FIELDS[number]
@@ -71,7 +76,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabaseAdmin
     .from('project_secrets')
-    .select('resend_from_email, payment_test_mode, zasilkovna_api_key')
+    .select('resend_from_email, payment_test_mode, zasilkovna_api_key, comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id')
     .eq('project_id', projectId)
     .maybeSingle()
 
@@ -79,5 +84,7 @@ export async function GET(request: Request) {
     resendFromEmail: (data?.resend_from_email as string | null) ?? null,
     paymentTestMode: (data?.payment_test_mode as boolean | null) ?? true,
     hasZasilkovnaKey: !!(data?.zasilkovna_api_key as string | null),
+    hasComgate: !!(data?.comgate_merchant_id as string | null) && !!(data?.comgate_secret as string | null),
+    hasGopay: !!(data?.gopay_client_id as string | null) && !!(data?.gopay_go_id as string | null),
   })
 }

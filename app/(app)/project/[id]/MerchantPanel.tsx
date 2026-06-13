@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { validateIco } from '@/lib/ico-validator'
-import type { ShopManifest, Merchant } from '@/types/manifest'
+import type { ShopManifest, Merchant, ShippingMethod } from '@/types/manifest'
 
 interface Props {
   projectId: string
@@ -37,14 +37,68 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   const [isSendingTest, setIsSendingTest] = useState(false)
   const [testEmailMsg, setTestEmailMsg] = useState('')
 
+  // Payment methods
+  const [payComgate, setPayComgate] = useState(false)
+  const [payGopay, setPayGopay] = useState(false)
+  const [payDobirka, setPayDobirka] = useState(false)
+  const [payDobirkaFee, setPayDobirkaFee] = useState(49)
+  const [payPrevod, setPayPrevod] = useState(true)
+  const [comgateId, setComgateId] = useState('')
+  const [comgateSecret, setComgateSecret] = useState('')
+  const [gopayClientId, setGopayClientId] = useState('')
+  const [gopayClientSecret, setGopayClientSecret] = useState('')
+  const [gopayGoId, setGopayGoId] = useState('')
+  const [hasComgate, setHasComgate] = useState(false)
+  const [hasGopay, setHasGopay] = useState(false)
+
+  // Shipping
+  const [shipZasilkovna, setShipZasilkovna] = useState(false)
+  const [shipZasilkovnaPrice, setShipZasilkovnaPrice] = useState(79)
+  const [shipPpl, setShipPpl] = useState(false)
+  const [shipPplPrice, setShipPplPrice] = useState(159)
+  const [shipDpd, setShipDpd] = useState(false)
+  const [shipDpdPrice, setShipDpdPrice] = useState(149)
+  const [shipBalikovna, setShipBalikovna] = useState(false)
+  const [shipBalikovnaPrice, setShipBalikovnaPrice] = useState(89)
+  const [shipOsobni, setShipOsobni] = useState(false)
+  const [freeShippingFrom, setFreeShippingFrom] = useState(0)
+  const [isSavingPayShip, setIsSavingPayShip] = useState(false)
+  const [payShipMsg, setPayShipMsg] = useState('')
+
   useEffect(() => {
     if (manifest?.merchant) setForm(manifest.merchant)
+    if (manifest?.payments) {
+      const p = manifest.payments
+      setPayComgate(p.providers.includes('comgate'))
+      setPayGopay(p.providers.includes('gopay'))
+      setPayDobirka(p.dobirka?.enabled ?? false)
+      setPayDobirkaFee(p.dobirka?.priplatek_czk ?? 49)
+      setPayPrevod(p.prevod?.enabled ?? true)
+    }
+    if (manifest?.shipping) {
+      const s = manifest.shipping
+      const z = s.methods.find((m) => m.type === 'zasilkovna')
+      if (z) { setShipZasilkovna(true); setShipZasilkovnaPrice(z.cena_czk) }
+      const ppl = s.methods.find((m) => m.type === 'ppl')
+      if (ppl) { setShipPpl(true); setShipPplPrice(ppl.cena_czk) }
+      const dpd = s.methods.find((m) => m.type === 'dpd')
+      if (dpd) { setShipDpd(true); setShipDpdPrice(dpd.cena_czk) }
+      const bal = s.methods.find((m) => m.type === 'balikovna')
+      if (bal) { setShipBalikovna(true); setShipBalikovnaPrice(bal.cena_czk) }
+      const osob = s.methods.find((m) => m.type === 'osobni_odber')
+      if (osob) setShipOsobni(true)
+      setFreeShippingFrom(s.doprava_zdarma_od_czk ?? 0)
+    }
   }, [manifest])
 
   useEffect(() => {
     fetch(`/api/project/secrets?projectId=${projectId}`)
       .then((r) => r.json())
-      .then((d) => { if (d.resendFromEmail) setEmailFrom(d.resendFromEmail) })
+      .then((d) => {
+        if (d.resendFromEmail) setEmailFrom(d.resendFromEmail)
+        if (d.hasComgate) setHasComgate(true)
+        if (d.hasGopay) setHasGopay(true)
+      })
       .catch(() => {})
   }, [projectId])
 
@@ -190,6 +244,69 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
     fontSize: 12,
     fontFamily: 'inherit',
     boxSizing: 'border-box',
+  }
+
+  async function savePaymentsShipping() {
+    if (!manifest) return
+    setIsSavingPayShip(true)
+    setPayShipMsg('')
+    try {
+      const providers: Array<'comgate' | 'gopay'> = [
+        ...(payComgate ? (['comgate'] as const) : []),
+        ...(payGopay ? (['gopay'] as const) : []),
+      ]
+      const methods: ShippingMethod[] = [
+        ...(shipZasilkovna ? [{ type: 'zasilkovna' as const, cena_czk: shipZasilkovnaPrice }] : []),
+        ...(shipPpl ? [{ type: 'ppl' as const, cena_czk: shipPplPrice }] : []),
+        ...(shipDpd ? [{ type: 'dpd' as const, cena_czk: shipDpdPrice }] : []),
+        ...(shipBalikovna ? [{ type: 'balikovna' as const, cena_czk: shipBalikovnaPrice }] : []),
+        ...(shipOsobni ? [{ type: 'osobni_odber' as const, cena_czk: 0 }] : []),
+      ]
+      const updatedManifest: ShopManifest = {
+        ...manifest,
+        payments: {
+          providers,
+          ...(payDobirka ? { dobirka: { enabled: true, priplatek_czk: payDobirkaFee } } : {}),
+          ...(payPrevod ? { prevod: { enabled: true, qr: true } } : {}),
+        },
+        shipping: {
+          methods,
+          ...(freeShippingFrom > 0 ? { doprava_zdarma_od_czk: freeShippingFrom } : {}),
+        },
+      }
+      const res = await fetch('/api/manifest/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, manifest: updatedManifest }),
+      })
+      if (!res.ok) { setPayShipMsg('Chyba při ukládání'); return }
+      const { manifest: saved } = await res.json()
+      onManifestUpdate(saved)
+
+      // Save payment gateway credentials to project_secrets
+      const creds: Record<string, string> = {}
+      if (comgateId) creds.comgate_merchant_id = comgateId
+      if (comgateSecret) creds.comgate_secret = comgateSecret
+      if (gopayClientId) creds.gopay_client_id = gopayClientId
+      if (gopayClientSecret) creds.gopay_client_secret = gopayClientSecret
+      if (gopayGoId) creds.gopay_go_id = gopayGoId
+      if (Object.keys(creds).length > 0) {
+        await fetch('/api/project/secrets', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, ...creds }),
+        })
+        if (comgateId && comgateSecret) setHasComgate(true)
+        if (gopayClientId && gopayGoId) setHasGopay(true)
+      }
+
+      setPayShipMsg('Uloženo')
+      setTimeout(() => setPayShipMsg(''), 2500)
+    } catch {
+      setPayShipMsg('Chyba při ukládání')
+    } finally {
+      setIsSavingPayShip(false)
+    }
   }
 
   const labelStyle: React.CSSProperties = {
@@ -421,6 +538,118 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
           Šablony jsou základ — finální odpovědnost nese provozovatel. Doporučujeme kontrolu právníkem.
         </p>
+      </div>
+
+      {/* Payment methods */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Platební metody</p>
+        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+          Platby probíhají přímo na váš účet u příslušné platební brány. Quante nedrží vaše platby.
+        </p>
+
+        {/* Comgate */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payComgate ? 8 : 0 }}>
+            <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
+            <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (karta, Apple Pay, bankovní tlačítka)</label>
+            {hasComgate && !payComgate && <span style={{ fontSize: 9, color: '#34d399' }}>✓ Klíče uloženy</span>}
+          </div>
+          {payComgate && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <input style={fieldStyle} value={comgateId} onChange={(e) => setComgateId(e.target.value)} placeholder={hasComgate ? '(uloženo — přepsat pro změnu)' : 'Comgate Merchant ID'} />
+              <input style={fieldStyle} type="password" value={comgateSecret} onChange={(e) => setComgateSecret(e.target.value)} placeholder={hasComgate ? '(uloženo — přepsat pro změnu)' : 'Comgate Secret'} />
+              <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0 }}>Merchant ID a heslo z Comgate portálu. Klíče jsou šifrovány a nikdy nejsou viditelné zákazníkům.</p>
+            </div>
+          )}
+        </div>
+
+        {/* GoPay */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payGopay ? 8 : 0 }}>
+            <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
+            <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (karta, Google Pay, bankovní převod)</label>
+            {hasGopay && !payGopay && <span style={{ fontSize: 9, color: '#34d399' }}>✓ Klíče uloženy</span>}
+          </div>
+          {payGopay && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <input style={fieldStyle} value={gopayClientId} onChange={(e) => setGopayClientId(e.target.value)} placeholder={hasGopay ? '(uloženo)' : 'Client ID'} />
+              <input style={fieldStyle} type="password" value={gopayClientSecret} onChange={(e) => setGopayClientSecret(e.target.value)} placeholder={hasGopay ? '(uloženo)' : 'Client Secret'} />
+              <input style={fieldStyle} value={gopayGoId} onChange={(e) => setGopayGoId(e.target.value)} placeholder={hasGopay ? '(uloženo)' : 'GoID'} />
+            </div>
+          )}
+        </div>
+
+        {/* Dobírka */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payDobirka ? 6 : 0 }}>
+            <input type="checkbox" id="pay_dobirka" checked={payDobirka} onChange={(e) => setPayDobirka(e.target.checked)} style={{ margin: 0 }} />
+            <label htmlFor="pay_dobirka" style={{ fontSize: 11, cursor: 'pointer' }}>Dobírka (platba při převzetí)</label>
+          </div>
+          {payDobirka && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Příplatek (Kč):</label>
+              <input style={{ ...fieldStyle, width: 80 }} type="number" min={0} value={payDobirkaFee} onChange={(e) => setPayDobirkaFee(Number(e.target.value))} />
+            </div>
+          )}
+        </div>
+
+        {/* Bankovní převod */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <input type="checkbox" id="pay_prevod" checked={payPrevod} onChange={(e) => setPayPrevod(e.target.checked)} style={{ margin: 0 }} />
+          <label htmlFor="pay_prevod" style={{ fontSize: 11, cursor: 'pointer' }}>Bankovní převod (QR kód + platební instrukce)</label>
+        </div>
+      </div>
+
+      {/* Shipping */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Doprava</p>
+        {[
+          { id: 'zasilkovna', label: 'Zásilkovna', enabled: shipZasilkovna, setEnabled: setShipZasilkovna, price: shipZasilkovnaPrice, setPrice: setShipZasilkovnaPrice },
+          { id: 'ppl', label: 'PPL — doručení na adresu', enabled: shipPpl, setEnabled: setShipPpl, price: shipPplPrice, setPrice: setShipPplPrice },
+          { id: 'dpd', label: 'DPD — doručení na adresu', enabled: shipDpd, setEnabled: setShipDpd, price: shipDpdPrice, setPrice: setShipDpdPrice },
+          { id: 'balikovna', label: 'Balíkovna', enabled: shipBalikovna, setEnabled: setShipBalikovna, price: shipBalikovnaPrice, setPrice: setShipBalikovnaPrice },
+        ].map((m) => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+            <input type="checkbox" id={`ship_${m.id}`} checked={m.enabled} onChange={(e) => m.setEnabled(e.target.checked)} style={{ margin: 0 }} />
+            <label htmlFor={`ship_${m.id}`} style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>{m.label}</label>
+            {m.enabled && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <input style={{ ...fieldStyle, width: 70, textAlign: 'right' }} type="number" min={0} value={m.price} onChange={(e) => m.setPrice(Number(e.target.value))} />
+                <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>Kč</span>
+              </div>
+            )}
+          </div>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <input type="checkbox" id="ship_osobni" checked={shipOsobni} onChange={(e) => setShipOsobni(e.target.checked)} style={{ margin: 0 }} />
+          <label htmlFor="ship_osobni" style={{ fontSize: 11, cursor: 'pointer' }}>Osobní odběr (zdarma)</label>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Doprava zdarma od (Kč):</label>
+          <input style={{ ...fieldStyle, width: 90 }} type="number" min={0} value={freeShippingFrom} onChange={(e) => setFreeShippingFrom(Number(e.target.value))} placeholder="0 = vypnuto" />
+        </div>
+      </div>
+
+      {/* Save payments + shipping */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <button
+          onClick={savePaymentsShipping}
+          disabled={isSavingPayShip || !manifest}
+          style={{
+            padding: '0.5rem 0.75rem',
+            background: '#6f78e6',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 6,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: 'pointer',
+            opacity: isSavingPayShip || !manifest ? 0.6 : 1,
+          }}
+        >
+          {isSavingPayShip ? 'Ukládám…' : 'Uložit platby & dopravu'}
+        </button>
+        {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{payShipMsg}</p>}
       </div>
     </div>
   )

@@ -654,10 +654,12 @@ export default function CartPage() {
     ...paymentProviders.map((p) => ({ key: p, label: PAYMENT_LABELS[p] ?? p })),
     ...(hasDobirka ? [{ key: 'dobirka', label: PAYMENT_LABELS.dobirka }] : []),
     ...(hasPrevod ? [{ key: 'prevod', label: PAYMENT_LABELS.prevod }] : []),
+    // If merchant hasn't configured any payment methods yet, fall back to bank transfer
+    ...(!paymentProviders.length && !hasDobirka && !hasPrevod ? [{ key: 'prevod', label: PAYMENT_LABELS.prevod }] : []),
   ]
 
   const defaultShipping = shippingMethods[0]?.type ?? ''
-  const defaultPayment = allPaymentOptions[0]?.key ?? 'stripe'
+  const defaultPayment = allPaymentOptions[0]?.key ?? 'prevod'
 
   const [selectedShipping, setSelectedShipping] = useState(defaultShipping)
   const [selectedPayment, setSelectedPayment] = useState(defaultPayment)
