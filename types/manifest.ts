@@ -177,6 +177,8 @@ export interface ShopManifest {
 
   shipping?: ShippingConfig
 
+  adminPanel?: boolean
+
   brand: {
     name: string
     tagline: string
