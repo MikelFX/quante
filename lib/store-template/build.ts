@@ -1014,6 +1014,8 @@ import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
 import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
 import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 
+export const dynamic = 'force-dynamic'
+
 export default function SuccessPage() {
   const { clear } = useCart()
   const searchParams = useSearchParams()
