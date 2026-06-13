@@ -8,6 +8,7 @@ import {
   setEnvVars,
   createDeployment,
   getDeploymentStatus,
+  getBuildError,
   attachDomain,
   HOSTING_ROOT_DOMAIN,
 } from '@/lib/hosting/vercel'
@@ -15,7 +16,7 @@ import type { ShopManifest } from '@/types/manifest'
 
 export const maxDuration = 60
 
-const DEPLOY_COST = 15
+const DEPLOY_COST = 5
 
 // ─── POST /api/deploy ─────────────────────────────────────────────────────────
 // Kick off a deployment. Returns immediately with { deploymentId, domain }.
@@ -255,12 +256,15 @@ export async function GET(request: Request) {
   }
 
   if (vercelStatus.state === 'error' || vercelStatus.state === 'canceled') {
+    const errorMessage = vercelStatus.state === 'error'
+      ? await getBuildError(deploymentId)
+      : 'Deployment was canceled.'
     await supabaseAdmin
       .from('deployments')
-      .update({ status: vercelStatus.state, error_message: 'Build failed on Vercel.', updated_at: new Date().toISOString() })
+      .update({ status: vercelStatus.state, error_message: errorMessage, updated_at: new Date().toISOString() })
       .eq('id', row.id)
 
-    return NextResponse.json({ status: vercelStatus.state, errorMessage: 'Build failed on Vercel.' })
+    return NextResponse.json({ status: vercelStatus.state, errorMessage })
   }
 
   if (vercelStatus.state === 'ready') {

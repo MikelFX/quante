@@ -103,6 +103,29 @@ export async function getDeploymentStatus(deploymentId: string): Promise<Deploym
   }
 }
 
+export async function getBuildError(deploymentId: string): Promise<string> {
+  try {
+    const token = process.env.VERCEL_TOKEN
+    const teamParam = TEAM_ID ? `&teamId=${TEAM_ID}` : ''
+    const res = await fetch(
+      `https://api.vercel.com/v2/deployments/${deploymentId}/events?type=stderr&direction=backward&limit=20${teamParam}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    )
+    if (!res.ok) return 'Build failed — no details available.'
+    const text = await res.text()
+    // Events are newline-delimited JSON objects
+    const lines = text.trim().split('\n').filter(Boolean)
+    const messages = lines
+      .map((l) => { try { return (JSON.parse(l) as { text?: string }).text ?? '' } catch { return '' } })
+      .filter(Boolean)
+      .join('\n')
+      .trim()
+    return messages || 'Build failed — check Vercel dashboard for details.'
+  } catch {
+    return 'Build failed — no details available.'
+  }
+}
+
 // ─── Domains ──────────────────────────────────────────────────────────────────
 
 export async function attachDomain(

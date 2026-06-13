@@ -94,6 +94,7 @@ export function buildStoreFiles(manifest: ShopManifest): GeneratedFile[] {
   const lang = manifest.catalog.currency === 'CZK' ? 'cs' : 'en'
   add('app/layout.tsx', `\
 import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
 import { manifest } from '@/data/manifest'
 import { CartProvider } from '@/context/cart'
 import './globals.css'
@@ -103,7 +104,7 @@ export const metadata: Metadata = {
   description: manifest.seo.description,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="${lang}">
       <body>
@@ -126,6 +127,7 @@ export default function HomePage() {
 
   // ── app/products/[slug]/page.tsx ──────────────────────────────────────────
   add('app/products/[slug]/page.tsx', `\
+import React from 'react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { manifest } from '@/data/manifest'
@@ -613,7 +615,7 @@ export function AddToCartButton({ productId, name, price, currency, image, avail
 
   // ── app/cart/page.tsx ──────────────────────────────────────────────────────
   add('app/cart/page.tsx', `'use client'
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
@@ -1004,7 +1006,7 @@ export async function POST(request: Request) {
 
   // ── app/success/page.tsx ───────────────────────────────────────────────────
   add('app/success/page.tsx', `'use client'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'

@@ -573,9 +573,10 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         stopDeployPoll()
         setIsDeploying(false)
         setDeployStatus('error')
+        const detail = data.errorMessage ? `\n\`\`\`\n${data.errorMessage}\n\`\`\`` : ''
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: 'Deployment failed. Your credits were not charged.', type: 'error' },
+          { role: 'assistant', content: `Deployment failed. Your credits were not charged.${detail}`, type: 'error' },
         ])
       }
     } catch {}
@@ -1328,7 +1329,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                   transition: 'background 0.15s',
                 }}
               >
-                {isDeploying || deployStatus === 'building' ? '⟳ Deploying…' : '⬆ Deploy to Quante hosting  ·  15 credits'}
+                {isDeploying || deployStatus === 'building' ? '⟳ Deploying…' : '⬆ Deploy to Quante hosting  ·  5 credits'}
               </button>
             )}
 
