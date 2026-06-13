@@ -1007,27 +1007,30 @@ export async function POST(request: Request) {
   // ── app/success/page.tsx ───────────────────────────────────────────────────
   add('app/success/page.tsx', `'use client'
 import React, { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
 import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
 import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 
-export const dynamic = 'force-dynamic'
-
 export default function SuccessPage() {
   const { clear } = useCart()
-  const searchParams = useSearchParams()
-  const method = searchParams.get('method')
-  const orderNumber = searchParams.get('order')
-  const qr = searchParams.get('qr')
-  const amount = searchParams.get('amount')
-  const acc = searchParams.get('acc')
-
+  const [method, setMethod] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
+  const [qr, setQr] = useState('')
+  const [amount, setAmount] = useState('')
+  const [acc, setAcc] = useState('')
   const [qrSrc, setQrSrc] = useState('')
 
-  useEffect(() => { clear() }, [])
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    setMethod(p.get('method') ?? '')
+    setOrderNumber(p.get('order') ?? '')
+    setQr(p.get('qr') ?? '')
+    setAmount(p.get('amount') ?? '')
+    setAcc(p.get('acc') ? decodeURIComponent(p.get('acc')!) : '')
+    clear()
+  }, [])
 
   useEffect(() => {
     if (method === 'prevod' && qr) {
@@ -1066,7 +1069,7 @@ export default function SuccessPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9375rem', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--s-muted)' }}>Číslo účtu</span>
-                <strong style={{ fontFamily: 'monospace' }}>{acc ? decodeURIComponent(acc) : '—'}</strong>
+                <strong style={{ fontFamily: 'monospace' }}>{acc || '—'}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--s-muted)' }}>Částka</span>
