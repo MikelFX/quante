@@ -1897,7 +1897,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   )
 
   const PublishPanel = (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── 1. Checklist ─────────────────────────────────────────────────────── */}
       {publishChecklist.length > 0 && (
@@ -2862,7 +2862,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               {desktopTab === 'products' && ProductsPanel}
               {desktopTab === 'theme'    && ThemePanel}
               {desktopTab === 'publish'  && (
-                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                   {PublishPanel}
                   <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
                     <MerchantPanel
@@ -2947,7 +2947,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         {activeTab === 'products' && ProductsPanel}
         {activeTab === 'theme'    && ThemePanel}
         {activeTab === 'publish'  && (
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {PublishPanel}
             <MerchantPanel
               projectId={projectId}
