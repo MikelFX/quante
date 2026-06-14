@@ -2,16 +2,29 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import type { ShopManifest, Section } from '@/types/manifest'
 import { MerchantPanel } from './MerchantPanel'
+import {
+  MessageCircle, Layers, Package, Paintbrush, Rocket,
+  Monitor, Tablet, Smartphone, RotateCcw, ExternalLink, ChevronDown,
+  GripVertical, Eye, EyeOff, Trash2, Plus, X,
+  LayoutDashboard, ShoppingBag, ClipboardList, Settings2, ArrowLeft, TrendingUp, Share2,
+} from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+interface ChangeSummary {
+  changes: string[]
+  prevVersionId: string | null
+}
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
   type?: 'status' | 'error' | 'done'
+  changeSummary?: ChangeSummary
 }
 
 interface VersionEntry {
@@ -43,8 +56,8 @@ interface Props {
   hostingInfo: HostingInfo
 }
 
-type StudioTab = 'chat' | 'preview' | 'sections' | 'products' | 'hosting' | 'merchant'
-type DesktopTab = 'chat' | 'sections' | 'products' | 'hosting' | 'merchant'
+type StudioTab = 'chat' | 'preview' | 'sections' | 'products' | 'theme' | 'publish'
+type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'publish'
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'settings'
 
 interface StripeOrder {
@@ -127,6 +140,92 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
+function diffManifest(oldM: ShopManifest, newM: ShopManifest): string[] {
+  const changes: string[] = []
+
+  // Palette
+  const paletteLabels: [keyof ShopManifest['design']['palette'], string][] = [
+    ['bg', 'Background'], ['surface', 'Surface'], ['text', 'Text'],
+    ['accent', 'Accent'], ['accentText', 'Accent text'], ['muted', 'Muted'], ['border', 'Border'],
+  ]
+  for (const [k, label] of paletteLabels) {
+    if (oldM.design.palette[k] !== newM.design.palette[k])
+      changes.push(`${label} → ${newM.design.palette[k]}`)
+  }
+
+  // Typography + shape
+  if (oldM.design.typography.scale !== newM.design.typography.scale)
+    changes.push(`Type scale → ${newM.design.typography.scale}`)
+  if (oldM.design.typography.headingFont !== newM.design.typography.headingFont)
+    changes.push(`Heading font → ${newM.design.typography.headingFont}`)
+  if (oldM.design.typography.bodyFont !== newM.design.typography.bodyFont)
+    changes.push(`Body font → ${newM.design.typography.bodyFont}`)
+  if (oldM.design.radius !== newM.design.radius) changes.push(`Radius → ${newM.design.radius}`)
+  if (oldM.design.density !== newM.design.density) changes.push(`Density → ${newM.design.density}`)
+  if (oldM.design.motion !== newM.design.motion) changes.push(`Motion → ${newM.design.motion}`)
+
+  // Brand
+  if (oldM.brand.name !== newM.brand.name) changes.push(`Store name → "${newM.brand.name}"`)
+  if (oldM.brand.tagline !== newM.brand.tagline) changes.push(`Tagline → "${newM.brand.tagline}"`)
+  if (oldM.brand.voice !== newM.brand.voice) changes.push(`Brand voice → ${newM.brand.voice}`)
+
+  // SEO
+  if (oldM.seo.title !== newM.seo.title) changes.push(`SEO title → "${newM.seo.title}"`)
+
+  // Sections (home page)
+  const oldH = oldM.pages.home, newH = newM.pages.home
+  if (oldH.length < newH.length) {
+    const n = newH.length - oldH.length
+    changes.push(`${n} section${n > 1 ? 's' : ''} added`)
+  } else if (oldH.length > newH.length) {
+    const n = oldH.length - newH.length
+    changes.push(`${n} section${n > 1 ? 's' : ''} removed`)
+  }
+  for (let i = 0; i < Math.min(oldH.length, newH.length, 8); i++) {
+    if (JSON.stringify(oldH[i]) === JSON.stringify(newH[i])) continue
+    const os = oldH[i], ns = newH[i]
+    if (os.type !== ns.type) {
+      changes.push(`Section ${i + 1} → ${SECTION_LABELS[ns.type] ?? ns.type}`)
+    } else if (ns.type === 'hero' && os.type === 'hero') {
+      if (os.props.headline !== ns.props.headline)
+        changes.push(`Hero headline → "${ns.props.headline.slice(0, 50)}"`)
+      else if (os.props.subheadline !== ns.props.subheadline)
+        changes.push('Hero subheadline updated')
+      else if (os.props.ctaLabel !== ns.props.ctaLabel)
+        changes.push(`Hero CTA → "${ns.props.ctaLabel}"`)
+      else changes.push('Hero section updated')
+    } else {
+      changes.push(`${SECTION_LABELS[ns.type as string] ?? ns.type} section updated`)
+    }
+  }
+
+  // Products
+  const oldP = oldM.catalog.products, newP = newM.catalog.products
+  const addedP = newP.filter(p => !oldP.find(o => o.id === p.id))
+  const removedP = oldP.filter(p => !newP.find(n => n.id === p.id))
+  if (addedP.length) changes.push(`${addedP.length} product${addedP.length > 1 ? 's' : ''} added`)
+  if (removedP.length) changes.push(`${removedP.length} product${removedP.length > 1 ? 's' : ''} removed`)
+  for (const np of newP) {
+    const op = oldP.find(p => p.id === np.id)
+    if (op && JSON.stringify(op) !== JSON.stringify(np))
+      changes.push(`"${np.name}" updated`)
+  }
+
+  // Nav / footer
+  if (JSON.stringify(oldM.nav) !== JSON.stringify(newM.nav)) changes.push('Navigation updated')
+  if (JSON.stringify(oldM.footer) !== JSON.stringify(newM.footer)) changes.push('Footer updated')
+
+  return changes.slice(0, 8)
+}
+
+const QUICK_CHIPS = [
+  { label: 'Accent color', prompt: 'Change the accent color to ' },
+  { label: 'Hero copy', prompt: 'Rewrite the hero headline to be shorter and punchier' },
+  { label: 'Add section', prompt: 'Add a ' },
+  { label: 'Typography', prompt: 'Switch the typography to a ' },
+  { label: 'New product', prompt: 'Add a new product: ' },
+]
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function StudioClient({ projectId, projectName, initialManifest, initialBalance, hostingInfo }: Props) {
@@ -152,6 +251,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [streamingText, setStreamingText] = useState('')
   const [isDesktop, setIsDesktop] = useState(false)
   const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
   const [isDeploying, setIsDeploying] = useState(false)
   const [deployStatus, setDeployStatus] = useState<'idle' | 'building' | 'ready' | 'error'>('idle')
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
@@ -195,6 +295,12 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [editingSection, setEditingSection] = useState<number | null>(null)
   const [sectionDraft, setSectionDraft] = useState<unknown>(null)
   const [sectionEditMode, setSectionEditMode] = useState<'ai' | 'direct' | null>(null)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [showSectionPicker, setShowSectionPicker] = useState(false)
+  const [hiddenSections, setHiddenSections] = useState<Set<number>>(new Set())
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set())
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const sectionImageInputRef = useRef<HTMLInputElement>(null)
   const [pendingImageTarget, setPendingImageTarget] = useState<((url: string) => void) | null>(null)
@@ -220,6 +326,19 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // ⌘K / Ctrl+K shortcut
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowCommandPalette(p => !p)
+      }
+      if (e.key === 'Escape') setShowCommandPalette(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const fetchVersions = useCallback(async () => {
     try {
@@ -361,6 +480,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
     setInput('')
     const snapshot = [...messages]
+    const prevManifest = currentManifest
+    const prevVersionId = versions[0]?.id ?? null  // capture before the edit creates a new version
+
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text },
@@ -371,11 +493,11 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     const hasManifest = !!currentManifest
 
     if (!hasManifest) {
-      // Generation flow — unchanged
+      // Generation flow
       try {
         await consumeStream('/api/quante/generate', { brief: text, projectId }, (manifest) => {
           if (!manifest) return
-          const summary = `**${manifest.brand.name}** ready. ${manifest.catalog.products.length} products.`
+          const summary = `**${manifest.brand.name}** ready — ${manifest.catalog.products.length} product${manifest.catalog.products.length !== 1 ? 's' : ''}, ${manifest.pages.home.length} sections.`
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = { role: 'assistant', content: summary, type: 'done' }
@@ -400,7 +522,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       return
     }
 
-    // Iteration / chat flow — with history
+    // Iteration flow — with history + change summary
     const history = snapshot
       .filter((m) => m.type !== 'status' && m.content !== '…')
       .map((m) => ({ role: m.role, content: m.content }))
@@ -410,23 +532,16 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         '/api/quante/iterate',
         { projectId, instruction: text, history },
         (manifest, reply) => {
+          const changes = manifest && prevManifest ? diffManifest(prevManifest, manifest) : []
           setMessages((prev) => {
             const updated = [...prev]
-            const last = updated[updated.length - 1]
-            if (manifest) {
-              // Store was updated — append a subtle indicator to the reply
-              updated[updated.length - 1] = {
-                role: 'assistant',
-                content: reply ?? last.content,
-                type: 'done',
-              }
-            } else {
-              // Free Q&A — just finalize the reply text
-              updated[updated.length - 1] = {
-                role: 'assistant',
-                content: reply ?? last.content,
-                type: 'done',
-              }
+            updated[updated.length - 1] = {
+              role: 'assistant',
+              content: reply ?? updated[updated.length - 1].content,
+              type: 'done',
+              ...(manifest && changes.length > 0
+                ? { changeSummary: { changes, prevVersionId } }
+                : {}),
             }
             return updated
           })
@@ -836,8 +951,87 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     if (ok) { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }
   }
 
+  async function handleReorderSections(fromIndex: number, toIndex: number) {
+    if (!currentManifest || fromIndex === toIndex) return
+    const sections = [...currentManifest.pages.home]
+    const [moved] = sections.splice(fromIndex, 1)
+    sections.splice(toIndex, 0, moved)
+    const updated: ShopManifest = { ...currentManifest, pages: { ...currentManifest.pages, home: sections } }
+    setCurrentManifest(updated)
+    // shift hiddenSections indices
+    setHiddenSections(prev => {
+      const next = new Set<number>()
+      prev.forEach(idx => {
+        if (idx === fromIndex) { next.add(toIndex) }
+        else if (fromIndex < toIndex && idx > fromIndex && idx <= toIndex) { next.add(idx - 1) }
+        else if (fromIndex > toIndex && idx >= toIndex && idx < fromIndex) { next.add(idx + 1) }
+        else { next.add(idx) }
+      })
+      return next
+    })
+    await handleSaveManifest(updated, 'Reordered sections')
+  }
+
+  async function handleAddSection(type: string) {
+    if (!currentManifest) return
+    const defaults: Record<string, object> = {
+      hero:         { heading: 'New Hero', subheading: 'Your tagline here', ctaLabel: 'Shop now', ctaHref: '/products', layout: 'center' },
+      productGrid:  { title: 'Products', count: 4 },
+      featureRow:   { heading: 'Why choose us', features: [{ icon: '✦', title: 'Feature', body: 'Description' }], layout: 'row' },
+      testimonials: { heading: 'What customers say', items: [{ quote: 'Great product!', author: 'Happy customer' }] },
+      richText:     { content: 'Write your story here.' },
+      banner:       { text: 'New arrivals are here', ctaLabel: 'Shop now', ctaHref: '/products' },
+      newsletter:   { heading: 'Stay in touch', subheading: 'Get updates on new products and offers.', placeholder: 'your@email.com', ctaLabel: 'Subscribe' },
+      gallery:      { heading: 'Gallery', images: [] },
+      faq:          { heading: 'FAQ', items: [{ question: 'Question?', answer: 'Answer.' }] },
+    }
+    const newSection = { type, props: defaults[type] ?? {} } as Section
+    const updated: ShopManifest = { ...currentManifest, pages: { ...currentManifest.pages, home: [...currentManifest.pages.home, newSection] } }
+    setShowSectionPicker(false)
+    setCurrentManifest(updated)
+    await handleSaveManifest(updated, `Added ${type} section`)
+  }
+
+  async function handleDeleteSection(index: number) {
+    if (!currentManifest) return
+    const sections = currentManifest.pages.home.filter((_, i) => i !== index)
+    const updated: ShopManifest = { ...currentManifest, pages: { ...currentManifest.pages, home: sections } }
+    setCurrentManifest(updated)
+    setEditingSection(null); setSectionDraft(null); setSectionEditMode(null)
+    await handleSaveManifest(updated, `Removed section ${index + 1}`)
+  }
+
+  async function handleBulkDeleteProducts() {
+    if (!currentManifest || selectedProductIds.size === 0) return
+    const count = selectedProductIds.size
+    if (!confirm(`Delete ${count} product${count > 1 ? 's' : ''}?`)) return
+    const updated: ShopManifest = {
+      ...currentManifest,
+      catalog: { ...currentManifest.catalog, products: currentManifest.catalog.products.filter(p => !selectedProductIds.has(p.id)) },
+    }
+    setSelectedProductIds(new Set())
+    await handleSaveManifest(updated, `Deleted ${count} products`)
+  }
+
   const homeSections = currentManifest?.pages.home ?? []
   const latestVersion = versions[0]
+
+  // Deployment derived state — used in TopBar and panels
+  const liveDomain = liveDeployment?.customDomain || deployDomain || liveDeployment?.domain
+  const liveUrl = liveDeployment?.customDomain
+    ? `https://${liveDeployment.customDomain}`
+    : deployUrl || liveDeployment?.url
+
+  // Publish readiness checklist
+  const publishChecklist = currentManifest ? [
+    { id: 'merchant', label: 'Firemní data (IČO, sídlo, kontakt)', ok: !!(currentManifest.merchant?.ico && currentManifest.merchant?.obchodni_nazev && currentManifest.merchant?.kontakt?.email) },
+    { id: 'legal', label: '4 právní stránky v patičce', ok: ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt'].every(slug => currentManifest.customPages?.some(p => p.slug === slug)) },
+    { id: 'payment', label: 'Min. 1 platební metoda', ok: !!(currentManifest.payments?.providers?.length || currentManifest.payments?.dobirka?.enabled || currentManifest.payments?.prevod?.enabled) },
+    { id: 'shipping', label: 'Min. 1 způsob dopravy', ok: !!(currentManifest.shipping?.methods?.length) },
+    { id: 'products', label: 'Min. 1 produkt s cenou a dostupností', ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every(p => p.price > 0) },
+    { id: 'product_images', label: 'Každý produkt má alespoň 1 fotku', ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every(p => (p.images?.length ?? 0) > 0) },
+  ] : []
+  const checklistAllOk = publishChecklist.every(c => c.ok)
 
   // ── Section direct-edit fields ────────────────────────────────────────────────
   function SectionEditFields() {
@@ -960,6 +1154,13 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const taSt = { ...inputSt, resize: 'none' as const }
   const fldLabel = (t: string) => <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 3, marginTop: 8 }}>{t}</p>
 
+  // Shared eyebrow label style (used in Publish + Theme panels)
+  const eyebrowSt: React.CSSProperties = {
+    fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)',
+    textTransform: 'uppercase', letterSpacing: '.07em',
+    color: '#5b5b64', marginBottom: 8,
+  }
+
   const ProductsPanel = (
     <div style={{ flex: 1, overflowY: 'auto' }}>
       {/* hidden file input for product images */}
@@ -1035,72 +1236,146 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       ) : (
         // ── Product list ──
         <>
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
+          {/* Header */}
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>
               {currentManifest.catalog.products.length} products · {currentManifest.catalog.currency}
-            </p>
-            <button
-              onClick={() => setProductDraft(emptyProduct())}
-              style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(111,120,230,.4)', background: 'rgba(111,120,230,.1)', color: '#6f78e6', cursor: 'pointer' }}
-            >
-              + Add product
-            </button>
-          </div>
-          {currentManifest.catalog.products.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-              <p style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>No products yet.</p>
-              <button onClick={() => setProductDraft(emptyProduct())} style={{ marginTop: 8, fontSize: 12, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
-            </div>
-          ) : currentManifest.catalog.products.map(p => (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-              {p.images[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.images[0]} alt={p.name} style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 8, flexShrink: 0, border: '1px solid var(--border)' }} />
-              ) : (
-                <div style={{ width: 44, height: 44, borderRadius: 8, background: 'rgba(255,255,255,.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 16 }}>📦</span>
-                </div>
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {selectedProductIds.size > 0 && (
+                <button
+                  onClick={handleBulkDeleteProducts}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(224,86,79,.4)', background: 'rgba(224,86,79,.1)', color: '#e0564f', cursor: 'pointer' }}
+                >
+                  <Trash2 size={11} /> Delete {selectedProductIds.size}
+                </button>
               )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
-                <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 1 }}>{currentManifest.catalog.currency} {p.price}{!p.available ? ' · unavailable' : ''}</p>
-              </div>
-              <button onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available })} style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, border: '1px solid var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer', flexShrink: 0 }}>Edit</button>
-              <button onClick={() => handleProductDelete(p.id)} style={{ fontSize: 11, padding: '4px 8px', borderRadius: 5, border: '1px solid rgba(248,113,113,.3)', background: 'none', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>Del</button>
+              <button
+                onClick={() => setProductDraft(emptyProduct())}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(111,120,230,.4)', background: 'rgba(111,120,230,.1)', color: '#6f78e6', cursor: 'pointer' }}
+              >
+                <Plus size={11} /> Add product
+              </button>
             </div>
-          ))}
+          </div>
+
+          {/* List */}
+          {currentManifest.catalog.products.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 8 }}>
+              <Package size={28} style={{ color: '#5b5b64' }} />
+              <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center' }}>No products yet.</p>
+              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
+            </div>
+          ) : currentManifest.catalog.products.map(p => {
+            const isSelected = selectedProductIds.has(p.id)
+            return (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(111,120,230,.05)' : 'transparent', transition: 'background 0.1s' }}>
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => setSelectedProductIds(prev => { const next = new Set(prev); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); return next })}
+                  style={{ width: 14, height: 14, accentColor: '#6f78e6', flexShrink: 0, cursor: 'pointer' }}
+                />
+
+                {/* Thumbnail */}
+                {p.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.images[0]} alt={p.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, flexShrink: 0, border: '1px solid rgba(255,255,255,.07)' }} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 7, background: 'rgba(255,255,255,.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,.07)' }}>
+                    <Package size={16} style={{ color: '#5b5b64' }} />
+                  </div>
+                )}
+
+                {/* Name + price */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
+                  <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 2 }}>
+                    {currentManifest.catalog.currency} {p.price}
+                    {!p.available && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
+                  </p>
+                </div>
+
+                {/* Edit */}
+                <button
+                  onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available })}
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Edit
+                </button>
+
+                {/* Delete */}
+                <button
+                  onClick={() => handleProductDelete(p.id)}
+                  title="Delete product"
+                  style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )
+          })}
         </>
       )}
     </div>
   )
 
+  // ── Studio modes (desktop rail) ──────────────────────────────────────────────
+  const STUDIO_MODES: { id: DesktopTab; icon: React.ElementType; label: string }[] = [
+    { id: 'chat',     icon: MessageCircle, label: 'Chat'     },
+    { id: 'sections', icon: Layers,        label: 'Sections' },
+    { id: 'products', icon: Package,       label: 'Products' },
+    { id: 'theme',    icon: Paintbrush,    label: 'Theme'    },
+    { id: 'publish',  icon: Rocket,        label: 'Publish'  },
+  ]
+
   const TopBar = (
     <header style={{
       flexShrink: 0, height: '3rem',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 0.875rem',
-      borderBottom: '1px solid var(--border)',
-      background: 'rgba(7,7,9,.95)',
-      backdropFilter: 'blur(10px)',
+      padding: '0 0.875rem', gap: 8,
+      borderBottom: '1px solid rgba(255,255,255,.07)',
+      background: 'rgba(8,8,10,.95)',
+      backdropFilter: 'blur(12px)',
     }}>
-      <span style={{ fontSize: 13, fontWeight: 600, maxWidth: '40%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {projectName}
-      </span>
+      {/* Left: breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0, flex: 1 }}>
+        <Link href="/dashboard" style={{
+          fontSize: 12, color: '#8a8a93', textDecoration: 'none',
+          display: 'flex', alignItems: 'center', gap: 4,
+          flexShrink: 0,
+          transition: 'color 0.12s',
+        }}
+          onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = '#f4f4f6'}
+          onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = '#8a8a93'}
+        >
+          ◀ Projects
+        </Link>
+        <span style={{ fontSize: 12, color: '#5b5b64', padding: '0 6px' }}>/</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {projectName}
+        </span>
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* Right: controls */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
         {/* Version picker */}
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => { const next = !showVersions; setShowVersions(next); if (next) fetchVersions() }}
             style={{
               fontFamily: 'var(--font-geist-mono)', fontSize: 11,
-              padding: '3px 8px', borderRadius: 5,
-              border: '1px solid var(--border)',
-              color: 'var(--muted-foreground)',
-              background: 'transparent', cursor: 'pointer',
+              padding: '4px 8px', borderRadius: 6,
+              border: '1px solid rgba(255,255,255,.1)',
+              color: '#8a8a93', background: 'transparent',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
-            {latestVersion ? `v${latestVersion.version_no}` : 'v—'} ▾
+            {latestVersion ? `v${latestVersion.version_no}` : 'v—'}
+            <ChevronDown size={10} />
           </button>
 
           {showVersions && (
@@ -1108,34 +1383,36 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowVersions(false)} />
               <div style={{
                 position: 'absolute', right: 0, top: '100%', marginTop: 4,
-                width: 280, background: '#0c0c10',
+                width: 290, background: '#0d0d11',
                 border: '1px solid rgba(255,255,255,.1)', borderRadius: 10,
-                boxShadow: '0 8px 32px rgba(0,0,0,.5)', zIndex: 50, overflow: 'hidden',
+                boxShadow: '0 8px 40px rgba(0,0,0,.6)', zIndex: 50, overflow: 'hidden',
               }}>
                 <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.04em' }}>History</p>
+                  <p style={{ fontSize: 10, color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'var(--font-geist-mono)' }}>
+                    Version history
+                  </p>
                 </div>
-                <div style={{ maxHeight: 240, overflowY: 'auto' }}>
+                <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                   {versions.length === 0 ? (
-                    <p style={{ fontSize: 12, color: 'var(--muted-foreground)', padding: 12 }}>No versions yet.</p>
+                    <p style={{ fontSize: 12, color: '#8a8a93', padding: '12px 14px' }}>No versions yet.</p>
                   ) : versions.map((v) => (
                     <div key={v.id} style={{
-                      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8,
-                      padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.05)',
+                      display: 'flex', alignItems: 'flex-start', gap: 10,
+                      padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.04)',
                     }}>
+                      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10, color: '#6f78e6', flexShrink: 0, marginTop: 2 }}>v{v.version_no}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: 'var(--muted-foreground)' }}>v{v.version_no}</p>
-                        <p style={{ fontSize: 12, color: 'var(--foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: 12, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.prompt || 'Generated'}
                         </p>
-                        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
+                        <p style={{ fontSize: 10, color: '#8a8a93', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
                       </div>
                       {versions[0]?.id !== v.id ? (
-                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 0' }}>
                           Restore
                         </button>
                       ) : (
-                        <span style={{ fontSize: 10, color: 'var(--muted-foreground)', flexShrink: 0 }}>current</span>
+                        <span style={{ fontSize: 10, color: '#5b5b64', flexShrink: 0 }}>current</span>
                       )}
                     </div>
                   ))}
@@ -1145,70 +1422,90 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           )}
         </div>
 
-        {/* Builder / Admin toggle */}
-        <button
-          onClick={() => setAdminMode((v) => !v)}
-          style={{
-            fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
-            border: `1px solid ${adminMode ? 'rgba(111,120,230,.5)' : 'rgba(255,255,255,.12)'}`,
-            background: adminMode ? 'rgba(111,120,230,.15)' : 'transparent',
-            color: adminMode ? '#6f78e6' : 'var(--muted-foreground)',
-            cursor: 'pointer', transition: 'all 0.15s',
-          }}
-        >
-          {adminMode ? '← Builder' : 'Admin'}
-        </button>
+        {/* Builder / Admin segmented toggle */}
+        <div style={{
+          display: 'flex', borderRadius: 7,
+          border: '1px solid rgba(255,255,255,.1)',
+          background: 'rgba(255,255,255,.04)',
+          overflow: 'hidden',
+        }}>
+          <button
+            onClick={() => setAdminMode(false)}
+            style={{
+              fontSize: 11, fontWeight: 500, padding: '4px 10px',
+              border: 'none', cursor: 'pointer', transition: 'all 0.12s',
+              background: !adminMode ? 'rgba(111,120,230,.18)' : 'transparent',
+              color: !adminMode ? '#a8afff' : '#8a8a93',
+            }}
+          >
+            Builder
+          </button>
+          <button
+            onClick={() => setAdminMode(true)}
+            style={{
+              fontSize: 11, fontWeight: 500, padding: '4px 10px',
+              border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
+              cursor: 'pointer', transition: 'all 0.12s',
+              background: adminMode ? 'rgba(111,120,230,.18)' : 'transparent',
+              color: adminMode ? '#a8afff' : '#8a8a93',
+            }}
+          >
+            Admin
+          </button>
+        </div>
 
-        <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: 'var(--muted-foreground)' }}>
+        {/* Credit balance */}
+        <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#8a8a93' }}>
           {balance} cr
         </span>
 
-        {/* Export + Deploy visible on desktop only; on mobile they live in the Chat panel */}
+        {/* Export + Live (desktop only) */}
         {isDesktop && (
           <>
-            <button
-              onClick={() => handleExport(false)}
-              disabled={!currentManifest || isExporting || isExportingAdmin}
-              style={{
-                fontSize: 11, fontWeight: 600,
-                padding: '4px 10px', borderRadius: 5,
-                border: '1px solid rgba(255,255,255,.15)',
-                background: currentManifest && !isExporting ? 'rgba(255,255,255,.06)' : 'transparent',
-                color: currentManifest && !isExporting ? 'var(--foreground)' : 'var(--muted-foreground)',
-                cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
-                opacity: currentManifest ? 1 : 0.4,
-              }}
-            >
-              {isExporting ? '…' : 'Export'}
-            </button>
+            <div style={{ position: 'relative', display: 'flex' }}>
+              <button
+                onClick={() => handleExport(false)}
+                disabled={!currentManifest || isExporting || isExportingAdmin}
+                style={{
+                  fontSize: 11, fontWeight: 500,
+                  padding: '4px 10px', borderRadius: 6,
+                  border: '1px solid rgba(255,255,255,.12)',
+                  background: 'rgba(255,255,255,.04)',
+                  color: currentManifest ? '#f4f4f6' : '#8a8a93',
+                  cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
+                  opacity: currentManifest ? 1 : 0.4,
+                  transition: 'background 0.12s',
+                }}
+              >
+                {isExporting ? '…' : 'Export'}
+              </button>
+            </div>
 
-            {deployStatus === 'ready' && deployUrl ? (
+            {deployStatus === 'ready' && liveUrl ? (
               <a
-                href={deployUrl}
+                href={liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
-                  border: '1px solid rgba(52,211,153,.4)',
-                  background: 'rgba(52,211,153,.1)', color: '#34d399',
-                  textDecoration: 'none',
+                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+                  border: '1px solid rgba(62,207,142,.35)',
+                  background: 'rgba(62,207,142,.1)', color: '#3ecf8e',
+                  textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
                 }}
               >
-                ↗ Live
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#3ecf8e', boxShadow: '0 0 6px rgba(62,207,142,.7)' }} />
+                Live ↗
               </a>
             ) : (
               <button
                 onClick={handleDeploy}
                 disabled={!currentManifest || isDeploying || deployStatus === 'building'}
                 style={{
-                  fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 5,
-                  border: '1px solid rgba(52,211,153,.35)',
-                  background: currentManifest && !isDeploying && deployStatus !== 'building'
-                    ? 'rgba(52,211,153,.1)' : 'transparent',
-                  color: currentManifest && !isDeploying && deployStatus !== 'building'
-                    ? '#34d399' : 'var(--muted-foreground)',
-                  cursor: currentManifest && !isDeploying && deployStatus !== 'building'
-                    ? 'pointer' : 'not-allowed',
+                  fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
+                  border: '1px solid rgba(62,207,142,.25)',
+                  background: currentManifest && !isDeploying ? 'rgba(62,207,142,.08)' : 'transparent',
+                  color: currentManifest && !isDeploying ? '#3ecf8e' : '#8a8a93',
+                  cursor: currentManifest && !isDeploying ? 'pointer' : 'not-allowed',
                   opacity: currentManifest ? 1 : 0.4,
                 }}
               >
@@ -1223,22 +1520,62 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
   const ChatPanel = (
     <>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* ── Messages ─────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 6px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 6 }}>quante</p>
-            <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Describe the store you want to build.</p>
-            <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 4, opacity: 0.6 }}>Brand, products, vibe, currency.</p>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(111,120,230,.15)', border: '1px solid rgba(111,120,230,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <MessageCircle size={15} color="#6f78e6" />
+            </div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 4 }}>
+              {currentManifest ? `${currentManifest.brand.name} loaded` : 'Describe your store'}
+            </p>
+            <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5 }}>
+              {currentManifest
+                ? 'Tell Quante what to change — copy, colors, sections, products.'
+                : 'Brand, products, vibe, currency. Quante builds the rest.'}
+            </p>
           </div>
         )}
-        {messages.map((msg, i) => <ChatMessage key={i} message={msg} />)}
-        {isGenerating && streamingText && (
-          <StreamingView text={streamingText} />
-        )}
+        {messages.map((msg, i) => (
+          <ChatMessage
+            key={i}
+            message={msg}
+            onUndo={msg.changeSummary?.prevVersionId ? () => handleRestore(msg.changeSummary!.prevVersionId!) : undefined}
+          />
+        ))}
+        {isGenerating && streamingText && <StreamingView text={streamingText} />}
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ flexShrink: 0, padding: '10px 12px', borderTop: '1px solid var(--border)' }}>
+      {/* ── Input area ───────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, padding: '10px 12px 12px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
+
+        {/* Quick suggestion chips */}
+        {currentManifest && !isGenerating && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+            {QUICK_CHIPS.map(({ label, prompt }) => (
+              <button
+                key={label}
+                onClick={() => { setInput(prompt); setTimeout(() => textareaRef.current?.focus(), 10) }}
+                style={{
+                  fontSize: 11, padding: '3px 9px', borderRadius: 20,
+                  border: '1px solid rgba(255,255,255,.1)',
+                  background: 'rgba(255,255,255,.04)',
+                  color: '#8a8a93', cursor: 'pointer',
+                  transition: 'border-color 0.12s, color 0.12s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.2)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.1)' }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Textarea + send */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
           <textarea
             ref={textareaRef}
@@ -1246,619 +1583,761 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
             disabled={isGenerating}
-            placeholder={!currentManifest ? 'Minimal skincare brand, 3 products, EUR…' : 'Change accent to deep green…'}
+            placeholder={!currentManifest ? 'Minimal skincare brand, 3 products, EUR…' : 'Change the accent to deep green…'}
             rows={3}
             style={{
               flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
-              border: '1px solid var(--border)', background: 'var(--secondary)',
-              color: 'var(--foreground)', padding: '8px 10px',
-              outline: 'none', fontFamily: 'inherit',
+              border: '1px solid rgba(255,255,255,.1)',
+              background: '#121218',
+              color: '#f4f4f6', padding: '8px 10px',
+              outline: 'none', fontFamily: 'inherit', lineHeight: 1.5,
               opacity: isGenerating ? 0.5 : 1,
+              transition: 'border-color 0.12s',
             }}
+            onFocus={e => (e.target.style.borderColor = 'rgba(111,120,230,.4)')}
+            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,.1)')}
           />
-          <button
-            onClick={handleSend}
-            disabled={isGenerating || !input.trim()}
-            style={{
-              flexShrink: 0, padding: '8px 14px', fontSize: 13, fontWeight: 600,
-              borderRadius: 8, border: 'none', cursor: isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
-              background: 'var(--primary)', color: 'var(--primary-foreground)',
-              opacity: isGenerating || !input.trim() ? 0.4 : 1,
-            }}
-          >
-            {isGenerating ? '…' : '→'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+            <button
+              onClick={handleSend}
+              disabled={isGenerating || !input.trim()}
+              style={{
+                padding: '8px 14px', fontSize: 13, fontWeight: 600,
+                borderRadius: 8, border: 'none',
+                cursor: isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
+                background: isGenerating || !input.trim() ? 'rgba(255,255,255,.06)' : '#6f78e6',
+                color: isGenerating || !input.trim() ? '#8a8a93' : '#fff',
+                transition: 'background 0.12s',
+              }}
+            >
+              {isGenerating ? '…' : '→'}
+            </button>
+            <span style={{ fontSize: 9, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', whiteSpace: 'nowrap' }}>
+              {!currentManifest ? '10 cr' : '1 cr'}
+            </span>
+          </div>
         </div>
-        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 6 }}>
-          {!currentManifest ? '10 credits' : '1 credit'} · shift+enter for newline
+        <p style={{ fontSize: 10, color: '#5b5b64', marginTop: 5 }}>
+          ↵ send · shift+↵ newline
         </p>
-        {currentManifest && (
-          <>
-            <button
-              onClick={() => handleExport(false)}
-              disabled={isExporting || isExportingAdmin}
-              style={{
-                marginTop: 8, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600,
-                borderRadius: 8, border: '1px solid rgba(111,120,230,.4)',
-                background: (isExporting || isExportingAdmin) ? 'transparent' : 'rgba(111,120,230,.12)',
-                color: (isExporting || isExportingAdmin) ? 'var(--muted-foreground)' : '#6f78e6',
-                cursor: (isExporting || isExportingAdmin) ? 'not-allowed' : 'pointer',
-                opacity: (isExporting || isExportingAdmin) ? 0.5 : 1,
-                transition: 'background 0.15s',
-              }}
-            >
-              {isExporting ? 'Preparing ZIP…' : '↓ Export store  ·  5 credits'}
-            </button>
-            <button
-              onClick={() => handleExport(true)}
-              disabled={isExporting || isExportingAdmin}
-              style={{
-                marginTop: 4, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600,
-                borderRadius: 8, border: '1px solid rgba(111,120,230,.25)',
-                background: (isExporting || isExportingAdmin) ? 'transparent' : 'rgba(111,120,230,.07)',
-                color: (isExporting || isExportingAdmin) ? 'var(--muted-foreground)' : '#6f78e6',
-                cursor: (isExporting || isExportingAdmin) ? 'not-allowed' : 'pointer',
-                opacity: (isExporting || isExportingAdmin) ? 0.5 : 1,
-                transition: 'background 0.15s',
-              }}
-            >
-              {isExportingAdmin ? 'Preparing…' : '↓ Export + Admin Panel  ·  10 credits'}
-            </button>
-
-            {deployStatus === 'ready' && deployUrl ? (
-              <a
-                href={deployUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block', marginTop: 6, width: '100%', padding: '9px',
-                  fontSize: 13, fontWeight: 600, textAlign: 'center',
-                  borderRadius: 8, border: '1px solid rgba(52,211,153,.4)',
-                  background: 'rgba(52,211,153,.1)', color: '#34d399',
-                  textDecoration: 'none', boxSizing: 'border-box',
-                }}
-              >
-                ↗ Live: {deployDomain ?? deployUrl}
-              </a>
-            ) : (
-              <button
-                onClick={handleDeploy}
-                disabled={isDeploying || deployStatus === 'building'}
-                style={{
-                  marginTop: 6, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600,
-                  borderRadius: 8, border: '1px solid rgba(52,211,153,.35)',
-                  background: (isDeploying || deployStatus === 'building') ? 'transparent' : 'rgba(52,211,153,.1)',
-                  color: (isDeploying || deployStatus === 'building') ? 'var(--muted-foreground)' : '#34d399',
-                  cursor: (isDeploying || deployStatus === 'building') ? 'not-allowed' : 'pointer',
-                  opacity: (isDeploying || deployStatus === 'building') ? 0.6 : 1,
-                  transition: 'background 0.15s',
-                }}
-              >
-                {isDeploying || deployStatus === 'building' ? '⟳ Deploying…' : '⬆ Deploy to Quante hosting  ·  5 credits'}
-              </button>
-            )}
-
-            {/* Hosting trial / subscription banner */}
-            {showHostingBanner && (
-              <div style={{
-                marginTop: 8, padding: '10px 12px', borderRadius: 8,
-                border: trialExpired
-                  ? '1px solid rgba(248,113,113,.35)'
-                  : trialDaysLeft !== null && trialDaysLeft <= 7
-                    ? '1px solid rgba(251,191,36,.3)'
-                    : '1px solid rgba(52,211,153,.2)',
-                background: trialExpired
-                  ? 'rgba(248,113,113,.07)'
-                  : trialDaysLeft !== null && trialDaysLeft <= 7
-                    ? 'rgba(251,191,36,.06)'
-                    : 'rgba(52,211,153,.05)',
-              }}>
-                <p style={{
-                  fontSize: 11, fontWeight: 600, marginBottom: 6,
-                  color: trialExpired ? '#f87171' : trialDaysLeft !== null && trialDaysLeft <= 7 ? '#fbbf24' : '#34d399',
-                }}>
-                  {trialExpired
-                    ? 'Free trial ended'
-                    : trialDaysLeft !== null && trialDaysLeft <= 7
-                      ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left in trial`
-                      : `${trialDaysLeft} days of free hosting remaining`}
-                </p>
-                <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 8, lineHeight: 1.45 }}>
-                  {trialExpired
-                    ? 'Subscribe to keep your store live and unlock re-deploys.'
-                    : 'Subscribe to keep hosting after the trial ends.'}
-                </p>
-                <button
-                  onClick={handleHostingSubscribe}
-                  disabled={isSubscribing}
-                  style={{
-                    width: '100%', padding: '7px', fontSize: 12, fontWeight: 600,
-                    borderRadius: 6, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer',
-                    background: '#6f78e6', color: '#fff',
-                    opacity: isSubscribing ? 0.6 : 1,
-                  }}
-                >
-                  {isSubscribing ? '…' : 'Subscribe  ·  €99/year'}
-                </button>
-              </div>
-            )}
-
-            {hostingInfo.subscribed && hostingInfo.cancelAtPeriodEnd && hostingInfo.subscriptionEndsAt && (
-              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginTop: 8, textAlign: 'center' }}>
-                Hosting active until {new Date(hostingInfo.subscriptionEndsAt).toLocaleDateString()}
-              </p>
-            )}
-          </>
-        )}
       </div>
     </>
   )
 
   const SectionsPanel = (
-    <div style={{ flex: 1, overflowY: 'auto' }}>
+    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       {!currentManifest ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-          <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Generate a store first.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '3rem 1.5rem', gap: 8 }}>
+          <Layers size={28} style={{ color: '#5b5b64' }} />
+          <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center' }}>Generate a store first to manage sections.</p>
         </div>
       ) : (
         <>
-          <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)' }}>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-              Home · {homeSections.length} sections · 2 credits each
-            </p>
+          {/* Header */}
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>
+              {homeSections.length} sections
+            </span>
+            <button
+              onClick={() => setShowSectionPicker(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+                border: '1px solid rgba(111,120,230,.4)',
+                background: 'rgba(111,120,230,.1)', color: '#6f78e6', cursor: 'pointer',
+              }}
+            >
+              <Plus size={11} /> Add section
+            </button>
           </div>
-          {homeSections.map((section, i) => (
-            <div key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)' }}>
-                    {SECTION_LABELS[section.type] ?? section.type}
-                  </p>
-                  <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {sectionSummary(section)}
-                  </p>
-                </div>
-                <div style={{ display: 'flex', gap: 4, flexShrink: 0, marginLeft: 10 }}>
-                  <button
-                    onClick={() => {
-                      if (editingSection === i && sectionEditMode === 'direct') { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }
-                      else { setEditingSection(i); setSectionDraft(JSON.parse(JSON.stringify(homeSections[i]))); setSectionEditMode('direct'); setExpandedSection(null); setSectionInput('') }
-                    }}
-                    style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: editingSection === i && sectionEditMode === 'direct' ? 'rgba(111,120,230,.15)' : 'none', color: editingSection === i && sectionEditMode === 'direct' ? '#6f78e6' : 'var(--muted-foreground)', cursor: 'pointer' }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (expandedSection === i && sectionEditMode === 'ai') { setExpandedSection(null); setSectionInput(''); setSectionEditMode(null) }
-                      else { setExpandedSection(i); setSectionInput(''); setSectionEditMode('ai'); setEditingSection(null); setSectionDraft(null) }
-                    }}
-                    disabled={isGenerating}
-                    style={{
-                      fontSize: 11, padding: '5px 8px',
-                      borderRadius: 6, border: '1px solid var(--border)',
-                      background: 'none', color: 'var(--muted-foreground)', cursor: isGenerating ? 'not-allowed' : 'pointer',
-                      opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1,
-                    }}
-                  >
-                    {regeneratingSection === i ? '…' : 'AI'}
-                  </button>
-                </div>
+
+          {/* Section list */}
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {homeSections.length === 0 ? (
+              <div style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
+                <p style={{ fontSize: 13, color: '#8a8a93' }}>No sections yet.</p>
+                <button onClick={() => setShowSectionPicker(true)} style={{ marginTop: 8, fontSize: 12, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer' }}>
+                  Add your first section →
+                </button>
               </div>
+            ) : homeSections.map((section, i) => {
+              const isHidden = hiddenSections.has(i)
+              const isEditingDirect = editingSection === i && sectionEditMode === 'direct'
+              const isEditingAI = expandedSection === i && sectionEditMode === 'ai'
+              const isDraggingThis = dragIndex === i
+              const isDragOver = dragOverIndex === i && dragIndex !== null && dragIndex !== i
 
-              {/* Direct edit mode */}
-              {editingSection === i && sectionEditMode === 'direct' && (
-                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {SectionEditFields()}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                    <button
-                      onClick={handleSectionDirectSave}
-                      disabled={isSavingManifest}
-                      style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isSavingManifest ? 'not-allowed' : 'pointer', background: 'var(--primary)', color: 'var(--primary-foreground)', opacity: isSavingManifest ? 0.4 : 1 }}
+              return (
+                <div
+                  key={i}
+                  draggable
+                  onDragStart={() => setDragIndex(i)}
+                  onDragEnd={() => { if (dragIndex !== null && dragOverIndex !== null) handleReorderSections(dragIndex, dragOverIndex); setDragIndex(null); setDragOverIndex(null) }}
+                  onDragOver={e => { e.preventDefault(); setDragOverIndex(i) }}
+                  onDragLeave={() => setDragOverIndex(null)}
+                  style={{
+                    borderBottom: isDragOver ? '2px solid #6f78e6' : '1px solid rgba(255,255,255,.05)',
+                    opacity: isDraggingThis ? 0.4 : isHidden ? 0.45 : 1,
+                    background: isDragOver ? 'rgba(111,120,230,.04)' : 'transparent',
+                    transition: 'opacity 0.12s, background 0.12s',
+                  }}
+                >
+                  {/* Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 10px 8px' }}>
+                    {/* Drag handle */}
+                    <span
+                      style={{ color: '#5b5b64', cursor: 'grab', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 2px' }}
+                      title="Drag to reorder"
                     >
-                      {isSavingManifest ? 'Saving…' : 'Save'}
-                    </button>
-                    <button onClick={() => { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}>
-                      Cancel
-                    </button>
+                      <GripVertical size={14} />
+                    </span>
+
+                    {/* Info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: isHidden ? '#5b5b64' : '#f4f4f6', margin: 0 }}>
+                        {SECTION_LABELS[section.type] ?? section.type}
+                      </p>
+                      <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {sectionSummary(section)}
+                      </p>
+                    </div>
+
+                    {/* Controls */}
+                    <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                      {/* Visibility toggle */}
+                      <button
+                        onClick={() => setHiddenSections(prev => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next })}
+                        title={isHidden ? 'Show section' : 'Hide section'}
+                        style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: isHidden ? '#5b5b64' : '#8a8a93', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        {isHidden ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+
+                      {/* Edit */}
+                      <button
+                        onClick={() => {
+                          if (isEditingDirect) { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }
+                          else { setEditingSection(i); setSectionDraft(JSON.parse(JSON.stringify(homeSections[i]))); setSectionEditMode('direct'); setExpandedSection(null); setSectionInput('') }
+                        }}
+                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingDirect ? 'rgba(111,120,230,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingDirect ? 'rgba(111,120,230,.12)' : 'transparent', color: isEditingDirect ? '#6f78e6' : '#8a8a93', cursor: 'pointer' }}
+                      >
+                        Edit
+                      </button>
+
+                      {/* AI */}
+                      <button
+                        onClick={() => {
+                          if (isEditingAI) { setExpandedSection(null); setSectionInput(''); setSectionEditMode(null) }
+                          else { setExpandedSection(i); setSectionInput(''); setSectionEditMode('ai'); setEditingSection(null); setSectionDraft(null) }
+                        }}
+                        disabled={isGenerating}
+                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingAI ? 'rgba(111,120,230,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingAI ? 'rgba(111,120,230,.12)' : 'transparent', color: isEditingAI ? '#6f78e6' : '#8a8a93', cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1 }}
+                      >
+                        {regeneratingSection === i ? '…' : 'AI'}
+                      </button>
+
+                      {/* Delete */}
+                      <button
+                        onClick={() => { if (confirm(`Remove ${SECTION_LABELS[section.type] ?? section.type}?`)) handleDeleteSection(i) }}
+                        title="Remove section"
+                        style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.12s' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
+                        onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Direct edit form */}
+                  {isEditingDirect && (
+                    <div style={{ padding: '0 12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {SectionEditFields()}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button onClick={handleSectionDirectSave} disabled={isSavingManifest} style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isSavingManifest ? 'not-allowed' : 'pointer', background: '#f4f4f6', color: '#08080a', opacity: isSavingManifest ? 0.4 : 1 }}>
+                          {isSavingManifest ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={() => { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'none', color: '#8a8a93', cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI improve form */}
+                  {isEditingAI && (
+                    <div style={{ padding: '0 12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <textarea
+                        value={sectionInput}
+                        onChange={e => setSectionInput(e.target.value)}
+                        placeholder="Describe what to change, or leave blank for auto-improvement"
+                        rows={2}
+                        autoFocus
+                        style={{ width: '100%', resize: 'none', fontSize: 12, borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', padding: '7px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                      />
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => handleSectionRegenerate(i, sectionInput)} disabled={isGenerating} style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer', background: '#f4f4f6', color: '#08080a', opacity: isGenerating ? 0.4 : 1 }}>
+                          Regenerate
+                        </button>
+                        <button onClick={() => { setExpandedSection(null); setSectionInput(''); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'none', color: '#8a8a93', cursor: 'pointer' }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* AI improve mode */}
-              {expandedSection === i && sectionEditMode === 'ai' && (
-                <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <textarea
-                    value={sectionInput}
-                    onChange={(e) => setSectionInput(e.target.value)}
-                    placeholder="Describe what to change, or leave blank for auto-improvement"
-                    rows={2}
-                    autoFocus
-                    style={{
-                      width: '100%', resize: 'none', fontSize: 12,
-                      borderRadius: 6, border: '1px solid var(--border)',
-                      background: 'var(--secondary)', color: 'var(--foreground)',
-                      padding: '7px 10px', outline: 'none', fontFamily: 'inherit',
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      onClick={() => handleSectionRegenerate(i, sectionInput)}
-                      disabled={isGenerating}
-                      style={{
-                        flex: 1, fontSize: 12, fontWeight: 600, padding: '7px',
-                        borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer',
-                        background: 'var(--primary)', color: 'var(--primary-foreground)',
-                        opacity: isGenerating ? 0.4 : 1,
-                      }}
-                    >
-                      Regenerate
-                    </button>
-                    <button
-                      onClick={() => { setExpandedSection(null); setSectionInput(''); setSectionEditMode(null) }}
-                      style={{
-                        fontSize: 12, padding: '7px 14px', borderRadius: 6,
-                        border: '1px solid var(--border)', background: 'none',
-                        color: 'var(--muted-foreground)', cursor: 'pointer',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* ── Add-ons ─────────────────────────────────────────────────── */}
-          <div style={{ padding: '10px 14px 4px', borderTop: '1px solid rgba(255,255,255,.06)', marginTop: 4 }}>
-            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Add-ons</p>
-          </div>
-
-          {/* Animations hint */}
-          <div style={{ borderBottom: '1px solid rgba(255,255,255,.05)', padding: '12px 14px' }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', margin: '0 0 2px' }}>Animations</p>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
-              3 credits · CSS animated section — ask Quante to add one in chat
-            </p>
-          </div>
-
-          {/* Admin panel note */}
-          <div style={{ borderBottom: '1px solid rgba(255,255,255,.05)', padding: '12px 14px' }}>
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--foreground)', margin: '0 0 2px' }}>Admin Panel</p>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0 }}>
-              Available here in Studio for free · Export with admin panel costs 10 credits
-            </p>
+              )
+            })}
           </div>
         </>
+      )}
+
+      {/* Section picker modal */}
+      {showSectionPicker && (
+        <SectionPickerModal
+          onPick={handleAddSection}
+          onClose={() => setShowSectionPicker(false)}
+        />
       )}
     </div>
   )
 
-  const liveDomain = liveDeployment?.customDomain || deployDomain || liveDeployment?.domain
-  const liveUrl = liveDeployment?.customDomain
-    ? `https://${liveDeployment.customDomain}`
-    : deployUrl || liveDeployment?.url
 
-  // ── Publish checklist ────────────────────────────────────────────────────────
-  const publishChecklist = currentManifest ? [
-    {
-      id: 'merchant',
-      label: 'Firemní data (IČO, sídlo, kontakt)',
-      ok: !!(currentManifest.merchant?.ico && currentManifest.merchant?.obchodni_nazev && currentManifest.merchant?.kontakt?.email),
-    },
-    {
-      id: 'legal',
-      label: '4 právní stránky v patičce',
-      ok: ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt'].every(
-        (slug) => currentManifest.customPages?.some((p) => p.slug === slug)
-      ),
-    },
-    {
-      id: 'payment',
-      label: 'Min. 1 platební metoda',
-      ok: !!(currentManifest.payments?.providers?.length || currentManifest.payments?.dobirka?.enabled || currentManifest.payments?.prevod?.enabled),
-    },
-    {
-      id: 'shipping',
-      label: 'Min. 1 způsob dopravy',
-      ok: !!(currentManifest.shipping?.methods?.length),
-    },
-    {
-      id: 'products',
-      label: 'Min. 1 produkt s cenou a dostupností',
-      ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every((p) => p.price > 0),
-    },
-    {
-      id: 'product_images',
-      label: 'Každý produkt má alespoň 1 fotku',
-      ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every((p) => (p.images?.length ?? 0) > 0),
-    },
-  ] : []
-  const checklistAllOk = publishChecklist.every((c) => c.ok)
+  // ── Theme mode — direct manifest design-token controls ───────────────────────
+  const ThemePanel = currentManifest ? (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-  const HostingPanel = (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Publish checklist */}
-      {publishChecklist.length > 0 && (
-        <div style={{
-          borderRadius: 10,
-          border: `1px solid ${checklistAllOk ? 'rgba(52,211,153,.3)' : 'rgba(251,191,36,.3)'}`,
-          background: checklistAllOk ? 'rgba(52,211,153,.04)' : 'rgba(251,191,36,.04)',
-          padding: '12px 14px',
-        }}>
-          <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8, color: checklistAllOk ? '#34d399' : '#fbbf24' }}>
-            {checklistAllOk ? 'Připraveno k publikaci' : 'Před publikací splňte'}
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {publishChecklist.map((item) => (
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ flexShrink: 0, fontSize: 12, color: item.ok ? '#34d399' : '#f87171' }}>
-                  {item.ok ? '✓' : '✗'}
-                </span>
-                <span style={{ fontSize: 11, color: item.ok ? 'var(--foreground)' : 'var(--muted-foreground)' }}>
-                  {item.label}
-                </span>
-                {!item.ok && item.id === 'merchant' && (
-                  <button
-                    onClick={() => { setDesktopTab('merchant'); setActiveTab('merchant') }}
-                    style={{ fontSize: 9, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
-                  >
-                    Vyplnit
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Live URL */}
-      {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && liveUrl ? (
-        <div style={{ borderRadius: 10, border: '1px solid rgba(52,211,153,.25)', background: 'rgba(52,211,153,.05)', padding: '14px 14px 12px' }}>
-          <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 8 }}>Live</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: 'var(--foreground)', wordBreak: 'break-all', flex: 1 }}>
-              {liveDomain ?? liveUrl}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <a
-              href={liveUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: 'pointer', background: '#34d399', color: '#000', textDecoration: 'none', textAlign: 'center' }}
-            >
-              Visit store
-            </a>
-            <button
-              onClick={() => { navigator.clipboard.writeText(liveUrl ?? '') }}
-              style={{ fontSize: 12, padding: '7px 12px', borderRadius: 6, border: '1px solid var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}
-            >
-              Copy URL
-            </button>
-          </div>
-        </div>
-      ) : deployStatus === 'building' || liveDeployment?.status === 'building' ? (
-        <div style={{ borderRadius: 10, border: '1px solid rgba(251,191,36,.2)', background: 'rgba(251,191,36,.05)', padding: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid rgba(251,191,36,.3)', borderTopColor: '#fbbf24', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
-            <p style={{ fontSize: 12, color: '#fbbf24', fontWeight: 500 }}>Building… check back in a minute</p>
-          </div>
-          {liveDeployment?.domain && (
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 6 }}>
-              Will be live at: {liveDeployment.domain}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px', textAlign: 'center' }}>
-          <p style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>No deployment yet. Use the Deploy button in Chat to go live.</p>
-        </div>
-      )}
-
-      {/* Custom domain */}
-      {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && (
-        <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px' }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--foreground)', marginBottom: 4 }}>Custom domain</p>
-          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 10, lineHeight: 1.5 }}>
-            Point your domain to Quante hosting. Works with any domain registrar.
-          </p>
-          <div style={{ display: 'flex', gap: 6, marginBottom: domainResult ? 12 : 0 }}>
+      {/* Palette */}
+      <section>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 10 }}>Palette</p>
+        {([
+          { key: 'bg',         label: 'Background'  },
+          { key: 'surface',    label: 'Surface'     },
+          { key: 'text',       label: 'Text'        },
+          { key: 'accent',     label: 'Accent'      },
+          { key: 'accentText', label: 'Accent text' },
+          { key: 'muted',      label: 'Muted'       },
+          { key: 'border',     label: 'Border'      },
+        ] as { key: keyof ShopManifest['design']['palette']; label: string }[]).map(({ key, label }) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <input
-              value={customDomainInput}
-              onChange={(e) => setCustomDomainInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
-              placeholder="yourdomain.com"
-              style={{
-                flex: 1, fontSize: 12, padding: '7px 10px', borderRadius: 6,
-                border: '1px solid var(--border)', background: 'var(--secondary)',
-                color: 'var(--foreground)', outline: 'none',
-                fontFamily: 'var(--font-geist-mono)',
+              type="color"
+              value={currentManifest.design.palette[key].startsWith('#') ? currentManifest.design.palette[key] : '#888888'}
+              onChange={(e) => {
+                const updated: ShopManifest = {
+                  ...currentManifest,
+                  design: { ...currentManifest.design, palette: { ...currentManifest.design.palette, [key]: e.target.value } },
+                }
+                setCurrentManifest(updated)
               }}
+              onBlur={() => {
+                if (currentManifest) handleSaveManifest(currentManifest, `Theme: ${key}`)
+              }}
+              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', cursor: 'pointer', padding: 2, background: 'transparent', flexShrink: 0 }}
             />
-            <button
-              onClick={handleAddDomain}
-              disabled={isAddingDomain || !customDomainInput.trim()}
-              style={{
-                fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6,
-                border: 'none', cursor: isAddingDomain || !customDomainInput.trim() ? 'not-allowed' : 'pointer',
-                background: '#6f78e6', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1,
-                flexShrink: 0,
-              }}
-            >
-              {isAddingDomain ? '…' : 'Connect'}
-            </button>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 12, color: '#f4f4f6' }}>{label}</p>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>{currentManifest.design.palette[key]}</p>
+            </div>
           </div>
+        ))}
+      </section>
 
-          {/* DNS instructions */}
-          {domainResult && (
-            <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(52,211,153,.07)' : 'rgba(111,120,230,.07)', border: `1px solid ${domainResult.verified ? 'rgba(52,211,153,.2)' : 'rgba(111,120,230,.2)'}`, padding: '10px 12px' }}>
-              {domainResult.verified ? (
-                <p style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>✓ Domain verified and live!</p>
-              ) : (
-                <>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--foreground)', marginBottom: 6 }}>Add this DNS record:</p>
-                  <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#a5b4fc', marginBottom: 8 }}>
-                    {domainResult.dnsInstructions ?? `CNAME  ${domainResult.domain}  →  cname.vercel-dns.com`}
-                  </div>
-                  <p style={{ fontSize: 10, color: 'var(--muted-foreground)', lineHeight: 1.5 }}>
-                    After adding the record, DNS changes can take up to 48 hours. Click Connect again to re-check.
-                  </p>
-                </>
-              )}
-            </div>
-          )}
+      {/* Typography scale */}
+      <section>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 10 }}>Typography</p>
+        <label style={{ fontSize: 12, color: '#8a8a93', display: 'block', marginBottom: 4 }}>Scale</label>
+        <select
+          value={currentManifest.design.typography.scale}
+          onChange={async (e) => {
+            const updated: ShopManifest = { ...currentManifest, design: { ...currentManifest.design, typography: { ...currentManifest.design.typography, scale: e.target.value as ShopManifest['design']['typography']['scale'] } } }
+            setCurrentManifest(updated)
+            await handleSaveManifest(updated, 'Theme: scale')
+          }}
+          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: '#121218', color: '#f4f4f6', outline: 'none' }}
+        >
+          {['compact', 'comfortable', 'spacious'].map(v => <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
+        </select>
+      </section>
 
-          {/* Already has domain */}
-          {!domainResult && liveDeployment?.customDomain && (
-            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? '#34d399' : '#fbbf24' }}>
-                {liveDeployment.customDomainVerified ? '✓' : '⚠'}
-              </span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--muted-foreground)' }}>
-                {liveDeployment.customDomain} — {liveDeployment.customDomainVerified ? 'verified' : 'pending DNS'}
-              </span>
-            </div>
-          )}
-        </div>
+      {/* Shape & feel */}
+      <section>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 10 }}>Shape & Feel</p>
+        {([
+          { key: 'radius',  label: 'Radius',  opts: ['none', 'sm', 'md', 'lg', 'full'] },
+          { key: 'density', label: 'Density', opts: ['tight', 'normal', 'airy'] },
+          { key: 'motion',  label: 'Motion',  opts: ['none', 'subtle', 'expressive'] },
+        ] as { key: 'radius' | 'density' | 'motion'; label: string; opts: string[] }[]).map(({ key, label, opts }) => (
+          <div key={key} style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 12, color: '#8a8a93', display: 'block', marginBottom: 4 }}>{label}</label>
+            <select
+              value={currentManifest.design[key]}
+              onChange={async (e) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const updated: ShopManifest = { ...currentManifest, design: { ...currentManifest.design, [key]: e.target.value as any } }
+                setCurrentManifest(updated)
+                await handleSaveManifest(updated, `Theme: ${key}`)
+              }}
+              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: '#121218', color: '#f4f4f6', outline: 'none' }}
+            >
+              {opts.map(v => <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
+            </select>
+          </div>
+        ))}
+      </section>
+
+      {isSavingManifest && (
+        <p style={{ fontSize: 11, color: '#8a8a93', textAlign: 'center', fontFamily: 'var(--font-geist-mono)', marginTop: 4 }}>Saving…</p>
+      )}
+    </div>
+  ) : (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ fontSize: 12, color: '#8a8a93' }}>Generate a store to unlock Theme controls.</p>
+    </div>
+  )
+
+  const PublishPanel = (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── 1. Checklist ─────────────────────────────────────────────────────── */}
+      {publishChecklist.length > 0 && (
+        <section>
+          <p style={eyebrowSt}>{checklistAllOk ? 'Ready to publish' : 'Complete before publishing'}</p>
+          <div style={{
+            borderRadius: 10,
+            border: `1px solid ${checklistAllOk ? 'rgba(62,207,142,.25)' : 'rgba(224,160,79,.25)'}`,
+            background: checklistAllOk ? 'rgba(62,207,142,.04)' : 'rgba(224,160,79,.04)',
+            padding: '12px 14px',
+            display: 'flex', flexDirection: 'column', gap: 7,
+          }}>
+            {publishChecklist.map((item) => {
+              const fixMode: Record<string, DesktopTab | null> = {
+                products: 'products',
+                product_images: 'products',
+                merchant: 'publish',
+                legal: 'publish',
+                payment: 'publish',
+                shipping: 'publish',
+              }
+              const mode = fixMode[item.id] ?? null
+              return (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ flexShrink: 0, fontSize: 13, lineHeight: 1, color: item.ok ? 'var(--live)' : '#e0564f' }}>
+                    {item.ok ? '✓' : '✗'}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 12, color: item.ok ? '#f4f4f6' : '#8a8a93', lineHeight: 1.4 }}>
+                    {item.label}
+                  </span>
+                  {!item.ok && mode && (
+                    <button
+                      onClick={() => { setDesktopTab(mode); setActiveTab(mode) }}
+                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                    >
+                      Fix →
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </section>
       )}
 
-      {/* Earnings */}
-      <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--foreground)', margin: 0 }}>Earnings</p>
-          <span style={{ fontSize: 10, color: 'var(--muted-foreground)', fontFamily: 'var(--font-geist-mono)' }}>5% platform fee</span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <div style={{ flex: 1, background: 'var(--secondary)', borderRadius: 8, padding: '10px 12px' }}>
-            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 2 }}>Available</p>
-            <p style={{ fontSize: 18, fontWeight: 700, color: '#34d399', fontFamily: 'var(--font-geist-mono)' }}>
-              {earnings ? `€${earnings.available.toFixed(2)}` : '—'}
-            </p>
-          </div>
-          <div style={{ flex: 1, background: 'var(--secondary)', borderRadius: 8, padding: '10px 12px' }}>
-            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 2 }}>Sales</p>
-            <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--foreground)', fontFamily: 'var(--font-geist-mono)' }}>
-              {earnings ? String(earnings.saleCount) : '—'}
-            </p>
-          </div>
-        </div>
-
-        {/* IBAN form */}
-        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--foreground)', marginBottom: 6 }}>Payout account</p>
-        <input
-          value={holderInput}
-          onChange={(e) => setHolderInput(e.target.value)}
-          placeholder="Account holder name"
-          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--foreground)', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
-        />
-        <input
-          value={ibanInput}
-          onChange={(e) => setIbanInput(e.target.value)}
-          placeholder="IBAN (e.g. CZ65 0800 0000 1920 0014 5399)"
-          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--foreground)', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
-        />
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button
-            onClick={handleSaveIban}
-            disabled={isSavingIban || !ibanInput.trim() || !holderInput.trim()}
-            style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: '1px solid var(--border)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'var(--secondary)', color: 'var(--foreground)', opacity: isSavingIban ? 0.5 : 1 }}
-          >
-            {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
-          </button>
-          {payoutAccount?.iban && (earnings?.available ?? 0) > 0 && (
-            <button
-              onClick={handleRequestPayout}
-              disabled={isRequestingPayout}
-              style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
-            >
-              {isRequestingPayout ? '…' : 'Request payout'}
-            </button>
-          )}
-        </div>
-        {payoutMsg && (
-          <p style={{ fontSize: 11, marginTop: 8, color: payoutMsg.startsWith('Payout') ? '#34d399' : '#f87171', lineHeight: 1.5 }}>
-            {payoutMsg}
-          </p>
-        )}
-      </div>
-
-      {/* Subscription */}
-      <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px' }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--foreground)', marginBottom: 8 }}>Hosting plan</p>
-        {hostingInfo.subscribed ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-              <span style={{ fontSize: 10, color: '#34d399' }}>●</span>
-              <span style={{ fontSize: 12, color: 'var(--foreground)', fontWeight: 500 }}>Active — €99/year</span>
+      {/* ── 2. Deploy / Live status ──────────────────────────────────────────── */}
+      <section>
+        <p style={eyebrowSt}>Deploy</p>
+        {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && liveUrl ? (
+          /* Live card */
+          <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.05)', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--live)' }}>Live</span>
             </div>
-            {hostingInfo.subscriptionEndsAt && (
-              <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-                {hostingInfo.cancelAtPeriodEnd ? 'Ends' : 'Renews'} {new Date(hostingInfo.subscriptionEndsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', wordBreak: 'break-all', marginBottom: 12 }}>
+              {liveDomain ?? liveUrl}
+            </p>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <a
+                href={liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--live)', color: '#000', textDecoration: 'none', textAlign: 'center' }}
+              >
+                Visit store ↗
+              </a>
+              <button
+                onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
+                style={{ fontSize: 12, padding: '8px 12px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+              >
+                Copy
+              </button>
+              <button
+                onClick={handleDeploy}
+                disabled={isDeploying || !currentManifest}
+                title="Redeploy latest changes"
+                style={{ fontSize: 12, padding: '8px 12px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
+              >
+                {isDeploying ? '…' : '⟳'}
+              </button>
+            </div>
+          </div>
+        ) : deployStatus === 'building' || liveDeployment?.status === 'building' ? (
+          /* Building card */
+          <div style={{ borderRadius: 10, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', padding: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid rgba(224,160,79,.35)', borderTopColor: '#e0a04f', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: '#e0a04f' }}>Building — check back in a minute</span>
+            </div>
+            {liveDeployment?.domain && (
+              <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginTop: 4 }}>
+                Will be live at: {liveDeployment.domain}
               </p>
             )}
-          </>
-        ) : hostingInfo.trialEndsAt ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <span style={{ fontSize: 10, color: trialExpired ? '#f87171' : '#fbbf24' }}>●</span>
-              <span style={{ fontSize: 12, color: trialExpired ? '#f87171' : '#fbbf24', fontWeight: 500 }}>
-                {trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
-              </span>
-            </div>
-            <button
-              onClick={handleHostingSubscribe}
-              disabled={isSubscribing}
-              style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 6, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
-            >
-              {isSubscribing ? '…' : 'Subscribe · €99/year'}
-            </button>
-          </>
+          </div>
         ) : (
-          <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Deploy your store to start your 30-day free trial.</p>
+          /* Not deployed yet */
+          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Deploy to Quante hosting</p>
+            <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
+              Your store goes live on a <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.quante.app</span> subdomain. Connect a custom domain after.
+            </p>
+            {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && (
+              <p style={{ fontSize: 11, color: '#e0a04f', margin: 0 }}>Starts your 30-day free trial.</p>
+            )}
+            <button
+              onClick={handleDeploy}
+              disabled={!currentManifest || isDeploying || !checklistAllOk}
+              style={{
+                width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none',
+                cursor: !currentManifest || isDeploying || !checklistAllOk ? 'not-allowed' : 'pointer',
+                background: checklistAllOk ? 'var(--live)' : 'rgba(255,255,255,.06)',
+                color: checklistAllOk ? '#000' : '#5b5b64',
+                transition: 'background 0.15s, color 0.15s',
+              }}
+            >
+              {!currentManifest ? 'Generate a store first' : !checklistAllOk ? 'Complete checklist to deploy' : isDeploying ? '⟳ Deploying…' : 'Deploy store'}
+            </button>
+          </div>
         )}
-      </div>
+      </section>
+
+      {/* ── 3. Custom domain ─────────────────────────────────────────────────── */}
+      {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && (
+        <section>
+          <p style={eyebrowSt}>Custom domain</p>
+          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {liveDeployment?.customDomain && !domainResult && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 7, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
+                <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
+                  {liveDeployment.customDomainVerified ? '✓' : '⚠'}
+                </span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', flex: 1 }}>
+                  {liveDeployment.customDomain}
+                </span>
+                <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
+                  {liveDeployment.customDomainVerified ? 'active' : 'pending DNS'}
+                </span>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input
+                value={customDomainInput}
+                onChange={e => setCustomDomainInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
+                placeholder="yourdomain.com"
+                style={{ flex: 1, fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', fontFamily: 'var(--font-geist-mono)' }}
+              />
+              <button
+                onClick={handleAddDomain}
+                disabled={isAddingDomain || !customDomainInput.trim()}
+                style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 7, border: 'none', cursor: isAddingDomain || !customDomainInput.trim() ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}
+              >
+                {isAddingDomain ? '…' : 'Connect'}
+              </button>
+            </div>
+            {domainResult && (
+              <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(62,207,142,.07)' : 'rgba(111,120,230,.07)', border: `1px solid ${domainResult.verified ? 'rgba(62,207,142,.2)' : 'rgba(111,120,230,.2)'}`, padding: '10px 12px' }}>
+                {domainResult.verified ? (
+                  <p style={{ fontSize: 11, color: 'var(--live)', fontWeight: 600, margin: 0 }}>✓ Domain verified and live!</p>
+                ) : (
+                  <>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>Add this DNS record:</p>
+                    <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#a5b4fc', marginBottom: 8 }}>
+                      {domainResult.dnsInstructions ?? `CNAME  ${domainResult.domain}  →  cname.vercel-dns.com`}
+                    </div>
+                    <p style={{ fontSize: 10, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
+                      DNS changes can take up to 48h. Click Connect again to re-check.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ── 4. Export ────────────────────────────────────────────────────────── */}
+      <section>
+        <p style={eyebrowSt}>Export</p>
+        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
+            Download your store as a standalone Next.js project. Runs with <span style={{ fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6' }}>npm install && npm run dev</span> — deploy anywhere.
+          </p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => handleExport(false)}
+              disabled={!currentManifest || isExporting}
+              style={{
+                flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
+                border: '1px solid rgba(255,255,255,.09)', background: 'transparent',
+                color: currentManifest && !isExporting ? '#f4f4f6' : '#5b5b64',
+                cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
+                transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { if (currentManifest && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.06)' }}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+            >
+              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
+            </button>
+            <button
+              onClick={() => handleExport(true)}
+              disabled={!currentManifest || isExportingAdmin}
+              style={{
+                flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
+                border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.07)',
+                color: currentManifest && !isExportingAdmin ? '#6f78e6' : '#5b5b64',
+                cursor: currentManifest && !isExportingAdmin ? 'pointer' : 'not-allowed',
+                transition: 'background 0.12s',
+              }}
+              onMouseEnter={e => { if (currentManifest && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(111,120,230,.13)' }}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(111,120,230,.07)'}
+            >
+              {isExportingAdmin ? '…' : '↓ ZIP + Admin'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5. Earnings ──────────────────────────────────────────────────────── */}
+      <section>
+        <p style={eyebrowSt}>Earnings <span style={{ color: '#5b5b64', marginLeft: 4 }}>5% platform fee</span></p>
+        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Available</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                {earnings ? `€${earnings.available.toFixed(2)}` : '—'}
+              </p>
+            </div>
+            <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Sales</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                {earnings ? String(earnings.saleCount) : '—'}
+              </p>
+            </div>
+          </div>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 12 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 8 }}>Payout account</p>
+            <input
+              value={holderInput}
+              onChange={e => setHolderInput(e.target.value)}
+              placeholder="Account holder name"
+              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
+            />
+            <input
+              value={ibanInput}
+              onChange={e => setIbanInput(e.target.value)}
+              placeholder="IBAN (e.g. CZ65 0800 0000 1920 0014 5399)"
+              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
+            />
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={handleSaveIban}
+                disabled={isSavingIban || !ibanInput.trim() || !holderInput.trim()}
+                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSavingIban ? 0.5 : 1 }}
+              >
+                {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
+              </button>
+              {payoutAccount?.iban && (earnings?.available ?? 0) > 0 && (
+                <button
+                  onClick={handleRequestPayout}
+                  disabled={isRequestingPayout}
+                  style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
+                >
+                  {isRequestingPayout ? '…' : 'Request payout'}
+                </button>
+              )}
+            </div>
+            {payoutMsg && (
+              <p style={{ fontSize: 11, marginTop: 8, color: payoutMsg.startsWith('Payout') ? 'var(--live)' : '#f87171', lineHeight: 1.5, margin: '8px 0 0' }}>
+                {payoutMsg}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. Hosting plan ──────────────────────────────────────────────────── */}
+      <section>
+        <p style={eyebrowSt}>Hosting</p>
+        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {hostingInfo.subscribed ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6' }}>Active — €99/year</span>
+              </div>
+              {hostingInfo.subscriptionEndsAt && (
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>
+                  {hostingInfo.cancelAtPeriodEnd ? 'Ends' : 'Renews'} {new Date(hostingInfo.subscriptionEndsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              )}
+            </>
+          ) : hostingInfo.trialEndsAt ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? '#e0564f' : '#e0a04f', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? '#e0564f' : '#e0a04f' }}>
+                  {trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+                </span>
+              </div>
+              <button
+                onClick={handleHostingSubscribe}
+                disabled={isSubscribing}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
+              >
+                {isSubscribing ? '…' : 'Subscribe · €99/year'}
+              </button>
+            </>
+          ) : (
+            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy your store to start your 30-day free trial.</p>
+          )}
+        </div>
+      </section>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 
+
+  const DEVICE_WIDTHS: Record<'desktop' | 'tablet' | 'mobile', number | null> = {
+    desktop: null, tablet: 768, mobile: 390,
+  }
+
   const PreviewPane = (
-    <div style={{ flex: 1, position: 'relative', background: '#0a0a0c', overflow: 'hidden' }}>
-      {!currentManifest ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
-          <div>
-            <p style={{ color: 'rgba(255,255,255,.2)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 8 }}>no preview yet</p>
-            <p style={{ color: 'rgba(255,255,255,.12)', fontSize: 11 }}>Describe a store to get started</p>
-          </div>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090c', overflow: 'hidden', minWidth: 0 }}>
+      {/* Toolbar */}
+      <div style={{
+        flexShrink: 0, height: 40,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 10px',
+        borderBottom: '1px solid rgba(255,255,255,.06)',
+        background: '#0d0d11',
+      }}>
+        {/* Device selector */}
+        <div style={{ display: 'flex', gap: 2 }}>
+          {([
+            { id: 'desktop', icon: Monitor  },
+            { id: 'tablet',  icon: Tablet   },
+            { id: 'mobile',  icon: Smartphone },
+          ] as { id: typeof previewDevice; icon: React.ElementType }[]).map(({ id, icon: Icon }) => (
+            <button key={id} onClick={() => setPreviewDevice(id)} style={{
+              width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: previewDevice === id ? 'rgba(255,255,255,.1)' : 'transparent',
+              color: previewDevice === id ? '#f4f4f6' : '#5b5b64',
+              transition: 'background 0.12s, color 0.12s',
+            }}>
+              <Icon size={13} />
+            </button>
+          ))}
         </div>
-      ) : (
-        <iframe
-          ref={iframeRef}
-          key={iframeKey}
-          src={`/preview/${projectId}`}
-          style={{ width: '100%', height: '100%', border: 'none' }}
-          title="Store preview"
-          onLoad={handleIframeLoad}
-        />
-      )}
-      {isGenerating && (
-        <div style={{
-          position: 'absolute', inset: 0, background: 'rgba(0,0,0,.45)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: '50%',
-              border: '2px solid rgba(255,255,255,.15)', borderTopColor: 'rgba(255,255,255,.8)',
-              animation: 'spin 0.8s linear infinite', margin: '0 auto 10px',
-            }} />
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,.5)', fontFamily: 'var(--font-geist-mono)' }}>generating…</p>
-          </div>
+
+        {/* URL + controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {liveUrl && (
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {liveDomain ?? liveUrl}
+            </span>
+          )}
+          {latestVersion && (
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64' }}>
+              v{latestVersion.version_no}
+            </span>
+          )}
+          <button onClick={() => setIframeKey((k) => k + 1)} title="Refresh" style={{ width: 24, height: 24, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'transparent', color: '#5b5b64', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RotateCcw size={11} />
+          </button>
+          <a href={`/preview/${projectId}`} target="_blank" rel="noopener noreferrer" title="Open in new tab" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5b5b64', textDecoration: 'none' }}>
+            <ExternalLink size={11} />
+          </a>
         </div>
-      )}
+      </div>
+
+      {/* Preview area */}
+      <div style={{
+        flex: 1, position: 'relative', overflow: 'hidden',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      }}>
+        {!currentManifest ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
+            <div>
+              <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 6 }}>no preview yet</p>
+              <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to get started</p>
+            </div>
+          </div>
+        ) : previewDevice === 'desktop' ? (
+          <iframe
+            ref={iframeRef}
+            key={iframeKey}
+            src={`/preview/${projectId}`}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+            title="Store preview"
+            onLoad={handleIframeLoad}
+          />
+        ) : (
+          <div style={{
+            marginTop: 16,
+            width: DEVICE_WIDTHS[previewDevice]!,
+            height: previewDevice === 'tablet' ? 900 : 780,
+            flexShrink: 0,
+            borderRadius: previewDevice === 'tablet' ? 14 : 20,
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,.12)',
+            boxShadow: '0 4px 40px rgba(0,0,0,.6)',
+            transform: previewDevice === 'tablet' ? 'scale(0.55)' : 'scale(0.72)',
+            transformOrigin: 'top center',
+          }}>
+            <iframe
+              ref={iframeRef}
+              key={iframeKey}
+              src={`/preview/${projectId}`}
+              style={{ width: '100%', height: '100%', border: 'none' }}
+              title="Store preview"
+              onLoad={handleIframeLoad}
+            />
+          </div>
+        )}
+
+        {(isGenerating || isDeploying) && (
+          <div style={{
+            position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backdropFilter: 'blur(6px)',
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: '50%',
+                border: '2px solid rgba(255,255,255,.1)', borderTopColor: '#6f78e6',
+                animation: 'spin 0.7s linear infinite', margin: '0 auto 10px',
+              }} />
+              <p style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>
+                {isDeploying ? 'deploying…' : 'generating…'}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 
@@ -1867,158 +2346,236 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const sectionCount = currentManifest?.pages.home.length ?? 0
   const currency = currentManifest?.catalog.currency ?? 'CZK'
 
-  const ADMIN_TABS: { id: AdminTab; label: string }[] = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'products',  label: 'Products'  },
-    { id: 'orders',    label: 'Orders'    },
-    { id: 'settings',  label: 'Settings'  },
+  const ADMIN_TABS: { id: AdminTab; label: string; icon: React.ElementType }[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'orders',    label: 'Orders',    icon: ClipboardList   },
+    { id: 'products',  label: 'Products',  icon: ShoppingBag     },
+    { id: 'settings',  label: 'Settings',  icon: Settings2       },
   ]
 
   const AdminDashboard = (
-    <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-      {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680 }}>
+
+      {/* Store live banner */}
+      {liveUrl ? (
+        <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.05)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--live)', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 2px' }}>Store live</p>
+              <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                {liveDomain ?? liveUrl}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button
+              onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
+              title="Copy link"
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+            >
+              <Share2 size={11} /> Share
+            </button>
+            <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, background: 'var(--live)', color: '#000', textDecoration: 'none' }}>
+              Visit ↗
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: '0 0 2px' }}>Store not live yet</p>
+            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy in the Builder to go live and start selling.</p>
+          </div>
+          <button onClick={() => setAdminMode(false)} style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+            Go to Builder
+          </button>
+        </div>
+      )}
+
+      {/* Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
         {[
-          { label: 'Products', value: productCount, color: '#6f78e6' },
-          { label: 'Sections', value: sectionCount, color: '#a78bfa' },
-          { label: 'Revenue', value: orderRevenue > 0 ? `${orderRevenue.toFixed(2)} ${currency}` : '—', color: '#34d399' },
-          { label: 'Orders', value: orders.length > 0 ? orders.length : '—', color: '#fbbf24' },
-        ].map((stat) => (
-          <div key={stat.label} style={{ borderRadius: 10, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', padding: '14px 16px' }}>
-            <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 6 }}>{stat.label}</p>
-            <p style={{ fontSize: 22, fontWeight: 700, color: stat.color, fontFamily: 'var(--font-geist-mono)' }}>{stat.value}</p>
+          { label: 'Revenue', value: orderRevenue > 0 ? `${currency} ${orderRevenue.toFixed(2)}` : null, empty: 'No sales yet', icon: TrendingUp, color: 'var(--live)' },
+          { label: 'Orders',  value: orders.length > 0 ? String(orders.length) : null, empty: '0', icon: ClipboardList, color: '#e0a04f' },
+          { label: 'Products', value: productCount > 0 ? String(productCount) : null, empty: '0', icon: ShoppingBag, color: '#6f78e6' },
+        ].map(({ label, value, empty, icon: Icon, color }) => (
+          <div key={label} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>{label}</p>
+              <Icon size={13} style={{ color: '#5b5b64' }} />
+            </div>
+            {value ? (
+              <p style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{value}</p>
+            ) : (
+              <p style={{ fontSize: 13, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{empty}</p>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Live URL card */}
-      {liveUrl && (
-        <div style={{ borderRadius: 10, border: '1px solid rgba(52,211,153,.25)', background: 'rgba(52,211,153,.04)', padding: '14px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Store live</p>
-            <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: 'var(--foreground)' }}>{liveDomain ?? liveUrl}</p>
-          </div>
-          <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, background: '#34d399', color: '#000', textDecoration: 'none', flexShrink: 0 }}>
-            Visit ↗
-          </a>
+      {/* Orders empty state — shown prominently when no orders yet */}
+      {orders.length === 0 && !ordersError && liveUrl && (
+        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <ClipboardList size={32} style={{ color: '#5b5b64' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
+          <p style={{ fontSize: 13, color: '#8a8a93', margin: 0, lineHeight: 1.5, maxWidth: 320 }}>
+            Share your store link to make your first sale. Orders appear here automatically.
+          </p>
+          <button
+            onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgba(62,207,142,.35)', background: 'rgba(62,207,142,.08)', color: 'var(--live)', cursor: 'pointer' }}
+          >
+            <Share2 size={13} /> Copy store link
+          </button>
         </div>
       )}
 
-      {/* Hosting status */}
-      <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px 16px', marginBottom: 16 }}>
-        <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--foreground)', marginBottom: 8 }}>Hosting</p>
-        {hostingInfo.subscribed ? (
-          <p style={{ fontSize: 12, color: '#34d399' }}>● Active plan · €99/year</p>
-        ) : hostingInfo.trialEndsAt ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p style={{ fontSize: 12, color: trialExpired ? '#f87171' : '#fbbf24' }}>
-              {trialExpired ? '● Trial ended' : `● Free trial · ${trialDaysLeft} days left`}
+      {/* Hosting */}
+      <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 6px' }}>Hosting</p>
+          {hostingInfo.subscribed ? (
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--live)', margin: 0 }}>● Active — €99/year</p>
+          ) : hostingInfo.trialEndsAt ? (
+            <p style={{ fontSize: 13, fontWeight: 500, color: trialExpired ? '#e0564f' : '#e0a04f', margin: 0 }}>
+              ● {trialExpired ? 'Trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
             </p>
-            {trialExpired && (
-              <button onClick={handleHostingSubscribe} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 5, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
-                Subscribe
-              </button>
-            )}
-          </div>
-        ) : (
-          <p style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Not deployed yet.</p>
+          ) : (
+            <p style={{ fontSize: 13, color: '#8a8a93', margin: 0 }}>Not deployed</p>
+          )}
+        </div>
+        {!hostingInfo.subscribed && hostingInfo.trialEndsAt && (
+          <button onClick={handleHostingSubscribe} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1, flexShrink: 0 }}>
+            {isSubscribing ? '…' : 'Subscribe · €99/year'}
+          </button>
         )}
       </div>
 
       {/* Quick actions */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <button onClick={() => setAdminTab('products')} style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', color: 'var(--foreground)', cursor: 'pointer', textAlign: 'left', fontSize: 12 }}>
-          <p style={{ fontWeight: 600, marginBottom: 2 }}>Manage products</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Add, edit, remove products</p>
-        </button>
-        <button onClick={() => { setAdminTab('orders'); handleLoadOrders() }} style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', color: 'var(--foreground)', cursor: 'pointer', textAlign: 'left', fontSize: 12 }}>
-          <p style={{ fontWeight: 600, marginBottom: 2 }}>View orders</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Revenue from your store</p>
-        </button>
-        <button onClick={() => setAdminMode(false)} style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', color: 'var(--foreground)', cursor: 'pointer', textAlign: 'left', fontSize: 12 }}>
-          <p style={{ fontWeight: 600, marginBottom: 2 }}>AI Builder</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Design with AI chat</p>
-        </button>
-        <button onClick={() => setAdminTab('settings')} style={{ padding: '12px', borderRadius: 8, border: '1px solid var(--border)', background: 'none', color: 'var(--foreground)', cursor: 'pointer', textAlign: 'left', fontSize: 12 }}>
-          <p style={{ fontWeight: 600, marginBottom: 2 }}>Settings</p>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: 11 }}>Stripe keys, domain</p>
-        </button>
+      <div>
+        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Quick actions</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {[
+            { label: 'View orders', sub: 'Revenue + order history', action: () => { setAdminTab('orders'); handleLoadOrders() }, icon: ClipboardList },
+            { label: 'Products', sub: 'Inventory management', action: () => setAdminTab('products'), icon: ShoppingBag },
+            { label: 'Settings', sub: 'Stripe, domain, keys', action: () => setAdminTab('settings'), icon: Settings2 },
+            { label: 'AI Builder', sub: 'Edit design + content', action: () => setAdminMode(false), icon: Paintbrush },
+          ].map(({ label, sub, action, icon: Icon }) => (
+            <button key={label} onClick={action} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.04)'}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+            >
+              <Icon size={16} style={{ color: '#8a8a93' }} />
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{label}</p>
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>{sub}</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   )
 
   const AdminOrders = (
-    <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
       {ordersError === 'no_key' ? (
-        <div style={{ borderRadius: 10, border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.06)', padding: 20, textAlign: 'center' }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--foreground)', marginBottom: 8 }}>Connect your Stripe account</p>
-          <p style={{ fontSize: 12, color: 'var(--muted-foreground)', marginBottom: 16, lineHeight: 1.6 }}>
-            Add your store&apos;s Stripe secret key in Settings to view orders and revenue directly in Quante.
+        /* No Stripe key */
+        <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.25)', background: 'rgba(111,120,230,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <Settings2 size={32} style={{ color: '#5b5b64' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Connect your Stripe account</p>
+          <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
+            Add your store&apos;s Stripe secret key in Settings to view orders and revenue here.
           </p>
-          <button onClick={() => setAdminTab('settings')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 6, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
+          <button onClick={() => setAdminTab('settings')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
             Go to Settings
           </button>
         </div>
       ) : isLoadingOrders ? (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-          <div style={{ width: 24, height: 24, borderRadius: '50%', border: '2px solid var(--border)', borderTopColor: '#6f78e6', animation: 'spin 0.8s linear infinite' }} />
+        /* Loading skeleton */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          ))}
+          <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}`}</style>
         </div>
       ) : ordersError ? (
-        <div style={{ borderRadius: 10, border: '1px solid rgba(248,113,113,.25)', background: 'rgba(248,113,113,.06)', padding: 16 }}>
-          <p style={{ fontSize: 13, color: '#f87171' }}>{ordersError}</p>
-          <button onClick={handleLoadOrders} style={{ marginTop: 8, fontSize: 11, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer' }}>Try again</button>
+        /* Error */
+        <div style={{ borderRadius: 10, border: '1px solid rgba(224,86,79,.25)', background: 'rgba(224,86,79,.05)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{ordersError}</p>
+          <button onClick={handleLoadOrders} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(224,86,79,.3)', background: 'transparent', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
         </div>
       ) : orders.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 16 }}>
-            {orderRevenue > 0 && (
-              <div style={{ borderRadius: 10, border: '1px solid rgba(52,211,153,.25)', background: 'rgba(52,211,153,.05)', padding: '12px 20px', textAlign: 'center' }}>
-                <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 4 }}>Total revenue</p>
-                <p style={{ fontSize: 20, fontWeight: 700, color: '#34d399', fontFamily: 'var(--font-geist-mono)' }}>{orderRevenue.toFixed(2)}</p>
-              </div>
+        /* Empty state */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <ClipboardList size={36} style={{ color: '#5b5b64' }} />
+            <p style={{ fontSize: 16, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
+            <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55, maxWidth: 300, margin: 0 }}>
+              Share your store link to make your first sale — orders appear here automatically.
+            </p>
+            {liveUrl && (
+              <button
+                onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgba(62,207,142,.3)', background: 'rgba(62,207,142,.07)', color: 'var(--live)', cursor: 'pointer' }}
+              >
+                <Share2 size={13} /> Copy store link
+              </button>
             )}
           </div>
-          <p style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>No completed orders yet.</p>
-          <button onClick={handleLoadOrders} style={{ marginTop: 8, fontSize: 11, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer' }}>Refresh</button>
+          <button onClick={handleLoadOrders} style={{ alignSelf: 'center', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
         </div>
       ) : (
+        /* Orders table */
         <>
-          {/* Summary */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-            <div style={{ borderRadius: 10, border: '1px solid rgba(52,211,153,.25)', background: 'rgba(52,211,153,.05)', padding: '14px 16px' }}>
-              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 4 }}>Total revenue</p>
-              <p style={{ fontSize: 22, fontWeight: 700, color: '#34d399', fontFamily: 'var(--font-geist-mono)' }}>{orderRevenue.toFixed(2)}</p>
+          {/* Summary cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue</p>
+              <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                {currency} {orderRevenue.toFixed(2)}
+              </p>
             </div>
-            <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: '14px 16px' }}>
-              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', marginBottom: 4 }}>Orders</p>
-              <p style={{ fontSize: 22, fontWeight: 700, color: '#6f78e6', fontFamily: 'var(--font-geist-mono)' }}>{orders.length}</p>
+            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
+              <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{orders.length}</p>
             </div>
           </div>
 
-          {/* Orders table */}
-          <div style={{ borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '8px 14px', borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,.03)' }}>
-              {['Customer', 'Items', 'Amount', 'Date'].map((h) => (
-                <p key={h} style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '.06em' }}>{h}</p>
+          {/* Table */}
+          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+            {/* Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+              {['Customer', 'Items', 'Amount', 'Date'].map(h => (
+                <p key={h} style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>{h}</p>
               ))}
             </div>
-            {orders.map((o) => (
-              <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', alignItems: 'center' }}>
-                <div>
-                  <p style={{ fontSize: 12, fontWeight: 500 }}>{o.customerName !== '—' ? o.customerName : o.customerEmail}</p>
-                  {o.customerName !== '—' && <p style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>{o.customerEmail}</p>}
+            {orders.map((o, idx) => (
+              <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                    {o.customerName !== '—' ? o.customerName : o.customerEmail}
+                  </p>
+                  {o.customerName !== '—' && (
+                    <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>{o.customerEmail}</p>
+                  )}
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>{o.items.map((i) => `${i.qty}× ${i.name}`).join(', ') || '—'}</p>
-                <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: '#34d399', whiteSpace: 'nowrap' }}>{o.amount.toFixed(2)} {o.currency}</p>
-                <p style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>{new Date(o.createdAt).toLocaleDateString('en-GB')}</p>
+                <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                  {o.items.map(i => `${i.qty}× ${i.name}`).join(', ') || '—'}
+                </p>
+                <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', whiteSpace: 'nowrap', margin: 0 }}>
+                  {o.amount.toFixed(2)} {o.currency}
+                </p>
+                <p style={{ fontSize: 11, color: '#8a8a93', whiteSpace: 'nowrap', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                  {new Date(o.createdAt).toLocaleDateString('en-GB')}
+                </p>
               </div>
             ))}
           </div>
-          <button onClick={handleLoadOrders} style={{ marginTop: 12, fontSize: 11, color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+
+          <button onClick={handleLoadOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
         </>
-      )}
-      {orders.length === 0 && !ordersError && !isLoadingOrders && (
-        <button onClick={handleLoadOrders} style={{ display: 'none' }} />
       )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
@@ -2032,73 +2589,74 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   }
 
   const AdminSettings = (
-    <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-      <div style={{ maxWidth: 520 }}>
-        <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', marginBottom: 4 }}>Stripe keys — your store</p>
-          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 16, lineHeight: 1.6 }}>
-            These are the Stripe keys for your e-shop (not Quante&apos;s). After saving, they&apos;re automatically pushed to your live store&apos;s Vercel environment.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 11, color: 'var(--muted-foreground)', display: 'block', marginBottom: 4 }}>Publishable key (pk_live_…)</label>
-              <input value={settingsPubKey} onChange={(e) => setSettingsPubKey(e.target.value)} placeholder="pk_live_..." style={inpSt} />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: 'var(--muted-foreground)', display: 'block', marginBottom: 4 }}>
-                Secret key (sk_live_…){settingsSecKeySet && <span style={{ color: '#34d399', marginLeft: 6 }}>✓ set</span>}
-              </label>
-              <input
-                type="password"
-                value={settingsSecKey}
-                onChange={(e) => setSettingsSecKey(e.target.value)}
-                placeholder={settingsSecKeySet ? '••••••••••••••••••••••••' : 'sk_live_...'}
-                style={inpSt}
-              />
-            </div>
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
+
+      {/* Stripe */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Settings2 size={14} style={{ color: '#8a8a93' }} />
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Stripe keys — your store</p>
+            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>These are your shop&apos;s Stripe keys, not Quante&apos;s. Saved keys are pushed to your live store automatically.</p>
+          </div>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>Publishable key (pk_live_…)</label>
+            <input value={settingsPubKey} onChange={e => setSettingsPubKey(e.target.value)} placeholder="pk_live_..." style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              Secret key (sk_live_…)
+              {settingsSecKeySet && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            </label>
+            <input type="password" value={settingsSecKey} onChange={e => setSettingsSecKey(e.target.value)} placeholder={settingsSecKeySet ? '••••••••••••••••••••••••' : 'sk_live_...'} style={inpSt} />
           </div>
           <button
             onClick={handleSaveSettings}
             disabled={isSavingSettings || (!settingsPubKey && !settingsSecKey)}
-            style={{ marginTop: 14, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSavingSettings ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingSettings || (!settingsPubKey && !settingsSecKey) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSavingSettings ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingSettings || (!settingsPubKey && !settingsSecKey) ? 0.5 : 1 }}
           >
             {isSavingSettings ? 'Saving…' : 'Save & push to store'}
           </button>
         </div>
+      </div>
 
-        {/* Domain */}
-        <div style={{ borderRadius: 10, border: '1px solid var(--border)', padding: 20, marginBottom: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', marginBottom: 4 }}>Custom domain</p>
-          <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginBottom: 12, lineHeight: 1.5 }}>
-            Connect your own domain to your live store.
-          </p>
+      {/* Custom domain */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Custom domain</p>
+          <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>Connect your own domain. Works with any registrar — just add a CNAME record.</p>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {liveDeployment?.customDomain && !domainResult && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 7, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
+              <span style={{ fontSize: 11, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
+                {liveDeployment.customDomainVerified ? '✓' : '⚠'}
+              </span>
+              <span style={{ flex: 1, fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6' }}>{liveDeployment.customDomain}</span>
+              <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
+                {liveDeployment.customDomainVerified ? 'active' : 'pending DNS'}
+              </span>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              value={customDomainInput}
-              onChange={(e) => setCustomDomainInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddDomain()}
-              placeholder="yourdomain.com"
-              style={{ ...inpSt, flex: 1 }}
-            />
-            <button
-              onClick={handleAddDomain}
-              disabled={isAddingDomain || !customDomainInput.trim()}
-              style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}
-            >
+            <input value={customDomainInput} onChange={e => setCustomDomainInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddDomain()} placeholder="yourdomain.com" style={{ ...inpSt, flex: 1 }} />
+            <button onClick={handleAddDomain} disabled={isAddingDomain || !customDomainInput.trim()} style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}>
               {isAddingDomain ? '…' : 'Connect'}
             </button>
           </div>
           {domainResult && (
-            <div style={{ marginTop: 10, borderRadius: 8, background: domainResult.verified ? 'rgba(52,211,153,.07)' : 'rgba(111,120,230,.07)', border: `1px solid ${domainResult.verified ? 'rgba(52,211,153,.2)' : 'rgba(111,120,230,.2)'}`, padding: '10px 12px' }}>
+            <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(62,207,142,.07)' : 'rgba(111,120,230,.07)', border: `1px solid ${domainResult.verified ? 'rgba(62,207,142,.2)' : 'rgba(111,120,230,.2)'}`, padding: '10px 12px' }}>
               {domainResult.verified ? (
-                <p style={{ fontSize: 12, color: '#34d399', fontWeight: 600 }}>✓ Domain connected and live!</p>
+                <p style={{ fontSize: 12, color: 'var(--live)', fontWeight: 600, margin: 0 }}>✓ Domain connected and live!</p>
               ) : (
                 <>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--foreground)', marginBottom: 6 }}>Add this DNS record at your registrar:</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>Add this DNS record at your registrar:</p>
                   <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#a5b4fc', marginBottom: 6 }}>
                     {domainResult.dnsInstructions ?? `CNAME  @  →  cname.vercel-dns.com`}
                   </div>
-                  <p style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>DNS changes can take up to 48 hours. Click Connect again to re-check.</p>
+                  <p style={{ fontSize: 10, color: '#8a8a93', margin: 0 }}>DNS changes can take up to 48 hours. Click Connect again to re-check.</p>
                 </>
               )}
             </div>
@@ -2109,78 +2667,115 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   )
 
   // Admin panel layout (full-screen, no preview pane)
+  // Visually distinct from Builder: green accent on sidebar + green header underline
+  const ADMIN_ACCENT = 'var(--live)' // #3ecf8e
+  const ADMIN_ACCENT_BG = 'rgba(62,207,142,.1)'
+  const ADMIN_ACCENT_BORDER = 'rgba(62,207,142,.25)'
+
   if (adminMode) {
     return (
-      <div style={{ position: 'fixed', top: '3rem', left: 0, right: 0, bottom: '4rem', zIndex: 30, display: 'flex', flexDirection: 'column', background: 'var(--background)' }}>
-        {TopBar}
+      <div style={{ position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'flex', flexDirection: 'column', background: '#08080a' }}>
+        {/* Admin-tinted TopBar: same as builder but with green bottom accent line */}
+        <div style={{ position: 'relative' }}>
+          {TopBar}
+          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: ADMIN_ACCENT, opacity: 0.35 }} />
+        </div>
+
         {isDesktop ? (
           // Desktop: sidebar + content
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-            <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '12px 8px', gap: 2 }}>
-              <p style={{ fontSize: 10, color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', padding: '4px 10px 8px' }}>Store admin</p>
-              {ADMIN_TABS.map((t) => (
+            {/* Sidebar */}
+            <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,.07)', display: 'flex', flexDirection: 'column', background: '#0d0d11' }}>
+              <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', padding: '4px 12px 10px' }}>
+                  Store admin
+                </p>
+                {ADMIN_TABS.map(({ id, label, icon: Icon }) => {
+                  const active = adminTab === id
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => { setAdminTab(id); if (id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
+                      style={{
+                        width: '100%', textAlign: 'left', padding: '8px 12px 8px 14px', borderRadius: 8,
+                        border: 'none', cursor: 'pointer', fontSize: 13,
+                        fontWeight: active ? 550 : 400,
+                        background: active ? ADMIN_ACCENT_BG : 'transparent',
+                        color: active ? ADMIN_ACCENT : '#8a8a93',
+                        display: 'flex', alignItems: 'center', gap: 9,
+                        position: 'relative', transition: 'background 0.12s, color 0.12s',
+                      }}
+                      onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.05)' } }}
+                      onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
+                    >
+                      {active && (
+                        <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: ADMIN_ACCENT, boxShadow: `0 0 8px rgba(62,207,142,.5)` }} />
+                      )}
+                      <Icon size={14} strokeWidth={active ? 2.2 : 1.7} />
+                      {label}
+                    </button>
+                  )
+                })}
+              </nav>
+
+              {/* Back to Builder */}
+              <div style={{ padding: '12px 10px 16px', borderTop: '1px solid rgba(255,255,255,.07)' }}>
                 <button
-                  key={t.id}
-                  onClick={() => { setAdminTab(t.id); if (t.id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
-                  style={{
-                    width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 7,
-                    border: 'none', cursor: 'pointer', fontSize: 13,
-                    fontWeight: adminTab === t.id ? 600 : 400,
-                    background: adminTab === t.id ? 'rgba(111,120,230,.15)' : 'none',
-                    color: adminTab === t.id ? '#6f78e6' : 'var(--foreground)',
-                    transition: 'all 0.1s',
-                  }}
+                  onClick={() => setAdminMode(false)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, background: 'transparent', color: '#8a8a93', transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'}
+                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'}
                 >
-                  {t.label}
+                  <ArrowLeft size={13} /> AI Builder
                 </button>
-              ))}
-              <div style={{ flex: 1 }} />
-              <button
-                onClick={() => setAdminMode(false)}
-                style={{ width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, background: 'none', color: 'var(--muted-foreground)' }}
-              >
-                ← AI Builder
-              </button>
+              </div>
             </div>
+
+            {/* Content */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {adminTab === 'dashboard' && AdminDashboard}
-              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
               {adminTab === 'orders'    && AdminOrders}
+              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
               {adminTab === 'settings'  && AdminSettings}
             </div>
           </div>
         ) : (
           // Mobile: horizontal tab bar at top
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
-              {ADMIN_TABS.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => { setAdminTab(t.id); if (t.id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
-                  style={{
-                    flexShrink: 0, padding: '0.6rem 0.875rem', fontSize: 11, whiteSpace: 'nowrap',
-                    fontWeight: adminTab === t.id ? 600 : 400,
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: adminTab === t.id ? 'var(--foreground)' : 'var(--muted-foreground)',
-                    borderBottom: adminTab === t.id ? '2px solid #6f78e6' : '2px solid transparent',
-                    transition: 'color 0.15s',
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
+            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', overflowX: 'auto', scrollbarWidth: 'none' }}>
+              {ADMIN_TABS.map(({ id, label, icon: Icon }) => {
+                const active = adminTab === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => { setAdminTab(id); if (id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
+                    style={{
+                      flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '0.6rem 0.875rem', fontSize: 11, whiteSpace: 'nowrap',
+                      fontWeight: active ? 600 : 400,
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: active ? '#f4f4f6' : '#8a8a93',
+                      borderBottom: `2px solid ${active ? ADMIN_ACCENT : 'transparent'}`,
+                      transition: 'color 0.15s',
+                    }}
+                  >
+                    <Icon size={12} />
+                    {label}
+                  </button>
+                )
+              })}
               <div style={{ flex: 1 }} />
               <button
                 onClick={() => setAdminMode(false)}
-                style={{ flexShrink: 0, padding: '0.6rem 0.875rem', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)', borderBottom: '2px solid transparent', whiteSpace: 'nowrap' }}
+                style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '0.6rem 0.875rem', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: '#8a8a93', borderBottom: '2px solid transparent', whiteSpace: 'nowrap' }}
               >
-                ← Builder
+                <ArrowLeft size={12} /> Builder
               </button>
             </div>
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               {adminTab === 'dashboard' && AdminDashboard}
-              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
               {adminTab === 'orders'    && AdminOrders}
+              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
               {adminTab === 'settings'  && AdminSettings}
             </div>
           </div>
@@ -2189,66 +2784,113 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     )
   }
 
-  // ── Desktop split-view ───────────────────────────────────────────────────────
+  // Suppress unused-variable warnings for admin accent vars — they're inside the adminMode block above
+  void ADMIN_ACCENT_BG; void ADMIN_ACCENT_BORDER
+
+  // ── Desktop 3-pane layout ────────────────────────────────────────────────────
   if (isDesktop) {
     return (
       <div style={{
-        position: 'fixed', top: '3rem', left: 0, right: 0, bottom: '4rem',
+        position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0,
         zIndex: 30, display: 'flex', flexDirection: 'column',
-        background: 'var(--background)',
+        background: '#08080a',
       }}>
         {TopBar}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-          {/* Left panel */}
+
+          {/* ── Mode rail (icon strip) ──────────────────────────────── */}
           <div style={{
-            width: 380, flexShrink: 0, display: 'flex', flexDirection: 'column',
-            borderRight: '1px solid var(--border)',
+            width: 52, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', paddingTop: 8, gap: 2,
+            background: '#0d0d11',
+            borderRight: '1px solid rgba(255,255,255,.07)',
           }}>
-            {/* Desktop tab bar */}
-            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)' }}>
-              {(['chat', 'sections', 'products', 'hosting', 'merchant'] as DesktopTab[]).map((tab) => (
+            {STUDIO_MODES.map(({ id, icon: Icon, label }) => {
+              const active = desktopTab === id
+              return (
                 <button
-                  key={tab}
-                  onClick={() => setDesktopTab(tab)}
+                  key={id}
+                  onClick={() => setDesktopTab(id)}
+                  title={label}
                   style={{
-                    flex: 1, padding: '0.5rem 0', fontSize: 11,
-                    fontWeight: desktopTab === tab ? 600 : 400,
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: desktopTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
-                    borderBottom: desktopTab === tab ? '2px solid #6f78e6' : '2px solid transparent',
-                    textTransform: 'capitalize', transition: 'color 0.15s',
+                    width: 36, height: 36, borderRadius: 9,
+                    border: 'none', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: active ? 'rgba(111,120,230,.15)' : 'transparent',
+                    color: active ? '#6f78e6' : '#5b5b64',
+                    transition: 'background 0.12s, color 0.12s',
                     position: 'relative',
                   }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93' }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = '#5b5b64' }}
                 >
-                  {tab}
-                  {tab === 'hosting' && deployStatus === 'ready' && (
-                    <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
+                  <Icon size={16} strokeWidth={active ? 2.2 : 1.7} />
+                  {id === 'publish' && currentManifest && !checklistAllOk && (
+                    <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#f87171' }} />
                   )}
-                  {tab === 'merchant' && currentManifest && !checklistAllOk && (
-                    <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: '#f87171' }} />
+                  {id === 'publish' && deployStatus === 'ready' && (
+                    <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#3ecf8e' }} />
                   )}
                 </button>
-              ))}
+              )
+            })}
+          </div>
+
+          {/* ── Active panel ────────────────────────────────────────── */}
+          <div style={{
+            width: 380, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            borderRight: '1px solid rgba(255,255,255,.07)',
+            background: '#08080a',
+          }}>
+            {/* Panel header */}
+            <div style={{
+              flexShrink: 0, height: 36,
+              display: 'flex', alignItems: 'center',
+              padding: '0 14px',
+              borderBottom: '1px solid rgba(255,255,255,.05)',
+            }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', letterSpacing: '-.01em' }}>
+                {STUDIO_MODES.find(m => m.id === desktopTab)?.label}
+              </span>
             </div>
+
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {desktopTab === 'chat' ? ChatPanel
-                : desktopTab === 'products' ? ProductsPanel
-                : desktopTab === 'hosting' ? HostingPanel
-                : desktopTab === 'merchant' ? (
-                  <MerchantPanel
-                    projectId={projectId}
-                    manifest={currentManifest}
-                    onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
-                    onBalanceRefresh={refreshBalance}
-                  />
-                )
-                : SectionsPanel}
+              {desktopTab === 'chat'     && ChatPanel}
+              {desktopTab === 'sections' && SectionsPanel}
+              {desktopTab === 'products' && ProductsPanel}
+              {desktopTab === 'theme'    && ThemePanel}
+              {desktopTab === 'publish'  && (
+                <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {PublishPanel}
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
+                    <MerchantPanel
+                      projectId={projectId}
+                      manifest={currentManifest}
+                      onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
+                      onBalanceRefresh={refreshBalance}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Right: always-visible preview */}
+          {/* ── Live preview (always visible) ───────────────────────── */}
           {PreviewPane}
         </div>
+        {showCommandPalette && (
+          <CommandPalette
+            onClose={() => setShowCommandPalette(false)}
+            onSwitchMode={tab => { setDesktopTab(tab); setActiveTab(tab as StudioTab) }}
+            onExport={handleExport}
+            onDeploy={handleDeploy}
+            onAddSection={handleAddSection}
+            onRestoreVersion={handleRestore}
+            versions={versions}
+          />
+        )}
       </div>
     )
   }
@@ -2256,63 +2898,77 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   // ── Mobile tabbed layout ─────────────────────────────────────────────────────
   return (
     <div style={{
-      position: 'fixed', top: '3rem', left: 0, right: 0, bottom: '4rem',
+      position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0,
       zIndex: 30, display: 'flex', flexDirection: 'column',
-      background: 'var(--background)',
+      background: '#08080a',
     }}>
       {TopBar}
 
-      {/* Mobile tab switcher */}
-      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid var(--border)', overflowX: 'auto', scrollbarWidth: 'none' }}>
+      {/* Mobile mode tabs */}
+      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', overflowX: 'auto', scrollbarWidth: 'none', background: '#0d0d11' }}>
         {([
-          { id: 'chat', label: 'Chat' },
-          { id: 'preview', label: 'Preview' },
-          { id: 'sections', label: 'Pages' },
+          { id: 'chat',     label: 'Chat'     },
+          { id: 'preview',  label: 'Preview'  },
+          { id: 'sections', label: 'Pages'    },
           { id: 'products', label: 'Products' },
-          { id: 'hosting', label: 'Hosting' },
-          { id: 'merchant', label: 'Merchant' },
+          { id: 'theme',    label: 'Theme'    },
+          { id: 'publish',  label: 'Publish'  },
         ] as { id: StudioTab; label: string }[]).map(({ id: tab, label }) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              flexShrink: 0, padding: '0.6rem 0.75rem', fontSize: 11, fontWeight: activeTab === tab ? 600 : 400,
+              flexShrink: 0, padding: '0.55rem 0.8rem', fontSize: 11,
+              fontWeight: activeTab === tab ? 600 : 400,
               background: 'none', border: 'none', cursor: 'pointer',
-              color: activeTab === tab ? 'var(--foreground)' : 'var(--muted-foreground)',
+              color: activeTab === tab ? '#f4f4f6' : '#8a8a93',
               borderBottom: activeTab === tab ? '2px solid #6f78e6' : '2px solid transparent',
-              transition: 'color 0.15s',
-              position: 'relative', whiteSpace: 'nowrap',
+              transition: 'color 0.12s', position: 'relative', whiteSpace: 'nowrap',
             }}
           >
             {label}
-            {tab === 'preview' && currentManifest && isGenerating && (
-              <span style={{ marginLeft: 3, fontSize: 8, opacity: 0.6 }}>●</span>
+            {tab === 'preview' && isGenerating && (
+              <span style={{ marginLeft: 3, fontSize: 8, color: '#6f78e6' }}>●</span>
             )}
-            {tab === 'hosting' && deployStatus === 'ready' && (
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#34d399' }} />
+            {tab === 'publish' && deployStatus === 'ready' && (
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: '#3ecf8e' }} />
             )}
-            {tab === 'merchant' && currentManifest && !checklistAllOk && (
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#f87171' }} />
+            {tab === 'publish' && currentManifest && !checklistAllOk && deployStatus !== 'ready' && (
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: '#f87171' }} />
             )}
           </button>
         ))}
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {activeTab === 'chat' && ChatPanel}
-        {activeTab === 'preview' && PreviewPane}
+        {activeTab === 'chat'     && ChatPanel}
+        {activeTab === 'preview'  && PreviewPane}
         {activeTab === 'sections' && SectionsPanel}
         {activeTab === 'products' && ProductsPanel}
-        {activeTab === 'hosting' && HostingPanel}
-        {activeTab === 'merchant' && (
-          <MerchantPanel
-            projectId={projectId}
-            manifest={currentManifest}
-            onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
-            onBalanceRefresh={refreshBalance}
-          />
+        {activeTab === 'theme'    && ThemePanel}
+        {activeTab === 'publish'  && (
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            {PublishPanel}
+            <MerchantPanel
+              projectId={projectId}
+              manifest={currentManifest}
+              onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
+              onBalanceRefresh={refreshBalance}
+            />
+          </div>
         )}
       </div>
+      {showCommandPalette && (
+        <CommandPalette
+          onClose={() => setShowCommandPalette(false)}
+          onSwitchMode={tab => { setDesktopTab(tab); setActiveTab(tab as StudioTab) }}
+          onExport={handleExport}
+          onDeploy={handleDeploy}
+          onAddSection={handleAddSection}
+          onRestoreVersion={handleRestore}
+          versions={versions}
+        />
+      )}
     </div>
   )
 }
@@ -2359,13 +3015,13 @@ function StreamingView({ text }: { text: string }) {
   )
 }
 
-function ChatMessage({ message }: { message: Message }) {
+function ChatMessage({ message, onUndo }: { message: Message; onUndo?: () => void }) {
   const isUser = message.role === 'user'
   const isError = message.type === 'error'
   const isStatus = message.type === 'status'
 
   return (
-    <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start', gap: 6 }}>
       <div style={{
         maxWidth: '88%', borderRadius: 10, padding: '8px 12px',
         fontSize: isStatus ? 12 : 14, lineHeight: 1.5,
@@ -2378,6 +3034,339 @@ function ChatMessage({ message }: { message: Message }) {
           i % 2 === 1 ? <strong key={i}>{part}</strong> : <span key={i}>{part}</span>
         )}
       </div>
+      {message.changeSummary && message.changeSummary.changes.length > 0 && (
+        <ChangeSummaryCard summary={message.changeSummary} onUndo={onUndo} />
+      )}
+      {isError && message.content.toLowerCase().includes('insufficient credits') && (
+        <Link
+          href="/billing"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7,
+            border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
+            color: '#6f78e6', textDecoration: 'none',
+          }}
+        >
+          Buy credits →
+        </Link>
+      )}
     </div>
+  )
+}
+
+function ChangeSummaryCard({ summary, onUndo }: { summary: ChangeSummary; onUndo?: () => void }) {
+  return (
+    <div style={{
+      maxWidth: '88%',
+      borderRadius: 8,
+      background: 'rgba(62,207,142,.05)',
+      border: '1px solid rgba(62,207,142,.18)',
+      padding: '8px 10px',
+      display: 'flex', flexDirection: 'column', gap: 6,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{
+          fontSize: 10, fontFamily: 'var(--font-geist-mono)',
+          color: 'var(--live)', letterSpacing: '.04em', fontWeight: 600,
+        }}>
+          CHANGES
+        </span>
+        {onUndo && (
+          <button
+            onClick={onUndo}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: 10, fontFamily: 'var(--font-geist-mono)',
+              color: '#8a8a93', background: 'none', border: 'none',
+              cursor: 'pointer', padding: '1px 6px',
+              borderRadius: 4,
+              transition: 'color 0.12s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#f4f4f6')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#8a8a93')}
+          >
+            <RotateCcw size={10} />
+            undo
+          </button>
+        )}
+      </div>
+      <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 3 }}>
+        {summary.changes.map((change, i) => (
+          <li key={i} style={{
+            fontSize: 12, color: 'rgba(62,207,142,.85)', lineHeight: 1.4,
+            display: 'flex', alignItems: 'flex-start', gap: 5,
+          }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>✓</span>
+            <span>{change}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ─── Section picker modal ─────────────────────────────────────────────────────
+
+const SECTION_TYPES = [
+  { type: 'hero',         label: 'Hero',          desc: 'Full-width headline + CTA',         emoji: '🦸' },
+  { type: 'productGrid',  label: 'Product Grid',  desc: 'Grid of products from your catalog', emoji: '🛍️' },
+  { type: 'featureRow',   label: 'Feature Row',   desc: 'Icon + heading + body columns',      emoji: '✦'  },
+  { type: 'testimonials', label: 'Testimonials',  desc: 'Customer quotes',                    emoji: '💬' },
+  { type: 'richText',     label: 'Rich Text',     desc: 'Free-form editorial copy',           emoji: '📝' },
+  { type: 'banner',       label: 'Banner',        desc: 'Announcement bar with CTA',          emoji: '📣' },
+  { type: 'newsletter',   label: 'Newsletter',    desc: 'Email capture form',                 emoji: '✉️' },
+  { type: 'gallery',      label: 'Gallery',       desc: 'Image grid or masonry',              emoji: '🖼️' },
+  { type: 'faq',          label: 'FAQ',           desc: 'Accordion Q&A',                      emoji: '❓' },
+] as const
+
+function SectionPickerModal({ onPick, onClose }: { onPick: (type: string) => void; onClose: () => void }) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(3px)' }}
+      />
+
+      {/* Modal */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 101,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '1rem', pointerEvents: 'none',
+      }}>
+        <div style={{
+          pointerEvents: 'all',
+          width: '100%', maxWidth: 440,
+          background: '#0d0d11',
+          border: '1px solid rgba(255,255,255,.1)',
+          borderRadius: 14,
+          boxShadow: '0 24px 80px rgba(0,0,0,.8)',
+          overflow: 'hidden',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Add section</p>
+              <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>Pick a section type to add to the home page</p>
+            </div>
+            <button onClick={onClose} style={{ padding: 4, border: 'none', background: 'none', color: '#8a8a93', cursor: 'pointer', display: 'flex', borderRadius: 6, transition: 'color 0.12s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#f4f4f6')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#8a8a93')}
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Grid */}
+          <div style={{ padding: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+            {SECTION_TYPES.map(({ type, label, desc, emoji }) => (
+              <button
+                key={type}
+                onClick={() => onPick(type)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+                  gap: 4, padding: '12px 14px', borderRadius: 10,
+                  border: '1px solid rgba(255,255,255,.07)',
+                  background: 'transparent', cursor: 'pointer', textAlign: 'left',
+                  transition: 'background 0.12s, border-color 0.12s',
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(111,120,230,.08)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(111,120,230,.3)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.07)' }}
+              >
+                <span style={{ fontSize: 20, lineHeight: 1 }}>{emoji}</span>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>{label}</p>
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.35 }}>{desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ─── Command palette ──────────────────────────────────────────────────────────
+
+interface PaletteCommand {
+  group: string
+  label: string
+  hint?: string
+  action: () => void
+}
+
+function CommandPalette({
+  onClose,
+  onSwitchMode,
+  onExport,
+  onDeploy,
+  onAddSection,
+  onRestoreVersion,
+  versions,
+}: {
+  onClose: () => void
+  onSwitchMode: (tab: DesktopTab) => void
+  onExport: (includeAdmin: boolean) => void
+  onDeploy: () => void
+  onAddSection: (type: string) => void
+  onRestoreVersion: (id: string) => void
+  versions: VersionEntry[]
+}) {
+  const [query, setQuery] = useState('')
+  const [cursor, setCursor] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const commands: PaletteCommand[] = [
+    // Modes
+    { group: 'Mode', label: 'Chat',     hint: 'AI conversation',            action: () => { onSwitchMode('chat');     onClose() } },
+    { group: 'Mode', label: 'Sections', hint: 'Reorder & manage sections',  action: () => { onSwitchMode('sections'); onClose() } },
+    { group: 'Mode', label: 'Products', hint: 'Edit catalog',               action: () => { onSwitchMode('products'); onClose() } },
+    { group: 'Mode', label: 'Theme',    hint: 'Colors & typography',        action: () => { onSwitchMode('theme');    onClose() } },
+    { group: 'Mode', label: 'Publish',  hint: 'Deploy & export',            action: () => { onSwitchMode('publish');  onClose() } },
+    // Navigation
+    { group: 'Navigate', label: 'Dashboard', action: () => { window.location.href = '/dashboard'; onClose() } },
+    { group: 'Navigate', label: 'Billing',   action: () => { window.location.href = '/billing';   onClose() } },
+    { group: 'Navigate', label: 'Settings',  action: () => { window.location.href = '/settings';  onClose() } },
+    // Actions
+    { group: 'Action', label: 'Export ZIP',          action: () => { onExport(false); onClose() } },
+    { group: 'Action', label: 'Export ZIP + Admin',  action: () => { onExport(true);  onClose() } },
+    { group: 'Action', label: 'Deploy to web',       action: () => { onDeploy();      onClose() } },
+    // Add section
+    ...SECTION_TYPES.map(s => ({
+      group: 'Add section',
+      label: s.label,
+      hint: s.desc,
+      action: () => { onAddSection(s.type); onClose() },
+    })),
+    // Version history
+    ...versions.slice(0, 5).map(v => ({
+      group: 'History',
+      label: `Restore v${v.version_no}`,
+      hint: v.prompt?.slice(0, 50) ?? '',
+      action: () => { onRestoreVersion(v.id); onClose() },
+    })),
+  ]
+
+  const filtered = query
+    ? commands.filter(c =>
+        `${c.group} ${c.label} ${c.hint ?? ''}`.toLowerCase().includes(query.toLowerCase())
+      )
+    : commands
+
+  useEffect(() => { setCursor(0) }, [query])
+
+  // Build groups preserving order
+  const groups: Array<{ name: string; items: PaletteCommand[] }> = []
+  for (const cmd of filtered) {
+    const g = groups.find(x => x.name === cmd.group)
+    if (g) g.items.push(cmd)
+    else groups.push({ name: cmd.group, items: [cmd] })
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setCursor(c => Math.min(c + 1, filtered.length - 1)) }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setCursor(c => Math.max(c - 1, 0)) }
+    if (e.key === 'Enter' && filtered[cursor]) filtered[cursor].action()
+    if (e.key === 'Escape') onClose()
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.65)', backdropFilter: 'blur(4px)' }}
+      />
+
+      {/* Palette */}
+      <div style={{
+        position: 'fixed', top: '18vh', left: '50%', transform: 'translateX(-50%)',
+        zIndex: 201, width: '100%', maxWidth: 520,
+        background: '#0d0d11', borderRadius: 14,
+        border: '1px solid rgba(255,255,255,.1)',
+        boxShadow: '0 32px 100px rgba(0,0,0,.9)',
+        overflow: 'hidden',
+      }}>
+        {/* Search */}
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 15, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', flexShrink: 0 }}>⌘</span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="Search commands…"
+            style={{
+              flex: 1, background: 'none', border: 'none', outline: 'none',
+              fontSize: 14, color: '#f4f4f6', fontFamily: 'inherit',
+            }}
+          />
+          {query && (
+            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', color: '#5b5b64', cursor: 'pointer', fontSize: 12, padding: '2px 4px', borderRadius: 4, lineHeight: 1 }}>✕</button>
+          )}
+        </div>
+
+        {/* Results */}
+        <div style={{ maxHeight: 360, overflowY: 'auto', padding: '6px 0' }}>
+          {filtered.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#5b5b64', textAlign: 'center', padding: '2rem 1rem', margin: 0 }}>No commands found</p>
+          ) : (
+            groups.map(group => (
+              <div key={group.name}>
+                <p style={{
+                  fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '.07em',
+                  color: '#5b5b64', padding: '6px 14px 2px', margin: 0,
+                }}>
+                  {group.name}
+                </p>
+                {group.items.map(cmd => {
+                  const idx = filtered.indexOf(cmd)
+                  const active = idx === cursor
+                  return (
+                    <button
+                      key={`${cmd.group}-${cmd.label}`}
+                      onClick={cmd.action}
+                      onMouseEnter={() => setCursor(idx)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center',
+                        padding: '7px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
+                        background: active ? 'rgba(111,120,230,.12)' : 'transparent',
+                        transition: 'background 0.08s',
+                      }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 13, color: active ? '#f4f4f6' : '#c8c8d0', margin: 0, fontWeight: active ? 500 : 400 }}>
+                          {cmd.label}
+                        </p>
+                        {cmd.hint && (
+                          <p style={{ fontSize: 11, color: '#5b5b64', margin: '1px 0 0' }}>{cmd.hint}</p>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Footer hints */}
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 16 }}>
+          {([['↑↓', 'Navigate'], ['↵', 'Select'], ['Esc', 'Close']] as [string, string][]).map(([key, label]) => (
+            <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#5b5b64' }}>
+              <kbd style={{
+                padding: '1px 5px', borderRadius: 4,
+                border: '1px solid rgba(255,255,255,.1)',
+                fontFamily: 'var(--font-geist-mono)', fontSize: 10,
+                background: 'rgba(255,255,255,.04)',
+              }}>{key}</kbd>
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </>
   )
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import './globals.css'
 
 const geistSans = Geist({
@@ -85,7 +86,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} h-full`}
       >
         <body className="min-h-full flex flex-col bg-background text-foreground">
-          {children}
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
         </body>
       </html>
     </ClerkProvider>
