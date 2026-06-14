@@ -114,11 +114,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* ── Mobile bottom nav — hidden on desktop ──────────────────── */}
           <nav
-            className="lg:hidden"
+            className="lg:hidden flex items-stretch"
             style={{
               position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
               height: '4rem',
-              display: 'flex', alignItems: 'stretch',
               background: 'rgba(8,8,10,.95)',
               backdropFilter: 'blur(12px)',
               borderTop: '1px solid rgba(255,255,255,.07)',
