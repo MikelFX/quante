@@ -977,7 +977,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     const defaults: Record<string, object> = {
       hero:         { heading: 'New Hero', subheading: 'Your tagline here', ctaLabel: 'Shop now', ctaHref: '/products', layout: 'center' },
       productGrid:  { title: 'Products', count: 4 },
-      featureRow:   { heading: 'Why choose us', features: [{ icon: '✦', title: 'Feature', body: 'Description' }], layout: 'row' },
+      featureRow:   { title: 'Why choose us', features: [{ icon: 'star', title: 'Feature', description: 'Description' }], layout: 'grid' },
       testimonials: { heading: 'What customers say', items: [{ quote: 'Great product!', author: 'Happy customer' }] },
       richText:     { content: 'Write your story here.' },
       banner:       { text: 'New arrivals are here', ctaLabel: 'Shop now', ctaHref: '/products' },

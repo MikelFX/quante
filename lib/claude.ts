@@ -178,8 +178,20 @@ Everything in the manifest:
 - Return the FULL manifest with ALL fields — even the unchanged ones
 - imageSrc fields: keep as-is or leave ""
 - Product slugs: kebab-case. Product IDs: short strings ("p1", "p2", ...)
-- Section types: hero | productGrid | featureRow | testimonials | richText | banner | newsletter | gallery | faq | animations
-- animations variants: "marquee" (items[]), "stats" (stats[{value,label}]), "spotlight" (productSlug)
+- Section types and their EXACT required props (use only these — no other types):
+  hero:         { headline: string, subheadline?: string, ctaLabel?: string, ctaHref?: string, imageSrc?: string, layout?: "centered"|"split"|"fullbleed" }
+  productGrid:  { title?: string, collectionId?: string, limit?: number, columns?: 2|3|4 }
+  featureRow:   { title?: string, features: [{icon?: string, title: string, description: string}], layout: "grid"|"list" }
+  testimonials: { title?: string, items: [{quote: string, author: string, role?: string}] }
+  richText:     { content: string, align?: "left"|"center" }
+  banner:       { text: string, ctaLabel?: string, ctaHref?: string }
+  newsletter:   { title: string, description?: string, placeholder?: string, buttonLabel?: string }
+  gallery:      { images: [{src: string, alt: string}], columns?: 2|3|4 }
+  faq:          { title?: string, items: [{question: string, answer: string}] }
+  animations:   { variant: "marquee"|"stats"|"spotlight", title?: string, items?: string[], stats?: [{value: string, label: string}], productSlug?: string }
+  customComponent: { ref: string }
+- CRITICAL: featureRow MUST have layout "grid" or "list" (never "row"). features[].description is required.
+- CRITICAL: Every section MUST use { "type": "...", "props": { ... } } structure (except customComponent which uses { "type": "customComponent", "ref": "..." })
 - Never leave page arrays empty — if empty, populate with sensible sections
 - customPages slugs: kebab-case, no leading slash, avoid reserved slugs: about, contact, cart, success, admin, products, collections
 - merchant, payments, shipping: optional fields — keep existing values if not changing, omit entirely if never set

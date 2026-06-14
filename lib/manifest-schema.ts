@@ -73,9 +73,9 @@ const ProductGridPropsSchema = z.object({
 const FeatureRowPropsSchema = z.object({
   title: z.string().optional(),
   features: z.array(
-    z.object({ icon: z.string().optional(), title: z.string(), description: z.string() })
+    z.object({ icon: z.string().optional(), title: z.string(), description: z.string().default('') })
   ),
-  layout: z.enum(['grid', 'list']),
+  layout: z.enum(['grid', 'list']).optional().default('grid'),
 })
 
 const TestimonialsPropsSchema = z.object({
@@ -119,7 +119,7 @@ const FaqPropsSchema = z.object({
 })
 
 const AnimationsPropsSchema = z.object({
-  variant: z.enum(['marquee', 'stats', 'spotlight']),
+  variant: z.enum(['marquee', 'stats', 'spotlight']).optional().default('marquee'),
   title: z.string().optional(),
   items: z.array(z.string()).optional(),
   stats: z.array(z.object({ value: z.string(), label: z.string() })).optional(),
