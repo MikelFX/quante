@@ -219,11 +219,12 @@ function diffManifest(oldM: ShopManifest, newM: ShopManifest): string[] {
 }
 
 const QUICK_CHIPS = [
-  { label: 'Accent color', prompt: 'Change the accent color to ' },
-  { label: 'Hero copy', prompt: 'Rewrite the hero headline to be shorter and punchier' },
-  { label: 'Add section', prompt: 'Add a ' },
-  { label: 'Typography', prompt: 'Switch the typography to a ' },
-  { label: 'New product', prompt: 'Add a new product: ' },
+  { label: 'GDPR stránka', prompt: 'Vytvoř kompletní stránku Zásady ochrany osobních údajů (GDPR) s reálným textem dle české legislativy.' },
+  { label: 'Obchodní podmínky', prompt: 'Vytvoř stránku Obchodní podmínky s 14denním právem na vrácení zboží, reklamačním řádem a identifikací prodávajícího.' },
+  { label: 'Přepsat copy', prompt: 'Přepiš texty na celém webu — hero, produkty i sekce — aby znělý sebevědomě a prodejně.' },
+  { label: 'Přidat produkt', prompt: 'Přidej nový produkt: ' },
+  { label: 'Nová sekce', prompt: 'Přidej na homepage sekci: ' },
+  { label: 'Změnit design', prompt: 'Změň celý vizuální styl na ' },
 ]
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -1583,7 +1584,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
             disabled={isGenerating}
-            placeholder={!currentManifest ? 'Minimal skincare brand, 3 products, EUR…' : 'Change the accent to deep green…'}
+            placeholder={!currentManifest ? 'Popiš svůj obchod — vygenerujeme ho celý…' : 'Cokoliv — nová stránka, jiný design, přepsat texty, přidat produkty…'}
             rows={3}
             style={{
               flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
