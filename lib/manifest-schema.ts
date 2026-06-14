@@ -17,7 +17,7 @@ const MerchantSchema = z.object({
 })
 
 const ShippingMethodSchema = z.object({
-  type: z.enum(['zasilkovna', 'packeta_international', 'ppl', 'dpd', 'balikovna', 'osobni_odber', 'custom']),
+  type: z.enum(['zasilkovna', 'packeta_international', 'dhl', 'ppl', 'dpd', 'balikovna', 'osobni_odber', 'custom']),
   nazev: z.string().optional(),
   cena_czk: z.coerce.number(),
 })

@@ -625,6 +625,7 @@ import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 const SHIPPING_LABELS: Record<string, string> = {
   zasilkovna: 'Zásilkovna',
   packeta_international: 'Packeta International',
+  dhl: 'DHL Express — celosvětová doprava',
   ppl: 'PPL — doručení na adresu',
   dpd: 'DPD — doručení na adresu',
   balikovna: 'Balíkovna',
@@ -675,6 +676,7 @@ export default function CartPage() {
   const [addrUlice, setAddrUlice] = useState('')
   const [addrMesto, setAddrMesto] = useState('')
   const [addrPsc, setAddrPsc] = useState('')
+  const [addrZeme, setAddrZeme] = useState('')
 
   const shippingObj = shippingMethods.find((m) => m.type === selectedShipping)
   const shippingCost = (freeShippingThreshold > 0 && total >= freeShippingThreshold) ? 0 : (shippingObj?.cena_czk ?? 0)
@@ -683,6 +685,7 @@ export default function CartPage() {
   const currency = items[0]?.currency ?? manifest.catalog.currency
 
   const needsAddress = selectedShipping !== 'zasilkovna' && selectedShipping !== 'packeta_international' && selectedShipping !== 'osobni_odber'
+  const needsCountry = selectedShipping === 'dhl'  // DHL requires recipient country
   const needsZasilkovna = selectedShipping === 'zasilkovna' || selectedShipping === 'packeta_international'
 
   const cssVars = manifestToCssVars(manifest)
@@ -729,7 +732,8 @@ export default function CartPage() {
           customerEmail,
           customerName: customerName || undefined,
           customerPhone: customerPhone || undefined,
-          shippingAddress: needsAddress ? { ulice: addrUlice, mesto: addrMesto, psc: addrPsc } : undefined,
+          shippingAddress: needsAddress ? { ulice: addrUlice, mesto: addrMesto, psc: addrPsc, zeme: addrZeme || undefined } : undefined,
+          shippingCountry: needsCountry ? (addrZeme || undefined) : undefined,
         }),
       })
       const data = await res.json()
@@ -905,15 +909,21 @@ export default function CartPage() {
                         <label style={labelStyle}>Ulice a číslo popisné</label>
                         <input style={inputStyle} value={addrUlice} onChange={(e) => setAddrUlice(e.target.value)} placeholder="Příkladná 1" />
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px', gap: '0.875rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: needsCountry ? '1fr 100px 80px' : '1fr 100px', gap: '0.875rem' }}>
                         <div>
-                          <label style={labelStyle}>Město</label>
+                          <label style={labelStyle}>Město / City</label>
                           <input style={inputStyle} value={addrMesto} onChange={(e) => setAddrMesto(e.target.value)} placeholder="Praha" />
                         </div>
                         <div>
-                          <label style={labelStyle}>PSČ</label>
-                          <input style={inputStyle} value={addrPsc} onChange={(e) => setAddrPsc(e.target.value)} placeholder="11000" maxLength={6} />
+                          <label style={labelStyle}>PSČ / ZIP</label>
+                          <input style={inputStyle} value={addrPsc} onChange={(e) => setAddrPsc(e.target.value)} placeholder="11000" maxLength={10} />
                         </div>
+                        {needsCountry && (
+                          <div>
+                            <label style={labelStyle}>Stát</label>
+                            <input style={inputStyle} value={addrZeme} onChange={(e) => setAddrZeme(e.target.value.toUpperCase())} placeholder="CZ" maxLength={2} />
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

@@ -13,15 +13,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: secrets } = await supabase
     .from('project_secrets')
-    .select('stripe_publishable_key, stripe_secret_key, zasilkovna_api_key, zasilkovna_api_password')
+    .select('zasilkovna_api_key, zasilkovna_api_password, dhl_api_key, dhl_api_secret, dhl_account_number')
     .eq('project_id', projectId)
     .maybeSingle()
 
   return NextResponse.json({
-    stripePublishableKey: secrets?.stripe_publishable_key ?? '',
-    stripeSecretKeySet: !!(secrets?.stripe_secret_key && !secrets.stripe_secret_key.startsWith('sk_live_replace')),
     hasZasilkovnaKey: !!(secrets?.zasilkovna_api_key as string | null),
     hasZasilkovnaPassword: !!(secrets?.zasilkovna_api_password as string | null),
+    hasDhlApiKey: !!(secrets?.dhl_api_key as string | null),
+    hasDhlApiSecret: !!(secrets?.dhl_api_secret as string | null),
+    hasDhlAccount: !!(secrets?.dhl_account_number as string | null),
   })
 }
 
@@ -30,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id: projectId } = await params
-  const { stripePublishableKey, stripeSecretKey, zasilkovnaApiKey, zasilkovnaApiPassword } = await request.json()
+  const { stripePublishableKey, stripeSecretKey, zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber } = await request.json()
 
   const supabase = await createClient()
   const { data: project } = await supabase
@@ -52,6 +53,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (stripeSecretKey !== undefined) upsertPayload.stripe_secret_key = stripeSecretKey || null
   if (zasilkovnaApiKey !== undefined) upsertPayload.zasilkovna_api_key = zasilkovnaApiKey || null
   if (zasilkovnaApiPassword !== undefined) upsertPayload.zasilkovna_api_password = zasilkovnaApiPassword || null
+  if (dhlApiKey !== undefined) upsertPayload.dhl_api_key = dhlApiKey || null
+  if (dhlApiSecret !== undefined) upsertPayload.dhl_api_secret = dhlApiSecret || null
+  if (dhlAccountNumber !== undefined) upsertPayload.dhl_account_number = dhlAccountNumber || null
 
   await supabaseAdmin.from('project_secrets').upsert(upsertPayload, { onConflict: 'project_id' })
 

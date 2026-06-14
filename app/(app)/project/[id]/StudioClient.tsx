@@ -74,6 +74,8 @@ interface StoreOrder {
   status: string; paymentStatus: string; paymentMethod: string
   shippingMethod: string | null
   zasilkovnaBranchId: string | null; zasilkovnaBranchCountry: string | null
+  shippingCountry: string | null
+  shippingAddress: Record<string, string> | null
   trackingCode: string | null; trackingUrl: string | null
   invoiceUrl: string | null; createdAt: string
 }
@@ -286,6 +288,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [creatingShipment, setCreatingShipment] = useState<string | null>(null)
   const [shipmentResults, setShipmentResults] = useState<Record<string, { barcode?: string; error?: string }>>({})
   const [shipmentWeights, setShipmentWeights] = useState<Record<string, string>>({})
+  const [dhlWeights, setDhlWeights] = useState<Record<string, string>>({})
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   // Zásilkovna settings
   const [zasilkovnaKey, setZasilkovnaKey] = useState('')
@@ -293,6 +296,17 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [hasZasilkovnaKey, setHasZasilkovnaKey] = useState(false)
   const [hasZasilkovnaPassword, setHasZasilkovnaPassword] = useState(false)
   const [isSavingZasilkovna, setIsSavingZasilkovna] = useState(false)
+  // DHL settings
+  const [dhlApiKey, setDhlApiKey] = useState('')
+  const [dhlApiSecret, setDhlApiSecret] = useState('')
+  const [dhlAccountNumber, setDhlAccountNumber] = useState('')
+  const [hasDhlApiKey, setHasDhlApiKey] = useState(false)
+  const [hasDhlApiSecret, setHasDhlApiSecret] = useState(false)
+  const [hasDhlAccount, setHasDhlAccount] = useState(false)
+  const [isSavingDhl, setIsSavingDhl] = useState(false)
+  // DHL shipment results (tracking + label)
+  const [dhlResults, setDhlResults] = useState<Record<string, { trackingNumber?: string; trackingUrl?: string; labelBase64?: string; error?: string }>>({})
+  const [creatingDhlShipment, setCreatingDhlShipment] = useState<string | null>(null)
   // Earnings + payout
   const [earnings, setEarnings] = useState<{
     available: number; netTotal: number; saleCount: number; currency: string
@@ -386,6 +400,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       .then((d) => {
         if (d.hasZasilkovnaKey) setHasZasilkovnaKey(true)
         if (d.hasZasilkovnaPassword) setHasZasilkovnaPassword(true)
+        if (d.hasDhlApiKey) setHasDhlApiKey(true)
+        if (d.hasDhlApiSecret) setHasDhlApiSecret(true)
+        if (d.hasDhlAccount) setHasDhlAccount(true)
       })
       .catch(() => {})
   }, [projectId])
@@ -878,6 +895,62 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     } finally {
       setIsSavingZasilkovna(false)
     }
+  }
+
+  async function handleSaveDhl() {
+    if (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) return
+    setIsSavingDhl(true)
+    try {
+      const body: Record<string, string> = {}
+      if (dhlApiKey) body.dhlApiKey = dhlApiKey
+      if (dhlApiSecret) body.dhlApiSecret = dhlApiSecret
+      if (dhlAccountNumber) body.dhlAccountNumber = dhlAccountNumber
+      const res = await fetch(`/api/projects/${projectId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) { alert('Nepodařilo se uložit.'); return }
+      if (dhlApiKey) setHasDhlApiKey(true)
+      if (dhlApiSecret) setHasDhlApiSecret(true)
+      if (dhlAccountNumber) setHasDhlAccount(true)
+      setDhlApiKey(''); setDhlApiSecret(''); setDhlAccountNumber('')
+    } catch {
+      alert('Something went wrong.')
+    } finally {
+      setIsSavingDhl(false)
+    }
+  }
+
+  async function handleCreateDhlShipment(orderId: string, opts: { weight?: number; length?: number; width?: number; height?: number; description?: string } = {}) {
+    setCreatingDhlShipment(orderId)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/store-orders/${orderId}/dhl-shipment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weight: opts.weight ?? 1, ...opts }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setDhlResults(p => ({ ...p, [orderId]: { error: data.error ?? 'Chyba DHL API.' } }))
+      } else {
+        setDhlResults(p => ({ ...p, [orderId]: { trackingNumber: data.trackingNumber, trackingUrl: data.trackingUrl, labelBase64: data.labelBase64 } }))
+        handleLoadStoreOrders()
+      }
+    } catch {
+      setDhlResults(p => ({ ...p, [orderId]: { error: 'Chyba sítě.' } }))
+    } finally {
+      setCreatingDhlShipment(null)
+    }
+  }
+
+  function downloadDhlLabel(orderId: string, orderNumber: string, base64: string) {
+    const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
+    const blob = new Blob([byteArray], { type: 'application/pdf' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `DHL-${orderNumber}.pdf`; a.click()
+    URL.revokeObjectURL(url)
   }
 
   async function handleAddDomain() {
@@ -2713,7 +2786,66 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                         )}
                       </div>
                     )}
-                    {!isZasilkovna && o.invoiceUrl && (
+                    {/* DHL action */}
+                    {o.shippingMethod === 'dhl' && (() => {
+                      const dhlResult = dhlResults[o.id]
+                      const shipped = o.status === 'shipped'
+                      const paid = o.paymentStatus === 'paid'
+                      const creatingDhl = creatingDhlShipment === o.id
+                      const destCountry = o.shippingCountry ?? o.shippingAddress?.zeme ?? '?'
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,193,7,.12)', color: '#fbbf24' }}>
+                              ✈️ DHL Express · {destCountry.toUpperCase()}
+                            </span>
+                          </div>
+                          {shipped || dhlResult?.trackingNumber ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', fontWeight: 600 }}>
+                                {o.trackingCode ?? dhlResult?.trackingNumber}
+                              </span>
+                              {(o.trackingUrl || dhlResult?.trackingUrl) && (
+                                <a href={o.trackingUrl ?? dhlResult?.trackingUrl ?? ''} target="_blank" rel="noopener noreferrer"
+                                  style={{ fontSize: 10, color: '#6f78e6', textDecoration: 'none' }}>
+                                  Sledovat →
+                                </a>
+                              )}
+                              {dhlResult?.labelBase64 && (
+                                <button
+                                  onClick={() => downloadDhlLabel(o.id, o.orderNumber, dhlResult.labelBase64!)}
+                                  style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: 'pointer' }}
+                                >
+                                  ⬇ Štítek PDF
+                                </button>
+                              )}
+                            </div>
+                          ) : dhlResult?.error ? (
+                            <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{dhlResult.error}</p>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <input
+                                type="number" min="0.1" step="0.1" placeholder="kg"
+                                value={dhlWeights[o.id] ?? ''}
+                                onChange={e => setDhlWeights(p => ({ ...p, [o.id]: e.target.value }))}
+                                title="Hmotnost zásilky v kg"
+                                style={{ width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
+                              />
+                              <button
+                                onClick={() => handleCreateDhlShipment(o.id, { weight: parseFloat(dhlWeights[o.id] ?? '1') || 1 })}
+                                disabled={creatingDhl || !paid}
+                                title={!paid ? 'Objednávka musí být zaplacena' : 'Odeslat přes DHL Express'}
+                                style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: creatingDhl || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
+                              >
+                                {creatingDhl ? 'Vytvářím…' : '✈️ Odeslat DHL'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+
+                    {!isZasilkovna && o.shippingMethod !== 'dhl' && o.invoiceUrl && (
                       <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
                         style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
                         Faktura →
@@ -2879,6 +3011,53 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           {(hasZasilkovnaKey && hasZasilkovnaPassword) && (
             <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
               ✓ Zásilkovna je nakonfigurována — tlačítko &quot;Vytvořit zásilku&quot; je aktivní v Objednávkách.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* DHL Express */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,193,7,.18)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,193,7,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>✈️</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>DHL Express — celosvětová doprava</p>
+            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+              Přihlašovací údaje najdeš na{' '}
+              <a href="https://developer.dhl.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>developer.dhl.com</a>
+              {' '}→ MyDHL+ API.
+            </p>
+          </div>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              API Key{hasDhlApiKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+            </label>
+            <input value={dhlApiKey} onChange={e => setDhlApiKey(e.target.value)} placeholder={hasDhlApiKey ? '••••••••••••••••' : 'DHL API Key…'} style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              API Secret{hasDhlApiSecret && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+            </label>
+            <input type="password" value={dhlApiSecret} onChange={e => setDhlApiSecret(e.target.value)} placeholder={hasDhlApiSecret ? '••••••••••••••••' : 'DHL API Secret…'} style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              Account Number{hasDhlAccount && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+            </label>
+            <input value={dhlAccountNumber} onChange={e => setDhlAccountNumber(e.target.value)} placeholder={hasDhlAccount ? '••••••••' : '123456789'} style={inpSt} />
+          </div>
+          <button
+            onClick={handleSaveDhl}
+            disabled={isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber)}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) ? 0.5 : 1 }}
+          >
+            {isSavingDhl ? 'Ukládám…' : 'Uložit DHL klíče'}
+          </button>
+          {(hasDhlApiKey && hasDhlApiSecret && hasDhlAccount) && (
+            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+              ✓ DHL nakonfigurováno — tlačítko &quot;Odeslat DHL&quot; je aktivní v Objednávkách.
             </p>
           )}
         </div>
