@@ -286,9 +286,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [creatingShipment, setCreatingShipment] = useState<string | null>(null)
   const [shipmentResults, setShipmentResults] = useState<Record<string, { barcode?: string; error?: string }>>({})
   const [shipmentWeights, setShipmentWeights] = useState<Record<string, string>>({})
-  const [settingsPubKey, setSettingsPubKey] = useState('')
-  const [settingsSecKey, setSettingsSecKey] = useState('')
-  const [settingsSecKeySet, setSettingsSecKeySet] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   // Zásilkovna settings
   const [zasilkovnaKey, setZasilkovnaKey] = useState('')
@@ -387,8 +384,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     fetch(`/api/projects/${projectId}/settings`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.stripePublishableKey) setSettingsPubKey(d.stripePublishableKey)
-        if (d.stripeSecretKeySet) setSettingsSecKeySet(true)
         if (d.hasZasilkovnaKey) setHasZasilkovnaKey(true)
         if (d.hasZasilkovnaPassword) setHasZasilkovnaPassword(true)
       })
@@ -882,25 +877,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       alert('Something went wrong.')
     } finally {
       setIsSavingZasilkovna(false)
-    }
-  }
-
-  async function handleSaveSettings() {
-    setIsSavingSettings(true)
-    try {
-      const res = await fetch(`/api/projects/${projectId}/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripePublishableKey: settingsPubKey, stripeSecretKey: settingsSecKey }),
-      })
-      if (!res.ok) { alert('Failed to save.'); return }
-      if (settingsSecKey) setSettingsSecKeySet(true)
-      setSettingsSecKey('')
-      alert('Settings saved. If your store is deployed, keys were pushed to Vercel automatically.')
-    } catch {
-      alert('Something went wrong.')
-    } finally {
-      setIsSavingSettings(false)
     }
   }
 
@@ -2854,37 +2830,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
   const AdminSettings = (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
-
-      {/* Stripe */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Settings2 size={14} style={{ color: '#8a8a93' }} />
-          <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Stripe keys — your store</p>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>These are your shop&apos;s Stripe keys, not Quante&apos;s. Saved keys are pushed to your live store automatically.</p>
-          </div>
-        </div>
-        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>Publishable key (pk_live_…)</label>
-            <input value={settingsPubKey} onChange={e => setSettingsPubKey(e.target.value)} placeholder="pk_live_..." style={inpSt} />
-          </div>
-          <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              Secret key (sk_live_…)
-              {settingsSecKeySet && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
-            </label>
-            <input type="password" value={settingsSecKey} onChange={e => setSettingsSecKey(e.target.value)} placeholder={settingsSecKeySet ? '••••••••••••••••••••••••' : 'sk_live_...'} style={inpSt} />
-          </div>
-          <button
-            onClick={handleSaveSettings}
-            disabled={isSavingSettings || (!settingsPubKey && !settingsSecKey)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSavingSettings ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingSettings || (!settingsPubKey && !settingsSecKey) ? 0.5 : 1 }}
-          >
-            {isSavingSettings ? 'Saving…' : 'Save & push to store'}
-          </button>
-        </div>
-      </div>
 
       {/* Zásilkovna */}
       <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.2)', overflow: 'hidden' }}>
