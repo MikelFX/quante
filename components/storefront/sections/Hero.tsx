@@ -1,4 +1,6 @@
 import type { HeroProps } from '@/types/manifest'
+import { Reveal } from '../motion/Reveal'
+import { ParallaxImage } from '../motion/ParallaxImage'
 
 interface Props {
   props: HeroProps
@@ -50,12 +52,16 @@ export function Hero({ props, basePath = '' }: Props) {
         >
           <HeroContent {...prefixed} />
         </div>
-        <div
-          style={{
-            background: imageSrc ? `url(${imageSrc}) center/cover no-repeat` : 'var(--s-surface)',
-            minHeight: '400px',
-          }}
-        />
+        {imageSrc ? (
+          <ParallaxImage
+            src={imageSrc}
+            alt=""
+            containerStyle={{ minHeight: '400px', height: '100%' }}
+            imgStyle={{ objectFit: 'cover', width: '100%' }}
+          />
+        ) : (
+          <div style={{ minHeight: '400px', background: 'var(--s-surface)' }} />
+        )}
       </section>
     )
   }
@@ -114,77 +120,83 @@ function HeroContent({
 
   return (
     <>
-      <h1
-        style={{
-          fontFamily: 'var(--s-font-heading)',
-          fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
-          fontWeight: 700,
-          lineHeight: 1.08,
-          letterSpacing: '-0.025em',
-          color: textColor,
-          marginBottom: '1.5rem',
-          whiteSpace: 'pre-line',
-        }}
-      >
-        {headline}
-      </h1>
+      <Reveal variant="fade-up" delay={0}>
+        <h1
+          style={{
+            fontFamily: 'var(--s-font-heading)',
+            fontSize: 'clamp(2.5rem, 6vw, 4.5rem)',
+            fontWeight: 700,
+            lineHeight: 1.08,
+            letterSpacing: '-0.025em',
+            color: textColor,
+            marginBottom: '1.5rem',
+            whiteSpace: 'pre-line',
+          }}
+        >
+          {headline}
+        </h1>
+      </Reveal>
       {subheadline && (
-        <p
-          style={{
-            color: mutedColor,
-            fontSize: '1.125rem',
-            lineHeight: 1.7,
-            maxWidth: '38rem',
-            margin: '0 auto 2.5rem',
-          }}
-        >
-          {subheadline}
-        </p>
+        <Reveal variant="fade-up" delay={0.1}>
+          <p
+            style={{
+              color: mutedColor,
+              fontSize: '1.125rem',
+              lineHeight: 1.7,
+              maxWidth: '38rem',
+              margin: '0 auto 2.5rem',
+            }}
+          >
+            {subheadline}
+          </p>
+        </Reveal>
       )}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.875rem',
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-        }}
-      >
-        <a
-          href={ctaHref}
+      <Reveal variant="fade-up" delay={0.2}>
+        <div
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '0.8125rem 2rem',
-            background: 'var(--s-accent)',
-            color: 'var(--s-accent-text)',
-            borderRadius: 'var(--s-radius)',
-            fontWeight: 600,
-            textDecoration: 'none',
-            fontSize: '0.9375rem',
-            fontFamily: 'var(--s-font-body)',
+            display: 'flex',
+            gap: '0.875rem',
+            justifyContent: 'center',
+            flexWrap: 'wrap',
           }}
         >
-          {ctaLabel}
-        </a>
-        {secondaryCtaLabel && secondaryCtaHref && (
           <a
-            href={secondaryCtaHref}
+            href={ctaHref}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               padding: '0.8125rem 2rem',
-              border: `1px solid ${inverted ? 'rgba(255,255,255,0.4)' : 'var(--s-border)'}`,
-              color: inverted ? 'rgba(255,255,255,0.9)' : 'var(--s-text)',
+              background: 'var(--s-accent)',
+              color: 'var(--s-accent-text)',
               borderRadius: 'var(--s-radius)',
+              fontWeight: 600,
               textDecoration: 'none',
               fontSize: '0.9375rem',
               fontFamily: 'var(--s-font-body)',
             }}
           >
-            {secondaryCtaLabel}
+            {ctaLabel}
           </a>
-        )}
-      </div>
+          {secondaryCtaLabel && secondaryCtaHref && (
+            <a
+              href={secondaryCtaHref}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '0.8125rem 2rem',
+                border: `1px solid ${inverted ? 'rgba(255,255,255,0.4)' : 'var(--s-border)'}`,
+                color: inverted ? 'rgba(255,255,255,0.9)' : 'var(--s-text)',
+                borderRadius: 'var(--s-radius)',
+                textDecoration: 'none',
+                fontSize: '0.9375rem',
+                fontFamily: 'var(--s-font-body)',
+              }}
+            >
+              {secondaryCtaLabel}
+            </a>
+          )}
+        </div>
+      </Reveal>
     </>
   )
 }

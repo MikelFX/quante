@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_ITERATION } from '@/lib/claude'
 import { parseManifestJson } from '@/lib/manifest-schema'
 import type { ShopManifest } from '@/types/manifest'
+import { jsonrepair } from 'jsonrepair'
 
 export const maxDuration = 300
 
@@ -116,10 +117,15 @@ ${JSON.stringify(current.manifest)}
     // Extract reply and optional manifest
     const replyMatch = rawOutput.match(/<reply>([\s\S]*?)<\/reply>/)
     const replyText = replyMatch?.[1]?.trim() ?? rawOutput.trim()
+
+    // Try closed tag first; fall back to truncated output (missing </manifest>)
     const manifestMatch = rawOutput.match(/<manifest>([\s\S]*?)<\/manifest>/)
+    const manifestStart = rawOutput.indexOf('<manifest>')
+    const rawManifestStr = manifestMatch?.[1] ??
+      (manifestStart !== -1 ? rawOutput.slice(manifestStart + '<manifest>'.length).trim() : null)
 
     // No manifest → free Q&A, no credit debit
-    if (!manifestMatch) {
+    if (!rawManifestStr) {
       send({ type: 'done', reply: replyText, manifest: null })
       return
     }
@@ -135,40 +141,45 @@ ${JSON.stringify(current.manifest)}
 
     let manifest: ShopManifest
     try {
-      manifest = parseManifestJson(manifestMatch[1]) as ShopManifest
+      manifest = parseManifestJson(rawManifestStr) as ShopManifest
     } catch (primaryErr) {
-      console.error('[iterate] parse failed:', primaryErr)
-      send({ type: 'status', text: 'Repairing manifest…' })
+      // Fast repair pass via jsonrepair (handles unescaped chars, truncated JSON, trailing commas)
       try {
-        // Build a concise, structured error message for the repair model
-        let errSummary: string
-        if (primaryErr instanceof Error && primaryErr.name === 'ZodError') {
-          try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const zErr = primaryErr as any
-            const flat = zErr.flatten?.()
-            errSummary = flat
-              ? `Zod validation failed:\n${JSON.stringify(flat, null, 2).slice(0, 1500)}`
-              : String(primaryErr).slice(0, 1500)
-          } catch {
+        manifest = parseManifestJson(jsonrepair(rawManifestStr)) as ShopManifest
+      } catch {
+        // Slow repair pass via AI
+        console.error('[iterate] parse failed, attempting AI repair:', primaryErr)
+        send({ type: 'status', text: 'Repairing manifest…' })
+        try {
+          let errSummary: string
+          if (primaryErr instanceof Error && primaryErr.name === 'ZodError') {
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const zErr = primaryErr as any
+              const flat = zErr.flatten?.()
+              errSummary = flat
+                ? `Zod validation failed:\n${JSON.stringify(flat, null, 2).slice(0, 1500)}`
+                : String(primaryErr).slice(0, 1500)
+            } catch {
+              errSummary = String(primaryErr).slice(0, 1500)
+            }
+          } else {
             errSummary = String(primaryErr).slice(0, 1500)
           }
-        } else {
-          errSummary = String(primaryErr).slice(0, 1500)
-        }
 
-        const repair = await anthropic.messages.create({
-          model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
-          messages: [{
-            role: 'user',
-            content: `The following ShopManifest JSON failed validation. Fix EVERY error listed below and return ONLY the corrected raw JSON (no code fences, no prose).\n\nErrors:\n${errSummary}\n\nJSON to fix:\n${manifestMatch[1].slice(0, 60000)}`,
-          }],
-        })
-        const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
-        manifest = parseManifestJson(repairText) as ShopManifest
-      } catch (repairErr) {
-        console.error('[iterate] repair failed:', repairErr)
-        send({ type: 'error', message: 'Could not parse the updated manifest. Try again.' }); return
+          const repair = await anthropic.messages.create({
+            model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
+            messages: [{
+              role: 'user',
+              content: `The following ShopManifest JSON failed validation. Fix EVERY error listed below and return ONLY the corrected raw JSON (no code fences, no prose).\n\nErrors:\n${errSummary}\n\nJSON to fix:\n${rawManifestStr.slice(0, 60000)}`,
+            }],
+          })
+          const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
+          manifest = parseManifestJson(jsonrepair(repairText)) as ShopManifest
+        } catch (repairErr) {
+          console.error('[iterate] repair failed:', repairErr)
+          send({ type: 'error', message: 'Could not parse the updated manifest. Try again.' }); return
+        }
       }
     }
 

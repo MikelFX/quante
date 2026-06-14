@@ -88,6 +88,7 @@ const TestimonialsPropsSchema = z.object({
       avatar: z.string().optional(),
     })
   ),
+  marquee: z.boolean().optional(),
 })
 
 const RichTextPropsSchema = z.object({

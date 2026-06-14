@@ -63,6 +63,7 @@ export interface FeatureRowProps {
 export interface TestimonialsProps {
   title?: string
   items: Array<{ quote: string; author: string; role?: string; avatar?: string }>
+  marquee?: boolean
 }
 
 export interface RichTextProps {
@@ -142,7 +143,7 @@ export interface Merchant {
 }
 
 export interface ShippingMethod {
-  type: 'zasilkovna' | 'ppl' | 'dpd' | 'balikovna' | 'osobni_odber' | 'custom'
+  type: 'zasilkovna' | 'packeta_international' | 'dhl' | 'ppl' | 'dpd' | 'balikovna' | 'osobni_odber' | 'custom'
   nazev?: string
   cena_czk: number
 }

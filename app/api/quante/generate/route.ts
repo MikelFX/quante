@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_GENERATION } from '@/lib/claude'
 import { parseManifestJson } from '@/lib/manifest-schema'
+import { jsonrepair } from 'jsonrepair'
 
 export const maxDuration = 300
 
@@ -77,16 +78,22 @@ export async function POST(request: Request) {
     try {
       manifest = parseManifestJson(rawOutput)
     } catch {
-      send({ type: 'status', text: 'Repairing manifest…' })
+      // Fast repair via jsonrepair
       try {
-        const repair = await anthropic.messages.create({
-          model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
-          messages: [{ role: 'user', content: `Fix this invalid ShopManifest JSON and return ONLY the corrected JSON:\n${rawOutput}` }],
-        })
-        manifest = parseManifestJson(repair.content[0].type === 'text' ? repair.content[0].text : '')
+        manifest = parseManifestJson(jsonrepair(rawOutput))
       } catch {
-        send({ type: 'error', message: 'Could not produce a valid manifest. Please try again with a more detailed brief.' })
-        return
+        send({ type: 'status', text: 'Repairing manifest…' })
+        try {
+          const repair = await anthropic.messages.create({
+            model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
+            messages: [{ role: 'user', content: `Fix this invalid ShopManifest JSON and return ONLY the corrected JSON:\n${rawOutput.slice(0, 60000)}` }],
+          })
+          const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
+          manifest = parseManifestJson(jsonrepair(repairText))
+        } catch {
+          send({ type: 'error', message: 'Could not produce a valid manifest. Please try again with a more detailed brief.' })
+          return
+        }
       }
     }
 

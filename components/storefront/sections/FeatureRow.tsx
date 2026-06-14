@@ -1,4 +1,6 @@
 import type { FeatureRowProps } from '@/types/manifest'
+import { Reveal } from '../motion/Reveal'
+import { Stagger, StaggerItem } from '../motion/Stagger'
 import {
   Leaf,
   FlaskConical,
@@ -61,21 +63,23 @@ export function FeatureRow({ props }: Props) {
     >
       <div style={{ maxWidth: '64rem', margin: '0 auto' }}>
         {title && (
-          <h2
-            style={{
-              fontFamily: 'var(--s-font-heading)',
-              fontSize: 'clamp(1.5rem, 3vw, 2rem)',
-              fontWeight: 700,
-              color: 'var(--s-text)',
-              textAlign: 'center',
-              marginBottom: `calc(3rem * var(--s-space))`,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {title}
-          </h2>
+          <Reveal variant="fade-up">
+            <h2
+              style={{
+                fontFamily: 'var(--s-font-heading)',
+                fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+                fontWeight: 700,
+                color: 'var(--s-text)',
+                textAlign: 'center',
+                marginBottom: `calc(3rem * var(--s-space))`,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {title}
+            </h2>
+          </Reveal>
         )}
-        <div
+        <Stagger
           style={{
             display: layout === 'grid' ? 'grid' : 'flex',
             gridTemplateColumns: layout === 'grid' ? 'repeat(auto-fit, minmax(220px, 1fr))' : undefined,
@@ -86,7 +90,7 @@ export function FeatureRow({ props }: Props) {
           {features.map((feature, i) => {
             const Icon = getIcon(feature.icon)
             return (
-              <div
+              <StaggerItem
                 key={i}
                 style={{
                   display: 'flex',
@@ -135,10 +139,10 @@ export function FeatureRow({ props }: Props) {
                     {feature.description}
                   </p>
                 </div>
-              </div>
+              </StaggerItem>
             )
           })}
-        </div>
+        </Stagger>
       </div>
     </section>
   )

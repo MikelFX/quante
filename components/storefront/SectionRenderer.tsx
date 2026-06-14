@@ -37,7 +37,7 @@ export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
     case 'faq':
       return <Faq props={section.props} />
     case 'animations':
-      return <Animations props={section.props} catalog={manifest.catalog} />
+      return <Animations props={section.props} catalog={manifest.catalog} basePath={basePath} />
     case 'customComponent':
       return null
     default:

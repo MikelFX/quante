@@ -40,6 +40,7 @@ export function buildStoreFiles(manifest: ShopManifest): GeneratedFile[] {
     private: true,
     scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
     dependencies: {
+      'framer-motion': '^12.40.0',
       'lucide-react': '^1.17.0',
       next: '16.2.7',
       react: '19.2.4',
@@ -97,6 +98,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { manifest } from '@/data/manifest'
 import { CartProvider } from '@/context/cart'
+import { MotionProvider } from '@/components/storefront/motion/context'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -108,7 +110,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="${lang}">
       <body>
-        <CartProvider>{children}</CartProvider>
+        <CartProvider>
+          <MotionProvider level={manifest.design.motion ?? 'subtle'}>
+            {children}
+          </MotionProvider>
+        </CartProvider>
       </body>
     </html>
   )
@@ -136,6 +142,8 @@ import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
 import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 import { SectionRenderer } from '@/components/storefront/SectionRenderer'
 import { AddToCartButton } from '@/components/storefront/AddToCartButton'
+import { ProductGallery } from '@/components/storefront/ProductGallery'
+import { StickyBuyBar } from '@/components/storefront/StickyBuyBar'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -194,19 +202,7 @@ export default async function ProductPage({ params }: Props) {
 
       <main style={{ maxWidth: '80rem', margin: '0 auto', padding: 'calc(4rem * var(--s-space)) 2rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'calc(3rem * var(--s-space))', alignItems: 'start' }}>
-          <div style={{
-            aspectRatio: '1', background: 'var(--s-surface)',
-            border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)',
-            overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {product.images[0] ? (
-              <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            ) : (
-              <span style={{ fontFamily: 'var(--s-font-heading)', fontSize: '3rem', fontWeight: 700, color: 'var(--s-muted)' }}>
-                {product.name.slice(0, 2).toUpperCase()}
-              </span>
-            )}
-          </div>
+          <ProductGallery images={product.images} name={product.name} />
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'calc(1.5rem * var(--s-space))' }}>
             <div>
@@ -234,6 +230,14 @@ export default async function ProductPage({ params }: Props) {
             </div>
             <p style={{ color: 'var(--s-muted)', fontSize: '1rem', lineHeight: 1.75 }}>{product.description}</p>
             <AddToCartButton
+              productId={product.id}
+              name={product.name}
+              price={product.price}
+              currency={manifest.catalog.currency}
+              image={product.images[0]}
+              available={product.available}
+            />
+            <StickyBuyBar
               productId={product.id}
               name={product.name}
               price={product.price}
@@ -350,78 +354,22 @@ export function generateStaticParams() {
   addFile('components/storefront/tokens.ts', path.join(sfBase, 'tokens.ts'))
   addFile('components/storefront/ShopRenderer.tsx', path.join(sfBase, 'ShopRenderer.tsx'))
   addFile('components/storefront/SectionRenderer.tsx', path.join(sfBase, 'SectionRenderer.tsx'))
-  add('components/storefront/layout/StoreNavbar.tsx', `\
-import type { ShopManifest } from '@/types/manifest'
-import { CartIcon } from '@/components/storefront/CartIcon'
-
-interface Props {
-  manifest: ShopManifest
-  basePath?: string
-}
-
-export function StoreNavbar({ manifest, basePath = '' }: Props) {
-  return (
-    <header
-      style={{
-        borderBottom: '1px solid var(--s-border)',
-        background: 'var(--s-bg)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '80rem',
-          margin: '0 auto',
-          padding: '0 2rem',
-          height: '3.75rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <a
-          href={basePath || '/'}
-          style={{
-            fontFamily: 'var(--s-font-heading)',
-            fontWeight: 700,
-            fontSize: '1.1rem',
-            color: 'var(--s-text)',
-            textDecoration: 'none',
-            letterSpacing: '0.04em',
-          }}
-        >
-          {manifest.brand.logoText}
-        </a>
-
-        <nav style={{ display: 'flex', gap: '2rem' }}>
-          {manifest.nav.map((item) => (
-            <a
-              key={item.href}
-              href={basePath + item.href}
-              style={{
-                color: 'var(--s-muted)',
-                textDecoration: 'none',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-                transition: 'color 0.15s',
-              }}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        <CartIcon basePath={basePath} />
-      </div>
-    </header>
-  )
-}
-`)
+  // ── Motion primitives ─────────────────────────────────────────────────────
+  addFile('components/storefront/motion/config.ts', path.join(sfBase, 'motion', 'config.ts'))
+  addFile('components/storefront/motion/context.tsx', path.join(sfBase, 'motion', 'context.tsx'))
+  addFile('components/storefront/motion/hooks.ts', path.join(sfBase, 'motion', 'hooks.ts'))
+  addFile('components/storefront/motion/Reveal.tsx', path.join(sfBase, 'motion', 'Reveal.tsx'))
+  addFile('components/storefront/motion/Stagger.tsx', path.join(sfBase, 'motion', 'Stagger.tsx'))
+  addFile('components/storefront/motion/ParallaxImage.tsx', path.join(sfBase, 'motion', 'ParallaxImage.tsx'))
+  addFile('components/storefront/motion/HoverSwap.tsx', path.join(sfBase, 'motion', 'HoverSwap.tsx'))
+  addFile('components/storefront/motion/BlurImage.tsx', path.join(sfBase, 'motion', 'BlurImage.tsx'))
+  addFile('components/storefront/motion/Marquee.tsx', path.join(sfBase, 'motion', 'Marquee.tsx'))
+  addFile('components/storefront/motion/CountUp.tsx', path.join(sfBase, 'motion', 'CountUp.tsx'))
+  addFile('components/storefront/layout/StoreNavbar.tsx', path.join(sfBase, 'layout', 'StoreNavbar.tsx'))
   addFile('components/storefront/layout/StoreFooter.tsx', path.join(sfBase, 'layout', 'StoreFooter.tsx'))
   addFile('components/storefront/sections/Hero.tsx', path.join(sfBase, 'sections', 'Hero.tsx'))
   addFile('components/storefront/sections/ProductGrid.tsx', path.join(sfBase, 'sections', 'ProductGrid.tsx'))
+  addFile('components/storefront/sections/ProductCard.tsx', path.join(sfBase, 'sections', 'ProductCard.tsx'))
   addFile('components/storefront/sections/FeatureRow.tsx', path.join(sfBase, 'sections', 'FeatureRow.tsx'))
   addFile('components/storefront/sections/Testimonials.tsx', path.join(sfBase, 'sections', 'Testimonials.tsx'))
   addFile('components/storefront/sections/RichText.tsx', path.join(sfBase, 'sections', 'RichText.tsx'))
@@ -433,189 +381,20 @@ export function StoreNavbar({ manifest, basePath = '' }: Props) {
   addFile('components/storefront/CookieConsent.tsx', path.join(sfBase, 'CookieConsent.tsx'))
 
   // ── Cart context ──────────────────────────────────────────────────────────
-  add('context/cart.tsx', `'use client'
-import { createContext, useContext, useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
+  addFile('context/cart.tsx', path.join(cwd, 'context', 'cart.tsx'))
 
-export interface CartItem {
-  id: string
-  name: string
-  price: number
-  currency: string
-  quantity: number
-  image?: string
-}
+  // ── CartIcon (navbar) ─────────────────────────────────────────────────────
+  addFile('components/storefront/CartIcon.tsx', path.join(sfBase, 'CartIcon.tsx'))
 
-interface CartContextType {
-  items: CartItem[]
-  add: (item: Omit<CartItem, 'quantity'>) => void
-  updateQty: (id: string, qty: number) => void
-  remove: (id: string) => void
-  clear: () => void
-  count: number
-  total: number
-}
-
-const CartContext = createContext<CartContextType>({
-  items: [], add: () => {}, updateQty: () => {}, remove: () => {}, clear: () => {}, count: 0, total: 0,
-})
-
-export const useCart = () => useContext(CartContext)
-
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
-
-  useEffect(() => {
-    try {
-      const s = localStorage.getItem('cart')
-      if (s) setItems(JSON.parse(s))
-    } catch {}
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(items))
-  }, [items])
-
-  function add(item: Omit<CartItem, 'quantity'>) {
-    setItems((prev) => {
-      const ex = prev.find((i) => i.id === item.id)
-      if (ex) return prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)
-      return [...prev, { ...item, quantity: 1 }]
-    })
-  }
-
-  function updateQty(id: string, qty: number) {
-    if (qty <= 0) { setItems((prev) => prev.filter((i) => i.id !== id)); return }
-    setItems((prev) => prev.map((i) => i.id === id ? { ...i, quantity: qty } : i))
-  }
-
-  function remove(id: string) { setItems((prev) => prev.filter((i) => i.id !== id)) }
-  function clear() { setItems([]) }
-
-  const count = items.reduce((s, i) => s + i.quantity, 0)
-  const total = items.reduce((s, i) => s + i.price * i.quantity, 0)
-
-  return (
-    <CartContext.Provider value={{ items, add, updateQty, remove, clear, count, total }}>
-      {children}
-    </CartContext.Provider>
-  )
-}
-`)
-
-  // ── CartIcon (navbar) ──────────────────────────────────────────────────────
-  add('components/storefront/CartIcon.tsx', `'use client'
-import { useCart } from '@/context/cart'
-
-export function CartIcon({ basePath = '' }: { basePath?: string }) {
-  const { count } = useCart()
-  return (
-    <a
-      href={basePath + '/cart'}
-      style={{
-        color: 'var(--s-text)',
-        textDecoration: 'none',
-        fontSize: '0.8125rem',
-        fontWeight: 500,
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.375rem',
-      }}
-    >
-      Košík
-      {count > 0 && (
-        <span
-          style={{
-            background: 'var(--s-accent)',
-            color: 'var(--s-accent-text)',
-            borderRadius: 99,
-            fontSize: '0.6875rem',
-            fontWeight: 700,
-            padding: '0 0.375rem',
-            lineHeight: '1.5',
-          }}
-        >
-          {count}
-        </span>
-      )}
-    </a>
-  )
-}
-`)
-
-  // ── AddToCartButton ────────────────────────────────────────────────────────
-  add('components/storefront/AddToCartButton.tsx', `'use client'
-import { useState } from 'react'
-import { useCart } from '@/context/cart'
-
-interface Props {
-  productId: string
-  name: string
-  price: number
-  currency: string
-  image?: string
-  available?: boolean
-}
-
-export function AddToCartButton({ productId, name, price, currency, image, available = true }: Props) {
-  const { add } = useCart()
-  const [added, setAdded] = useState(false)
-
-  function handleAdd() {
-    if (!available) return
-    add({ id: productId, name, price, currency, image })
-    setAdded(true)
-    setTimeout(() => setAdded(false), 1500)
-  }
-
-  if (!available) {
-    return (
-      <button
-        disabled
-        style={{
-          padding: '1rem 2.5rem',
-          background: 'var(--s-surface)',
-          color: 'var(--s-muted)',
-          border: '1px solid var(--s-border)',
-          borderRadius: 'var(--s-radius)',
-          fontWeight: 600,
-          fontSize: '1rem',
-          fontFamily: 'var(--s-font-body)',
-          cursor: 'not-allowed',
-          alignSelf: 'flex-start',
-        }}
-      >
-        Vyprodáno
-      </button>
-    )
-  }
-
-  return (
-    <button
-      onClick={handleAdd}
-      style={{
-        padding: '1rem 2.5rem',
-        background: added ? 'var(--s-text)' : 'var(--s-accent)',
-        color: added ? 'var(--s-bg)' : 'var(--s-accent-text)',
-        border: 'none',
-        borderRadius: 'var(--s-radius)',
-        fontWeight: 600,
-        fontSize: '1rem',
-        fontFamily: 'var(--s-font-body)',
-        cursor: 'pointer',
-        alignSelf: 'flex-start',
-        transition: 'background 0.2s, color 0.2s',
-      }}
-    >
-      {added ? '\\u2713 Přidáno do košíku' : 'Přidat do košíku'}
-    </button>
-  )
-}
-`)
+  // ── Storefront interactive components ────────────────────────────────────
+  addFile('components/storefront/AddToCartButton.tsx', path.join(sfBase, 'AddToCartButton.tsx'))
+  addFile('components/storefront/ProductGallery.tsx', path.join(sfBase, 'ProductGallery.tsx'))
+  addFile('components/storefront/StickyBuyBar.tsx', path.join(sfBase, 'StickyBuyBar.tsx'))
 
   // ── app/cart/page.tsx ──────────────────────────────────────────────────────
   add('app/cart/page.tsx', `'use client'
 import React, { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
@@ -769,12 +548,25 @@ export default function CartPage() {
         </h1>
 
         {items.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--s-muted)' }}>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            style={{ textAlign: 'center', padding: '5rem 0', color: 'var(--s-muted)' }}
+          >
+            <motion.div
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.1 }}
+              style={{ fontSize: '3rem', marginBottom: '1.5rem', lineHeight: 1 }}
+            >
+              🛒
+            </motion.div>
             <p style={{ marginBottom: '1.5rem', fontSize: '1rem' }}>Váš košík je prázdný.</p>
             <a href="/" style={{ display: 'inline-block', padding: '0.875rem 2rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', borderRadius: 'var(--s-radius)', textDecoration: 'none', fontWeight: 600, fontSize: '0.9375rem' }}>
               Pokračovat v nákupu
             </a>
-          </div>
+          </motion.div>
         ) : (
           <form onSubmit={handleCheckout} style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '2.5rem', alignItems: 'start' }}>
             {/* LEFT — items + options */}
@@ -789,8 +581,12 @@ export default function CartPage() {
                       <span style={{ fontSize: '0.8125rem', color: 'var(--s-muted)' }}>Doprava zdarma od {freeShippingThreshold} {currency}</span>
                       <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--s-accent)' }}>zbývá {(freeShippingThreshold - total).toFixed(0)} {currency}</span>
                     </div>
-                    <div style={{ height: '4px', background: 'var(--s-border)', borderRadius: 99 }}>
-                      <div style={{ height: '4px', background: 'var(--s-accent)', borderRadius: 99, width: \`\${Math.min(100, (total / freeShippingThreshold) * 100).toFixed(1)}%\`, transition: 'width 0.4s' }} />
+                    <div style={{ height: '4px', background: 'var(--s-border)', borderRadius: 99, overflow: 'hidden' }}>
+                      <motion.div
+                        animate={{ scaleX: Math.min(1, total / freeShippingThreshold) }}
+                        transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+                        style={{ height: '4px', background: 'var(--s-accent)', borderRadius: 99, width: '100%', transformOrigin: 'left' }}
+                      />
                     </div>
                   </div>
                 )}
@@ -801,8 +597,9 @@ export default function CartPage() {
                 )}
 
                 <div style={{ border: '1px solid var(--s-border)', borderRadius: 'var(--s-radius)', overflow: 'hidden' }}>
+                  <AnimatePresence initial={false} mode="popLayout">
                   {items.map((item, i) => (
-                    <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', background: 'var(--s-surface)', borderBottom: i < items.length - 1 ? '1px solid var(--s-border)' : 'none' }}>
+                    <motion.div key={item.id} layout initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 24 }} transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.25rem 1.5rem', background: 'var(--s-surface)', borderTop: i === 0 ? 'none' : '1px solid var(--s-border)' }}>
                       {item.image && <img src={item.image} alt={item.name} style={{ width: '3rem', height: '3rem', objectFit: 'cover', borderRadius: 'calc(var(--s-radius) / 2)', flexShrink: 0 }} />}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontWeight: 600, marginBottom: '0.2rem', fontSize: '0.9375rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</p>
@@ -815,8 +612,9 @@ export default function CartPage() {
                       </div>
                       <p style={{ fontWeight: 700, width: '5rem', textAlign: 'right', flexShrink: 0, fontSize: '0.9375rem' }}>{item.currency} {(item.price * item.quantity).toFixed(2)}</p>
                       <button type="button" onClick={() => remove(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--s-muted)', padding: '0.25rem', fontSize: '1.25rem', lineHeight: 1, flexShrink: 0 }} aria-label="Odebrat">\\u00d7</button>
-                    </div>
+                    </motion.div>
                   ))}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -955,7 +753,11 @@ export default function CartPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.875rem', borderTop: '1px solid var(--s-border)', fontSize: '1.125rem', fontWeight: 700 }}>
                   <span>Celkem s DPH</span>
-                  <span>{currency} {orderTotal.toFixed(2)}</span>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.span key={orderTotal} initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }}>
+                      {currency} {orderTotal.toFixed(2)}
+                    </motion.span>
+                  </AnimatePresence>
                 </div>
                 {manifest.merchant?.platce_dph && (
                   <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid var(--s-border)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1032,6 +834,7 @@ export async function POST(request: Request) {
   // ── app/success/page.tsx ───────────────────────────────────────────────────
   add('app/success/page.tsx', `'use client'
 import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
@@ -1076,12 +879,22 @@ export default function SuccessPage() {
       <link rel="stylesheet" href={fontUrl} />
       <StoreNavbar manifest={manifest} />
       <main style={{ maxWidth: '40rem', margin: '0 auto', padding: 'calc(6rem * var(--s-space)) 2rem', textAlign: 'center' }}>
-        <div style={{ width: '4rem', height: '4rem', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', fontSize: '1.5rem', color: '#34d399' }}>
+        <motion.div
+          initial={{ scale: 0.4, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 18 }}
+          style={{ width: '4rem', height: '4rem', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.2)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', fontSize: '1.5rem', color: '#34d399' }}
+        >
           \\u2713
-        </div>
-        <h1 style={{ fontFamily: 'var(--s-font-heading)', fontSize: 'clamp(2rem, 5vw, 2.75rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '1rem' }}>
+        </motion.div>
+        <motion.h1
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.18, duration: 0.4 }}
+          style={{ fontFamily: 'var(--s-font-heading)', fontSize: 'clamp(2rem, 5vw, 2.75rem)', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '1rem' }}
+        >
           Objednávka přijata!
-        </h1>
+        </motion.h1>
         {orderNumber && (
           <p style={{ color: 'var(--s-muted)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
             Číslo objednávky: <strong style={{ color: 'var(--s-text)', fontFamily: 'monospace' }}>{orderNumber}</strong>

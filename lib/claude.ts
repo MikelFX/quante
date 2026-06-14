@@ -40,6 +40,10 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
     "radius": "none" | "sm" | "md" | "lg" | "full",
     "density": "tight" | "normal" | "airy",
     "motion": "none" | "subtle" | "expressive"
+    // motion guide:
+    //   "none"       → zero animations; best for medical, legal, ultra-minimal luxury
+    //   "subtle"     → (default) fast reveals, stagger, badge spring; no parallax
+    //   "expressive" → richer transitions, hero parallax, blur-up images, marquee speed; lifestyle/fashion/playful brands
   },
   "catalog": {
     "currency": string (ISO 4217, e.g. "EUR", "USD", "CZK"),
@@ -80,6 +84,7 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
   },
   "shipping"?: {
     "methods": [{ "type": "zasilkovna"|"packeta_international"|"dhl"|"ppl"|"dpd"|"balikovna"|"osobni_odber"|"custom", "nazev"?: string, "cena_czk": number }],
+    // zasilkovna = CZ Zásilkovna pickup | packeta_international = Packeta cross-border | dhl = DHL Express worldwide
     "doprava_zdarma_od_czk"?: number
   }
 }
@@ -89,13 +94,17 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
 { "type": "hero",         "props": { headline, subheadline?, ctaLabel, ctaHref, secondaryCtaLabel?, secondaryCtaHref?, imageSrc?, layout: "centered"|"split"|"fullbleed" } }
 { "type": "productGrid",  "props": { title?, collectionId?, limit?, columns?: 2|3|4 } }
 { "type": "featureRow",   "props": { title?, features: [{ icon?, title, description }], layout: "grid"|"list" } }
-{ "type": "testimonials", "props": { title?, items: [{ quote, author, role? }] } }
+{ "type": "testimonials", "props": { title?, items: [{ quote, author, role? }], marquee?: boolean } }
+// marquee: true → cards scroll horizontally as an infinite ticker (great for 5+ testimonials)
 { "type": "richText",     "props": { content, align?: "left"|"center" } }
 { "type": "banner",       "props": { text, ctaLabel?, ctaHref? } }
 { "type": "newsletter",   "props": { title, description?, placeholder?, buttonLabel? } }
 { "type": "gallery",      "props": { images: [{ src, alt }], columns?: 2|3|4 } }
 { "type": "faq",          "props": { title?, items: [{ question, answer }] } }
 { "type": "animations",   "props": { "variant": "marquee"|"stats"|"spotlight", "title"?: string, "items"?: string[], "stats"?: [{"value": string, "label": string}], "productSlug"?: string } }
+// marquee  → infinite ticker of brand keywords/values (e.g. items: ["Handmade","Sustainable","Czech"])
+// stats    → animated count-up grid; value supports "99%", "10k+", "4.8★", "48h" — numeric part animates
+// spotlight → full-width product feature section with blur-up image + staggered copy
 
 Feature icons (allowlisted strings): leaf, flask, recycle, star, zap, shield, check, package, truck, heart, globe, sparkles, award, clock, lock, mail
 
@@ -181,13 +190,17 @@ The user may ask things like (non-exhaustive — handle anything):
   hero:         { headline: string, subheadline?: string, ctaLabel?: string, ctaHref?: string, imageSrc?: string, layout?: "centered"|"split"|"fullbleed" }
   productGrid:  { title?: string, collectionId?: string, limit?: number, columns?: 2|3|4 }
   featureRow:   { title?: string, features: [{icon?: string, title: string, description: string}], layout: "grid"|"list" }
-  testimonials: { title?: string, items: [{quote: string, author: string, role?: string}] }
+  testimonials: { title?: string, items: [{quote: string, author: string, role?: string}], marquee?: boolean }
+  // marquee:true → horizontal infinite ticker (ideal for 5+ testimonials)
   richText:     { content: string, align?: "left"|"center" }
   banner:       { text: string, ctaLabel?: string, ctaHref?: string }
   newsletter:   { title: string, description?: string, placeholder?: string, buttonLabel?: string }
   gallery:      { images: [{src: string, alt: string}], columns?: 2|3|4 }
   faq:          { title?: string, items: [{question: string, answer: string}] }
   animations:   { variant: "marquee"|"stats"|"spotlight", title?: string, items?: string[], stats?: [{value: string, label: string}], productSlug?: string }
+  // animations.marquee: items = brand keywords scrolling as infinite ticker
+  // animations.stats: stats[].value supports "99%","10k+","4.8★","48h" — numeric part animates with CountUp
+  // animations.spotlight: full-width featured product with parallax image
   customComponent: { ref: string }
 - CRITICAL: featureRow layout must be "grid" or "list" (never "row"). features[].description is required.
 - CRITICAL: every section must use { "type": "...", "props": { ... } } — except customComponent: { "type": "customComponent", "ref": "..." }
@@ -195,6 +208,7 @@ The user may ask things like (non-exhaustive — handle anything):
 - customPages slugs: kebab-case, no leading slash. Avoid: about, contact, cart, success, admin, products, collections
 - merchant, payments, shipping: optional — preserve existing values; omit if never set
 - Do NOT invent IČO or bank data — use only what the user provides
+- design.motion: "none" (no animation — medical/legal/ultra-minimal) | "subtle" (default — fast reveals, stagger) | "expressive" (lifestyle/fashion — parallax, blur-up, richer transitions)
 - Allowed heading fonts: Inter, Playfair Display, Space Grotesk, DM Serif Display, Fraunces, Raleway, Montserrat, Cormorant Garamond, Libre Baskerville
 - Allowed body fonts: Inter, DM Sans, Source Sans 3, Lato, Open Sans, Nunito, Plus Jakarta Sans, Outfit
 - Feature icons: leaf, flask, recycle, star, zap, shield, check, package, truck, heart, globe, sparkles, award, clock, lock, mail`
