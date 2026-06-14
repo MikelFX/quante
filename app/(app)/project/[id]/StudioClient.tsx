@@ -67,6 +67,16 @@ interface StripeOrder {
   createdAt: string
 }
 
+interface StoreOrder {
+  id: string; orderNumber: string
+  customerEmail: string; customerName: string; customerPhone: string | null
+  amount: number; currency: string
+  status: string; paymentStatus: string; paymentMethod: string
+  shippingMethod: string | null; zasilkovnaBranchId: string | null
+  trackingCode: string | null; trackingUrl: string | null
+  invoiceUrl: string | null; createdAt: string
+}
+
 interface ProductDraft {
   id: string
   name: string
@@ -266,10 +276,24 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [orderRevenue, setOrderRevenue] = useState(0)
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
   const [ordersError, setOrdersError] = useState<string | null>(null)
+  // Supabase store_orders (Comgate / Zásilkovna / bank)
+  const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([])
+  const [storeOrderRevenue, setStoreOrderRevenue] = useState(0)
+  const [isLoadingStoreOrders, setIsLoadingStoreOrders] = useState(false)
+  const [ordersTab, setOrdersTab] = useState<'stripe' | 'store'>('store')
+  // Zásilkovna shipment creation
+  const [creatingShipment, setCreatingShipment] = useState<string | null>(null)
+  const [shipmentResults, setShipmentResults] = useState<Record<string, { barcode?: string; error?: string }>>({})
   const [settingsPubKey, setSettingsPubKey] = useState('')
   const [settingsSecKey, setSettingsSecKey] = useState('')
   const [settingsSecKeySet, setSettingsSecKeySet] = useState(false)
   const [isSavingSettings, setIsSavingSettings] = useState(false)
+  // Zásilkovna settings
+  const [zasilkovnaKey, setZasilkovnaKey] = useState('')
+  const [zasilkovnaPassword, setZasilkovnaPassword] = useState('')
+  const [hasZasilkovnaKey, setHasZasilkovnaKey] = useState(false)
+  const [hasZasilkovnaPassword, setHasZasilkovnaPassword] = useState(false)
+  const [isSavingZasilkovna, setIsSavingZasilkovna] = useState(false)
   // Earnings + payout
   const [earnings, setEarnings] = useState<{
     available: number; netTotal: number; saleCount: number; currency: string
@@ -363,6 +387,8 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       .then((d) => {
         if (d.stripePublishableKey) setSettingsPubKey(d.stripePublishableKey)
         if (d.stripeSecretKeySet) setSettingsSecKeySet(true)
+        if (d.hasZasilkovnaKey) setHasZasilkovnaKey(true)
+        if (d.hasZasilkovnaPassword) setHasZasilkovnaPassword(true)
       })
       .catch(() => {})
   }, [projectId])
@@ -792,6 +818,68 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       setOrdersError('Something went wrong.')
     } finally {
       setIsLoadingOrders(false)
+    }
+  }
+
+  async function handleLoadStoreOrders() {
+    setIsLoadingStoreOrders(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/store-orders`)
+      const data = await res.json()
+      if (!res.ok) return
+      setStoreOrders(data.orders ?? [])
+      setStoreOrderRevenue(data.revenue ?? 0)
+    } catch {
+      // non-fatal
+    } finally {
+      setIsLoadingStoreOrders(false)
+    }
+  }
+
+  async function handleCreateShipment(orderId: string, weight = 1) {
+    setCreatingShipment(orderId)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/store-orders/${orderId}/zasilkovna-shipment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weight }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setShipmentResults(p => ({ ...p, [orderId]: { error: data.error ?? 'Chyba při vytváření zásilky.' } }))
+      } else {
+        setShipmentResults(p => ({ ...p, [orderId]: { barcode: data.barcode } }))
+        // refresh orders so status updates
+        handleLoadStoreOrders()
+      }
+    } catch {
+      setShipmentResults(p => ({ ...p, [orderId]: { error: 'Chyba sítě.' } }))
+    } finally {
+      setCreatingShipment(null)
+    }
+  }
+
+  async function handleSaveZasilkovna() {
+    if (!zasilkovnaKey && !zasilkovnaPassword) return
+    setIsSavingZasilkovna(true)
+    try {
+      const body: Record<string, string> = {}
+      if (zasilkovnaKey) body.zasilkovnaApiKey = zasilkovnaKey
+      if (zasilkovnaPassword) body.zasilkovnaApiPassword = zasilkovnaPassword
+      const res = await fetch(`/api/projects/${projectId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) { alert('Nepodařilo se uložit.'); return }
+      if (zasilkovnaKey) setHasZasilkovnaKey(true)
+      if (zasilkovnaPassword) setHasZasilkovnaPassword(true)
+      setZasilkovnaKey('')
+      setZasilkovnaPassword('')
+    } catch {
+      alert('Something went wrong.')
+    } finally {
+      setIsSavingZasilkovna(false)
     }
   }
 
@@ -1442,7 +1530,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             Builder
           </button>
           <button
-            onClick={() => setAdminMode(true)}
+            onClick={() => { setAdminMode(true); handleLoadStoreOrders() }}
             style={{
               fontSize: 11, fontWeight: 500, padding: '4px 10px',
               border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
@@ -2481,104 +2569,258 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
   const AdminOrders = (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
-      {ordersError === 'no_key' ? (
-        /* No Stripe key */
-        <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.25)', background: 'rgba(111,120,230,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-          <Settings2 size={32} style={{ color: '#5b5b64' }} />
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Connect your Stripe account</p>
-          <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
-            Add your store&apos;s Stripe secret key in Settings to view orders and revenue here.
-          </p>
-          <button onClick={() => setAdminTab('settings')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
-            Go to Settings
-          </button>
-        </div>
-      ) : isLoadingOrders ? (
-        /* Loading skeleton */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[1, 2, 3].map(i => (
-            <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
-          ))}
-          <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}`}</style>
-        </div>
-      ) : ordersError ? (
-        /* Error */
-        <div style={{ borderRadius: 10, border: '1px solid rgba(224,86,79,.25)', background: 'rgba(224,86,79,.05)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{ordersError}</p>
-          <button onClick={handleLoadOrders} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(224,86,79,.3)', background: 'transparent', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
-        </div>
-      ) : orders.length === 0 ? (
-        /* Empty state */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-            <ClipboardList size={36} style={{ color: '#5b5b64' }} />
-            <p style={{ fontSize: 16, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
-            <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55, maxWidth: 300, margin: 0 }}>
-              Share your store link to make your first sale — orders appear here automatically.
-            </p>
-            {liveUrl && (
-              <button
-                onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgba(62,207,142,.3)', background: 'rgba(62,207,142,.07)', color: 'var(--live)', cursor: 'pointer' }}
-              >
-                <Share2 size={13} /> Copy store link
-              </button>
-            )}
-          </div>
-          <button onClick={handleLoadOrders} style={{ alignSelf: 'center', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
-        </div>
-      ) : (
-        /* Orders table */
-        <>
-          {/* Summary cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue</p>
-              <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
-                {currency} {orderRevenue.toFixed(2)}
-              </p>
-            </div>
-            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
-              <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{orders.length}</p>
-            </div>
-          </div>
 
-          {/* Table */}
-          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
-            {/* Header */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
-              {['Customer', 'Items', 'Amount', 'Date'].map(h => (
-                <p key={h} style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>{h}</p>
-              ))}
-            </div>
-            {orders.map((o, idx) => (
-              <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
-                    {o.customerName !== '—' ? o.customerName : o.customerEmail}
-                  </p>
-                  {o.customerName !== '—' && (
-                    <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>{o.customerEmail}</p>
-                  )}
-                </div>
-                <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
-                  {o.items.map(i => `${i.qty}× ${i.name}`).join(', ') || '—'}
-                </p>
-                <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', whiteSpace: 'nowrap', margin: 0 }}>
-                  {o.amount.toFixed(2)} {o.currency}
-                </p>
-                <p style={{ fontSize: 11, color: '#8a8a93', whiteSpace: 'nowrap', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
-                  {new Date(o.createdAt).toLocaleDateString('en-GB')}
-                </p>
-              </div>
+      {/* Tab switcher: Store orders vs Stripe */}
+      <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.04)', borderRadius: 9, padding: 4, alignSelf: 'flex-start' }}>
+        {[
+          { id: 'store' as const, label: 'Zásilkovna / Comgate' },
+          { id: 'stripe' as const, label: 'Stripe' },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => {
+              setOrdersTab(id)
+              if (id === 'store' && storeOrders.length === 0) handleLoadStoreOrders()
+              if (id === 'stripe' && orders.length === 0 && !ordersError) handleLoadOrders()
+            }}
+            style={{
+              fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
+              border: 'none', cursor: 'pointer', transition: 'all 0.12s',
+              background: ordersTab === id ? 'rgba(255,255,255,.09)' : 'transparent',
+              color: ordersTab === id ? '#f4f4f6' : '#8a8a93',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {ordersTab === 'store' ? (
+        /* ── Supabase store_orders (Zásilkovna / Comgate / bank) ── */
+        isLoadingStoreOrders ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
+        ) : storeOrders.length === 0 ? (
+          <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <ClipboardList size={36} style={{ color: '#5b5b64' }} />
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Žádné objednávky</p>
+            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Zde se zobrazí objednávky přes Zásilkovánu, Comgate a bankovní převod.</p>
+            <button onClick={handleLoadStoreOrders} style={{ fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Obnovit</button>
+          </div>
+        ) : (
+          <>
+            {/* Summary */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Tržby (zaplaceno)</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                  {currency} {storeOrderRevenue.toFixed(2)}
+                </p>
+              </div>
+              <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Objednávky</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{storeOrders.length}</p>
+              </div>
+            </div>
 
-          <button onClick={handleLoadOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
-        </>
+            {/* Orders list */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {storeOrders.map((o) => {
+                const isZasilkovna = o.shippingMethod === 'zasilkovna'
+                const shipped = o.status === 'shipped'
+                const result = shipmentResults[o.id]
+                const creating = creatingShipment === o.id
+                const paid = o.paymentStatus === 'paid'
+
+                return (
+                  <div key={o.id} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {/* Row 1: customer + amount */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {o.customerName !== '—' ? o.customerName : o.customerEmail}
+                        </p>
+                        {o.customerName !== '—' && (
+                          <p style={{ fontSize: 11, color: '#8a8a93', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.customerEmail}</p>
+                        )}
+                        <p style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '3px 0 0' }}>#{o.orderNumber}</p>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: paid ? 'var(--live)' : '#f4f4f6', margin: 0 }}>
+                          {o.amount.toFixed(2)} {o.currency}
+                        </p>
+                        <p style={{ fontSize: 10, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>{new Date(o.createdAt).toLocaleDateString('cs-CZ')}</p>
+                      </div>
+                    </div>
+
+                    {/* Row 2: badges */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: paid ? 'rgba(62,207,142,.12)' : 'rgba(224,160,79,.12)', color: paid ? 'var(--live)' : '#e0a04f' }}>
+                        {paid ? 'Zaplaceno' : o.paymentStatus}
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,.06)', color: '#8a8a93' }}>
+                        {o.paymentMethod}
+                      </span>
+                      {isZasilkovna && (
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(111,120,230,.12)', color: '#a5b4fc' }}>
+                          📦 Zásilkovna {o.zasilkovnaBranchId ? `#${o.zasilkovnaBranchId}` : ''}
+                        </span>
+                      )}
+                      {shipped && (
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(62,207,142,.12)', color: 'var(--live)' }}>
+                          ✓ Odesláno
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Zásilkovna action */}
+                    {isZasilkovna && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+                        {shipped || result?.barcode ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', fontWeight: 600 }}>
+                              {o.trackingCode ?? result?.barcode}
+                            </span>
+                            {(o.trackingUrl ?? undefined) && (
+                              <a href={o.trackingUrl ?? undefined} target="_blank" rel="noopener noreferrer"
+                                style={{ fontSize: 10, color: '#6f78e6', textDecoration: 'none' }}>
+                                Sledovat →
+                              </a>
+                            )}
+                          </div>
+                        ) : result?.error ? (
+                          <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{result.error}</p>
+                        ) : (
+                          <button
+                            onClick={() => handleCreateShipment(o.id)}
+                            disabled={creating || !paid}
+                            title={!paid ? 'Objednávka musí být zaplacena' : undefined}
+                            style={{
+                              fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
+                              border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
+                              color: '#a5b4fc', cursor: creating || !paid ? 'not-allowed' : 'pointer',
+                              opacity: !paid ? 0.5 : 1,
+                            }}
+                          >
+                            {creating ? 'Vytvářím…' : '📦 Vytvořit zásilku'}
+                          </button>
+                        )}
+                        {o.invoiceUrl && (
+                          <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', marginLeft: 'auto' }}>
+                            Faktura →
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {!isZasilkovna && o.invoiceUrl && (
+                      <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
+                        Faktura →
+                      </a>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            <button onClick={handleLoadStoreOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Obnovit</button>
+          </>
+        )
+      ) : (
+        /* ── Stripe orders ── */
+        ordersError === 'no_key' ? (
+          <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.25)', background: 'rgba(111,120,230,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <Settings2 size={32} style={{ color: '#5b5b64' }} />
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Connect your Stripe account</p>
+            <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
+              Add your store&apos;s Stripe secret key in Settings to view Stripe orders here.
+            </p>
+            <button onClick={() => setAdminTab('settings')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
+              Go to Settings
+            </button>
+          </div>
+        ) : isLoadingOrders ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        ) : ordersError ? (
+          <div style={{ borderRadius: 10, border: '1px solid rgba(224,86,79,.25)', background: 'rgba(224,86,79,.05)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{ordersError}</p>
+            <button onClick={handleLoadOrders} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(224,86,79,.3)', background: 'transparent', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
+          </div>
+        ) : orders.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+              <ClipboardList size={36} style={{ color: '#5b5b64' }} />
+              <p style={{ fontSize: 16, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
+              <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55, maxWidth: 300, margin: 0 }}>
+                Share your store link to make your first sale — orders appear here automatically.
+              </p>
+              {liveUrl && (
+                <button
+                  onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgba(62,207,142,.3)', background: 'rgba(62,207,142,.07)', color: 'var(--live)', cursor: 'pointer' }}
+                >
+                  <Share2 size={13} /> Copy store link
+                </button>
+              )}
+            </div>
+            <button onClick={handleLoadOrders} style={{ alignSelf: 'center', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                  {currency} {orderRevenue.toFixed(2)}
+                </p>
+              </div>
+              <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{orders.length}</p>
+              </div>
+            </div>
+            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+                {['Customer', 'Items', 'Amount', 'Date'].map(h => (
+                  <p key={h} style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>{h}</p>
+                ))}
+              </div>
+              {orders.map((o, idx) => (
+                <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                      {o.customerName !== '—' ? o.customerName : o.customerEmail}
+                    </p>
+                    {o.customerName !== '—' && (
+                      <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>{o.customerEmail}</p>
+                    )}
+                  </div>
+                  <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                    {o.items.map(i => `${i.qty}× ${i.name}`).join(', ') || '—'}
+                  </p>
+                  <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', whiteSpace: 'nowrap', margin: 0 }}>
+                    {o.amount.toFixed(2)} {o.currency}
+                  </p>
+                  <p style={{ fontSize: 11, color: '#8a8a93', whiteSpace: 'nowrap', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                    {new Date(o.createdAt).toLocaleDateString('en-GB')}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <button onClick={handleLoadOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+          </>
+        )
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
@@ -2620,6 +2862,59 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           >
             {isSavingSettings ? 'Saving…' : 'Save & push to store'}
           </button>
+        </div>
+      </div>
+
+      {/* Zásilkovna */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.2)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(111,120,230,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>📦</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Zásilkovna / Packeta</p>
+            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+              API klíče pro widget (zobrazení poboček) a pro tvorbu zásilek. Oba klíče najdeš v
+              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>Zásilkovna klientské zóně</a>.
+            </p>
+          </div>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              API klíč — widget (veřejný)
+              {hasZasilkovnaKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+            </label>
+            <input
+              value={zasilkovnaKey}
+              onChange={e => setZasilkovnaKey(e.target.value)}
+              placeholder={hasZasilkovnaKey ? '••••••••••••••••' : 'Vložte API klíč pro widget…'}
+              style={inpSt}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              API heslo — zásilky (soukromé)
+              {hasZasilkovnaPassword && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaveno</span>}
+            </label>
+            <input
+              type="password"
+              value={zasilkovnaPassword}
+              onChange={e => setZasilkovnaPassword(e.target.value)}
+              placeholder={hasZasilkovnaPassword ? '••••••••••••••••' : 'Vložte API heslo…'}
+              style={inpSt}
+            />
+          </div>
+          <button
+            onClick={handleSaveZasilkovna}
+            disabled={isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword)}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword) ? 0.5 : 1 }}
+          >
+            {isSavingZasilkovna ? 'Ukládám…' : 'Uložit klíče Zásilkovny'}
+          </button>
+          {(hasZasilkovnaKey && hasZasilkovnaPassword) && (
+            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+              ✓ Zásilkovna je nakonfigurována — tlačítko &quot;Vytvořit zásilku&quot; je aktivní v Objednávkách.
+            </p>
+          )}
         </div>
       </div>
 
