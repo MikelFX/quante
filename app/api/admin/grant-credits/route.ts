@@ -5,14 +5,28 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { clerkClient } from '@clerk/nextjs/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
+  // Rate-limit by IP: max 10 attempts per 15 minutes to blunt brute-force
+  const ip = getClientIp(request)
+  const rl = rateLimit(`admin-grant:${ip}`, 10, 15 * 60 * 1000)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
+
   const body = await request.json().catch(() => ({})) as Record<string, unknown>
   const { email, amount = 1000, secret } = body as { email?: string; amount?: number; secret?: string }
 
   const adminSecret = process.env.ADMIN_SECRET
   if (!adminSecret || secret !== adminSecret) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Require the secret to be at least 32 chars — catch weak default values
+  if (adminSecret.length < 32) {
+    console.error('ADMIN_SECRET is too short — must be ≥32 characters')
+    return NextResponse.json({ error: 'Server misconfiguration' }, { status: 500 })
   }
 
   if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 })

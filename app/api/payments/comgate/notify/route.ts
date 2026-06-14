@@ -2,14 +2,39 @@
 // Called by Comgate when a payment is completed, cancelled, or refunded.
 // Docs: https://help.comgate.cz/docs/notifications
 
-import { NextResponse } from 'next/server'
+import { createHmac, timingSafeEqual } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { paymentConfirmedEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
 
+function verifyComgateHmac(params: URLSearchParams, secret: string): boolean {
+  const received = params.get('hmac')
+  if (!received) return false
+
+  // Sort all params alphabetically (excluding 'hmac'), reconstruct as query string
+  const sorted = [...params.entries()]
+    .filter(([k]) => k !== 'hmac')
+    .sort(([a], [b]) => a.localeCompare(b))
+
+  const message = new URLSearchParams(sorted).toString()
+  const expected = createHmac('sha256', secret).update(message).digest('hex')
+
+  try {
+    return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(received, 'hex'))
+  } catch {
+    return false
+  }
+}
+
 export async function POST(request: Request) {
   const body = await request.text()
   const params = new URLSearchParams(body)
+
+  // Verify Comgate HMAC signature to reject forged webhook calls
+  const secret = process.env.COMGATE_SECRET
+  if (!secret || !verifyComgateHmac(params, secret)) {
+    return new Response('Forbidden', { status: 403 })
+  }
 
   const transId = params.get('transId')
   const status = params.get('status')       // PAID, CANCELLED, REFUNDED

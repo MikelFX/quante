@@ -1,8 +1,13 @@
 // GoPay payment notification webhook.
 // Called by GoPay when a payment state changes.
 // Docs: https://doc.gopay.com/#payment-notification
+//
+// Security: GoPay does not sign webhook calls with HMAC. Instead, the webhook
+// only carries a payment ID; we call GoPay's own API to fetch the authoritative
+// status. A forged webhook with a fake ID either fails our API call or returns
+// the real status for that ID — neither lets an attacker mark an unrelated order
+// as paid. This pull-based verification is the pattern GoPay recommends.
 
-import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createGopayProvider } from '@/lib/payments/gopay'
 import { paymentConfirmedEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'

@@ -3,10 +3,21 @@
 
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
 
 export async function GET(request: Request) {
+  // Rate-limit by IP: max 60 requests per minute
+  const ip = getClientIp(request)
+  const rl = rateLimit(`store-orders:${ip}`, 60, 60_000)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, {
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+    })
+  }
+
   const authHeader = request.headers.get('authorization') ?? ''
   const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim()
 
