@@ -1,21 +1,33 @@
 // Packeta (Zásilkovna) REST API client.
-// Used to create parcels when the merchant marks an order as shipped.
-// Docs: https://pickup-point.api.packeta.com/
+// Supports both domestic CZ pickup points and Packeta International
+// (DE, SK, PL, AT, HU, RO, HR, … via Z-BOX, partner points, and carrier home delivery).
+// Docs: https://docs.packetery.com/01-pickup-point-selection/02-widget.html
 
 const PACKETA_API = 'https://www.zasilkovna.cz/api/rest'
+
+// Countries where Packeta supports COD (cash on delivery).
+// Outside this list, cod should be 0.
+const COD_SUPPORTED_COUNTRIES = new Set(['cz', 'sk'])
 
 export interface PacketaParcelInput {
   apiKey: string
   apiPassword: string
-  orderId: string           // your internal order ID → used as orderNumber
-  orderNumber: string       // human-readable order number (e.g. "2026-0001")
+  orderId: string           // internal order ID
+  orderNumber: string       // human-readable, e.g. "2026-0001"
   customerName: string
   customerEmail: string
   customerPhone?: string
-  branchId: string          // Zásilkovna branch/pickup-point ID
-  value: number             // declared value in CZK (for insurance)
-  weight?: number           // in kg, default 1
-  cod?: number              // cash-on-delivery amount in CZK (0 = no COD)
+  branchId: string          // Zásilkovna / partner-point / Z-BOX / carrier ID
+  branchCountry?: string    // ISO 3166-1 alpha-2 lower-case, e.g. "cz", "de", "sk"
+  currency?: string         // ISO 4217, e.g. "CZK", "EUR" — declared value currency
+  value: number             // declared value in that currency (for insurance / customs)
+  weight?: number           // kg, default 1; required for international carriers
+  size?: {                  // cm — required by DHL, GLS, etc.
+    width: number
+    height: number
+    depth: number
+  }
+  cod?: number              // cash-on-delivery amount (0 = no COD); auto-zeroed for non-COD countries
 }
 
 export interface PacketaParcelResult {
@@ -24,7 +36,12 @@ export interface PacketaParcelResult {
 }
 
 export async function createPacketaParcel(p: PacketaParcelInput): Promise<PacketaParcelResult> {
-  // Packeta uses a SOAP-like XML API
+  const currency = p.currency?.toUpperCase() ?? 'CZK'
+  const country = p.branchCountry?.toLowerCase() ?? 'cz'
+
+  // COD is only supported for domestic countries — zero it out for international
+  const cod = COD_SUPPORTED_COUNTRIES.has(country) ? (p.cod ?? 0) : 0
+
   const xml = `<?xml version="1.0" encoding="utf-8"?>
 <createPacket>
   <apiPassword>${escXml(p.apiPassword)}</apiPassword>
@@ -35,10 +52,11 @@ export async function createPacketaParcel(p: PacketaParcelInput): Promise<Packet
     <email>${escXml(p.customerEmail)}</email>
     ${p.customerPhone ? `<phone>${escXml(p.customerPhone)}</phone>` : ''}
     <addressId>${escXml(p.branchId)}</addressId>
-    <currency>CZK</currency>
+    <currency>${escXml(currency)}</currency>
     <value>${p.value.toFixed(2)}</value>
     <weight>${(p.weight ?? 1).toFixed(3)}</weight>
-    ${p.cod ? `<cod>${p.cod.toFixed(2)}</cod>` : ''}
+    ${cod > 0 ? `<cod>${cod.toFixed(2)}</cod>` : ''}
+    ${p.size ? `<size><width>${p.size.width}</width><height>${p.size.height}</height><depth>${p.size.depth}</depth></size>` : ''}
     <apiKey>${escXml(p.apiKey)}</apiKey>
   </packetAttributes>
 </createPacket>`

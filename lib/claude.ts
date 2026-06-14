@@ -79,7 +79,7 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
     "prevod"?: { "enabled": boolean, "qr": boolean }
   },
   "shipping"?: {
-    "methods": [{ "type": "zasilkovna"|"ppl"|"dpd"|"balikovna"|"osobni_odber"|"custom", "nazev"?: string, "cena_czk": number }],
+    "methods": [{ "type": "zasilkovna"|"packeta_international"|"ppl"|"dpd"|"balikovna"|"osobni_odber"|"custom", "nazev"?: string, "cena_czk": number }],
     "doprava_zdarma_od_czk"?: number
   }
 }

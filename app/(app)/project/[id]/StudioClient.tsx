@@ -72,7 +72,8 @@ interface StoreOrder {
   customerEmail: string; customerName: string; customerPhone: string | null
   amount: number; currency: string
   status: string; paymentStatus: string; paymentMethod: string
-  shippingMethod: string | null; zasilkovnaBranchId: string | null
+  shippingMethod: string | null
+  zasilkovnaBranchId: string | null; zasilkovnaBranchCountry: string | null
   trackingCode: string | null; trackingUrl: string | null
   invoiceUrl: string | null; createdAt: string
 }
@@ -284,6 +285,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   // Zásilkovna shipment creation
   const [creatingShipment, setCreatingShipment] = useState<string | null>(null)
   const [shipmentResults, setShipmentResults] = useState<Record<string, { barcode?: string; error?: string }>>({})
+  const [shipmentWeights, setShipmentWeights] = useState<Record<string, string>>({})
   const [settingsPubKey, setSettingsPubKey] = useState('')
   const [settingsSecKey, setSettingsSecKey] = useState('')
   const [settingsSecKeySet, setSettingsSecKeySet] = useState(false)
@@ -2666,7 +2668,10 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                       </span>
                       {isZasilkovna && (
                         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(111,120,230,.12)', color: '#a5b4fc' }}>
-                          📦 Zásilkovna {o.zasilkovnaBranchId ? `#${o.zasilkovnaBranchId}` : ''}
+                          📦 {o.zasilkovnaBranchCountry && o.zasilkovnaBranchCountry !== 'cz'
+                            ? `Packeta International · ${o.zasilkovnaBranchCountry.toUpperCase()}`
+                            : 'Zásilkovna'}
+                          {o.zasilkovnaBranchId ? ` #${o.zasilkovnaBranchId}` : ''}
                         </span>
                       )}
                       {shipped && (
@@ -2678,7 +2683,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
                     {/* Zásilkovna action */}
                     {isZasilkovna && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
                         {shipped || result?.barcode ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', fontWeight: 600 }}>
@@ -2694,23 +2699,39 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                         ) : result?.error ? (
                           <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{result.error}</p>
                         ) : (
-                          <button
-                            onClick={() => handleCreateShipment(o.id)}
-                            disabled={creating || !paid}
-                            title={!paid ? 'Objednávka musí být zaplacena' : undefined}
-                            style={{
-                              fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
-                              border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
-                              color: '#a5b4fc', cursor: creating || !paid ? 'not-allowed' : 'pointer',
-                              opacity: !paid ? 0.5 : 1,
-                            }}
-                          >
-                            {creating ? 'Vytvářím…' : '📦 Vytvořit zásilku'}
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              type="number"
+                              min="0.1"
+                              step="0.1"
+                              placeholder="kg"
+                              value={shipmentWeights[o.id] ?? ''}
+                              onChange={e => setShipmentWeights(p => ({ ...p, [o.id]: e.target.value }))}
+                              style={{
+                                width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5,
+                                border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
+                                color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)',
+                              }}
+                              title="Hmotnost zásilky v kg (povinné pro mezinárodní dopravce)"
+                            />
+                            <button
+                              onClick={() => handleCreateShipment(o.id, parseFloat(shipmentWeights[o.id] ?? '1') || 1)}
+                              disabled={creating || !paid}
+                              title={!paid ? 'Objednávka musí být zaplacena' : 'Vytvořit zásilku v Packetě'}
+                              style={{
+                                fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
+                                border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
+                                color: '#a5b4fc', cursor: creating || !paid ? 'not-allowed' : 'pointer',
+                                opacity: !paid ? 0.5 : 1,
+                              }}
+                            >
+                              {creating ? 'Vytvářím…' : '📦 Vytvořit zásilku'}
+                            </button>
+                          </div>
                         )}
                         {o.invoiceUrl && (
                           <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', marginLeft: 'auto' }}>
+                            style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
                             Faktura →
                           </a>
                         )}

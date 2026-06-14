@@ -29,6 +29,7 @@ interface CheckoutBody {
   dobirkaCents?: number
   zasilkovnaBranchId?: string
   zasilkovnaBranchName?: string
+  zasilkovnaBranchCountry?: string  // ISO 3166-1 alpha-2 lower-case, e.g. "de", "sk"
   customerEmail?: string
   customerName?: string
   customerPhone?: string
@@ -85,6 +86,7 @@ export async function POST(request: Request) {
       shipping_method: body.shippingMethod,
       zasilkovna_branch_id: body.zasilkovnaBranchId,
       zasilkovna_branch_name: body.zasilkovnaBranchName,
+      zasilkovna_branch_country: body.zasilkovnaBranchCountry ?? null,
       customer_email: body.customerEmail,
       customer_name: body.customerName,
       customer_phone: body.customerPhone,

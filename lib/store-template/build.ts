@@ -624,6 +624,7 @@ import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 
 const SHIPPING_LABELS: Record<string, string> = {
   zasilkovna: 'Zásilkovna',
+  packeta_international: 'Packeta International',
   ppl: 'PPL — doručení na adresu',
   dpd: 'DPD — doručení na adresu',
   balikovna: 'Balíkovna',
@@ -667,6 +668,7 @@ export default function CartPage() {
   const [selectedPayment, setSelectedPayment] = useState(defaultPayment)
   const [zasilkovnaId, setZasilkovnaId] = useState('')
   const [zasilkovnaName, setZasilkovnaName] = useState('')
+  const [zasilkovnaCountry, setZasilkovnaCountry] = useState('')
   const [customerName, setCustomerName] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -680,8 +682,8 @@ export default function CartPage() {
   const orderTotal = total + shippingCost + dobirkaFee
   const currency = items[0]?.currency ?? manifest.catalog.currency
 
-  const needsAddress = selectedShipping !== 'zasilkovna' && selectedShipping !== 'osobni_odber'
-  const needsZasilkovna = selectedShipping === 'zasilkovna'
+  const needsAddress = selectedShipping !== 'zasilkovna' && selectedShipping !== 'packeta_international' && selectedShipping !== 'osobni_odber'
+  const needsZasilkovna = selectedShipping === 'zasilkovna' || selectedShipping === 'packeta_international'
 
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
@@ -691,15 +693,23 @@ export default function CartPage() {
     // @ts-expect-error Packeta loaded via CDN
     if (!window.Packeta?.Widget?.pick) { alert('Widget se načítá, zkuste znovu.'); return }
     // @ts-expect-error Packeta loaded via CDN
-    window.Packeta.Widget.pick(zasilkovnaApiKey, (point: { id: string; name: string } | null) => {
-      if (point) { setZasilkovnaId(point.id); setZasilkovnaName(point.name) }
-    }, { language: 'cs' })
+    window.Packeta.Widget.pick(zasilkovnaApiKey, (point: { id: string; name: string; country?: string } | null) => {
+      if (point) {
+        setZasilkovnaId(point.id)
+        setZasilkovnaName(point.name)
+        setZasilkovnaCountry(point.country ?? '')
+      }
+    }, {
+      // No country filter → shows all Packeta International pickup points
+      // Language is always Czech; end-user can change it in the widget
+      language: 'cs',
+    })
   }
 
   async function handleCheckout(e: React.FormEvent) {
     e.preventDefault()
     if (!termsAccepted) { setError('Potvrďte prosím souhlas s obchodními podmínkami.'); return }
-    if (needsZasilkovna && !zasilkovnaId) { setError('Vyberte výdejní místo Zásilkovny.'); return }
+    if (needsZasilkovna && !zasilkovnaId) { setError('Vyberte výdejní místo Packeta.'); return }
     if (!customerEmail) { setError('Zadejte e-mailovou adresu.'); return }
     setLoading(true)
     setError('')
@@ -715,6 +725,7 @@ export default function CartPage() {
           dobirkaCents: Math.round(dobirkaFee * 100),
           zasilkovnaBranchId: zasilkovnaId || undefined,
           zasilkovnaBranchName: zasilkovnaName || undefined,
+          zasilkovnaBranchCountry: zasilkovnaCountry || undefined,
           customerEmail,
           customerName: customerName || undefined,
           customerPhone: customerPhone || undefined,
@@ -815,7 +826,7 @@ export default function CartPage() {
                       return (
                         <label key={method.type} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.875rem 1rem', border: \`1px solid \${selectedShipping === method.type ? 'var(--s-accent)' : 'var(--s-border)'}\`, borderRadius: 'var(--s-radius)', cursor: 'pointer', background: 'var(--s-surface)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <input type="radio" name="shipping" value={method.type} checked={selectedShipping === method.type} onChange={() => { setSelectedShipping(method.type); setZasilkovnaId(''); setZasilkovnaName('') }} style={{ accentColor: 'var(--s-accent)', margin: 0 }} />
+                            <input type="radio" name="shipping" value={method.type} checked={selectedShipping === method.type} onChange={() => { setSelectedShipping(method.type); setZasilkovnaId(''); setZasilkovnaName(''); setZasilkovnaCountry('') }} style={{ accentColor: 'var(--s-accent)', margin: 0 }} />
                             <span style={{ fontSize: '0.9375rem', fontWeight: selectedShipping === method.type ? 600 : 400 }}>{SHIPPING_LABELS[method.type] ?? method.nazev ?? method.type}</span>
                           </div>
                           <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: effectiveCost === 0 ? '#059669' : 'var(--s-text)' }}>
@@ -831,13 +842,17 @@ export default function CartPage() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <div>
                             <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9375rem' }}>{zasilkovnaName}</p>
-                            <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--s-muted)' }}>Pobočka Zásilkovny</p>
+                            <p style={{ margin: '2px 0 0', fontSize: '0.8125rem', color: 'var(--s-muted)' }}>
+                              {zasilkovnaCountry && zasilkovnaCountry !== 'cz'
+                                ? \`Packeta International · \${zasilkovnaCountry.toUpperCase()}\`
+                                : 'Zásilkovna'}
+                            </p>
                           </div>
                           <button type="button" onClick={openZasilkovnaWidget} style={{ fontSize: '0.8125rem', color: 'var(--s-accent)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Změnit</button>
                         </div>
                       ) : (
                         <button type="button" onClick={openZasilkovnaWidget} style={{ width: '100%', padding: '0.625rem', background: 'var(--s-accent)', color: 'var(--s-accent-text)', border: 'none', borderRadius: 'var(--s-radius)', fontWeight: 600, fontSize: '0.9375rem', fontFamily: 'var(--s-font-body)', cursor: 'pointer' }}>
-                          Vybrat výdejní místo Zásilkovny
+                          Vybrat výdejní místo
                         </button>
                       )}
                     </div>

@@ -48,8 +48,8 @@ export async function POST(
     .maybeSingle()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-  if (order.shipping_method !== 'zasilkovna') {
-    return NextResponse.json({ error: 'Order shipping method is not zásilkovna' }, { status: 422 })
+  if (order.shipping_method !== 'zasilkovna' && order.shipping_method !== 'packeta_international') {
+    return NextResponse.json({ error: 'Order shipping method is not Packeta/Zásilkovna' }, { status: 422 })
   }
   if (!order.zasilkovna_branch_id) {
     return NextResponse.json({ error: 'No Zásilkovna branch selected on this order' }, { status: 422 })
@@ -58,7 +58,10 @@ export async function POST(
     return NextResponse.json({ error: 'Order already shipped', barcode: order.tracking_code }, { status: 409 })
   }
 
-  const body = await request.json().catch(() => ({})) as { weight?: number }
+  const body = await request.json().catch(() => ({})) as {
+    weight?: number
+    size?: { width: number; height: number; depth: number }
+  }
 
   try {
     const parcel = await createPacketaParcel({
@@ -70,8 +73,11 @@ export async function POST(
       customerEmail: order.customer_email ?? '',
       customerPhone: order.customer_phone ?? undefined,
       branchId: order.zasilkovna_branch_id,
+      branchCountry: (order.zasilkovna_branch_country as string | null) ?? 'cz',
+      currency: (order.currency as string).toUpperCase(),
       value: order.total_cents / 100,
-      weight: body.weight ?? 1,
+      weight: body.weight ?? (order.parcel_weight_kg as number | null) ?? 1,
+      size: body.size ?? (order.parcel_size as { width: number; height: number; depth: number } | null) ?? undefined,
       cod: order.payment_method === 'dobirka' ? order.total_cents / 100 : 0,
     })
 
