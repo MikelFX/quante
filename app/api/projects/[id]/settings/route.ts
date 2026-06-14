@@ -31,7 +31,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id: projectId } = await params
-  const { stripePublishableKey, stripeSecretKey, zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber } = await request.json()
+  // Stripe/Comgate/GoPay keys are intentionally NOT accepted here.
+  // Hosted stores always process payments through Quante's platform credentials.
+  // Users configure their own keys only in self-hosted exports (via .env.local).
+  const { zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber } = await request.json()
 
   const supabase = await createClient()
   const { data: project } = await supabase
@@ -43,14 +46,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  // Build upsert payload — only include fields that were sent
+  // Build upsert payload — only shipping API keys
   const upsertPayload: Record<string, unknown> = {
     project_id: projectId,
     user_id: userId,
     updated_at: new Date().toISOString(),
   }
-  if (stripePublishableKey !== undefined) upsertPayload.stripe_publishable_key = stripePublishableKey || null
-  if (stripeSecretKey !== undefined) upsertPayload.stripe_secret_key = stripeSecretKey || null
   if (zasilkovnaApiKey !== undefined) upsertPayload.zasilkovna_api_key = zasilkovnaApiKey || null
   if (zasilkovnaApiPassword !== undefined) upsertPayload.zasilkovna_api_password = zasilkovnaApiPassword || null
   if (dhlApiKey !== undefined) upsertPayload.dhl_api_key = dhlApiKey || null
@@ -59,18 +60,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   await supabaseAdmin.from('project_secrets').upsert(upsertPayload, { onConflict: 'project_id' })
 
-  // If store is deployed, push Stripe keys to Vercel env vars
+  // Push Zásilkovna widget key to the deployed Vercel project env vars
   if (project.vercel_project_id) {
     const envUpdate: Record<string, string> = {}
-    if (stripePublishableKey) envUpdate['NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY'] = stripePublishableKey
-    if (stripeSecretKey) envUpdate['STRIPE_SECRET_KEY'] = stripeSecretKey
     if (zasilkovnaApiKey) envUpdate['NEXT_PUBLIC_ZASILKOVNA_API_KEY'] = zasilkovnaApiKey
 
     if (Object.keys(envUpdate).length > 0) {
       try {
-        await setEnvVars(project.vercel_project_id as string, envUpdate, {
-          encrypted: stripeSecretKey ? ['STRIPE_SECRET_KEY'] : [],
-        })
+        await setEnvVars(project.vercel_project_id as string, envUpdate, { encrypted: [] })
       } catch (err) {
         console.warn('[settings] setEnvVars non-fatal:', err)
       }

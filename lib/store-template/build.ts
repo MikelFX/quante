@@ -808,26 +808,112 @@ export default function CartPage() {
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
-  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
+  const body = await request.json().catch(() => ({}))
+  if (!body?.items?.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+
+  // ── Hosted mode (Quante manages payments) ─────────────────────────────────
+  // QUANTE_PROJECT_ID is injected automatically when deployed via Quante.
+  // Money is collected by Quante and shown in your Quante payout dashboard.
   const projectId = process.env.QUANTE_PROJECT_ID
-
-  if (!projectId) {
-    return NextResponse.json({ error: 'Store not configured.' }, { status: 500 })
+  if (projectId) {
+    const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
+    const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, ...body }),
+    })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
   }
 
-  const body = await request.json()
-  if (!body?.items?.length) {
-    return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+  // ── Self-hosted mode (your own payment credentials) ────────────────────────
+  // Set the relevant env vars in .env.local to activate each provider.
+  const { paymentMethod = 'stripe', items, customerEmail, shippingCents = 0, dobirkaCents = 0 } = body as {
+    paymentMethod?: string
+    items: Array<{ name: string; price: number; currency: string; quantity: number }>
+    customerEmail?: string
+    shippingCents?: number
+    dobirkaCents?: number
+  }
+  const origin = request.headers.get('origin') || 'http://localhost:3000'
+  const currency = (items[0]?.currency ?? 'CZK').toLowerCase()
+  const totalCents = Math.round(
+    (items.reduce((s, i) => s + i.price * i.quantity, 0) + shippingCents / 100 + dobirkaCents / 100) * 100
+  )
+
+  // ── Stripe ──────────────────────────────────────────────────────────────────
+  if (paymentMethod === 'stripe') {
+    const stripeKey = process.env.STRIPE_SECRET_KEY
+    if (!stripeKey) {
+      return NextResponse.json({
+        error: 'Self-hosted Stripe: add STRIPE_SECRET_KEY to .env.local and run: npm install stripe'
+      }, { status: 503 })
+    }
+    try {
+      // @ts-expect-error — install stripe with: npm install stripe
+      const { default: Stripe } = await import('stripe')
+      const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
+      const lineItems = [
+        ...items.map((i) => ({
+          price_data: { currency, product_data: { name: i.name }, unit_amount: Math.round(i.price * 100) },
+          quantity: i.quantity,
+        })),
+        ...(shippingCents > 0 ? [{ price_data: { currency, product_data: { name: 'Doprava' }, unit_amount: shippingCents }, quantity: 1 }] : []),
+        ...(dobirkaCents > 0 ? [{ price_data: { currency, product_data: { name: 'Dobírka' }, unit_amount: dobirkaCents }, quantity: 1 }] : []),
+      ]
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: lineItems,
+        mode: 'payment',
+        success_url: \`\${origin}/success\`,
+        cancel_url: \`\${origin}/cart\`,
+        customer_email: customerEmail,
+      })
+      return NextResponse.json({ url: session.url })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Stripe error'
+      return NextResponse.json({ error: msg }, { status: 500 })
+    }
   }
 
-  const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ projectId, ...body }),
-  })
+  // ── Comgate ─────────────────────────────────────────────────────────────────
+  if (paymentMethod === 'comgate') {
+    const merchantId = process.env.COMGATE_MERCHANT_ID
+    const secret = process.env.COMGATE_SECRET
+    if (!merchantId || !secret) {
+      return NextResponse.json({
+        error: 'Self-hosted Comgate: add COMGATE_MERCHANT_ID and COMGATE_SECRET to .env.local'
+      }, { status: 503 })
+    }
+    try {
+      const params = new URLSearchParams({
+        merchant: merchantId, secret,
+        test: process.env.COMGATE_TEST_MODE === 'true' ? 'true' : 'false',
+        country: 'CZ', price: String(totalCents), curr: currency.toUpperCase(),
+        label: 'Objednávka', refId: crypto.randomUUID(), method: 'ALL',
+        email: customerEmail ?? '', prepareOnly: 'true',
+        returnUrl: \`\${origin}/success\`, notifUrl: \`\${origin}/api/payments/comgate/notify\`,
+      })
+      const res = await fetch('https://payments.comgate.cz/v1.0/create', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      })
+      const result = new URLSearchParams(await res.text())
+      if (result.get('code') !== '0') {
+        return NextResponse.json({ error: \`Comgate: \${result.get('message')}\` }, { status: 500 })
+      }
+      return NextResponse.json({ url: result.get('redirect') })
+    } catch (err: unknown) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Comgate error' }, { status: 500 })
+    }
+  }
 
-  const data = await res.json()
-  return NextResponse.json(data, { status: res.status })
+  // ── Dobírka / Převod ─────────────────────────────────────────────────────────
+  if (paymentMethod === 'dobirka' || paymentMethod === 'prevod') {
+    return NextResponse.json({ url: \`\${origin}/success?method=\${paymentMethod}\` })
+  }
+
+  return NextResponse.json({ error: 'Unknown payment method' }, { status: 400 })
 }
 `)
 
@@ -963,13 +1049,46 @@ export default function SuccessPage() {
   // ── .env.example ──────────────────────────────────────────────────────────
   const hasAdmin = (manifest as unknown as Record<string, unknown>).adminPanel === true
   const hasZasilkovna = manifest.shipping?.methods?.some((m) => m.type === 'zasilkovna') ?? false
+  const hasComgate = manifest.payments?.providers?.includes('comgate') ?? false
+  const hasGopay = manifest.payments?.providers?.includes('gopay') ?? false
   const envLines = [
-    '# ── Quante managed payments (auto-configured when deployed via Quante) ────',
-    '# These are set automatically. Only needed for local dev or self-hosting.',
+    '# ════════════════════════════════════════════════════════════════════════════',
+    '# HOSTED MODE (deployed via Quante)',
+    '# ════════════════════════════════════════════════════════════════════════════',
+    '# These three vars are injected automatically — you do NOT need to set them.',
+    '# Payments go through Quante; earnings appear in your Quante payout dashboard.',
+    '#',
     'QUANTE_API_URL=https://quante.vercel.app',
     'QUANTE_PROJECT_ID=your-project-id',
     'QUANTE_API_KEY=your-api-key',
     '',
+    '# ════════════════════════════════════════════════════════════════════════════',
+    '# SELF-HOSTED MODE (your own server / Vercel account)',
+    '# ════════════════════════════════════════════════════════════════════════════',
+    '# Remove QUANTE_PROJECT_ID above and set your own payment credentials below.',
+    '# The checkout route auto-detects which mode to use.',
+    '',
+    '# ── Stripe (card, Apple Pay, Google Pay) ─────────────────────────────────',
+    '# 1. Get keys at https://dashboard.stripe.com/apikeys',
+    '# 2. Run: npm install stripe',
+    '# STRIPE_SECRET_KEY=sk_live_...',
+    '',
+    ...(hasComgate ? [
+      '# ── Comgate (CZ card, Apple Pay, bank buttons) ───────────────────────────',
+      '# Get credentials at https://portal.comgate.cz',
+      '# COMGATE_MERCHANT_ID=your-merchant-id',
+      '# COMGATE_SECRET=your-secret',
+      '# COMGATE_TEST_MODE=false',
+      '',
+    ] : []),
+    ...(hasGopay ? [
+      '# ── GoPay (CZ/SK card, Google Pay, bank transfer) ────────────────────────',
+      '# Get credentials at https://help.gopay.com/cs/gopay-business-payments',
+      '# GOPAY_CLIENT_ID=your-client-id',
+      '# GOPAY_CLIENT_SECRET=your-client-secret',
+      '# GOPAY_GO_ID=your-go-id',
+      '',
+    ] : []),
     ...(hasZasilkovna ? [
       '# ── Zásilkovna / Packeta widget ──────────────────────────────────────────',
       '# Get your API key at https://client.packeta.com/cs/tools/web-widget',
@@ -982,8 +1101,8 @@ export default function SuccessPage() {
     '',
   ]
   if (hasAdmin) {
-    envLines.push('# Admin panel — set a strong password')
-    envLines.push('ADMIN_PASSWORD=your-admin-password')
+    envLines.push('# ── Admin panel ──────────────────────────────────────────────────────────')
+    envLines.push('ADMIN_PASSWORD=your-strong-admin-password')
     envLines.push('')
   }
   add('.env.example', envLines.join('\n'))

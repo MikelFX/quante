@@ -514,18 +514,37 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       {/* Payment methods */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Platební metody</p>
-        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          Všechny platby probíhají přes Quante platební platformu — zákazník zaplatí a částka se zobrazí ve vašem výplatním přehledu. Zvolte metody, které chcete zákazníkům nabídnout.
-        </p>
+
+        {/* Quante managed payments banner */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+          <span style={{ fontSize: 12, marginTop: 1 }}>🔒</span>
+          <div>
+            <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', margin: '0 0 2px' }}>Platby zajišťuje Quante</p>
+            <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+              Vybrané metody jsou automaticky nakonfigurovány — žádné API klíče nepotřebujete.
+              Výnosy se zobrazí na záložce <strong style={{ color: 'var(--foreground)' }}>Výplaty</strong> a vyplatíte je převodem na IBAN.
+              Vlastní API (Stripe, Comgate, GoPay) nastavíte až po exportu v souboru <code style={{ fontSize: 9 }}>.env.local</code>.
+            </p>
+          </div>
+        </div>
+
+        {/* Stripe — always available via Quante */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(111,120,230,0.04)' }}>
+          <span style={{ fontSize: 10, width: 14, textAlign: 'center', color: '#34d399' }}>✓</span>
+          <span style={{ fontSize: 11, flex: 1 }}>Stripe — karta, Apple Pay, Google Pay</span>
+          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer' }}>Comgate (karta, Apple Pay, bankovní tlačítka)</label>
+          <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (karta, Apple Pay, bankovní tlačítka)</label>
+          {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer' }}>GoPay (karta, Google Pay, bankovní převod)</label>
+          <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (karta, Google Pay, bankovní převod)</label>
+          {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
         </div>
 
         {/* Dobírka */}
