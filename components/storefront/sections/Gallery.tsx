@@ -21,7 +21,7 @@ export function Gallery({ props }: Props) {
           maxWidth: '80rem',
           margin: '0 auto',
           display: 'grid',
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(100%, ${columns <= 2 ? '260px' : columns >= 4 ? '140px' : '180px'}), 1fr))`,
           gap: '0.625rem',
         }}
       >

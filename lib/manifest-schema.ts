@@ -28,9 +28,17 @@ const ShippingConfigSchema = z.object({
 })
 
 const PaymentsConfigSchema = z.object({
-  providers: z.array(z.enum(['comgate', 'gopay', 'stripe'])),
+  providers: z.array(z.enum(['comgate', 'gopay', 'stripe', 'paypal'])),
   dobirka: z.object({ enabled: z.boolean(), priplatek_czk: z.coerce.number() }).optional(),
   prevod: z.object({ enabled: z.boolean(), qr: z.boolean() }).optional(),
+})
+
+const ProductVariantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  sku: z.string().optional(),
+  price: z.coerce.number().optional(),
+  stock: z.coerce.number().int().min(0).optional(),
 })
 
 const ProductSchema = z.object({
@@ -38,10 +46,13 @@ const ProductSchema = z.object({
   name: z.string(),
   description: z.string(),
   price: z.coerce.number(),
+  compareAtPrice: z.coerce.number().optional(),
   images: z.array(z.string()),
   slug: z.string(),
   available: z.coerce.boolean(),
   tags: z.array(z.string()).optional(),
+  variants: z.array(ProductVariantSchema).optional(),
+  lowStockThreshold: z.coerce.number().int().min(0).optional(),
 })
 
 const CollectionSchema = z.object({

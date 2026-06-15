@@ -77,7 +77,7 @@ export function Newsletter({ props }: Props) {
               placeholder={placeholder}
               style={{
                 flex: '1',
-                minWidth: '220px',
+                minWidth: 'min(220px, 100%)',
                 padding: '0.75rem 1rem',
                 background: 'transparent',
                 border: '1px solid rgba(255,255,255,0.2)',

@@ -15,9 +15,11 @@ interface Props {
   currency: string
   image?: string
   available?: boolean
+  variantId?: string
+  variantLabel?: string
 }
 
-export function StickyBuyBar({ productId, name, price, currency, image, available = true }: Props) {
+export function StickyBuyBar({ productId, name, price, currency, image, available = true, variantId, variantLabel }: Props) {
   const [visible, setVisible] = useState(false)
   const [added, setAdded] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -33,7 +35,8 @@ export function StickyBuyBar({ productId, name, price, currency, image, availabl
 
   function handleAdd() {
     if (!available || added) return
-    add({ id: productId, name, price, currency, image })
+    const cartId = variantId ? `${productId}:${variantId}` : productId
+    add({ id: cartId, productId, name, price, currency, image, variantId, variantLabel })
     setAdded(true)
     setTimeout(() => setAdded(false), 1400)
   }

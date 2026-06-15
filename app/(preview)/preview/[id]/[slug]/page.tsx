@@ -18,5 +18,5 @@ export default async function PreviewCustomPage({ params }: Props) {
   const page = manifest.customPages?.find((p) => p.slug === slug)
   if (!page) notFound()
 
-  return <ShopRenderer manifest={manifest} customSlug={slug} basePath={`/preview/${id}`} />
+  return <ShopRenderer manifest={manifest} customSlug={slug} basePath={`/preview/${id}`} projectId={id} />
 }

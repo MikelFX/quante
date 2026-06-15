@@ -18,9 +18,11 @@ interface Props {
   currency: string
   image?: string
   available?: boolean
+  variantId?: string
+  variantLabel?: string
 }
 
-export function AddToCartButton({ productId, name, price, currency, image, available = true }: Props) {
+export function AddToCartButton({ productId, name, price, currency, image, available = true, variantId, variantLabel }: Props) {
   const [btnState, setBtnState] = useState<BtnState>('idle')
   const { add } = useCart()
   const effectiveLevel = useEffectiveMotion()
@@ -30,8 +32,8 @@ export function AddToCartButton({ productId, name, price, currency, image, avail
   function handleAdd() {
     if (!available || btnState !== 'idle') return
 
-    // Cart updated immediately — animation is pure confirmation feedback
-    add({ id: productId, name, price, currency, image })
+    const cartId = variantId ? `${productId}:${variantId}` : productId
+    add({ id: cartId, productId, name, price, currency, image, variantId, variantLabel })
 
     if (animEnabled) {
       setBtnState('adding')

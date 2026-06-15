@@ -1,12 +1,13 @@
 // Called by deployed stores — routes checkout to the correct payment provider.
-// Supported methods: stripe (card), comgate (CZ gateways), dobirka (COD), prevod (bank transfer).
+// Supported methods: stripe (card), comgate (CZ gateways), gopay, paypal, dobirka (COD), prevod (bank transfer).
 
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createComgateProvider } from '@/lib/payments/comgate'
 import { createGopayProvider } from '@/lib/payments/gopay'
-import { orderConfirmationEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'
+import { createPayPalProvider } from '@/lib/payments/paypal'
+import { orderConfirmationEmail, merchantNewOrderEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
 
 const PLATFORM_FEE_PERCENT = parseFloat(process.env.PLATFORM_FEE_PERCENT ?? '5')
@@ -23,7 +24,8 @@ interface CartItem {
 interface CheckoutBody {
   projectId: string
   items: CartItem[]
-  paymentMethod?: 'stripe' | 'comgate' | 'gopay' | 'dobirka' | 'prevod'
+  paymentMethod?: 'stripe' | 'comgate' | 'gopay' | 'paypal' | 'dobirka' | 'prevod'
+  returnBasePath?: string           // e.g. "/preview/{id}" — used to build success/cancel URLs
   shippingMethod?: string
   shippingCents?: number
   dobirkaCents?: number
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
   }
 
   const { projectId, items, paymentMethod = 'stripe' } = body
+  // Build base URL for redirect — use returnBasePath if caller supplies it (storefront pages)
+  const storeBase = body.returnBasePath ? `${origin}${body.returnBasePath}` : origin
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
   if (!items?.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
 
@@ -134,8 +138,8 @@ export async function POST(request: Request) {
         payment_method_types: ['card'],
         line_items: lineItems,
         mode: 'payment',
-        success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/cart`,
+        success_url: `${storeBase}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${storeBase}/checkout`,
         customer_email: body.customerEmail,
         metadata: { type: 'store_sale', project_id: projectId, order_id: orderId, platform_fee_cents: String(platformFeeCents) },
       })
@@ -156,8 +160,8 @@ export async function POST(request: Request) {
         currency,
         label: `Objednávka ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
-        returnUrl: `${origin}/success?order=${orderNumber}`,
-        cancelUrl: `${origin}/cart`,
+        returnUrl: `${storeBase}/success?order=${orderNumber}`,
+        cancelUrl: `${storeBase}/checkout`,
         notifyUrl: `${QUANTE_URL}/api/payments/comgate/notify`,
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
@@ -171,7 +175,7 @@ export async function POST(request: Request) {
     // No online payment — order is placed, paid on delivery
     await supabaseAdmin.from('store_orders').update({ payment_status: 'pending', status: 'pending' }).eq('id', orderId)
     await sendOrderConfirmationEmail(body, orderNumber, totalAmount, itemsTotal, shippingCost, dobirkaFee, currency, manifest)
-    return NextResponse.json({ url: `${origin}/success?order=${orderNumber}&method=dobirka` })
+    return NextResponse.json({ url: `${storeBase}/success?order=${orderNumber}&method=dobirka` })
   }
 
   if (paymentMethod === 'prevod') {
@@ -180,7 +184,7 @@ export async function POST(request: Request) {
     await sendOrderConfirmationEmail(body, orderNumber, totalAmount, itemsTotal, shippingCost, dobirkaFee, currency, manifest, bankovniUcet)
     const qrData = encodeURIComponent(`SPD*1.0*ACC:${bankovniUcet}*AM:${totalAmount.toFixed(2)}*CC:${currency}*MSG:Platba ${orderNumber}*X-VS:${orderNumber.replace(/\D/g, '')}`)
     return NextResponse.json({
-      url: `${origin}/success?order=${orderNumber}&method=prevod&qr=${qrData}&amount=${totalAmount}&acc=${encodeURIComponent(bankovniUcet)}`,
+      url: `${storeBase}/success?order=${orderNumber}&method=prevod&qr=${qrData}&amount=${totalAmount}&acc=${encodeURIComponent(bankovniUcet)}`,
     })
   }
 
@@ -194,14 +198,36 @@ export async function POST(request: Request) {
         currency,
         label: `Objednávka ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
-        returnUrl: `${origin}/success?order=${orderNumber}`,
-        cancelUrl: `${origin}/cart`,
+        returnUrl: `${storeBase}/success?order=${orderNumber}`,
+        cancelUrl: `${storeBase}/checkout`,
         notifyUrl: `${QUANTE_URL}/api/payments/gopay/notify`,
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
       return NextResponse.json({ url: result.redirectUrl })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'GoPay error' }, { status: 500 })
+    }
+  }
+
+  if (paymentMethod === 'paypal') {
+    const provider = createPayPalProvider()
+    if (!provider) return NextResponse.json({ error: 'PayPal není nakonfigurován' }, { status: 503 })
+    try {
+      const result = await provider.createPayment({
+        orderId,
+        amount: Math.round(totalAmount * 100),
+        currency,
+        label: `Objednávka ${orderNumber}`,
+        customerEmail: body.customerEmail ?? '',
+        returnUrl: `${storeBase}/success?order=${orderNumber}`,
+        cancelUrl: `${storeBase}/checkout`,
+        notifyUrl: `${QUANTE_URL}/api/payments/paypal/notify`,
+      })
+      await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
+      await sendOrderConfirmationEmail(body, orderNumber, totalAmount, itemsTotal, shippingCost, dobirkaFee, currency, manifest)
+      return NextResponse.json({ url: result.redirectUrl })
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'PayPal error' }, { status: 500 })
     }
   }
 
@@ -254,5 +280,36 @@ async function sendOrderConfirmationEmail(
     bankovniUcet,
   })
   const from = await getProjectFromEmail(body.projectId)
-  await sendEmail(body.customerEmail, subject, html, from)
+  await Promise.all([
+    sendEmail(body.customerEmail, subject, html, from),
+    sendMerchantOrderEmail(body, orderNumber, total, currency, manifest, from),
+  ])
+}
+
+async function sendMerchantOrderEmail(
+  body: CheckoutBody,
+  orderNumber: string,
+  total: number,
+  currency: string,
+  manifest?: ShopManifest,
+  from?: string,
+) {
+  if (!manifest) return
+  const merchantEmail = manifest.merchant?.kontakt.email
+  if (!merchantEmail) return
+  const { subject, html } = merchantNewOrderEmail({
+    orderNumber,
+    customerName: body.customerName ?? '—',
+    customerEmail: body.customerEmail ?? '—',
+    customerPhone: body.customerPhone,
+    items: (body.items ?? []).map((i) => ({ name: i.name, quantity: i.quantity, price: i.price, currency })),
+    total,
+    currency,
+    paymentMethod: body.paymentMethod ?? 'stripe',
+    shippingMethod: body.shippingMethod,
+    shippingAddress: body.shippingAddress,
+    storeName: manifest.brand.name,
+    accentColor: manifest.design.palette.accent,
+  })
+  await sendEmail(merchantEmail, subject, html, from ?? 'objednavky@quante.io')
 }

@@ -18,7 +18,7 @@ export interface OrderEmailData {
   dobirkaFee: number
   total: number
   currency: string
-  paymentMethod: 'stripe' | 'comgate' | 'gopay' | 'dobirka' | 'prevod'
+  paymentMethod: 'stripe' | 'comgate' | 'gopay' | 'paypal' | 'dobirka' | 'prevod'
   shippingMethod?: string
   zasilkovnaBranchName?: string
   shippingAddress?: {
@@ -38,6 +38,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   stripe: 'Platební karta',
   comgate: 'Online platba',
   gopay: 'Online platba',
+  paypal: 'PayPal',
   dobirka: 'Dobírka',
   prevod: 'Bankovní převod',
 }
@@ -220,6 +221,101 @@ export function refundEmail(d: Pick<OrderEmailData, 'orderNumber' | 'customerNam
   return {
     subject: `Vrácení platby — ${d.orderNumber}`,
     html: baseWrapper(d.storeName, d.accentColor, content, `<p style="margin:0;font-size:12px;color:#999">Dotazy: <a href="mailto:${d.merchantEmail}" style="color:#6f78e6">${d.merchantEmail}</a> · <strong>${d.merchantName}</strong></p>`),
+  }
+}
+
+// ─── Merchant: new order notification ────────────────────────────────────────
+
+export interface MerchantOrderEmailData {
+  orderNumber: string
+  customerName: string
+  customerEmail: string
+  customerPhone?: string
+  items: OrderItem[]
+  total: number
+  currency: string
+  paymentMethod: string
+  shippingMethod?: string
+  shippingAddress?: { ulice: string; mesto: string; psc: string }
+  storeName: string
+  accentColor: string
+  adminUrl?: string  // link to the Studio admin orders tab
+}
+
+export function merchantNewOrderEmail(d: MerchantOrderEmailData): { subject: string; html: string } {
+  const rows = d.items.map((i) => `
+    <tr>
+      <td style="padding:8px 12px;font-size:13px;border-bottom:1px solid #f0f0f0">${i.name}</td>
+      <td style="padding:8px 12px;font-size:13px;text-align:center;border-bottom:1px solid #f0f0f0;color:#666">${i.quantity}×</td>
+      <td style="padding:8px 12px;font-size:13px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${fmt(i.price * i.quantity, d.currency)}</td>
+    </tr>`).join('')
+
+  const content = `
+    <h2 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111">Nová objednávka</h2>
+    <p style="margin:0 0 20px;font-size:14px;color:#666">Objednávka #${d.orderNumber} dorazila do vašeho obchodu.</p>
+
+    <table style="width:100%;border-collapse:collapse;margin:0 0 20px">
+      <thead>
+        <tr style="background:#f9f9f9">
+          <th style="padding:8px 12px;font-size:12px;text-align:left;text-transform:uppercase;letter-spacing:.05em;color:#666">Produkt</th>
+          <th style="padding:8px 12px;font-size:12px;text-align:center;text-transform:uppercase;letter-spacing:.05em;color:#666">Množství</th>
+          <th style="padding:8px 12px;font-size:12px;text-align:right;text-transform:uppercase;letter-spacing:.05em;color:#666">Cena</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="padding:10px 12px;font-size:14px;font-weight:700">Celkem</td>
+          <td style="padding:10px 12px;font-size:15px;font-weight:700;text-align:right">${fmt(d.total, d.currency)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;margin:0 0 16px;font-size:13px;line-height:1.7;color:#444">
+      <p style="margin:0 0 4px"><strong>Zákazník:</strong> ${d.customerName} (${d.customerEmail}${d.customerPhone ? `, ${d.customerPhone}` : ''})</p>
+      ${d.shippingAddress ? `<p style="margin:0 0 4px"><strong>Adresa:</strong> ${d.shippingAddress.ulice}, ${d.shippingAddress.psc} ${d.shippingAddress.mesto}</p>` : ''}
+      ${d.shippingMethod ? `<p style="margin:0 0 4px"><strong>Doprava:</strong> ${d.shippingMethod}</p>` : ''}
+      <p style="margin:0"><strong>Platba:</strong> ${d.paymentMethod}</p>
+    </div>
+
+    ${d.adminUrl ? `<a href="${d.adminUrl}" style="display:inline-block;padding:10px 20px;background:${d.accentColor};color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:4px">Zobrazit objednávku →</a>` : ''}
+  `
+
+  return {
+    subject: `Nová objednávka #${d.orderNumber} — ${fmt(d.total, d.currency)}`,
+    html: baseWrapper(d.storeName, d.accentColor, content, `<p style="margin:0;font-size:12px;color:#999">Správa obchodu: <strong>${d.storeName}</strong></p>`),
+  }
+}
+
+// ─── Merchant: low stock alert ────────────────────────────────────────────────
+
+export interface LowStockEmailData {
+  productName: string
+  variantName?: string
+  stockQty: number
+  threshold: number
+  storeName: string
+  accentColor: string
+  adminUrl?: string
+}
+
+export function merchantLowStockEmail(d: LowStockEmailData): { subject: string; html: string } {
+  const productLabel = d.variantName ? `${d.productName} — ${d.variantName}` : d.productName
+  const content = `
+    <h2 style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111">Upozornění: Nízký sklad</h2>
+    <p style="margin:0 0 20px;font-size:14px;color:#666">Produkt v obchodě <strong>${d.storeName}</strong> dosáhl kritické hranice zásob.</p>
+
+    <div style="background:#fff8ed;border:1px solid #fed7aa;border-radius:8px;padding:16px;margin:0 0 20px">
+      <p style="margin:0 0 6px;font-weight:600;font-size:15px;color:#c2410c">${productLabel}</p>
+      <p style="margin:0;font-size:14px;color:#9a3412">Zbývá <strong>${d.stockQty} ks</strong> (práh upozornění: ${d.threshold} ks)</p>
+    </div>
+
+    ${d.adminUrl ? `<a href="${d.adminUrl}" style="display:inline-block;padding:10px 20px;background:${d.accentColor};color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Doplnit zásoby →</a>` : ''}
+  `
+
+  return {
+    subject: `Nízký sklad: ${productLabel} (${d.stockQty} ks) — ${d.storeName}`,
+    html: baseWrapper(d.storeName, d.accentColor, content, `<p style="margin:0;font-size:12px;color:#999">Upozornění z obchodu <strong>${d.storeName}</strong></p>`),
   }
 }
 

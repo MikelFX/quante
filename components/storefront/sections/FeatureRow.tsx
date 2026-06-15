@@ -82,7 +82,7 @@ export function FeatureRow({ props }: Props) {
         <Stagger
           style={{
             display: layout === 'grid' ? 'grid' : 'flex',
-            gridTemplateColumns: layout === 'grid' ? 'repeat(auto-fit, minmax(220px, 1fr))' : undefined,
+            gridTemplateColumns: layout === 'grid' ? 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))' : undefined,
             flexDirection: layout === 'list' ? 'column' : undefined,
             gap: `calc(2rem * var(--s-space))`,
           }}

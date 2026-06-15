@@ -10,8 +10,9 @@ import {
   MessageCircle, Layers, Package, Paintbrush, Rocket,
   Monitor, Tablet, Smartphone, RotateCcw, ExternalLink, ChevronDown,
   GripVertical, Eye, EyeOff, Trash2, Plus, X,
-  LayoutDashboard, ShoppingBag, ClipboardList, Settings2, ArrowLeft, TrendingUp, Share2,
+  LayoutDashboard, ShoppingBag, ClipboardList, Settings2, ArrowLeft, TrendingUp, Share2, Users,
 } from 'lucide-react'
+import { RevenueChart } from '@/components/admin/RevenueChart'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ interface Props {
 
 type StudioTab = 'chat' | 'preview' | 'sections' | 'products' | 'theme' | 'publish'
 type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'publish'
-type AdminTab = 'dashboard' | 'products' | 'orders' | 'settings'
+type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'settings'
 
 interface StripeOrder {
   id: string; customerEmail: string; customerName: string
@@ -80,11 +81,18 @@ interface StoreOrder {
   invoiceUrl: string | null; createdAt: string
 }
 
+interface CustomerRecord {
+  email: string; name: string; phone: string | null
+  orderCount: number; totalSpent: number; currency: string
+  firstOrderAt: string; lastOrderAt: string
+}
+
 interface ProductDraft {
   id: string
   name: string
   description: string
   price: string
+  compareAtPrice: string
   slug: string
   tags: string
   images: string[]
@@ -96,7 +104,7 @@ function toSlug(s: string) {
 }
 
 function emptyProduct(): ProductDraft {
-  return { id: crypto.randomUUID(), name: '', description: '', price: '', slug: '', tags: '', images: [], available: true }
+  return { id: crypto.randomUUID(), name: '', description: '', price: '', compareAtPrice: '', slug: '', tags: '', images: [], available: true }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -284,6 +292,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [storeOrderRevenue, setStoreOrderRevenue] = useState(0)
   const [isLoadingStoreOrders, setIsLoadingStoreOrders] = useState(false)
   const [ordersTab, setOrdersTab] = useState<'stripe' | 'store'>('store')
+  // Customers
+  const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false)
   // Zásilkovna shipment creation
   const [creatingShipment, setCreatingShipment] = useState<string | null>(null)
   const [shipmentResults, setShipmentResults] = useState<Record<string, { barcode?: string; error?: string }>>({})
@@ -341,7 +352,14 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const sectionImageInputRef = useRef<HTMLInputElement>(null)
+  const visionInputRef = useRef<HTMLInputElement>(null)
   const [pendingImageTarget, setPendingImageTarget] = useState<((url: string) => void) | null>(null)
+  // Vision (IMAGE→BRAND)
+  const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false)
+  const [visionResult, setVisionResult] = useState<{ palette: Record<string, string>; typography: { headingFont: string; bodyFont: string; scale: string }; radius: string; density: string; motion: string; voice: string; reasoning: string } | null>(null)
+  // Image suggest (product photo finder)
+  const [isSuggestingImages, setIsSuggestingImages] = useState(false)
+  const [suggestedImages, setSuggestedImages] = useState<Array<{ url: string; thumb: string; alt: string; credit: string; creditUrl: string }> | null>(null)
 
   // Hosting trial helpers
   const trialDaysLeft = hostingInfo.trialEndsAt
@@ -850,6 +868,36 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     }
   }
 
+  async function handleLoadCustomers() {
+    setIsLoadingCustomers(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/customers`)
+      const data = await res.json()
+      if (!res.ok) return
+      setCustomers(data.customers ?? [])
+    } catch {
+      // non-fatal
+    } finally {
+      setIsLoadingCustomers(false)
+    }
+  }
+
+  function exportCustomersCsv() {
+    const header = 'Email,Name,Phone,Orders,Total Spent,Currency,First Order,Last Order'
+    const rows = customers.map(c =>
+      [c.email, c.name, c.phone ?? '', c.orderCount, c.totalSpent.toFixed(2), c.currency,
+        new Date(c.firstOrderAt).toLocaleDateString('cs-CZ'),
+        new Date(c.lastOrderAt).toLocaleDateString('cs-CZ'),
+      ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+    )
+    const csv = [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'customers.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function handleCreateShipment(orderId: string, weight = 1) {
     setCreatingShipment(orderId)
     try {
@@ -1051,6 +1099,74 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     ref.current?.click()
   }
 
+  async function handleVisionAnalyze(file: File) {
+    if (!currentManifest) return
+    setIsVisionAnalyzing(true)
+    setVisionResult(null)
+    try {
+      // Convert to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve((reader.result as string).split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const mimeType = file.type || 'image/jpeg'
+      const res = await fetch('/api/quante/vision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: base64, mimeType, projectId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error ?? 'Vision analysis failed'); return }
+      setVisionResult(data.vision)
+      if (data.balanceAfter !== undefined) setBalance(data.balanceAfter)
+    } catch { alert('Vision analysis failed.') }
+    finally { setIsVisionAnalyzing(false) }
+  }
+
+  async function handleApplyVision() {
+    if (!visionResult || !currentManifest) return
+    const v = visionResult
+    const updated: ShopManifest = {
+      ...currentManifest,
+      brand: { ...currentManifest.brand, voice: (v.voice as ShopManifest['brand']['voice']) ?? currentManifest.brand.voice },
+      design: {
+        ...currentManifest.design,
+        palette: { ...currentManifest.design.palette, ...(v.palette as ShopManifest['design']['palette']) },
+        typography: {
+          ...currentManifest.design.typography,
+          headingFont: v.typography.headingFont || currentManifest.design.typography.headingFont,
+          bodyFont: v.typography.bodyFont || currentManifest.design.typography.bodyFont,
+          scale: (v.typography.scale as ShopManifest['design']['typography']['scale']) || currentManifest.design.typography.scale,
+        },
+        radius: (v.radius as ShopManifest['design']['radius']) || currentManifest.design.radius,
+        density: (v.density as ShopManifest['design']['density']) || currentManifest.design.density,
+        motion: (v.motion as ShopManifest['design']['motion']) || currentManifest.design.motion,
+      },
+    }
+    const ok = await handleSaveManifest(updated, 'Vision: applied image brand extraction')
+    if (ok) setVisionResult(null)
+  }
+
+  async function handleImageSuggest() {
+    if (!productDraft) return
+    setIsSuggestingImages(true)
+    setSuggestedImages(null)
+    try {
+      const res = await fetch('/api/quante/image-suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productName: productDraft.name, productDescription: productDraft.description, projectId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error ?? 'Image suggestion failed'); return }
+      setSuggestedImages(data.images ?? [])
+      if (data.balanceAfter !== undefined) setBalance(data.balanceAfter)
+    } catch { alert('Image suggestion failed.') }
+    finally { setIsSuggestingImages(false) }
+  }
+
   async function handleProductSave() {
     if (!productDraft || !currentManifest) return
     const updated: ShopManifest = {
@@ -1060,12 +1176,12 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         products: productDraft.id && currentManifest.catalog.products.find(p => p.id === productDraft.id)
           ? currentManifest.catalog.products.map(p =>
               p.id === productDraft.id
-                ? { id: productDraft.id, name: productDraft.name, description: productDraft.description, price: parseFloat(productDraft.price) || 0, slug: productDraft.slug || toSlug(productDraft.name), images: productDraft.images, available: productDraft.available, tags: productDraft.tags ? productDraft.tags.split(',').map(t => t.trim()).filter(Boolean) : [] }
+                ? { id: productDraft.id, name: productDraft.name, description: productDraft.description, price: parseFloat(productDraft.price) || 0, compareAtPrice: parseFloat(productDraft.compareAtPrice) || undefined, slug: productDraft.slug || toSlug(productDraft.name), images: productDraft.images, available: productDraft.available, tags: productDraft.tags ? productDraft.tags.split(',').map(t => t.trim()).filter(Boolean) : [] }
                 : p
             )
           : [
               ...currentManifest.catalog.products,
-              { id: productDraft.id, name: productDraft.name, description: productDraft.description, price: parseFloat(productDraft.price) || 0, slug: productDraft.slug || toSlug(productDraft.name), images: productDraft.images, available: productDraft.available, tags: productDraft.tags ? productDraft.tags.split(',').map(t => t.trim()).filter(Boolean) : [] },
+              { id: productDraft.id, name: productDraft.name, description: productDraft.description, price: parseFloat(productDraft.price) || 0, compareAtPrice: parseFloat(productDraft.compareAtPrice) || undefined, slug: productDraft.slug || toSlug(productDraft.name), images: productDraft.images, available: productDraft.available, tags: productDraft.tags ? productDraft.tags.split(',').map(t => t.trim()).filter(Boolean) : [] },
             ],
       },
     }
@@ -1349,12 +1465,49 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                 {isUploadingImage ? '…' : '+'}
               </button>
             </div>
+            {/* AI image suggest */}
+            <button
+              onClick={handleImageSuggest}
+              disabled={isSuggestingImages || !productDraft.name.trim()}
+              style={{ marginTop: 8, width: '100%', fontSize: 11, padding: '5px', borderRadius: 7, border: '1px dashed rgba(111,120,230,.35)', background: 'rgba(111,120,230,.05)', color: isSuggestingImages ? '#8a8a93' : '#a5b4fc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+            >
+              {isSuggestingImages ? '✦ Finding images…' : '✦ Find product images · 1 credit'}
+            </button>
+            {/* Suggested images grid */}
+            {suggestedImages && suggestedImages.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <p style={{ fontSize: 10, color: '#8a8a93' }}>Click to add</p>
+                  <button onClick={() => setSuggestedImages(null)} style={{ fontSize: 10, color: '#5b5b64', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Close</button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                  {suggestedImages.slice(0, 9).map((img, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setProductDraft(d => d ? { ...d, images: d.images.includes(img.url) ? d.images : [...d.images, img.url] } : d)
+                      }}
+                      title={`Photo by ${img.credit} on Unsplash`}
+                      style={{ padding: 0, border: '2px solid transparent', borderRadius: 6, overflow: 'hidden', cursor: 'pointer', background: 'none', aspectRatio: '1', transition: 'border-color 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#6f78e6')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.thumb} alt={img.alt} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </button>
+                  ))}
+                </div>
+                <p style={{ fontSize: 9, color: '#5b5b64', marginTop: 4, textAlign: 'center' }}>Photos via Unsplash</p>
+              </div>
+            )}
           </div>
 
           {fldLabel('Name *')}
           <input style={inputSt} value={productDraft.name} onChange={e => setProductDraft(d => d ? { ...d, name: e.target.value, slug: toSlug(e.target.value) } : d)} />
           {fldLabel('Price')}
           <input style={inputSt} type="number" min="0" step="0.01" value={productDraft.price} onChange={e => setProductDraft(d => d ? { ...d, price: e.target.value } : d)} placeholder={`${currentManifest.catalog.currency} 0.00`} />
+          {fldLabel('Compare-at price (original / sale)')}
+          <input style={inputSt} type="number" min="0" step="0.01" value={productDraft.compareAtPrice} onChange={e => setProductDraft(d => d ? { ...d, compareAtPrice: e.target.value } : d)} placeholder="Leave empty if not on sale" />
           {fldLabel('Description')}
           <textarea rows={3} style={taSt} value={productDraft.description} onChange={e => setProductDraft(d => d ? { ...d, description: e.target.value } : d)} />
           {fldLabel('Slug')}
@@ -1433,13 +1586,19 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                   <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
                   <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 2 }}>
                     {currentManifest.catalog.currency} {p.price}
+                    {p.compareAtPrice && p.compareAtPrice > p.price && (
+                      <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.5 }}>{p.compareAtPrice}</span>
+                    )}
+                    {p.compareAtPrice && p.compareAtPrice > p.price && (
+                      <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>SALE</span>
+                    )}
                     {!p.available && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
                   </p>
                 </div>
 
                 {/* Edit */}
                 <button
-                  onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available })}
+                  onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : '', slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available })}
                   style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer', flexShrink: 0 }}
                 >
                   Edit
@@ -1946,6 +2105,57 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   // ── Theme mode — direct manifest design-token controls ───────────────────────
   const ThemePanel = currentManifest ? (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* IMAGE→BRAND vision */}
+      <section>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 8 }}>Image → Brand</p>
+        <input ref={visionInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+          const file = e.target.files?.[0]
+          if (file) handleVisionAnalyze(file)
+          e.target.value = ''
+        }} />
+        {!visionResult ? (
+          <button
+            onClick={() => visionInputRef.current?.click()}
+            disabled={isVisionAnalyzing}
+            style={{
+              width: '100%', padding: '10px', borderRadius: 8, border: '1px dashed rgba(111,120,230,.4)',
+              background: 'rgba(111,120,230,.05)', color: isVisionAnalyzing ? '#8a8a93' : '#a5b4fc',
+              fontSize: 12, cursor: isVisionAnalyzing ? 'not-allowed' : 'pointer', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}
+          >
+            {isVisionAnalyzing ? '✦ Analysing…' : '↑ Upload inspiration photo · 1 credit'}
+          </button>
+        ) : (
+          <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.04)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {Object.entries(visionResult.palette).map(([k, v]) => (
+                <div key={k} title={`${k}: ${v}`} style={{ width: 22, height: 22, borderRadius: 4, background: v as string, border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }} />
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>{visionResult.reasoning}</p>
+            <p style={{ fontSize: 11, color: '#a5b4fc', margin: 0 }}>
+              {visionResult.typography.headingFont} + {visionResult.typography.bodyFont} · {visionResult.voice} · {visionResult.radius} radius
+            </p>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                onClick={handleApplyVision}
+                disabled={isSavingManifest}
+                style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: 'var(--live)', color: '#000', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Apply to store
+              </button>
+              <button
+                onClick={() => setVisionResult(null)}
+                style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', fontSize: 11, cursor: 'pointer' }}
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Palette */}
       <section>
@@ -2487,10 +2697,11 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   const currency = currentManifest?.catalog.currency ?? 'CZK'
 
   const ADMIN_TABS: { id: AdminTab; label: string; icon: React.ElementType }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'orders',    label: 'Orders',    icon: ClipboardList   },
-    { id: 'products',  label: 'Products',  icon: ShoppingBag     },
-    { id: 'settings',  label: 'Settings',  icon: Settings2       },
+    { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
+    { id: 'orders',     label: 'Orders',     icon: ClipboardList   },
+    { id: 'products',   label: 'Products',   icon: ShoppingBag     },
+    { id: 'customers',  label: 'Customers',  icon: Users           },
+    { id: 'settings',   label: 'Settings',   icon: Settings2       },
   ]
 
   const AdminDashboard = (
@@ -2538,6 +2749,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         {[
           { label: 'Revenue', value: orderRevenue > 0 ? `${currency} ${orderRevenue.toFixed(2)}` : null, empty: 'No sales yet', icon: TrendingUp, color: 'var(--live)' },
           { label: 'Orders',  value: orders.length > 0 ? String(orders.length) : null, empty: '0', icon: ClipboardList, color: '#e0a04f' },
+          { label: 'Customers', value: customers.length > 0 ? String(customers.length) : null, empty: '0', icon: Users, color: '#a5b4fc' },
           { label: 'Products', value: productCount > 0 ? String(productCount) : null, empty: '0', icon: ShoppingBag, color: '#6f78e6' },
         ].map(({ label, value, empty, icon: Icon, color }) => (
           <div key={label} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
@@ -2553,6 +2765,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           </div>
         ))}
       </div>
+
+      {/* Revenue chart */}
+      <RevenueChart projectId={projectId} />
 
       {/* Orders empty state — shown prominently when no orders yet */}
       {orders.length === 0 && !ordersError && liveUrl && (
@@ -2599,6 +2814,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           {[
             { label: 'View orders', sub: 'Revenue + order history', action: () => { setAdminTab('orders'); handleLoadOrders() }, icon: ClipboardList },
             { label: 'Products', sub: 'Inventory management', action: () => setAdminTab('products'), icon: ShoppingBag },
+            { label: 'Customers', sub: 'Profiles + order history', action: () => { setAdminTab('customers'); handleLoadCustomers() }, icon: Users },
             { label: 'Settings', sub: 'Stripe, domain, keys', action: () => setAdminTab('settings'), icon: Settings2 },
             { label: 'AI Builder', sub: 'Edit design + content', action: () => setAdminMode(false), icon: Paintbrush },
           ].map(({ label, sub, action, icon: Icon }) => (
@@ -2960,6 +3176,91 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     fontFamily: 'var(--font-geist-mono)',
   }
 
+  const AdminCustomers = (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#f4f4f6', margin: '0 0 2px' }}>Customers</h2>
+          <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>
+            {customers.length > 0 ? `${customers.length} unique customer${customers.length !== 1 ? 's' : ''}` : 'Aggregated from store orders'}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {customers.length > 0 && (
+            <button
+              onClick={exportCustomersCsv}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(62,207,142,.35)', background: 'rgba(62,207,142,.07)', color: 'var(--live)', cursor: 'pointer' }}
+            >
+              ↓ Export CSV
+            </button>
+          )}
+          <button
+            onClick={handleLoadCustomers}
+            disabled={isLoadingCustomers}
+            style={{ fontSize: 11, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+          >
+            {isLoadingCustomers ? '…' : '↻ Refresh'}
+          </button>
+        </div>
+      </div>
+
+      {isLoadingCustomers ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} style={{ height: 60, borderRadius: 10, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          ))}
+        </div>
+      ) : customers.length === 0 ? (
+        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <Users size={36} style={{ color: '#5b5b64' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No customers yet</p>
+          <p style={{ fontSize: 13, color: '#8a8a93', margin: 0, maxWidth: 280, lineHeight: 1.5 }}>
+            Customers appear here once orders come in from your live store.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {customers.map((c) => (
+            <div key={c.email} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              {/* Avatar */}
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(111,120,230,.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(111,120,230,.25)' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#a5b4fc' }}>
+                  {(c.name || c.email).charAt(0).toUpperCase()}
+                </span>
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {c.name || '—'}
+                </p>
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</p>
+                {c.phone && (
+                  <p style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '1px 0 0' }}>{c.phone}</p>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', margin: 0 }}>
+                  {c.currency} {c.totalSpent.toFixed(2)}
+                </p>
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+                  {c.orderCount} order{c.orderCount !== 1 ? 's' : ''}
+                </p>
+                <p style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>
+                  {new Date(c.lastOrderAt).toLocaleDateString('cs-CZ')}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
   const AdminSettings = (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
 
@@ -3136,7 +3437,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
                   return (
                     <button
                       key={id}
-                      onClick={() => { setAdminTab(id); if (id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
+                      onClick={() => { setAdminTab(id); if (id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders(); if (id === 'customers' && customers.length === 0 && !isLoadingCustomers) handleLoadCustomers() }}
                       style={{
                         width: '100%', textAlign: 'left', padding: '8px 12px 8px 14px', borderRadius: 8,
                         border: 'none', cursor: 'pointer', fontSize: 13,
@@ -3174,50 +3475,60 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
             {/* Content */}
             <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {adminTab === 'dashboard' && AdminDashboard}
-              {adminTab === 'orders'    && AdminOrders}
-              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
-              {adminTab === 'settings'  && AdminSettings}
+              {adminTab === 'dashboard'  && AdminDashboard}
+              {adminTab === 'orders'     && AdminOrders}
+              {adminTab === 'products'   && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
+              {adminTab === 'customers'  && AdminCustomers}
+              {adminTab === 'settings'   && AdminSettings}
             </div>
           </div>
         ) : (
-          // Mobile: horizontal tab bar at top
-          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', overflowX: 'auto', scrollbarWidth: 'none' }}>
+          // Mobile: content + bottom tab bar (native app pattern)
+          <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            {/* Scrollable content — padded at bottom so bottom bar doesn't overlap */}
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', paddingBottom: 56 }}>
+              {adminTab === 'dashboard'  && AdminDashboard}
+              {adminTab === 'orders'     && AdminOrders}
+              {adminTab === 'products'   && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
+              {adminTab === 'customers'  && AdminCustomers}
+              {adminTab === 'settings'   && AdminSettings}
+            </div>
+            {/* Bottom tab bar */}
+            <div style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0, height: 56,
+              borderTop: '1px solid rgba(255,255,255,.07)', background: '#0d0d11',
+              display: 'flex', alignItems: 'stretch',
+              // safe-area for iPhone home indicator
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}>
               {ADMIN_TABS.map(({ id, label, icon: Icon }) => {
                 const active = adminTab === id
                 return (
                   <button
                     key={id}
-                    onClick={() => { setAdminTab(id); if (id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders() }}
+                    onClick={() => { setAdminTab(id); if (id === 'orders' && orders.length === 0 && !ordersError) handleLoadOrders(); if (id === 'customers' && customers.length === 0 && !isLoadingCustomers) handleLoadCustomers() }}
                     style={{
-                      flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '0.6rem 0.875rem', fontSize: 11, whiteSpace: 'nowrap',
-                      fontWeight: active ? 600 : 400,
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      color: active ? '#f4f4f6' : '#8a8a93',
-                      borderBottom: `2px solid ${active ? ADMIN_ACCENT : 'transparent'}`,
-                      transition: 'color 0.15s',
+                      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                      gap: 3, background: 'none', border: 'none', cursor: 'pointer',
+                      color: active ? ADMIN_ACCENT : '#5b5b64',
+                      transition: 'color 0.12s',
                     }}
                   >
-                    <Icon size={12} />
-                    {label}
+                    <Icon size={18} strokeWidth={active ? 2.2 : 1.7} />
+                    <span style={{ fontSize: 9, fontWeight: active ? 600 : 400, letterSpacing: '.02em' }}>{label}</span>
+                    {active && (
+                      <span style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: ADMIN_ACCENT, borderRadius: '0 0 2px 2px', opacity: 0.8 }} />
+                    )}
                   </button>
                 )
               })}
-              <div style={{ flex: 1 }} />
               <button
                 onClick={() => setAdminMode(false)}
-                style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4, padding: '0.6rem 0.875rem', fontSize: 11, background: 'none', border: 'none', cursor: 'pointer', color: '#8a8a93', borderBottom: '2px solid transparent', whiteSpace: 'nowrap' }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: '#5b5b64' }}
               >
-                <ArrowLeft size={12} /> Builder
+                <ArrowLeft size={18} strokeWidth={1.7} />
+                <span style={{ fontSize: 9 }}>Builder</span>
               </button>
-            </div>
-            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              {adminTab === 'dashboard' && AdminDashboard}
-              {adminTab === 'orders'    && AdminOrders}
-              {adminTab === 'products'  && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
-              {adminTab === 'settings'  && AdminSettings}
             </div>
           </div>
         )}

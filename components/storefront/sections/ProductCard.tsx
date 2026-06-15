@@ -8,7 +8,6 @@ import { HoverSwap } from '../motion/HoverSwap'
 import { useEffectiveMotion } from '../motion/hooks'
 import { useMotionConfig } from '../motion/context'
 
-const SALE_TAGS = new Set(['sale', 'sleva', 'výprodej', 'vyprodej'])
 const NEW_TAGS = new Set(['new', 'nové', 'nove', 'novinka'])
 
 interface Props {
@@ -27,15 +26,16 @@ export function ProductCard({ product, currency, basePath }: Props) {
 
   const animEnabled = cfg.enabled && effectiveLevel !== 'none'
   const hasTwoImages = product.images.length > 1
-  const isSale = product.tags?.some((t) => SALE_TAGS.has(t.toLowerCase()))
+  const isSale = !!(product.compareAtPrice && product.compareAtPrice > product.price) || product.tags?.some((t) => t.toLowerCase() === 'sale' || t.toLowerCase() === 'sleva')
   const isNew = !isSale && product.tags?.some((t) => NEW_TAGS.has(t.toLowerCase()))
+  const hasVariants = !!(product.variants && product.variants.length > 0)
   const initials = product.name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (!product.available) return
-    add({ id: product.id, name: product.name, price: product.price, currency, image: product.images[0] })
+    if (!product.available || hasVariants) return
+    add({ id: product.id, productId: product.id, name: product.name, price: product.price, currency, image: product.images[0] })
     setAdded(true)
     setTimeout(() => setAdded(false), 1500)
   }
@@ -160,7 +160,7 @@ export function ProductCard({ product, currency, basePath }: Props) {
           </span>
         )}
 
-        {/* Quick-add button — slides up on hover */}
+        {/* Quick-add / select-variant button — slides up on hover */}
         <AnimatePresence>
           {hovered && animEnabled && product.available && (
             <motion.button
@@ -169,7 +169,7 @@ export function ProductCard({ product, currency, basePath }: Props) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               transition={{ duration: cfg.duration.fast, ease: cfg.ease }}
-              onClick={handleQuickAdd}
+              onClick={hasVariants ? undefined : handleQuickAdd}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -188,7 +188,7 @@ export function ProductCard({ product, currency, basePath }: Props) {
                 zIndex: 3,
               }}
             >
-              {added ? '✓ Přidáno' : 'Přidat do košíku'}
+              {hasVariants ? 'Vybrat variantu' : added ? '✓ Přidáno' : 'Přidat do košíku'}
             </motion.button>
           )}
         </AnimatePresence>
@@ -211,9 +211,26 @@ export function ProductCard({ product, currency, basePath }: Props) {
         >
           {product.name}
         </p>
-        <p style={{ color: 'var(--s-muted)', fontSize: '0.875rem', fontFamily: 'var(--s-font-body)' }}>
-          {currency} {product.price.toFixed(2)}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.375rem', flexWrap: 'wrap' }}>
+          <span style={{
+            color: isSale ? '#ef4444' : 'var(--s-muted)',
+            fontSize: '0.875rem',
+            fontWeight: isSale ? 600 : 400,
+            fontFamily: 'var(--s-font-body)',
+          }}>
+            {currency} {product.price.toFixed(2)}
+          </span>
+          {product.compareAtPrice && product.compareAtPrice > product.price && (
+            <span style={{
+              color: 'var(--s-muted)',
+              fontSize: '0.8125rem',
+              textDecoration: 'line-through',
+              fontFamily: 'var(--s-font-body)',
+            }}>
+              {currency} {product.compareAtPrice.toFixed(2)}
+            </span>
+          )}
+        </div>
       </div>
     </a>
   )

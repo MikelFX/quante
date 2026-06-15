@@ -19,7 +19,13 @@ export function toStoreSlug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-export function buildStoreFiles(manifest: ShopManifest): GeneratedFile[] {
+export interface CustomComponentRecord {
+  ref: string
+  name: string
+  code: string
+}
+
+export function buildStoreFiles(manifest: ShopManifest, customComponents: CustomComponentRecord[] = []): GeneratedFile[] {
   const slug = toStoreSlug(manifest.brand.name) || 'my-store'
   const files: GeneratedFile[] = []
   const cwd = process.cwd()
@@ -352,8 +358,80 @@ export function generateStaticParams() {
 
   // ── storefront components — verbatim copies ───────────────────────────────
   addFile('components/storefront/tokens.ts', path.join(sfBase, 'tokens.ts'))
+
+  // ShopRenderer — verbatim copy, but strip the projectId prop since the export never needs it
   addFile('components/storefront/ShopRenderer.tsx', path.join(sfBase, 'ShopRenderer.tsx'))
-  addFile('components/storefront/SectionRenderer.tsx', path.join(sfBase, 'SectionRenderer.tsx'))
+
+  // Custom component files (one TSX per component)
+  if (customComponents.length > 0) {
+    for (const comp of customComponents) {
+      add(`components/custom/${comp.ref}.tsx`, comp.code)
+    }
+
+    // Registry: maps ref → React component
+    const registryImports = customComponents
+      .map((c, i) => `import _C${i} from './${c.ref}'`)
+      .join('\n')
+    const registryEntries = customComponents
+      .map((c, i) => `  '${c.ref}': _C${i},`)
+      .join('\n')
+    add('components/custom/registry.ts', [
+      `import type React from 'react'`,
+      registryImports,
+      ``,
+      `export const customRegistry: Record<string, React.ComponentType<Record<string, unknown>>> = {`,
+      registryEntries,
+      `}`,
+      ``,
+    ].join('\n'))
+
+    // SectionRenderer with custom component support
+    add('components/storefront/SectionRenderer.tsx', [
+      `import type { Section, ShopManifest } from '@/types/manifest'`,
+      `import React from 'react'`,
+      `import { Hero } from './sections/Hero'`,
+      `import { ProductGrid } from './sections/ProductGrid'`,
+      `import { FeatureRow } from './sections/FeatureRow'`,
+      `import { Testimonials } from './sections/Testimonials'`,
+      `import { RichText } from './sections/RichText'`,
+      `import { Banner } from './sections/Banner'`,
+      `import { Newsletter } from './sections/Newsletter'`,
+      `import { Gallery } from './sections/Gallery'`,
+      `import { Faq } from './sections/Faq'`,
+      `import { Animations } from './sections/Animations'`,
+      `import { customRegistry } from '@/components/custom/registry'`,
+      ``,
+      `interface Props {`,
+      `  section: Section`,
+      `  manifest: ShopManifest`,
+      `  basePath?: string`,
+      `}`,
+      ``,
+      `export function SectionRenderer({ section, manifest, basePath = '' }: Props) {`,
+      `  switch (section.type) {`,
+      `    case 'hero': return <Hero props={section.props} basePath={basePath} />`,
+      `    case 'productGrid': return <ProductGrid props={section.props} catalog={manifest.catalog} basePath={basePath} />`,
+      `    case 'featureRow': return <FeatureRow props={section.props} />`,
+      `    case 'testimonials': return <Testimonials props={section.props} />`,
+      `    case 'richText': return <RichText props={section.props} />`,
+      `    case 'banner': return <Banner props={section.props} basePath={basePath} />`,
+      `    case 'newsletter': return <Newsletter props={section.props} />`,
+      `    case 'gallery': return <Gallery props={section.props} />`,
+      `    case 'faq': return <Faq props={section.props} />`,
+      `    case 'animations': return <Animations props={section.props} catalog={manifest.catalog} basePath={basePath} />`,
+      `    case 'customComponent': {`,
+      `      const C = customRegistry[section.ref]`,
+      `      return C ? <C /> : null`,
+      `    }`,
+      `    default: return null`,
+      `  }`,
+      `}`,
+      ``,
+    ].join('\n'))
+  } else {
+    // No custom components — use the plain verbatim copy (which returns null for customComponent)
+    addFile('components/storefront/SectionRenderer.tsx', path.join(sfBase, 'SectionRenderer.tsx'))
+  }
   // ── Motion primitives ─────────────────────────────────────────────────────
   addFile('components/storefront/motion/config.ts', path.join(sfBase, 'motion', 'config.ts'))
   addFile('components/storefront/motion/context.tsx', path.join(sfBase, 'motion', 'context.tsx'))
@@ -1051,6 +1129,7 @@ export default function SuccessPage() {
   const hasZasilkovna = manifest.shipping?.methods?.some((m) => m.type === 'zasilkovna') ?? false
   const hasComgate = manifest.payments?.providers?.includes('comgate') ?? false
   const hasGopay = manifest.payments?.providers?.includes('gopay') ?? false
+  const hasPayPal = manifest.payments?.providers?.includes('paypal') ?? false
   const envLines = [
     '# ════════════════════════════════════════════════════════════════════════════',
     '# HOSTED MODE (deployed via Quante)',
@@ -1087,6 +1166,14 @@ export default function SuccessPage() {
       '# GOPAY_CLIENT_ID=your-client-id',
       '# GOPAY_CLIENT_SECRET=your-client-secret',
       '# GOPAY_GO_ID=your-go-id',
+      '',
+    ] : []),
+    ...(hasPayPal ? [
+      '# ── PayPal ───────────────────────────────────────────────────────────────',
+      '# Get credentials at https://developer.paypal.com/dashboard/applications',
+      '# PAYPAL_CLIENT_ID=your-client-id',
+      '# PAYPAL_CLIENT_SECRET=your-client-secret',
+      '# PAYPAL_TEST_MODE=false',
       '',
     ] : []),
     ...(hasZasilkovna ? [

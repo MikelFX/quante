@@ -14,5 +14,5 @@ export default async function PreviewCollectionPage({ params }: Props) {
   if (!manifest) return <div style={{ padding: '4rem', textAlign: 'center', color: '#666' }}>No manifest.</div>
   const collection = manifest.catalog.collections?.find((c) => c.slug === slug)
   if (!collection) return <div style={{ padding: '4rem', textAlign: 'center', color: '#666' }}>Collection not found.</div>
-  return <ShopRenderer manifest={manifest} page="collection" basePath={`/preview/${id}`} />
+  return <ShopRenderer manifest={manifest} page="collection" basePath={`/preview/${id}`} projectId={id} />
 }

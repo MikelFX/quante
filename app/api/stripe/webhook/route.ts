@@ -2,7 +2,7 @@ import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { clerkClient } from '@clerk/nextjs/server'
 import type Stripe from 'stripe'
-import { paymentConfirmedEmail, sendEmail } from '@/lib/email-templates'
+import { paymentConfirmedEmail, merchantNewOrderEmail, sendEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
 
 export async function POST(request: Request) {
@@ -243,17 +243,16 @@ async function recordStoreSale(projectId: string, session: Stripe.Checkout.Sessi
 }
 
 async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Session) {
-  const resendKey = process.env.RESEND_API_KEY
-  if (!resendKey) return
+  if (!process.env.RESEND_API_KEY) return
 
   const { data: secret } = await supabaseAdmin
     .from('project_secrets')
     .select('user_id')
     .eq('project_id', projectId)
     .maybeSingle()
-
   if (!secret?.user_id) return
 
+  // Get owner's Clerk email (platform user who built the store)
   let ownerEmail: string | null = null
   try {
     const clerk = await clerkClient()
@@ -264,50 +263,49 @@ async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Sessi
   } catch (err) {
     console.error('[webhook] failed to get owner email:', err)
   }
-
   if (!ownerEmail) return
 
-  const amount = ((session.amount_total ?? 0) / 100).toFixed(2)
-  const currency = (session.currency ?? 'usd').toUpperCase()
-  const customerName = session.customer_details?.name ?? '—'
-  const customerEmail = session.customer_details?.email ?? '—'
+  // Fetch manifest for branding
+  const { data: versionRow } = await supabaseAdmin
+    .from('manifest_versions')
+    .select('manifest')
+    .eq('project_id', projectId)
+    .order('version_no', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const manifest = versionRow?.manifest as ShopManifest | undefined
 
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
-      body: JSON.stringify({
-        from: 'orders@quante.io',
-        to: ownerEmail,
-        subject: `New order — ${currency} ${amount}`,
-        html: `
-          <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:520px;margin:0 auto;padding:2rem 1rem;color:#111">
-            <h2 style="margin:0 0 1.5rem;font-size:22px;font-weight:700">New order received 🎉</h2>
-            <table style="width:100%;border-collapse:collapse;border-radius:10px;overflow:hidden;border:1px solid #e5e7eb">
-              <tr style="background:#f9fafb">
-                <td style="padding:12px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb">Customer</td>
-                <td style="padding:12px 16px;font-size:14px;font-weight:600;border-bottom:1px solid #e5e7eb">${customerName}</td>
-              </tr>
-              <tr>
-                <td style="padding:12px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb">Email</td>
-                <td style="padding:12px 16px;font-size:14px;border-bottom:1px solid #e5e7eb">${customerEmail}</td>
-              </tr>
-              <tr style="background:#f9fafb">
-                <td style="padding:12px 16px;font-size:13px;color:#6b7280;border-bottom:1px solid #e5e7eb">Amount</td>
-                <td style="padding:12px 16px;font-size:18px;font-weight:700;color:#059669;border-bottom:1px solid #e5e7eb">${currency} ${amount}</td>
-              </tr>
-              <tr>
-                <td style="padding:12px 16px;font-size:13px;color:#6b7280">Order ID</td>
-                <td style="padding:12px 16px;font-size:12px;color:#9ca3af;font-family:monospace">${session.id}</td>
-              </tr>
-            </table>
-            <p style="margin:2rem 0 0;font-size:12px;color:#9ca3af">Sent by <a href="https://quante.io" style="color:#6f78e6;text-decoration:none">Quante</a></p>
-          </div>
-        `,
-      }),
-    })
-    if (!res.ok) console.error('[webhook] Resend error:', res.status, await res.text())
-  } catch (err) {
-    console.error('[webhook] email send failed:', err)
+  // Fetch order for item details
+  const orderId = session.metadata?.order_id
+  let orderNumber = `ORD-${session.id.slice(-8).toUpperCase()}`
+  let orderItems: Array<{ name: string; quantity: number; price: number; currency: string }> = []
+  const currency = (session.currency ?? 'czk').toUpperCase()
+  const total = (session.amount_total ?? 0) / 100
+
+  if (orderId) {
+    const { data: order } = await supabaseAdmin
+      .from('store_orders')
+      .select('order_number, items')
+      .eq('id', orderId)
+      .maybeSingle()
+    if (order) {
+      orderNumber = order.order_number
+      orderItems = ((order.items as Array<{ id: string; name: string; price: number; quantity: number }>) ?? [])
+        .map((i) => ({ name: i.name, quantity: i.quantity, price: i.price, currency }))
+    }
   }
+
+  const { subject, html } = merchantNewOrderEmail({
+    orderNumber,
+    customerName: session.customer_details?.name ?? '—',
+    customerEmail: session.customer_details?.email ?? '—',
+    items: orderItems,
+    total,
+    currency,
+    paymentMethod: 'Platební karta (Stripe)',
+    storeName: manifest?.brand.name ?? 'Váš obchod',
+    accentColor: manifest?.design.palette.accent ?? '#6f78e6',
+  })
+
+  await sendEmail(ownerEmail, subject, html, 'orders@quante.io')
 }

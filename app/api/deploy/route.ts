@@ -107,10 +107,16 @@ export async function POST(request: Request) {
   const slug = toStoreSlug(manifest.brand.name) || 'my-store'
   const intendedDomain = `${slug}.${HOSTING_ROOT_DOMAIN}`
 
+  // Fetch any custom components for this project
+  const { data: customComponents } = await supabaseAdmin
+    .from('custom_components')
+    .select('ref, name, code')
+    .eq('project_id', projectId)
+
   // Build file tree (reuses the same source as export ZIP)
   let files
   try {
-    files = buildStoreFiles(manifest)
+    files = buildStoreFiles(manifest, customComponents ?? [])
   } catch (err) {
     console.error('[deploy] buildStoreFiles failed:', err)
     return NextResponse.json({ error: 'Failed to build store files.' }, { status: 500 })

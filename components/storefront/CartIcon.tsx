@@ -6,22 +6,25 @@ import { useEffectiveMotion } from '@/components/storefront/motion/hooks'
 import { useMotionConfig } from '@/components/storefront/motion/context'
 
 export function CartIcon({ basePath = '' }: { basePath?: string }) {
-  const { count } = useCart()
+  const { count, openCart } = useCart()
   const effectiveLevel = useEffectiveMotion()
   const cfg = useMotionConfig()
   const animEnabled = cfg.enabled && effectiveLevel !== 'none'
 
   return (
-    <a
-      href={basePath + '/cart'}
+    <button
+      onClick={openCart}
+      aria-label={`Košík (${count} položek)`}
       style={{
+        background: 'none', border: 'none', cursor: 'pointer',
         color: 'var(--s-text)',
-        textDecoration: 'none',
         fontSize: '0.8125rem',
         fontWeight: 500,
         display: 'flex',
         alignItems: 'center',
         gap: '0.375rem',
+        padding: 0,
+        fontFamily: 'inherit',
       }}
     >
       Košík
@@ -64,6 +67,6 @@ export function CartIcon({ basePath = '' }: { basePath?: string }) {
           </motion.span>
         )}
       </AnimatePresence>
-    </a>
+    </button>
   )
 }

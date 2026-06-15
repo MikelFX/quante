@@ -18,7 +18,7 @@ function TestimonialCard({ item }: { item: TestimonialsProps['items'][number] })
         display: 'flex',
         flexDirection: 'column',
         gap: '1rem',
-        width: '300px',
+        width: 'clamp(260px, 80vw, 300px)',
         flexShrink: 0,
       }}
     >
@@ -86,7 +86,7 @@ export function Testimonials({ props }: Props) {
     <section style={{ background: 'var(--s-bg)', padding: `calc(5rem * var(--s-space)) 2rem` }}>
       <div style={{ maxWidth: '72rem', margin: '0 auto' }}>
         {heading}
-        <Stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: `calc(1.5rem * var(--s-space))` }}>
+        <Stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: `calc(1.5rem * var(--s-space))` }}>
           {items.map((item, i) => (
             <StaggerItem key={i} style={{ display: 'flex', flexDirection: 'column' }}>
               <div

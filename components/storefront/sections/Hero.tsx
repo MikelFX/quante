@@ -36,7 +36,7 @@ export function Hero({ props, basePath = '' }: Props) {
       <section
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
           minHeight: '70vh',
           background: 'var(--s-bg)',
           color: 'var(--s-text)',
@@ -47,7 +47,7 @@ export function Hero({ props, basePath = '' }: Props) {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
-            padding: `calc(5rem * var(--s-space)) calc(4rem * var(--s-space))`,
+            padding: `clamp(3rem, 8vw, calc(5rem * var(--s-space))) clamp(1.25rem, 6vw, calc(4rem * var(--s-space)))`,
           }}
         >
           <HeroContent {...prefixed} />
@@ -56,11 +56,11 @@ export function Hero({ props, basePath = '' }: Props) {
           <ParallaxImage
             src={imageSrc}
             alt=""
-            containerStyle={{ minHeight: '400px', height: '100%' }}
+            containerStyle={{ minHeight: '280px', height: '100%' }}
             imgStyle={{ objectFit: 'cover', width: '100%' }}
           />
         ) : (
-          <div style={{ minHeight: '400px', background: 'var(--s-surface)' }} />
+          <div style={{ minHeight: '280px', background: 'var(--s-surface)' }} />
         )}
       </section>
     )
@@ -75,7 +75,7 @@ export function Hero({ props, basePath = '' }: Props) {
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          padding: `calc(6rem * var(--s-space)) 2rem`,
+          padding: `clamp(4rem, 10vw, calc(6rem * var(--s-space))) clamp(1rem, 4vw, 2rem)`,
           background: imageSrc
             ? `linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.5)), url(${imageSrc}) center/cover no-repeat`
             : 'var(--s-text)',
@@ -95,7 +95,7 @@ export function Hero({ props, basePath = '' }: Props) {
       style={{
         background: 'var(--s-bg)',
         color: 'var(--s-text)',
-        padding: `calc(7rem * var(--s-space)) 2rem`,
+        padding: `clamp(4rem, 10vw, calc(7rem * var(--s-space))) clamp(1rem, 4vw, 2rem)`,
         textAlign: 'center',
       }}
     >
@@ -141,7 +141,7 @@ function HeroContent({
           <p
             style={{
               color: mutedColor,
-              fontSize: '1.125rem',
+              fontSize: 'clamp(1rem, 2.5vw, 1.125rem)',
               lineHeight: 1.7,
               maxWidth: '38rem',
               margin: '0 auto 2.5rem',

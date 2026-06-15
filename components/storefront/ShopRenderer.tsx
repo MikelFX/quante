@@ -11,9 +11,10 @@ interface Props {
   page?: keyof ShopManifest['pages']
   customSlug?: string
   basePath?: string
+  projectId?: string
 }
 
-export function ShopRenderer({ manifest, page = 'home', customSlug, basePath = '' }: Props) {
+export function ShopRenderer({ manifest, page = 'home', customSlug, basePath = '', projectId }: Props) {
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
   const sections = customSlug
@@ -40,7 +41,7 @@ export function ShopRenderer({ manifest, page = 'home', customSlug, basePath = '
         <StoreNavbar manifest={manifest} basePath={basePath} />
 
         {sections.map((section, i) => (
-          <SectionRenderer key={i} section={section} manifest={manifest} basePath={basePath} />
+          <SectionRenderer key={i} section={section} manifest={manifest} basePath={basePath} projectId={projectId} />
         ))}
 
         <StoreFooter manifest={manifest} basePath={basePath} />

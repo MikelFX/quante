@@ -1,4 +1,4 @@
-export type PaymentMethodType = 'stripe' | 'comgate' | 'gopay' | 'dobirka' | 'prevod'
+export type PaymentMethodType = 'stripe' | 'comgate' | 'gopay' | 'paypal' | 'dobirka' | 'prevod'
 
 export interface CreatePaymentParams {
   orderId: string

@@ -37,8 +37,8 @@ export function StoreFooter({ manifest, basePath = '' }: Props) {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${colCount}, 1fr)`,
-            gap: '3rem',
+            gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${colCount > 2 ? '160px' : '200px'}), 1fr))`,
+            gap: 'clamp(1.5rem, 4vw, 3rem)',
             marginBottom: `calc(3rem * var(--s-space))`,
           }}
         >

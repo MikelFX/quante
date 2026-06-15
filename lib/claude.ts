@@ -48,7 +48,25 @@ No prose. No markdown. No code fences. No explanation. Raw JSON only.
   },
   "catalog": {
     "currency": string (ISO 4217, e.g. "EUR", "USD", "CZK"),
-    "products": [ { id, name, description, price, images: [], slug, available, tags? } ],
+    "products": [
+      {
+        id,           // short string, e.g. "p1"
+        name,
+        description,
+        price,        // number — the selling price
+        compareAtPrice?,  // number — original price; shown as strikethrough when > price (use for sale items)
+        images: [],
+        slug,         // kebab-case
+        available,    // boolean
+        tags?,        // string[] — use ["new"], ["sale"] or brand-relevant tags
+        variants?: [  // omit entirely for simple products; include when the product genuinely has options
+          { id: "v1", name: "Small / White", price?: number, stock?: number },
+          { id: "v2", name: "Medium / White", price?: number, stock?: number }
+          // name format: "Option1 / Option2" — concise, no redundant product name
+        ],
+        lowStockThreshold?: number  // default 5; merchant is alerted when stock reaches this
+      }
+    ],
     "collections"?: [ { id, name, slug, description?, productIds } ]
   },
   "pages": {
@@ -187,6 +205,8 @@ The user may ask things like (non-exhaustive — handle anything):
 - Return the FULL manifest with ALL fields — even unchanged ones
 - imageSrc fields: keep as-is or leave ""
 - Product slugs: kebab-case. Product IDs: short strings ("p1", "p2", ...)
+- Products may have variants: [{ id, name, price?, stock? }]. Omit variants for simple products. Variant names use "Option1 / Option2" format.
+- compareAtPrice: set when running a sale (must be > price); the UI shows it as a strikethrough.
 - Section types and their EXACT props (use only these types):
   hero:         { headline: string, subheadline?: string, ctaLabel?: string, ctaHref?: string, imageSrc?: string, layout?: "centered"|"split"|"fullbleed" }
   productGrid:  { title?: string, collectionId?: string, limit?: number, columns?: 2|3|4 }

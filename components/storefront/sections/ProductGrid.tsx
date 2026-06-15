@@ -24,14 +24,13 @@ export function ProductGrid({ props, catalog, basePath = '' }: Props) {
 
   if (limit) products = products.slice(0, limit)
 
-  const colMap: Record<number, string> = {
-    2: 'repeat(2, 1fr)',
-    3: 'repeat(3, 1fr)',
-    4: 'repeat(4, 1fr)',
-  }
+  // Responsive min widths: 4-col → 200px, 3-col → 240px, 2-col → 280px
+  const minWidthMap: Record<number, string> = { 2: '260px', 3: '200px', 4: '160px' }
+  const minW = minWidthMap[columns] ?? '200px'
+  const responsiveCols = `repeat(auto-fill, minmax(min(100%, ${minW}), 1fr))`
 
   return (
-    <section style={{ background: 'var(--s-bg)', padding: `calc(5rem * var(--s-space)) 2rem` }}>
+    <section style={{ background: 'var(--s-bg)', padding: `calc(5rem * var(--s-space)) clamp(1rem, 4vw, 2rem)` }}>
       <div style={{ maxWidth: '80rem', margin: '0 auto' }}>
         {title && (
           <Reveal variant="fade-up">
@@ -52,7 +51,7 @@ export function ProductGrid({ props, catalog, basePath = '' }: Props) {
         <Stagger
           style={{
             display: 'grid',
-            gridTemplateColumns: colMap[columns] ?? 'repeat(auto-fill, minmax(220px, 1fr))',
+            gridTemplateColumns: responsiveCols,
             gap: `calc(1.25rem * var(--s-space))`,
           }}
         >

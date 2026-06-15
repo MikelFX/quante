@@ -4,15 +4,26 @@ export type RadiusLevel = 'none' | 'sm' | 'md' | 'lg' | 'full'
 export type DensityLevel = 'tight' | 'normal' | 'airy'
 export type ScaleLevel = 'compact' | 'comfortable' | 'spacious'
 
+export interface ProductVariant {
+  id: string
+  name: string       // e.g. "Small / Red"
+  sku?: string
+  price?: number     // overrides product base price when set
+  stock?: number     // manifest-level stock (used in ZIP exports; hosted stores use store_inventory table)
+}
+
 export interface Product {
   id: string
   name: string
   description: string
   price: number
+  compareAtPrice?: number      // original price for sale display; shown as strikethrough when > price
   images: string[]
   slug: string
   available: boolean
   tags?: string[]
+  variants?: ProductVariant[]  // size/color/etc. options; if present, user must pick one before adding to cart
+  lowStockThreshold?: number   // alert merchant when stock falls to or below this value
 }
 
 export interface Collection {
@@ -164,7 +175,7 @@ export interface PaymentPrevod {
 }
 
 export interface PaymentsConfig {
-  providers: Array<'comgate' | 'gopay' | 'stripe'>
+  providers: Array<'comgate' | 'gopay' | 'stripe' | 'paypal'>
   dobirka?: PaymentDobirka
   prevod?: PaymentPrevod
 }

@@ -3,12 +3,15 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 export interface CartItem {
-  id: string
+  id: string           // unique line-item key: productId when no variant, "productId:variantId" when variant selected
+  productId: string    // always the base product id
   name: string
   price: number
   currency: string
   quantity: number
   image?: string
+  variantId?: string
+  variantLabel?: string
 }
 
 interface CartContextType {
@@ -19,16 +22,21 @@ interface CartContextType {
   clear: () => void
   count: number
   total: number
+  cartOpen: boolean
+  openCart: () => void
+  closeCart: () => void
 }
 
 const CartContext = createContext<CartContextType>({
   items: [], add: () => {}, updateQty: () => {}, remove: () => {}, clear: () => {}, count: 0, total: 0,
+  cartOpen: false, openCart: () => {}, closeCart: () => {},
 })
 
 export const useCart = () => useContext(CartContext)
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -47,6 +55,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if (ex) return prev.map((i) => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)
       return [...prev, { ...item, quantity: 1 }]
     })
+    setCartOpen(true)
   }
 
   function updateQty(id: string, qty: number) {
@@ -61,7 +70,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const total = items.reduce((s, i) => s + i.price * i.quantity, 0)
 
   return (
-    <CartContext.Provider value={{ items, add, updateQty, remove, clear, count, total }}>
+    <CartContext.Provider value={{
+      items, add, updateQty, remove, clear, count, total,
+      cartOpen, openCart: () => setCartOpen(true), closeCart: () => setCartOpen(false),
+    }}>
       {children}
     </CartContext.Provider>
   )

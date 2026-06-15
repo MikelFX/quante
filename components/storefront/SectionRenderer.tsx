@@ -9,14 +9,17 @@ import { Newsletter } from './sections/Newsletter'
 import { Gallery } from './sections/Gallery'
 import { Faq } from './sections/Faq'
 import { Animations } from './sections/Animations'
+import { CustomComponentFrame } from './sections/CustomComponentFrame'
+import { manifestToCssVars } from './tokens'
 
 interface Props {
   section: Section
   manifest: ShopManifest
   basePath?: string
+  projectId?: string
 }
 
-export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
+export function SectionRenderer({ section, manifest, basePath = '', projectId }: Props) {
   switch (section.type) {
     case 'hero':
       return <Hero props={section.props} basePath={basePath} />
@@ -39,7 +42,14 @@ export function SectionRenderer({ section, manifest, basePath = '' }: Props) {
     case 'animations':
       return <Animations props={section.props} catalog={manifest.catalog} basePath={basePath} />
     case 'customComponent':
-      return null
+      if (!projectId) return null
+      return (
+        <CustomComponentFrame
+          projectId={projectId}
+          componentRef={section.ref}
+          cssVars={manifestToCssVars(manifest)}
+        />
+      )
     default:
       return null
   }

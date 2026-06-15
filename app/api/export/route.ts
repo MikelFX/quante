@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import JSZip from 'jszip'
 import type { ShopManifest } from '@/types/manifest'
@@ -59,9 +60,15 @@ export async function POST(request: Request) {
     : rawManifest
   const slug = toStoreSlug(manifest.brand.name) || 'my-store'
 
+  // Fetch any custom components for this project
+  const { data: customComponents } = await supabaseAdmin
+    .from('custom_components')
+    .select('ref, name, code')
+    .eq('project_id', projectId)
+
   let zipBuffer: Buffer
   try {
-    const files = buildStoreFiles(manifest)
+    const files = buildStoreFiles(manifest, customComponents ?? [])
     const zip = new JSZip()
     for (const f of files) {
       zip.file(`${slug}/${f.path}`, f.content)
