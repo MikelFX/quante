@@ -60,8 +60,10 @@ END;
 $$;
 
 -- Low-stock view: all inventory rows currently at or below their threshold.
--- Used by the merchant alert job.
-CREATE OR REPLACE VIEW store_inventory_low_stock AS
+-- security_invoker = true ensures RLS on store_inventory/projects is enforced
+-- for the querying user rather than the view creator.
+CREATE OR REPLACE VIEW store_inventory_low_stock
+  WITH (security_invoker = true) AS
   SELECT i.*, p.user_id AS merchant_user_id
     FROM store_inventory i
     JOIN projects p ON p.id = i.project_id
