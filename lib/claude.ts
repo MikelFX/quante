@@ -176,9 +176,21 @@ IF the user's request involves a store change (design, content, products, pages,
 <reply>
 [1–2 sentences in the user's language summarising what you did. Be specific about the key changes.]
 </reply>
-<manifest>
-[COMPLETE updated ShopManifest JSON — every field, even unchanged ones. Raw JSON, no code fences.]
-</manifest>
+<patch>
+[A JSON object containing ONLY the top-level manifest keys that changed — each with its COMPLETE new value.
+
+Top-level keys you may include: version, brand, design, catalog, pages, nav, footer, seo, customPages, merchant, payments, shipping
+
+Rules:
+- Include a key ONLY if its value changed. Skip unchanged keys entirely.
+- When you include a key, provide its COMPLETE new value (not a sub-patch). E.g. if brand.name changes, include the whole brand object; if a product is added, include the whole catalog object with all products.
+- For customPages: always include the ENTIRE array (all existing pages + any new/changed ones).
+- Raw JSON only — no code fences, no prose, no comments.
+
+Example (only brand and nav changed):
+{"brand": {"name": "...", "tagline": "...", "voice": "minimal", "logoText": "..."}, "nav": [...]}
+]
+</patch>
 
 IF the user is asking a question or wants advice with no store change needed:
 <reply>
@@ -202,7 +214,6 @@ The user may ask things like (non-exhaustive — handle anything):
 
 ═══ MANIFEST RULES ═════════════════════════════════════════════════════════════
 
-- Return the FULL manifest with ALL fields — even unchanged ones
 - imageSrc fields: keep as-is or leave ""
 - Product slugs: kebab-case. Product IDs: short strings ("p1", "p2", ...)
 - Products may have variants: [{ id, name, price?, stock? }]. Omit variants for simple products. Variant names use "Option1 / Option2" format.

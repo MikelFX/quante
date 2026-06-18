@@ -114,23 +114,23 @@ ${JSON.stringify(current.manifest)}
       }
     }
 
-    // Extract reply and optional manifest
+    // Extract reply and optional patch
     const replyMatch = rawOutput.match(/<reply>([\s\S]*?)<\/reply>/)
     const replyText = replyMatch?.[1]?.trim() ?? rawOutput.trim()
 
-    // Try closed tag first; fall back to truncated output (missing </manifest>)
-    const manifestMatch = rawOutput.match(/<manifest>([\s\S]*?)<\/manifest>/)
-    const manifestStart = rawOutput.indexOf('<manifest>')
-    const rawManifestStr = manifestMatch?.[1] ??
-      (manifestStart !== -1 ? rawOutput.slice(manifestStart + '<manifest>'.length).trim() : null)
+    // Try closed tag first; fall back to truncated output (missing </patch>)
+    const patchMatch = rawOutput.match(/<patch>([\s\S]*?)<\/patch>/)
+    const patchStart = rawOutput.indexOf('<patch>')
+    const rawPatchStr = patchMatch?.[1] ??
+      (patchStart !== -1 ? rawOutput.slice(patchStart + '<patch>'.length).trim() : null)
 
-    // No manifest → free Q&A, no credit debit
-    if (!rawManifestStr) {
+    // No patch → free Q&A, no credit debit
+    if (!rawPatchStr) {
       send({ type: 'done', reply: replyText, manifest: null })
       return
     }
 
-    // Has manifest → check credits, validate, save
+    // Has patch → check credits, parse patch, merge with current manifest, validate
     const { data: ledger } = await supabase
       .from('credit_ledger').select('balance_after')
       .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -139,16 +139,29 @@ ${JSON.stringify(current.manifest)}
       send({ type: 'error', message: `Insufficient credits. Need ${ITERATE_COST}, have ${balance}.` }); return
     }
 
+    // Parse the patch (partial manifest) and merge with current
+    function parsePatch(raw: string): Record<string, unknown> {
+      let cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
+      const first = cleaned.indexOf('{')
+      const last = cleaned.lastIndexOf('}')
+      if (first > 0 && last > first) cleaned = cleaned.slice(first, last + 1)
+      return JSON.parse(cleaned)
+    }
+
     let manifest: ShopManifest
     try {
-      manifest = parseManifestJson(rawManifestStr) as ShopManifest
+      const patch = parsePatch(rawPatchStr)
+      const merged = { ...current.manifest as object, ...patch }
+      manifest = parseManifestJson(JSON.stringify(merged)) as ShopManifest
     } catch (primaryErr) {
-      // Fast repair pass via jsonrepair (handles unescaped chars, truncated JSON, trailing commas)
+      // Fast repair: fix JSON syntax then re-merge
       try {
-        manifest = parseManifestJson(jsonrepair(rawManifestStr)) as ShopManifest
+        const patch = parsePatch(jsonrepair(rawPatchStr))
+        const merged = { ...current.manifest as object, ...patch }
+        manifest = parseManifestJson(JSON.stringify(merged)) as ShopManifest
       } catch {
-        // Slow repair pass via AI
-        console.error('[iterate] parse failed, attempting AI repair:', primaryErr)
+        // Slow repair: ask AI to fix the merged manifest
+        console.error('[iterate] patch parse/merge failed, attempting AI repair:', primaryErr)
         send({ type: 'status', text: 'Repairing manifest…' })
         try {
           let errSummary: string
@@ -167,11 +180,20 @@ ${JSON.stringify(current.manifest)}
             errSummary = String(primaryErr).slice(0, 1500)
           }
 
+          // Merge what we can and send the merged JSON for repair
+          let bestMerge: string
+          try {
+            const patch = parsePatch(jsonrepair(rawPatchStr))
+            bestMerge = JSON.stringify({ ...current.manifest as object, ...patch })
+          } catch {
+            bestMerge = JSON.stringify(current.manifest)
+          }
+
           const repair = await anthropic.messages.create({
             model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
             messages: [{
               role: 'user',
-              content: `The following ShopManifest JSON failed validation. Fix EVERY error listed below and return ONLY the corrected raw JSON (no code fences, no prose).\n\nErrors:\n${errSummary}\n\nJSON to fix:\n${rawManifestStr.slice(0, 60000)}`,
+              content: `The following ShopManifest JSON failed validation. Fix EVERY error listed below and return ONLY the corrected raw JSON (no code fences, no prose).\n\nErrors:\n${errSummary}\n\nJSON to fix:\n${bestMerge.slice(0, 60000)}`,
             }],
           })
           const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''

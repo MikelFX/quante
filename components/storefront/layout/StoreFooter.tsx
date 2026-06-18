@@ -108,7 +108,7 @@ export function StoreFooter({ manifest, basePath = '' }: Props) {
                 {col.links.map((link) => (
                   <li key={link.href}>
                     <a
-                      href={link.href}
+                      href={basePath + link.href}
                       style={{
                         color: 'var(--s-muted)',
                         textDecoration: 'none',

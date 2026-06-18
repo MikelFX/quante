@@ -71,7 +71,7 @@ const HeroPropsSchema = z.object({
   secondaryCtaLabel: z.string().optional(),
   secondaryCtaHref: z.string().optional(),
   imageSrc: z.string().optional(),
-  layout: z.enum(['centered', 'split', 'fullbleed']).optional().default('centered'),
+  layout: z.enum(['centered', 'split', 'fullbleed']).optional().default('centered').catch('centered'),
 })
 
 const ProductGridPropsSchema = z.object({
@@ -86,7 +86,7 @@ const FeatureRowPropsSchema = z.object({
   features: z.array(
     z.object({ icon: z.string().optional(), title: z.string(), description: z.string().default('') })
   ),
-  layout: z.enum(['grid', 'list']).optional().default('grid'),
+  layout: z.enum(['grid', 'list']).optional().default('grid').catch('grid'),
 })
 
 const TestimonialsPropsSchema = z.object({
@@ -172,7 +172,7 @@ export const ShopManifestSchema = z.object({
   brand: z.object({
     name: z.string(),
     tagline: z.string(),
-    voice: z.enum(['minimal', 'editorial', 'playful', 'luxury', 'technical']),
+    voice: z.enum(['minimal', 'editorial', 'playful', 'luxury', 'technical']).catch('minimal'),
     logoText: z.string(),
   }),
   design: z.object({
@@ -188,11 +188,11 @@ export const ShopManifestSchema = z.object({
     typography: z.object({
       headingFont: z.string(),
       bodyFont: z.string(),
-      scale: z.enum(['compact', 'comfortable', 'spacious']),
+      scale: z.enum(['compact', 'comfortable', 'spacious']).catch('comfortable'),
     }),
-    radius: z.enum(['none', 'sm', 'md', 'lg', 'full']),
-    density: z.enum(['tight', 'normal', 'airy']),
-    motion: z.enum(['none', 'subtle', 'expressive']),
+    radius: z.enum(['none', 'sm', 'md', 'lg', 'full']).catch('md'),
+    density: z.enum(['tight', 'normal', 'airy']).catch('normal'),
+    motion: z.enum(['none', 'subtle', 'expressive']).catch('subtle'),
   }),
   catalog: z.object({
     currency: z.string(),
