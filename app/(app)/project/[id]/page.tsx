@@ -15,7 +15,7 @@ export default async function StudioPage({ params }: Props) {
 
   const supabase = await createClient()
 
-  const [projectResult, ledgerResult, hostingSubResult, latestDeploymentResult] = await Promise.all([
+  const [projectResult, ledgerResult, hostingSubResult, latestDeploymentResult, codeVersionResult] = await Promise.all([
     supabase.from('projects').select('*').eq('id', id).eq('user_id', userId).single(),
     supabase.from('credit_ledger').select('balance_after').eq('user_id', userId)
       .order('created_at', { ascending: false }).limit(1).maybeSingle(),
@@ -23,6 +23,8 @@ export default async function StudioPage({ params }: Props) {
       .eq('project_id', id).in('status', ['active', 'trialing']).maybeSingle(),
     supabase.from('deployments').select('id, vercel_deployment_id, status, url')
       .eq('project_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('code_versions').select('id')
+      .eq('project_id', id).limit(1).maybeSingle(),
   ])
 
   if (projectResult.error || !projectResult.data) redirect('/dashboard')
@@ -45,6 +47,8 @@ export default async function StudioPage({ params }: Props) {
       }
     : null
 
+  const hasCodeVersion = !!codeVersionResult.data
+
   return (
     <Suspense fallback={null}>
       <StudioClient
@@ -53,6 +57,7 @@ export default async function StudioPage({ params }: Props) {
         initialBalance={balance}
         hostingInfo={hostingInfo}
         latestDeployment={latestDeployment}
+        hasCodeVersion={hasCodeVersion}
       />
     </Suspense>
   )

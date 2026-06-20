@@ -68,6 +68,7 @@ interface Props {
   initialBalance: number
   hostingInfo: HostingInfo
   latestDeployment: { id: string; status: string; url: string | null } | null
+  hasCodeVersion: boolean
 }
 
 type StudioTab = 'chat' | 'preview' | 'logs' | 'sections' | 'products' | 'theme' | 'publish'
@@ -264,13 +265,13 @@ const QUICK_CHIPS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function StudioClient({ projectId, projectName, initialBalance, hostingInfo, latestDeployment }: Props) {
+export function StudioClient({ projectId, projectName, initialBalance, hostingInfo, latestDeployment, hasCodeVersion }: Props) {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [balance, setBalance] = useState(initialBalance)
-  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(!!latestDeployment)
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(hasCodeVersion || !!latestDeployment)
   const [activeTab, setActiveTab] = useState<StudioTab>('chat')
   // Preview + logs state (new code-gen approach)
   const [previewUrl, setPreviewUrl] = useState<string | null>(latestDeployment?.url ?? null)
