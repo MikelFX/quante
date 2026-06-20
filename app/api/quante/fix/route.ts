@@ -5,7 +5,6 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_FIX } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
-import { jsonrepair } from 'jsonrepair'
 import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 120
@@ -19,18 +18,19 @@ interface FixOutput {
   explanation: string
 }
 
-function parseFixOutput(raw: string): FixOutput {
-  let cleaned = raw.trim()
-  const fenceMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/m)
-  if (fenceMatch) cleaned = fenceMatch[1].trim()
-  const first = cleaned.indexOf('{')
-  const last = cleaned.lastIndexOf('}')
-  if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1)
-  const parsed = JSON.parse(cleaned) as FixOutput
-  if (!parsed.file || typeof parsed.file !== 'string') throw new Error('Missing file in fix output')
-  if (!parsed.content || typeof parsed.content !== 'string') throw new Error('Missing content in fix output')
-  if (!parsed.explanation || typeof parsed.explanation !== 'string') parsed.explanation = 'Fixed.'
-  return parsed
+function parseFixOutput(raw: string, expectedFilePath: string): FixOutput {
+  const fileRegex = /<file path="([^"]+)">([\s\S]*?)<\/file>/
+  const fileMatch = raw.match(fileRegex)
+  if (!fileMatch) throw new Error('No <file> block found in fix output')
+
+  const explanationMatch = raw.match(/<explanation>([\s\S]*?)<\/explanation>/)
+  const explanation = explanationMatch ? explanationMatch[1].trim() : 'Fixed.'
+
+  return {
+    file: fileMatch[1].trim() || expectedFilePath,
+    content: fileMatch[2].replace(/^\n/, '').replace(/\n$/, ''),
+    explanation,
+  }
 }
 
 export async function POST(request: Request) {
@@ -90,13 +90,9 @@ export async function POST(request: Request) {
   // Parse the fix output
   let output: FixOutput
   try {
-    output = parseFixOutput(rawOutput)
+    output = parseFixOutput(rawOutput, filePath)
   } catch {
-    try {
-      output = parseFixOutput(jsonrepair(rawOutput))
-    } catch {
-      return NextResponse.json({ error: 'Could not parse fix output.' }, { status: 500 })
-    }
+    return NextResponse.json({ error: 'Could not parse fix output.' }, { status: 500 })
   }
 
   // Apply the fix to the current files

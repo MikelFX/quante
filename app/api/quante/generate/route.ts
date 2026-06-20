@@ -4,7 +4,6 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
-import { jsonrepair } from 'jsonrepair'
 import type { StoreCodeOutput } from '@/types/store-code'
 
 export const maxDuration = 300
@@ -29,18 +28,22 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
 }
 
 function parseCodeOutput(raw: string): StoreCodeOutput {
-  // Strip markdown fences if present
-  let cleaned = raw.trim()
-  const fenceMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/m)
-  if (fenceMatch) cleaned = fenceMatch[1].trim()
-  // Find the outermost JSON object
-  const first = cleaned.indexOf('{')
-  const last = cleaned.lastIndexOf('}')
-  if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1)
-  const parsed = JSON.parse(cleaned) as StoreCodeOutput
-  if (!parsed.files || typeof parsed.files !== 'object') throw new Error('Missing files in output')
-  if (!parsed.summary || typeof parsed.summary !== 'string') parsed.summary = 'Store generated.'
-  return parsed
+  const files: Record<string, string> = {}
+
+  // Extract <file path="...">content</file> blocks
+  const fileRegex = /<file path="([^"]+)">([\s\S]*?)<\/file>/g
+  let match
+  while ((match = fileRegex.exec(raw)) !== null) {
+    files[match[1].trim()] = match[2].replace(/^\n/, '').replace(/\n$/, '')
+  }
+
+  if (Object.keys(files).length === 0) throw new Error('No <file> blocks found in output')
+
+  // Extract <summary>...</summary>
+  const summaryMatch = raw.match(/<summary>([\s\S]*?)<\/summary>/)
+  const summary = summaryMatch ? summaryMatch[1].trim() : 'Store generated.'
+
+  return { files, summary }
 }
 
 export async function POST(request: Request) {
@@ -99,12 +102,8 @@ export async function POST(request: Request) {
     try {
       output = parseCodeOutput(rawOutput)
     } catch {
-      try {
-        output = parseCodeOutput(jsonrepair(rawOutput))
-      } catch {
-        send({ type: 'error', message: 'Could not parse generated files. Please try again with a more detailed brief.' })
-        return
-      }
+      send({ type: 'error', message: 'Could not parse generated files. Please try again.' })
+      return
     }
 
     send({ type: 'status', text: 'Saving…' })

@@ -4,7 +4,6 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_ITERATION } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
-import { jsonrepair } from 'jsonrepair'
 import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 300
@@ -30,16 +29,18 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
 }
 
 function parseIterateOutput(raw: string): IterateOutput {
-  let cleaned = raw.trim()
-  const fenceMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/m)
-  if (fenceMatch) cleaned = fenceMatch[1].trim()
-  const first = cleaned.indexOf('{')
-  const last = cleaned.lastIndexOf('}')
-  if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1)
-  const parsed = JSON.parse(cleaned) as IterateOutput
-  if (!parsed.files || typeof parsed.files !== 'object') parsed.files = {}
-  if (!parsed.reply || typeof parsed.reply !== 'string') parsed.reply = 'Done.'
-  return parsed
+  const files: CodeVersionFiles = {}
+
+  const fileRegex = /<file path="([^"]+)">([\s\S]*?)<\/file>/g
+  let match
+  while ((match = fileRegex.exec(raw)) !== null) {
+    files[match[1].trim()] = match[2].replace(/^\n/, '').replace(/\n$/, '')
+  }
+
+  const replyMatch = raw.match(/<reply>([\s\S]*?)<\/reply>/)
+  const reply = replyMatch ? replyMatch[1].trim() : 'Done.'
+
+  return { files, reply }
 }
 
 export async function POST(request: Request) {
@@ -97,11 +98,10 @@ export async function POST(request: Request) {
 
     send({ type: 'status', text: 'Updating your store…' })
 
-    // Stream Claude response, sending reply in real time
+    // Stream Claude response, streaming reply tag content in real time
     let rawOutput = ''
-    let replyBuffer = ''
-    let replyStarted = false
-    let replyDone = false
+    let replyEmitted = ''
+    let inReply = false
 
     const claudeStream = anthropic.messages.stream({
       model: ITERATION_MODEL,
@@ -114,38 +114,20 @@ export async function POST(request: Request) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
         rawOutput += event.delta.text
 
-        // Try to stream the reply field in real-time as JSON builds up
-        if (!replyDone) {
-          // Look for "reply": "... in the accumulated output
-          if (!replyStarted) {
-            const replyKeyIdx = rawOutput.indexOf('"reply"')
-            if (replyKeyIdx !== -1) {
-              const colonIdx = rawOutput.indexOf(':', replyKeyIdx)
-              if (colonIdx !== -1) {
-                const quoteIdx = rawOutput.indexOf('"', colonIdx + 1)
-                if (quoteIdx !== -1) {
-                  replyStarted = true
-                  replyBuffer = rawOutput.slice(quoteIdx + 1)
-                }
-              }
-            }
-          } else {
-            // We're inside the reply string value — extract new chars
-            const fullReplyContent = rawOutput.slice(rawOutput.indexOf('"reply"'))
-            // Find the value after "reply":
-            const valStart = fullReplyContent.indexOf('"', fullReplyContent.indexOf(':') + 1) + 1
-            if (valStart > 0) {
-              const valContent = fullReplyContent.slice(valStart)
-              // Check if the closing quote arrived
-              const endQuoteIdx = valContent.search(/(?<!\\)"/)
-              const chunk = endQuoteIdx !== -1 ? valContent.slice(0, endQuoteIdx) : valContent
-              if (chunk.length > replyBuffer.length) {
-                const newText = chunk.slice(replyBuffer.length)
-                replyBuffer = chunk
-                if (newText) send({ type: 'text_chunk', text: newText })
-              }
-              if (endQuoteIdx !== -1) replyDone = true
-            }
+        // Stream content inside <reply>...</reply> as it arrives
+        if (!inReply) {
+          const start = rawOutput.indexOf('<reply>')
+          if (start !== -1) inReply = true
+        }
+        if (inReply) {
+          const full = rawOutput
+          const start = full.indexOf('<reply>') + '<reply>'.length
+          const end = full.indexOf('</reply>')
+          const replyContent = end !== -1 ? full.slice(start, end) : full.slice(start)
+          if (replyContent.length > replyEmitted.length) {
+            const newText = replyContent.slice(replyEmitted.length)
+            replyEmitted = replyContent
+            if (newText) send({ type: 'text_chunk', text: newText })
           }
         }
       }
@@ -156,11 +138,7 @@ export async function POST(request: Request) {
     try {
       output = parseIterateOutput(rawOutput)
     } catch {
-      try {
-        output = parseIterateOutput(jsonrepair(rawOutput))
-      } catch {
-        send({ type: 'error', message: 'Could not parse the updated files. Try again.' }); return
-      }
+      send({ type: 'error', message: 'Could not parse the updated files. Try again.' }); return
     }
 
     // Merge changed files with current files
