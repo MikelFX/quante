@@ -15,7 +15,7 @@ export async function GET(_: Request, { params }: Params) {
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const { data: versions, error } = await supabase
-    .from('manifest_versions').select('id, version_no, prompt, created_at')
+    .from('code_versions').select('id, version_no, prompt, created_at')
     .eq('project_id', id).order('version_no', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

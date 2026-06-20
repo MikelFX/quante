@@ -1,13 +1,17 @@
-// Build the Next.js source tree for a generated storefront from a ShopManifest.
-// Consumed by:
-//   - /api/export — wraps the files into a ZIP for download
-//   - /api/deploy — uploads the files to Vercel for managed hosting
+// Build the Next.js source tree for a generated storefront.
+// Supports two modes:
+//   1. Legacy manifest mode: buildStoreFiles(manifest, customComponents?)
+//      Used by /api/export and the old /api/deploy
+//   2. Code-gen mode: buildStoreFiles(codeFiles)
+//      Used by the new /api/quante/generate, /api/quante/iterate, /api/quante/fix
+//      Provides a scaffold and merges AI-generated files on top of it.
 //
 // Output paths are POSIX, relative to the project root (no leading slash, no slug prefix).
 
 import fs from 'fs'
 import path from 'path'
 import type { ShopManifest } from '@/types/manifest'
+import type { CodeVersionFiles } from '@/types/store-code'
 
 export interface GeneratedFile {
   path: string
@@ -25,7 +29,317 @@ export interface CustomComponentRecord {
   code: string
 }
 
-export function buildStoreFiles(manifest: ShopManifest, customComponents: CustomComponentRecord[] = []): GeneratedFile[] {
+// ─── Code-gen scaffold ────────────────────────────────────────────────────────
+// Used when Claude generates actual TypeScript/React files directly.
+// Provides the deterministic scaffold; AI files override scaffold files with the same path.
+
+function buildCodeGenScaffold(): GeneratedFile[] {
+  const files: GeneratedFile[] = []
+
+  function add(name: string, content: string) {
+    files.push({ path: name, content, encoding: 'utf-8' })
+  }
+
+  // ── package.json ──────────────────────────────────────────────────────────
+  add('package.json', JSON.stringify({
+    name: 'my-store',
+    version: '1.0.0',
+    private: true,
+    scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+    dependencies: {
+      'framer-motion': '^12.40.0',
+      'lucide-react': '^1.17.0',
+      next: '16.2.7',
+      react: '19.2.4',
+      'react-dom': '19.2.4',
+    },
+    devDependencies: {
+      '@tailwindcss/postcss': '^4',
+      '@types/node': '^20',
+      '@types/react': '^19',
+      '@types/react-dom': '^19',
+      tailwindcss: '^4',
+      typescript: '^5',
+    },
+  }, null, 2))
+
+  // ── tsconfig.json ─────────────────────────────────────────────────────────
+  add('tsconfig.json', JSON.stringify({
+    compilerOptions: {
+      target: 'ES2017',
+      lib: ['dom', 'dom.iterable', 'esnext'],
+      allowJs: true,
+      skipLibCheck: true,
+      strict: true,
+      noEmit: true,
+      esModuleInterop: true,
+      module: 'esnext',
+      moduleResolution: 'bundler',
+      resolveJsonModule: true,
+      isolatedModules: true,
+      jsx: 'preserve',
+      incremental: true,
+      plugins: [{ name: 'next' }],
+      paths: { '@/*': ['./*'] },
+    },
+    include: ['next-env.d.ts', '**/*.ts', '**/*.tsx', '.next/types/**/*.ts'],
+    exclude: ['node_modules'],
+  }, null, 2))
+
+  // ── next.config.ts ────────────────────────────────────────────────────────
+  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {}\nexport default nextConfig\n`)
+
+  // ── postcss.config.mjs ────────────────────────────────────────────────────
+  add('postcss.config.mjs', `const config = { plugins: { '@tailwindcss/postcss': {} } }\nexport default config\n`)
+
+  // ── next-env.d.ts ─────────────────────────────────────────────────────────
+  add('next-env.d.ts', `/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n`)
+
+  // ── types/store-code.ts ───────────────────────────────────────────────────
+  add('types/store-code.ts', `export interface StoreProduct {
+  id: string
+  name: string
+  description: string
+  price: number
+  compareAtPrice?: number
+  images: string[]
+  slug: string
+  available: boolean
+  tags?: string[]
+  variants?: Array<{ id: string; name: string; price?: number; stock?: number }>
+  lowStockThreshold?: number
+}
+
+export interface StoreConfig {
+  brand: {
+    name: string
+    tagline: string
+    currency: string
+    language: string
+    logoText?: string
+  }
+  seo: { title: string; description: string }
+  design: {
+    colors: { bg: string; text: string; accent: string; accentText: string; muted: string; surface: string; border: string }
+    fonts: { heading: string; body: string }
+    radius: string
+  }
+  nav: Array<{ label: string; href: string }>
+  footer: {
+    columns: Array<{ title: string; links: Array<{ label: string; href: string }> }>
+    legal: string
+    socials?: Array<{ platform: string; url: string }>
+  }
+}
+
+export interface CartItem {
+  product: StoreProduct
+  quantity: number
+}
+
+export interface StoreCodeOutput {
+  files: Record<string, string>
+  summary: string
+}
+
+export type CodeVersionFiles = Record<string, string>
+`)
+
+  // ── lib/utils.ts ─────────────────────────────────────────────────────────
+  add('lib/utils.ts', `type ClassValue = string | undefined | null | boolean | Record<string, boolean>
+
+export function cn(...classes: ClassValue[]): string {
+  return classes
+    .flatMap((c) => {
+      if (!c || typeof c === 'boolean') return []
+      if (typeof c === 'string') return [c]
+      return Object.entries(c).filter(([, v]) => v).map(([k]) => k)
+    })
+    .join(' ')
+}
+`)
+
+  // ── lib/store/cart.ts ─────────────────────────────────────────────────────
+  add('lib/store/cart.ts', `'use client'
+import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
+import type { StoreProduct, CartItem } from '@/types/store-code'
+
+interface CartContextValue {
+  items: CartItem[]
+  total: number
+  count: number
+  addItem: (product: StoreProduct, qty?: number) => void
+  removeItem: (productId: string) => void
+  updateQty: (productId: string, qty: number) => void
+  clearCart: () => void
+}
+
+const CartContext = createContext<CartContextValue | null>(null)
+
+const STORAGE_KEY = 'quante-cart'
+
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>([])
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) setItems(JSON.parse(saved) as CartItem[])
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)) } catch {}
+  }, [items])
+
+  const addItem = useCallback((product: StoreProduct, qty = 1) => {
+    setItems((prev) => {
+      const existing = prev.find((i) => i.product.id === product.id)
+      if (existing) return prev.map((i) => i.product.id === product.id ? { ...i, quantity: i.quantity + qty } : i)
+      return [...prev, { product, quantity: qty }]
+    })
+  }, [])
+
+  const removeItem = useCallback((productId: string) => {
+    setItems((prev) => prev.filter((i) => i.product.id !== productId))
+  }, [])
+
+  const updateQty = useCallback((productId: string, qty: number) => {
+    if (qty <= 0) { removeItem(productId); return }
+    setItems((prev) => prev.map((i) => i.product.id === productId ? { ...i, quantity: qty } : i))
+  }, [removeItem])
+
+  const clearCart = useCallback(() => setItems([]), [])
+
+  const total = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
+  const count = items.reduce((sum, i) => sum + i.quantity, 0)
+
+  return (
+    <CartContext.Provider value={{ items, total, count, addItem, removeItem, updateQty, clearCart }}>
+      {children}
+    </CartContext.Provider>
+  )
+}
+
+export function useCart(): CartContextValue {
+  const ctx = useContext(CartContext)
+  if (!ctx) throw new Error('useCart must be used within a CartProvider')
+  return ctx
+}
+`)
+
+  // ── app/layout.tsx ────────────────────────────────────────────────────────
+  add('app/layout.tsx', `import type { Metadata } from 'next'
+import type { ReactNode } from 'react'
+import { CartProvider } from '@/lib/store/cart'
+import './styles/store.css'
+
+export const metadata: Metadata = {
+  title: 'My Store',
+  description: 'Welcome to my store.',
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <CartProvider>
+          {children}
+        </CartProvider>
+      </body>
+    </html>
+  )
+}
+`)
+
+  // ── app/page.tsx (home) ───────────────────────────────────────────────────
+  add('app/page.tsx', `import HomePage from '@/components/store/HomePage'
+
+export default function Page() {
+  return <HomePage />
+}
+`)
+
+  // ── app/products/[slug]/page.tsx ──────────────────────────────────────────
+  add('app/products/[slug]/page.tsx', `import ProductDetailPage from '@/components/store/ProductDetailPage'
+
+interface Props { params: Promise<{ slug: string }> }
+
+export default async function Page({ params }: Props) {
+  const { slug } = await params
+  return <ProductDetailPage slug={slug} />
+}
+`)
+
+  // ── app/collections/[slug]/page.tsx ──────────────────────────────────────
+  add('app/collections/[slug]/page.tsx', `import CollectionPage from '@/components/store/CollectionPage'
+
+interface Props { params: Promise<{ slug: string }> }
+
+export default async function Page({ params }: Props) {
+  const { slug } = await params
+  return <CollectionPage slug={slug} />
+}
+`)
+
+  // ── app/styles/store.css (placeholder — will be overridden by AI) ─────────
+  add('styles/store.css', `@import "tailwindcss";
+
+:root {
+  --color-bg: #ffffff;
+  --color-text: #111111;
+  --color-accent: #2563eb;
+  --color-accent-text: #ffffff;
+  --color-muted: #6b7280;
+  --color-surface: #f9fafb;
+  --color-border: #e5e7eb;
+  --font-heading: Inter, sans-serif;
+  --font-body: Inter, sans-serif;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-body); background-color: var(--color-bg); color: var(--color-text); -webkit-font-smoothing: antialiased; }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
+`)
+
+  return files
+}
+
+// ─── Code-gen build (new approach) ───────────────────────────────────────────
+// Takes AI-generated files and merges them with the scaffold.
+
+export function buildStoreFiles(codeFiles: CodeVersionFiles): GeneratedFile[]
+
+// ─── Legacy manifest build (old approach) ────────────────────────────────────
+// Kept for /api/export and backward compatibility.
+
+export function buildStoreFiles(manifest: ShopManifest, customComponents?: CustomComponentRecord[]): GeneratedFile[]
+
+export function buildStoreFiles(
+  arg: CodeVersionFiles | ShopManifest,
+  customComponents: CustomComponentRecord[] = [],
+): GeneratedFile[] {
+  // Detect which mode we're in:
+  // CodeVersionFiles is a plain Record<string, string> (values are strings)
+  // ShopManifest has a `brand` object with string fields
+  const isCodeFiles = arg && typeof arg === 'object' && !('brand' in arg)
+
+  if (isCodeFiles) {
+    const codeFiles = arg as CodeVersionFiles
+    const scaffold = buildCodeGenScaffold()
+
+    // Merge: AI-generated files override scaffold files with the same path
+    const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
+    for (const [filePath, content] of Object.entries(codeFiles)) {
+      scaffoldMap.set(filePath, { path: filePath, content, encoding: 'utf-8' })
+    }
+
+    return Array.from(scaffoldMap.values())
+  }
+
+  // Legacy manifest mode
+  const manifest = arg as ShopManifest
   const slug = toStoreSlug(manifest.brand.name) || 'my-store'
   const files: GeneratedFile[] = []
   const cwd = process.cwd()

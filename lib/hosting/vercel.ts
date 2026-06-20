@@ -92,6 +92,91 @@ export async function createDeployment(
   return { deploymentId: result.id, url: result.url }
 }
 
+export async function createPreviewDeployment(
+  vercelProjectId: string,
+  files: Array<{ path: string; data: string; encoding?: string }>,
+): Promise<{ deploymentId: string; url: string }> {
+  const result = await vercel.deployments.createDeployment({
+    teamId: TEAM_ID,
+    requestBody: {
+      name: vercelProjectId,
+      project: vercelProjectId,
+      target: 'preview',
+      files: files.map((f) => ({
+        file: f.path,
+        data: f.data,
+        encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+      })),
+    },
+  })
+  return { deploymentId: result.id, url: result.url.startsWith('https://') ? result.url : `https://${result.url}` }
+}
+
+export async function streamDeploymentLogs(
+  deploymentId: string,
+  onEvent: (event: { type: string; text: string; created: number }) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const token = process.env.VERCEL_TOKEN
+  const teamParam = TEAM_ID ? `&teamId=${TEAM_ID}` : ''
+  const url = `https://api.vercel.com/v2/deployments/${deploymentId}/events?direction=forward&follow=1${teamParam}`
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  })
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Vercel events API returned ${response.status}`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      if (signal?.aborted) break
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        try {
+          const parsed = JSON.parse(trimmed) as {
+            type?: string
+            text?: string
+            created?: number
+            payload?: { text?: string; readyState?: string }
+          }
+
+          const type = parsed.type ?? 'stdout'
+          const text = parsed.text ?? parsed.payload?.text ?? ''
+          const created = parsed.created ?? Date.now()
+
+          onEvent({ type, text, created })
+
+          // Vercel signals build completion via readyState in the payload
+          const readyState = parsed.payload?.readyState
+          if (readyState === 'READY' || readyState === 'ERROR') {
+            onEvent({ type: readyState === 'READY' ? 'ready' : 'error', text: '', created: Date.now() })
+            return
+          }
+        } catch {
+          // Not JSON — skip
+        }
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => {})
+  }
+}
+
 export async function getDeploymentStatus(deploymentId: string): Promise<DeploymentStatus> {
   const result = await vercel.deployments.getDeployment({
     idOrUrl: deploymentId,

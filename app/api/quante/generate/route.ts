@@ -1,14 +1,17 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
-import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_GENERATION } from '@/lib/claude'
-import { parseManifestJson } from '@/lib/manifest-schema'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
+import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
+import { buildStoreFiles } from '@/lib/store-template/build'
 import { jsonrepair } from 'jsonrepair'
+import type { StoreCodeOutput } from '@/types/store-code'
 
 export const maxDuration = 300
 
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
-const MAX_TOKENS = 50000
+const MAX_TOKENS = 64000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()
@@ -25,6 +28,21 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
   })
 }
 
+function parseCodeOutput(raw: string): StoreCodeOutput {
+  // Strip markdown fences if present
+  let cleaned = raw.trim()
+  const fenceMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/m)
+  if (fenceMatch) cleaned = fenceMatch[1].trim()
+  // Find the outermost JSON object
+  const first = cleaned.indexOf('{')
+  const last = cleaned.lastIndexOf('}')
+  if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1)
+  const parsed = JSON.parse(cleaned) as StoreCodeOutput
+  if (!parsed.files || typeof parsed.files !== 'object') throw new Error('Missing files in output')
+  if (!parsed.summary || typeof parsed.summary !== 'string') parsed.summary = 'Store generated.'
+  return parsed
+}
+
 export async function POST(request: Request) {
   return makeStream(async (send) => {
     const { brief, projectName, projectId: existingProjectId } = await request.json()
@@ -36,6 +54,7 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
+    // Credits check
     const { data: ledger } = await supabase
       .from('credit_ledger').select('balance_after')
       .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -46,6 +65,7 @@ export async function POST(request: Request) {
       return
     }
 
+    // Rate limit
     const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
     const { count: recentCount } = await supabase
       .from('credit_ledger').select('*', { count: 'exact', head: true })
@@ -58,68 +78,120 @@ export async function POST(request: Request) {
 
     send({ type: 'status', text: 'Designing your store…' })
 
+    // Call Claude
     let rawOutput = ''
     const claudeStream = anthropic.messages.stream({
       model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: SYSTEM_PROMPT_GENERATION, cache_control: { type: 'ephemeral' } }],
+      system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: brief.trim() }],
     })
 
     for await (const event of claudeStream) {
       if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
         rawOutput += event.delta.text
-        send({ type: 'chunk', text: event.delta.text })
       }
     }
 
-    send({ type: 'status', text: 'Validating manifest…' })
+    send({ type: 'status', text: 'Parsing generated files…' })
 
-    let manifest
+    // Parse the output
+    let output: StoreCodeOutput
     try {
-      manifest = parseManifestJson(rawOutput)
+      output = parseCodeOutput(rawOutput)
     } catch {
-      // Fast repair via jsonrepair
       try {
-        manifest = parseManifestJson(jsonrepair(rawOutput))
+        output = parseCodeOutput(jsonrepair(rawOutput))
       } catch {
-        send({ type: 'status', text: 'Repairing manifest…' })
-        try {
-          const repair = await anthropic.messages.create({
-            model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
-            messages: [{ role: 'user', content: `Fix this invalid ShopManifest JSON and return ONLY the corrected JSON:\n${rawOutput.slice(0, 60000)}` }],
-          })
-          const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
-          manifest = parseManifestJson(jsonrepair(repairText))
-        } catch {
-          send({ type: 'error', message: 'Could not produce a valid manifest. Please try again with a more detailed brief.' })
-          return
-        }
+        send({ type: 'error', message: 'Could not parse generated files. Please try again with a more detailed brief.' })
+        return
       }
     }
 
     send({ type: 'status', text: 'Saving…' })
 
+    // Create or use project
     let projectId = existingProjectId
     if (!projectId) {
+      // Try to derive a name from config if available
+      let storeName = projectName ?? 'My Store'
+      try {
+        const configFile = output.files['data/config.ts'] ?? ''
+        const nameMatch = configFile.match(/name:\s*['"]([^'"]+)['"]/)
+        if (nameMatch) storeName = nameMatch[1]
+      } catch {}
+
       const { data: project, error: projError } = await supabase
-        .from('projects').insert({ user_id: userId, name: projectName || manifest.brand.name, status: 'draft' })
+        .from('projects').insert({ user_id: userId, name: storeName, status: 'draft' })
         .select().single()
       if (projError || !project) { send({ type: 'error', message: 'Failed to create project.' }); return }
       projectId = project.id
     }
 
+    // Save code version
     const { data: version, error: versionError } = await supabase
-      .from('manifest_versions').insert({ project_id: projectId, version_no: 1, manifest, prompt: brief })
+      .from('code_versions').insert({
+        project_id: projectId,
+        user_id: userId,
+        version_no: 1,
+        files: output.files,
+        prompt: brief,
+      })
       .select().single()
 
-    if (versionError || !version) { send({ type: 'error', message: 'Failed to save manifest.' }); return }
+    if (versionError || !version) { send({ type: 'error', message: 'Failed to save generated files.' }); return }
 
+    // Debit credits
     await supabase.from('credit_ledger').insert({
       user_id: userId, delta: -GENERATE_COST, reason: 'generate',
       ref_id: version.id, balance_after: balance - GENERATE_COST,
     })
     await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
-    send({ type: 'done', projectId, versionId: version.id, manifest })
+    // Auto-trigger preview deployment (free, no credit debit)
+    send({ type: 'status', text: 'Starting preview deployment…' })
+
+    let deploymentId: string | null = null
+    let previewUrl: string | null = null
+
+    try {
+      // Load project to get vercel_project_id
+      const { data: projectRow } = await supabaseAdmin
+        .from('projects').select('name, vercel_project_id').eq('id', projectId).single()
+
+      const slug = (projectRow?.name ?? 'my-store').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const { vercelProjectId } = await ensureVercelProject(slug)
+
+      if (!projectRow?.vercel_project_id) {
+        await supabaseAdmin.from('projects').update({ vercel_project_id: vercelProjectId }).eq('id', projectId)
+      }
+
+      // Build scaffold + merge AI files
+      const allFiles = buildStoreFiles(output.files)
+
+      const result = await createPreviewDeployment(
+        vercelProjectId,
+        allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
+      )
+      deploymentId = result.deploymentId
+      previewUrl = result.url
+
+      // Save preview deployment row
+      await supabaseAdmin.from('deployments').insert({
+        project_id: projectId,
+        user_id: userId,
+        vercel_project_id: vercelProjectId,
+        vercel_deployment_id: deploymentId,
+        status: 'building',
+        url: previewUrl.startsWith('https://') ? previewUrl : `https://${previewUrl}`,
+        domain: null,
+        version: 1,
+        version_id: version.id,
+        code_version_id: version.id,
+      })
+    } catch (err) {
+      console.error('[generate] preview deployment failed (non-fatal):', err)
+    }
+
+    send({ type: 'done', projectId, versionId: version.id, deploymentId, previewUrl, summary: output.summary })
   })
 }

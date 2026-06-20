@@ -12,7 +12,7 @@ import {
   attachDomain,
   HOSTING_ROOT_DOMAIN,
 } from '@/lib/hosting/vercel'
-import type { ShopManifest } from '@/types/manifest'
+import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 60
 
@@ -88,35 +88,38 @@ export async function POST(request: Request) {
     )
   }
 
-  // Load latest manifest
+  // Load latest code version
   const { data: version } = await supabase
-    .from('manifest_versions')
-    .select('id, manifest, version_no')
+    .from('code_versions')
+    .select('id, files, version_no')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (!version) {
-    return NextResponse.json({ error: 'No manifest found. Generate a store first.' }, { status: 404 })
+    return NextResponse.json({ error: 'No generated store found. Generate a store first.' }, { status: 404 })
   }
 
-  const rawManifest = version.manifest as ShopManifest
-  // Always include admin panel in deployed stores
-  const manifest: ShopManifest = { ...rawManifest, adminPanel: true } as ShopManifest
-  const slug = toStoreSlug(manifest.brand.name) || 'my-store'
+  const codeFiles = version.files as CodeVersionFiles
+
+  // Derive slug from config.ts if present, otherwise from project name
+  let slug = 'my-store'
+  try {
+    const configFile = codeFiles['data/config.ts'] ?? ''
+    const nameMatch = configFile.match(/name:\s*['"]([^'"]+)['"]/)
+    if (nameMatch) slug = toStoreSlug(nameMatch[1])
+    else slug = toStoreSlug(project.name) || 'my-store'
+  } catch {
+    slug = toStoreSlug(project.name) || 'my-store'
+  }
+
   const intendedDomain = `${slug}.${HOSTING_ROOT_DOMAIN}`
 
-  // Fetch any custom components for this project
-  const { data: customComponents } = await supabaseAdmin
-    .from('custom_components')
-    .select('ref, name, code')
-    .eq('project_id', projectId)
-
-  // Build file tree (reuses the same source as export ZIP)
+  // Build file tree: scaffold + AI-generated code files merged on top
   let files
   try {
-    files = buildStoreFiles(manifest, customComponents ?? [])
+    files = buildStoreFiles(codeFiles)
   } catch (err) {
     console.error('[deploy] buildStoreFiles failed:', err)
     return NextResponse.json({ error: 'Failed to build store files.' }, { status: 500 })
@@ -197,6 +200,7 @@ export async function POST(request: Request) {
       domain: intendedDomain,
       version: version.version_no,
       version_id: version.id,
+      code_version_id: version.id,
     })
     .select('id')
     .single()

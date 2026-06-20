@@ -11,6 +11,7 @@ import {
   Monitor, Tablet, Smartphone, RotateCcw, ExternalLink, ChevronDown,
   GripVertical, Eye, EyeOff, Trash2, Plus, X,
   LayoutDashboard, ShoppingBag, ClipboardList, Settings2, ArrowLeft, TrendingUp, Share2, Users,
+  Terminal, Wrench, CheckCircle, AlertCircle,
 } from 'lucide-react'
 import { RevenueChart } from '@/components/admin/RevenueChart'
 
@@ -19,6 +20,18 @@ import { RevenueChart } from '@/components/admin/RevenueChart'
 interface ChangeSummary {
   changes: string[]
   prevVersionId: string | null
+}
+
+interface BuildError {
+  filePath: string
+  line: number
+  message: string
+}
+
+interface LogLine {
+  type: string
+  text: string
+  created: number
 }
 
 interface Message {
@@ -39,7 +52,7 @@ type StreamEvent =
   | { type: 'status'; text: string }
   | { type: 'chunk'; text: string }
   | { type: 'text_chunk'; text: string }
-  | { type: 'done'; manifest?: ShopManifest | null; reply?: string; projectId?: string; versionId?: string }
+  | { type: 'done'; reply?: string; projectId?: string; versionId?: string; deploymentId?: string; previewUrl?: string; summary?: string }
   | { type: 'error'; message: string }
 
 interface HostingInfo {
@@ -52,13 +65,14 @@ interface HostingInfo {
 interface Props {
   projectId: string
   projectName: string
-  initialManifest: ShopManifest | null
   initialBalance: number
   hostingInfo: HostingInfo
+  latestDeployment: { id: string; status: string; url: string | null } | null
 }
 
-type StudioTab = 'chat' | 'preview' | 'sections' | 'products' | 'theme' | 'publish'
+type StudioTab = 'chat' | 'preview' | 'logs' | 'sections' | 'products' | 'theme' | 'publish'
 type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'publish'
+type RightPanelTab = 'preview' | 'logs'
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'settings'
 
 interface StripeOrder {
@@ -250,19 +264,28 @@ const QUICK_CHIPS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function StudioClient({ projectId, projectName, initialManifest, initialBalance, hostingInfo }: Props) {
+export function StudioClient({ projectId, projectName, initialBalance, hostingInfo, latestDeployment }: Props) {
   const searchParams = useSearchParams()
-  const [messages, setMessages] = useState<Message[]>(() =>
-    initialManifest
-      ? [{ role: 'assistant', content: `Store **${initialManifest.brand.name}** loaded. What would you like to change?` }]
-      : []
-  )
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [iframeKey, setIframeKey] = useState(0)
   const [balance, setBalance] = useState(initialBalance)
-  const [currentManifest, setCurrentManifest] = useState<ShopManifest | null>(initialManifest)
+  const [hasGeneratedOnce, setHasGeneratedOnce] = useState(!!latestDeployment)
   const [activeTab, setActiveTab] = useState<StudioTab>('chat')
+  // Preview + logs state (new code-gen approach)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(latestDeployment?.url ?? null)
+  const [rightPanel, setRightPanel] = useState<RightPanelTab>('preview')
+  const [deployLogs, setDeployLogs] = useState<LogLine[]>([])
+  const [buildError, setBuildError] = useState<BuildError | null>(null)
+  const [isFixing, setIsFixing] = useState(false)
+  const logsEndRef = useRef<HTMLDivElement>(null)
+  const logEventSourceRef = useRef<EventSource | null>(null)
+  // Legacy compatibility stubs — keep panels from crashing during transition
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const currentManifest = null as unknown as ShopManifest | null
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const setCurrentManifest = (_m: ShopManifest | null) => { /* noop — manifest editing replaced by code-gen */ }
+  const [iframeKey, setIframeKey] = useState(0)
   const [versions, setVersions] = useState<VersionEntry[]>([])
   const [showVersions, setShowVersions] = useState(false)
   const [expandedSection, setExpandedSection] = useState<number | null>(null)
@@ -477,10 +500,61 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     } catch {}
   }, [])
 
+  // ─── Log streaming ───────────────────────────────────────────────────────────
+
+  const startLogStreaming = useCallback((deploymentId: string) => {
+    // Close any existing log stream
+    if (logEventSourceRef.current) {
+      logEventSourceRef.current.close()
+      logEventSourceRef.current = null
+    }
+    setDeployLogs([])
+    setBuildError(null)
+    setRightPanel('logs')
+
+    const es = new EventSource(`/api/deploy/logs?deploymentId=${deploymentId}`)
+    logEventSourceRef.current = es
+
+    es.onmessage = (evt) => {
+      try {
+        const data = JSON.parse(evt.data) as LogLine & { filePath?: string; line?: number; message?: string }
+
+        if (data.type === 'build_error' && data.filePath) {
+          setBuildError({ filePath: data.filePath, line: data.line ?? 0, message: data.message ?? data.text })
+          return
+        }
+
+        if (data.type === 'stream_end' || data.type === 'ready' || data.type === 'error') {
+          es.close()
+          logEventSourceRef.current = null
+          if (data.type === 'ready') {
+            // Build succeeded — switch to preview
+            setRightPanel('preview')
+            setMessages((prev) => [...prev, { role: 'assistant', content: 'Build succeeded. Preview is ready.', type: 'done' }])
+          }
+          return
+        }
+
+        if (data.text) {
+          setDeployLogs((prev) => [...prev.slice(-500), { type: data.type, text: data.text, created: data.created }])
+          logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }
+      } catch {}
+    }
+
+    es.onerror = () => {
+      es.close()
+      logEventSourceRef.current = null
+    }
+  }, [])
+
+  // Cleanup on unmount
+  useEffect(() => () => { logEventSourceRef.current?.close() }, [])
+
   async function consumeStream(
     endpoint: string,
     body: object,
-    onDone: (manifest: ShopManifest | null, reply?: string) => void,
+    onDone: (reply?: string, deploymentId?: string, previewUrl?: string) => void,
     onError?: (msg: string) => void
   ) {
     const response = await fetch(endpoint, {
@@ -527,9 +601,57 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         return
       } else if (event.type === 'done') {
         setStreamingText('')
-        onDone(event.manifest ?? null, event.reply)
+        onDone(event.reply, event.deploymentId, event.previewUrl)
         return
       }
+    }
+  }
+
+  async function handleFix() {
+    if (!buildError || isFixing) return
+    setIsFixing(true)
+    setMessages((prev) => [...prev, {
+      role: 'assistant',
+      content: `Fixing build error in \`${buildError.filePath}\` at line ${buildError.line}…`,
+      type: 'status',
+    }])
+    try {
+      const res = await fetch('/api/quante/fix', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, errorMessage: buildError.message, filePath: buildError.filePath }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: data.error ?? 'Fix failed.', type: 'error' }
+          return updated
+        })
+        return
+      }
+      setBuildError(null)
+      fetchVersions()
+      refreshBalance()
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: 'assistant',
+          content: data.explanation ?? 'Fix applied — redeploying preview…',
+          type: 'done',
+        }
+        return updated
+      })
+      if (data.previewUrl) setPreviewUrl(data.previewUrl)
+      if (data.deploymentId) startLogStreaming(data.deploymentId)
+    } catch {
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { role: 'assistant', content: 'Fix request failed.', type: 'error' }
+        return updated
+      })
+    } finally {
+      setIsFixing(false)
     }
   }
 
@@ -538,10 +660,6 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     if (!text || isGenerating) return
 
     setInput('')
-    const snapshot = [...messages]
-    const prevManifest = currentManifest
-    const prevVersionId = versions[0]?.id ?? null  // capture before the edit creates a new version
-
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text },
@@ -549,24 +667,24 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     ])
     setIsGenerating(true)
 
-    const hasManifest = !!currentManifest
-
-    if (!hasManifest) {
-      // Generation flow
+    if (!hasGeneratedOnce) {
+      // Generation flow — first time
       try {
-        await consumeStream('/api/quante/generate', { brief: text, projectId }, (manifest) => {
-          if (!manifest) return
-          const summary = `**${manifest.brand.name}** ready — ${manifest.catalog.products.length} product${manifest.catalog.products.length !== 1 ? 's' : ''}, ${manifest.pages.home.length} sections.`
+        await consumeStream('/api/quante/generate', { brief: text, projectId }, (reply, deploymentId, newPreviewUrl) => {
           setMessages((prev) => {
             const updated = [...prev]
-            updated[updated.length - 1] = { role: 'assistant', content: summary, type: 'done' }
+            updated[updated.length - 1] = {
+              role: 'assistant',
+              content: reply ?? 'Store generated — deploying preview…',
+              type: 'done',
+            }
             return updated
           })
-          setCurrentManifest(manifest)
-          setIframeKey((k) => k + 1)
+          setHasGeneratedOnce(true)
           refreshBalance()
           fetchVersions()
-          setActiveTab('preview')
+          if (newPreviewUrl) setPreviewUrl(newPreviewUrl)
+          if (deploymentId) startLogStreaming(deploymentId)
         })
       } catch {
         setMessages((prev) => {
@@ -581,35 +699,25 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       return
     }
 
-    // Iteration flow — with history + change summary
-    const history = snapshot
-      .filter((m) => m.type !== 'status' && m.content !== '…')
-      .map((m) => ({ role: m.role, content: m.content }))
-
+    // Iteration flow
     try {
       await consumeStream(
         '/api/quante/iterate',
-        { projectId, instruction: text, history },
-        (manifest, reply) => {
-          const changes = manifest && prevManifest ? diffManifest(prevManifest, manifest) : []
+        { projectId, instruction: text },
+        (reply, deploymentId, newPreviewUrl) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {
               role: 'assistant',
               content: reply ?? updated[updated.length - 1].content,
               type: 'done',
-              ...(manifest && changes.length > 0
-                ? { changeSummary: { changes, prevVersionId } }
-                : {}),
             }
             return updated
           })
-          if (manifest) {
-            setCurrentManifest(manifest)
-            setIframeKey((k) => k + 1)
-            refreshBalance()
-            fetchVersions()
-          }
+          refreshBalance()
+          fetchVersions()
+          if (newPreviewUrl) setPreviewUrl(newPreviewUrl)
+          if (deploymentId) startLogStreaming(deploymentId)
         }
       )
     } catch {
@@ -629,6 +737,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     setIsGenerating(true)
     setRegeneratingSection(sectionIndex)
     setExpandedSection(null)
+    // Section regeneration is now handled via iteration in the new code-gen approach
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: instruction || `Improve section ${sectionIndex + 1}` },
@@ -637,31 +746,29 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
     try {
       await consumeStream(
-        '/api/quante/section',
-        { projectId, page: 'home', sectionIndex, instruction },
-        (manifest) => {
-          if (!manifest) return
-          const sectionName = SECTION_LABELS[(manifest.pages.home[sectionIndex] as { type: string })?.type ?? ''] ?? 'Section'
+        '/api/quante/iterate',
+        { projectId, instruction: instruction || `Improve section ${sectionIndex + 1}` },
+        (reply, deploymentId, newPreviewUrl) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {
               role: 'assistant',
-              content: `**${sectionName}** regenerated.`,
+              content: reply ?? 'Section updated.',
               type: 'done',
             }
             return updated
           })
-          setCurrentManifest(manifest)
-          setIframeKey((k) => k + 1)
           setSectionInput('')
           refreshBalance()
           fetchVersions()
+          if (newPreviewUrl) setPreviewUrl(newPreviewUrl)
+          if (deploymentId) startLogStreaming(deploymentId)
         }
       )
     } catch {
       setMessages((prev) => {
         const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', content: 'Section regeneration failed.', type: 'error' }
+        updated[updated.length - 1] = { role: 'assistant', content: 'Section update failed.', type: 'error' }
         return updated
       })
     } finally {
@@ -679,17 +786,15 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         body: JSON.stringify({ versionId }),
       })
       if (res.ok) {
-        const { manifest } = await res.json()
-        setCurrentManifest(manifest)
-        setIframeKey((k) => k + 1)
+        await res.json()
         fetchVersions()
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Version restored.', type: 'done' }])
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Version restored. Re-deploy preview to see changes.', type: 'done' }])
       }
     } catch {}
   }
 
   async function handleExport(includeAdmin = false) {
-    if (!currentManifest) return
+    if (!hasGeneratedOnce) return
     if (includeAdmin ? isExportingAdmin : isExporting) return
     includeAdmin ? setIsExportingAdmin(true) : setIsExporting(true)
     try {
@@ -757,7 +862,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
   }
 
   async function handleDeploy() {
-    if (!currentManifest || isDeploying) return
+    if (!hasGeneratedOnce || isDeploying) return
     setIsDeploying(true)
     setDeployStatus('building')
     setMessages((prev) => [
@@ -1062,22 +1167,10 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     setIsRequestingPayout(false)
   }
 
-  async function handleSaveManifest(updatedManifest: ShopManifest, prompt: string) {
-    setIsSavingManifest(true)
-    try {
-      const res = await fetch('/api/manifest/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, manifest: updatedManifest, prompt }),
-      })
-      if (!res.ok) { alert('Save failed.'); return false }
-      const data = await res.json()
-      setCurrentManifest(data.manifest)
-      setIframeKey(k => k + 1)
-      fetchVersions()
-      return true
-    } catch { alert('Save failed.'); return false }
-    finally { setIsSavingManifest(false) }
+  async function handleSaveManifest(_updatedManifest: ShopManifest, _prompt: string): Promise<boolean> {
+    // Manifest editing is no longer supported in the code-gen approach.
+    // Direct edits should be done via chat (iterate).
+    return false
   }
 
   async function handleUploadImage(file: File, onDone: (url: string) => void) {
@@ -1758,21 +1851,60 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
           {balance} cr
         </span>
 
+        {/* Preview / Logs toggle (desktop only) */}
+        {isDesktop && hasGeneratedOnce && (
+          <div style={{
+            display: 'flex', borderRadius: 7,
+            border: '1px solid rgba(255,255,255,.1)',
+            background: 'rgba(255,255,255,.04)',
+            overflow: 'hidden',
+          }}>
+            <button
+              onClick={() => setRightPanel('preview')}
+              style={{
+                fontSize: 11, fontWeight: 500, padding: '4px 9px',
+                border: 'none', cursor: 'pointer', transition: 'all 0.12s',
+                background: rightPanel === 'preview' ? 'rgba(111,120,230,.18)' : 'transparent',
+                color: rightPanel === 'preview' ? '#a8afff' : '#8a8a93',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              <Monitor size={11} /> Preview
+            </button>
+            <button
+              onClick={() => setRightPanel('logs')}
+              style={{
+                fontSize: 11, fontWeight: 500, padding: '4px 9px',
+                border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
+                cursor: 'pointer', transition: 'all 0.12s',
+                background: rightPanel === 'logs' ? 'rgba(111,120,230,.18)' : 'transparent',
+                color: rightPanel === 'logs' ? '#a8afff' : '#8a8a93',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              <Terminal size={11} /> Logs
+              {buildError && (
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f87171', marginLeft: 2 }} />
+              )}
+            </button>
+          </div>
+        )}
+
         {/* Export + Live (desktop only) */}
         {isDesktop && (
           <>
             <div style={{ position: 'relative', display: 'flex' }}>
               <button
                 onClick={() => handleExport(false)}
-                disabled={!currentManifest || isExporting || isExportingAdmin}
+                disabled={!hasGeneratedOnce || isExporting || isExportingAdmin}
                 style={{
                   fontSize: 11, fontWeight: 500,
                   padding: '4px 10px', borderRadius: 6,
                   border: '1px solid rgba(255,255,255,.12)',
                   background: 'rgba(255,255,255,.04)',
-                  color: currentManifest ? '#f4f4f6' : '#8a8a93',
-                  cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
-                  opacity: currentManifest ? 1 : 0.4,
+                  color: hasGeneratedOnce ? '#f4f4f6' : '#8a8a93',
+                  cursor: hasGeneratedOnce && !isExporting ? 'pointer' : 'not-allowed',
+                  opacity: hasGeneratedOnce ? 1 : 0.4,
                   transition: 'background 0.12s',
                 }}
               >
@@ -1798,17 +1930,17 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             ) : (
               <button
                 onClick={handleDeploy}
-                disabled={!currentManifest || isDeploying || deployStatus === 'building'}
+                disabled={!hasGeneratedOnce || isDeploying || deployStatus === 'building'}
                 style={{
                   fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
                   border: '1px solid rgba(62,207,142,.25)',
-                  background: currentManifest && !isDeploying ? 'rgba(62,207,142,.08)' : 'transparent',
-                  color: currentManifest && !isDeploying ? '#3ecf8e' : '#8a8a93',
-                  cursor: currentManifest && !isDeploying ? 'pointer' : 'not-allowed',
-                  opacity: currentManifest ? 1 : 0.4,
+                  background: hasGeneratedOnce && !isDeploying ? 'rgba(62,207,142,.08)' : 'transparent',
+                  color: hasGeneratedOnce && !isDeploying ? '#3ecf8e' : '#8a8a93',
+                  cursor: hasGeneratedOnce && !isDeploying ? 'pointer' : 'not-allowed',
+                  opacity: hasGeneratedOnce ? 1 : 0.4,
                 }}
               >
-                {isDeploying || deployStatus === 'building' ? '⟳ Deploying' : 'Deploy'}
+                {isDeploying || deployStatus === 'building' ? '⟳ Deploying' : 'Deploy live'}
               </button>
             )}
           </>
@@ -1827,12 +1959,12 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               <MessageCircle size={15} color="#6f78e6" />
             </div>
             <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 4 }}>
-              {currentManifest ? `${currentManifest.brand.name} loaded` : 'Describe your store'}
+              {hasGeneratedOnce ? 'Store ready — iterate freely' : 'Describe your store'}
             </p>
             <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5 }}>
-              {currentManifest
-                ? 'Tell Quante what to change — copy, colors, sections, products.'
-                : 'Brand, products, vibe, currency. Quante builds the rest.'}
+              {hasGeneratedOnce
+                ? 'Tell Quante what to change — copy, colors, products, new pages, anything.'
+                : 'Brand, products, vibe, currency. Quante generates the full code.'}
             </p>
           </div>
         )}
@@ -1851,7 +1983,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       <div style={{ flexShrink: 0, padding: '10px 12px 12px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
 
         {/* Quick suggestion chips */}
-        {currentManifest && !isGenerating && (
+        {hasGeneratedOnce && !isGenerating && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
             {QUICK_CHIPS.map(({ label, prompt }) => (
               <button
@@ -1882,7 +2014,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
             disabled={isGenerating}
-            placeholder={!currentManifest ? 'Popiš svůj obchod — vygenerujeme ho celý…' : 'Cokoliv — nová stránka, jiný design, přepsat texty, přidat produkty…'}
+            placeholder={!hasGeneratedOnce ? 'Popiš svůj obchod — vygenerujeme ho celý…' : 'Cokoliv — nová stránka, jiný design, přepsat texty, přidat produkty…'}
             rows={3}
             style={{
               flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
@@ -1912,7 +2044,7 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               {isGenerating ? '…' : '→'}
             </button>
             <span style={{ fontSize: 9, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', whiteSpace: 'nowrap' }}>
-              {!currentManifest ? '10 cr' : '1 cr'}
+              {!hasGeneratedOnce ? '10 cr' : '1 cr'}
             </span>
           </div>
         </div>
@@ -2574,6 +2706,80 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
     desktop: null, tablet: 768, mobile: 390,
   }
 
+  // ── Logs Panel ────────────────────────────────────────────────────────────────
+  const LogsPane = (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090c', overflow: 'hidden', minWidth: 0 }}>
+      {/* Toolbar */}
+      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', borderBottom: '1px solid rgba(255,255,255,.06)', background: '#0d0d11' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Terminal size={13} color="#8a8a93" />
+          <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>Build logs</span>
+          {logEventSourceRef.current && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#6f78e6' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#6f78e6', animation: 'blink 1s ease-in-out infinite' }} />
+              live
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => setDeployLogs([])}
+          style={{ fontSize: 10, color: '#5b5b64', background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          Clear
+        </button>
+      </div>
+
+      {/* Log lines */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', fontFamily: 'var(--font-geist-mono)', fontSize: 11, lineHeight: 1.7 }}>
+        {deployLogs.length === 0 ? (
+          <p style={{ color: '#5b5b64', margin: 0 }}>No logs yet. Generate or iterate to start a build.</p>
+        ) : (
+          deployLogs.map((line, i) => (
+            <div key={i} style={{ color: line.type === 'stderr' || line.text.includes('Error') || line.text.includes('error') ? '#f87171' : '#c8c8d0' }}>
+              {line.text}
+            </div>
+          ))
+        )}
+        <div ref={logsEndRef} />
+      </div>
+
+      {/* Build error card */}
+      {buildError && (
+        <div style={{ flexShrink: 0, margin: '0 12px 12px', padding: '12px', borderRadius: 10, border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            <AlertCircle size={16} color="#f87171" style={{ marginTop: 1, flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: '#f87171', margin: '0 0 4px' }}>Build error</p>
+              <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', margin: '0 0 2px', wordBreak: 'break-all' }}>
+                {buildError.filePath}{buildError.line ? `:${buildError.line}` : ''}
+              </p>
+              <p style={{ fontSize: 11, color: '#c8c8d0', margin: '0 0 10px', lineHeight: 1.5 }}>
+                {buildError.message}
+              </p>
+              <button
+                onClick={handleFix}
+                disabled={isFixing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  fontSize: 12, fontWeight: 600,
+                  padding: '6px 14px', borderRadius: 7,
+                  border: '1px solid rgba(111,120,230,.4)',
+                  background: isFixing ? 'transparent' : 'rgba(111,120,230,.12)',
+                  color: isFixing ? '#5b5b64' : '#a8afff',
+                  cursor: isFixing ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <Wrench size={12} />
+                {isFixing ? 'Fixing…' : 'Fix this error · 2 cr'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── Preview Pane ──────────────────────────────────────────────────────────────
   const PreviewPane = (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090c', overflow: 'hidden', minWidth: 0 }}>
       {/* Toolbar */}
@@ -2605,9 +2811,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
 
         {/* URL + controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {liveUrl && (
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {liveDomain ?? liveUrl}
+          {previewUrl && (
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {previewUrl.replace('https://', '')}
             </span>
           )}
           {latestVersion && (
@@ -2615,12 +2821,11 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
               v{latestVersion.version_no}
             </span>
           )}
-          <button onClick={() => setIframeKey((k) => k + 1)} title="Refresh" style={{ width: 24, height: 24, borderRadius: 5, border: 'none', cursor: 'pointer', background: 'transparent', color: '#5b5b64', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RotateCcw size={11} />
-          </button>
-          <a href={`/preview/${projectId}`} target="_blank" rel="noopener noreferrer" title="Open in new tab" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5b5b64', textDecoration: 'none' }}>
-            <ExternalLink size={11} />
-          </a>
+          {previewUrl && (
+            <a href={previewUrl} target="_blank" rel="noopener noreferrer" title="Open preview in new tab" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5b5b64', textDecoration: 'none' }}>
+              <ExternalLink size={11} />
+            </a>
+          )}
         </div>
       </div>
 
@@ -2629,21 +2834,18 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
         flex: 1, position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       }}>
-        {!currentManifest ? (
+        {!previewUrl ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
             <div>
               <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 6 }}>no preview yet</p>
-              <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to get started</p>
+              <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to generate and deploy a preview</p>
             </div>
           </div>
         ) : previewDevice === 'desktop' ? (
           <iframe
-            ref={iframeRef}
-            key={iframeKey}
-            src={`/preview/${projectId}`}
+            src={previewUrl}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="Store preview"
-            onLoad={handleIframeLoad}
           />
         ) : (
           <div style={{
@@ -2659,12 +2861,9 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             transformOrigin: 'top center',
           }}>
             <iframe
-              ref={iframeRef}
-              key={iframeKey}
-              src={`/preview/${projectId}`}
+              src={previewUrl}
               style={{ width: '100%', height: '100%', border: 'none' }}
               title="Store preview"
-              onLoad={handleIframeLoad}
             />
           </div>
         )}
@@ -3629,8 +3828,8 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
             </div>
           </div>
 
-          {/* ── Live preview (always visible) ───────────────────────── */}
-          {PreviewPane}
+          {/* ── Right panel: Preview or Logs ────────────────────────── */}
+          {rightPanel === 'logs' ? LogsPane : PreviewPane}
         </div>
         {showCommandPalette && (
           <CommandPalette
@@ -3695,18 +3894,13 @@ export function StudioClient({ projectId, projectName, initialManifest, initialB
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'chat'     && ChatPanel}
         {activeTab === 'preview'  && PreviewPane}
+        {activeTab === 'logs'     && LogsPane}
         {activeTab === 'sections' && SectionsPanel}
         {activeTab === 'products' && ProductsPanel}
         {activeTab === 'theme'    && ThemePanel}
         {activeTab === 'publish'  && (
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {PublishPanel}
-            <MerchantPanel
-              projectId={projectId}
-              manifest={currentManifest}
-              onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
-              onBalanceRefresh={refreshBalance}
-            />
           </div>
         )}
       </div>

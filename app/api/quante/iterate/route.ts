@@ -1,10 +1,11 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_ITERATION } from '@/lib/claude'
-import { parseManifestJson } from '@/lib/manifest-schema'
-import type { ShopManifest } from '@/types/manifest'
+import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_ITERATION } from '@/lib/claude'
+import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
+import { buildStoreFiles } from '@/lib/store-template/build'
 import { jsonrepair } from 'jsonrepair'
+import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 300
 
@@ -12,9 +13,9 @@ const ITERATE_COST = 1
 const ITERATE_RATE_LIMIT = 60
 const MAX_TOKENS = 64000
 
-interface HistoryMessage {
-  role: 'user' | 'assistant'
-  content: string
+interface IterateOutput {
+  files: CodeVersionFiles
+  reply: string
 }
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
@@ -28,12 +29,24 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
   return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' } })
 }
 
+function parseIterateOutput(raw: string): IterateOutput {
+  let cleaned = raw.trim()
+  const fenceMatch = cleaned.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/m)
+  if (fenceMatch) cleaned = fenceMatch[1].trim()
+  const first = cleaned.indexOf('{')
+  const last = cleaned.lastIndexOf('}')
+  if (first !== -1 && last > first) cleaned = cleaned.slice(first, last + 1)
+  const parsed = JSON.parse(cleaned) as IterateOutput
+  if (!parsed.files || typeof parsed.files !== 'object') parsed.files = {}
+  if (!parsed.reply || typeof parsed.reply !== 'string') parsed.reply = 'Done.'
+  return parsed
+}
+
 export async function POST(request: Request) {
   return makeStream(async (send) => {
     const body = await request.json()
     const projectId: string = body.projectId
     const instruction: string = body.instruction?.trim() ?? ''
-    const history: HistoryMessage[] = body.history ?? []
 
     if (!projectId || !instruction) {
       send({ type: 'error', message: 'projectId and instruction are required.' }); return
@@ -44,11 +57,12 @@ export async function POST(request: Request) {
 
     const supabase = await createClient()
 
+    // Ownership check
     const { data: project } = await supabase
-      .from('projects').select('id').eq('id', projectId).eq('user_id', userId).maybeSingle()
+      .from('projects').select('id, name, vercel_project_id').eq('id', projectId).eq('user_id', userId).maybeSingle()
     if (!project) { send({ type: 'error', message: 'Project not found.' }); return }
 
-    // Rate limit — count only paid iterations
+    // Rate limit
     const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
     const { count: recentCount } = await supabase
       .from('credit_ledger').select('*', { count: 'exact', head: true })
@@ -57,80 +71,7 @@ export async function POST(request: Request) {
       send({ type: 'error', message: `Rate limit reached — max ${ITERATE_RATE_LIMIT} store updates per hour.` }); return
     }
 
-    const { data: current } = await supabase
-      .from('manifest_versions').select('manifest, version_no')
-      .eq('project_id', projectId).order('version_no', { ascending: false }).limit(1).maybeSingle()
-    if (!current) { send({ type: 'error', message: 'No manifest found for this project.' }); return }
-
-    // System prompt with current manifest (prompt-cached)
-    const systemWithManifest = `${SYSTEM_PROMPT_ITERATION}
-
-═══ CURRENT STORE MANIFEST ═════════════════════════════════════════════════════
-${JSON.stringify(current.manifest)}
-════════════════════════════════════════════════════════════════════════════════`
-
-    // Build conversation: last 8 history messages + current instruction
-    const historyMessages = history
-      .filter((m) => m.content && m.content !== '…')
-      .slice(-8)
-      .map((m) => ({ role: m.role, content: m.content }))
-
-    const conversationMessages: { role: 'user' | 'assistant'; content: string }[] = [
-      ...historyMessages,
-      { role: 'user', content: instruction },
-    ]
-
-    // Stream Claude's response, sending the <reply> portion in real time
-    let rawOutput = ''
-    let replyDone = false
-    let sentReplyLength = 0
-
-    const claudeStream = anthropic.messages.stream({
-      model: ITERATION_MODEL,
-      max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: systemWithManifest, cache_control: { type: 'ephemeral' } }],
-      messages: conversationMessages,
-    })
-
-    for await (const event of claudeStream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        rawOutput += event.delta.text
-
-        if (!replyDone) {
-          const replyStart = rawOutput.indexOf('<reply>')
-          const replyEndIdx = rawOutput.indexOf('</reply>')
-          if (replyEndIdx !== -1) replyDone = true
-
-          if (replyStart !== -1) {
-            const contentStart = replyStart + '<reply>'.length
-            const contentEnd = replyDone ? replyEndIdx : rawOutput.length
-            const replyContent = rawOutput.slice(contentStart, contentEnd)
-            if (replyContent.length > sentReplyLength) {
-              send({ type: 'text_chunk', text: replyContent.slice(sentReplyLength) })
-              sentReplyLength = replyContent.length
-            }
-          }
-        }
-      }
-    }
-
-    // Extract reply and optional patch
-    const replyMatch = rawOutput.match(/<reply>([\s\S]*?)<\/reply>/)
-    const replyText = replyMatch?.[1]?.trim() ?? rawOutput.trim()
-
-    // Try closed tag first; fall back to truncated output (missing </patch>)
-    const patchMatch = rawOutput.match(/<patch>([\s\S]*?)<\/patch>/)
-    const patchStart = rawOutput.indexOf('<patch>')
-    const rawPatchStr = patchMatch?.[1] ??
-      (patchStart !== -1 ? rawOutput.slice(patchStart + '<patch>'.length).trim() : null)
-
-    // No patch → free Q&A, no credit debit
-    if (!rawPatchStr) {
-      send({ type: 'done', reply: replyText, manifest: null })
-      return
-    }
-
-    // Has patch → check credits, parse patch, merge with current manifest, validate
+    // Credits check
     const { data: ledger } = await supabase
       .from('credit_ledger').select('balance_after')
       .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
@@ -139,85 +80,108 @@ ${JSON.stringify(current.manifest)}
       send({ type: 'error', message: `Insufficient credits. Need ${ITERATE_COST}, have ${balance}.` }); return
     }
 
-    // Parse the patch (partial manifest) and merge with current
-    function parsePatch(raw: string): Record<string, unknown> {
-      let cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim()
-      const first = cleaned.indexOf('{')
-      const last = cleaned.lastIndexOf('}')
-      if (first > 0 && last > first) cleaned = cleaned.slice(first, last + 1)
-      return JSON.parse(cleaned)
-    }
+    // Load current code version
+    const { data: current } = await supabase
+      .from('code_versions').select('files, version_no')
+      .eq('project_id', projectId).order('version_no', { ascending: false }).limit(1).maybeSingle()
+    if (!current) { send({ type: 'error', message: 'No code version found for this project. Generate a store first.' }); return }
 
-    let manifest: ShopManifest
-    try {
-      const patch = parsePatch(rawPatchStr)
-      const merged = { ...current.manifest as object, ...patch }
-      manifest = parseManifestJson(JSON.stringify(merged)) as ShopManifest
-    } catch (primaryErr) {
-      // Fast repair: fix JSON syntax then re-merge
-      try {
-        const patch = parsePatch(jsonrepair(rawPatchStr))
-        const merged = { ...current.manifest as object, ...patch }
-        manifest = parseManifestJson(JSON.stringify(merged)) as ShopManifest
-      } catch {
-        // Slow repair: ask AI to fix the merged manifest
-        console.error('[iterate] patch parse/merge failed, attempting AI repair:', primaryErr)
-        send({ type: 'status', text: 'Repairing manifest…' })
-        try {
-          let errSummary: string
-          if (primaryErr instanceof Error && primaryErr.name === 'ZodError') {
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const zErr = primaryErr as any
-              const flat = zErr.flatten?.()
-              errSummary = flat
-                ? `Zod validation failed:\n${JSON.stringify(flat, null, 2).slice(0, 1500)}`
-                : String(primaryErr).slice(0, 1500)
-            } catch {
-              errSummary = String(primaryErr).slice(0, 1500)
+    const currentFiles = current.files as CodeVersionFiles
+
+    // Build file summary for Claude (list of files + content)
+    const fileSummary = Object.entries(currentFiles)
+      .map(([path, content]) => `=== ${path} ===\n${content}`)
+      .join('\n\n')
+
+    const userMessage = `CURRENT FILES:\n${fileSummary}\n\nUSER INSTRUCTION:\n${instruction}`
+
+    send({ type: 'status', text: 'Updating your store…' })
+
+    // Stream Claude response, sending reply in real time
+    let rawOutput = ''
+    let replyBuffer = ''
+    let replyStarted = false
+    let replyDone = false
+
+    const claudeStream = anthropic.messages.stream({
+      model: ITERATION_MODEL,
+      max_tokens: MAX_TOKENS,
+      system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_ITERATION, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: userMessage }],
+    })
+
+    for await (const event of claudeStream) {
+      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+        rawOutput += event.delta.text
+
+        // Try to stream the reply field in real-time as JSON builds up
+        if (!replyDone) {
+          // Look for "reply": "... in the accumulated output
+          if (!replyStarted) {
+            const replyKeyIdx = rawOutput.indexOf('"reply"')
+            if (replyKeyIdx !== -1) {
+              const colonIdx = rawOutput.indexOf(':', replyKeyIdx)
+              if (colonIdx !== -1) {
+                const quoteIdx = rawOutput.indexOf('"', colonIdx + 1)
+                if (quoteIdx !== -1) {
+                  replyStarted = true
+                  replyBuffer = rawOutput.slice(quoteIdx + 1)
+                }
+              }
             }
           } else {
-            errSummary = String(primaryErr).slice(0, 1500)
+            // We're inside the reply string value — extract new chars
+            const fullReplyContent = rawOutput.slice(rawOutput.indexOf('"reply"'))
+            // Find the value after "reply":
+            const valStart = fullReplyContent.indexOf('"', fullReplyContent.indexOf(':') + 1) + 1
+            if (valStart > 0) {
+              const valContent = fullReplyContent.slice(valStart)
+              // Check if the closing quote arrived
+              const endQuoteIdx = valContent.search(/(?<!\\)"/)
+              const chunk = endQuoteIdx !== -1 ? valContent.slice(0, endQuoteIdx) : valContent
+              if (chunk.length > replyBuffer.length) {
+                const newText = chunk.slice(replyBuffer.length)
+                replyBuffer = chunk
+                if (newText) send({ type: 'text_chunk', text: newText })
+              }
+              if (endQuoteIdx !== -1) replyDone = true
+            }
           }
-
-          // Merge what we can and send the merged JSON for repair
-          let bestMerge: string
-          try {
-            const patch = parsePatch(jsonrepair(rawPatchStr))
-            bestMerge = JSON.stringify({ ...current.manifest as object, ...patch })
-          } catch {
-            bestMerge = JSON.stringify(current.manifest)
-          }
-
-          const repair = await anthropic.messages.create({
-            model: ITERATION_MODEL, max_tokens: MAX_TOKENS,
-            messages: [{
-              role: 'user',
-              content: `The following ShopManifest JSON failed validation. Fix EVERY error listed below and return ONLY the corrected raw JSON (no code fences, no prose).\n\nErrors:\n${errSummary}\n\nJSON to fix:\n${bestMerge.slice(0, 60000)}`,
-            }],
-          })
-          const repairText = repair.content[0].type === 'text' ? repair.content[0].text : ''
-          manifest = parseManifestJson(jsonrepair(repairText)) as ShopManifest
-        } catch (repairErr) {
-          console.error('[iterate] repair failed:', repairErr)
-          send({ type: 'error', message: 'Could not parse the updated manifest. Try again.' }); return
         }
       }
     }
 
+    // Parse the full output
+    let output: IterateOutput
+    try {
+      output = parseIterateOutput(rawOutput)
+    } catch {
+      try {
+        output = parseIterateOutput(jsonrepair(rawOutput))
+      } catch {
+        send({ type: 'error', message: 'Could not parse the updated files. Try again.' }); return
+      }
+    }
+
+    // Merge changed files with current files
+    const mergedFiles: CodeVersionFiles = { ...currentFiles, ...output.files }
+
+    // Save new code version
     const { data: version, error: versionError } = await supabase
-      .from('manifest_versions').insert({
+      .from('code_versions').insert({
         project_id: projectId,
+        user_id: userId,
         version_no: current.version_no + 1,
-        manifest,
+        files: mergedFiles,
         prompt: instruction,
       })
       .select().single()
 
     if (versionError || !version) {
-      send({ type: 'error', message: 'Failed to save updated manifest.' }); return
+      send({ type: 'error', message: 'Failed to save updated files.' }); return
     }
 
+    // Debit credits
     await Promise.all([
       supabaseAdmin.from('credit_ledger').insert({
         user_id: userId,
@@ -229,6 +193,45 @@ ${JSON.stringify(current.manifest)}
       supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId),
     ])
 
-    send({ type: 'done', reply: replyText, manifest, projectId, versionId: version.id })
+    // Auto-trigger preview deployment (free)
+    send({ type: 'status', text: 'Deploying preview…' })
+
+    let deploymentId: string | null = null
+    let previewUrl: string | null = null
+
+    try {
+      const slug = (project.name ?? 'my-store').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const { vercelProjectId } = await ensureVercelProject(slug)
+
+      if (!project.vercel_project_id) {
+        await supabaseAdmin.from('projects').update({ vercel_project_id: vercelProjectId }).eq('id', projectId)
+      }
+
+      const allFiles = buildStoreFiles(mergedFiles)
+      const result = await createPreviewDeployment(
+        vercelProjectId,
+        allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
+      )
+      deploymentId = result.deploymentId
+      previewUrl = result.url
+
+      await supabaseAdmin.from('deployments').insert({
+        project_id: projectId,
+        user_id: userId,
+        vercel_project_id: vercelProjectId,
+        vercel_deployment_id: deploymentId,
+        status: 'building',
+        url: previewUrl.startsWith('https://') ? previewUrl : `https://${previewUrl}`,
+        domain: null,
+        version: version.version_no,
+        version_id: version.id,
+        code_version_id: version.id,
+      })
+    } catch (err) {
+      console.error('[iterate] preview deployment failed (non-fatal):', err)
+    }
+
+    send({ type: 'text_chunk', text: '' }) // flush any pending text_chunk
+    send({ type: 'done', reply: output.reply, versionId: version.id, deploymentId, previewUrl, projectId })
   })
 }
