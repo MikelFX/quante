@@ -1,7 +1,10 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
+import { getUserRecord } from '@/lib/tier'
 import { CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
+import { AGENCY_MONTHLY_USD } from '@/lib/config'
 import { PurchaseButtons } from './PurchaseButtons'
+import { AgencyPortalButton } from './AgencyPortalButton'
 
 interface LedgerEntry {
   id: string
@@ -30,7 +33,6 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(h / 24)}d ago`
 }
 
-// Build a simple 7-bar sparkline from the last 7 days of deltas
 function buildSparkline(history: LedgerEntry[]): number[] {
   const days: Record<string, number> = {}
   const now = Date.now()
@@ -47,8 +49,13 @@ function buildSparkline(history: LedgerEntry[]): number[] {
   return Object.values(days)
 }
 
+function formatDate(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 interface Props {
-  searchParams: Promise<{ success?: string; cancelled?: string; credits?: string }>
+  searchParams: Promise<{ success?: string; cancelled?: string; credits?: string; agency_success?: string }>
 }
 
 export default async function BillingPage({ searchParams }: Props) {
@@ -57,7 +64,121 @@ export default async function BillingPage({ searchParams }: Props) {
   if (!userId) return null
 
   const supabase = await createClient()
+  const record = await getUserRecord(userId)
+  const isAgency = record.tier === 'agency' && record.subscription_status === 'active'
+  const stripeReady = isStripeConfigured()
 
+  // Project count for agency
+  const { count: projectCount } = isAgency
+    ? await supabase.from('projects').select('*', { count: 'exact', head: true })
+        .eq('user_id', userId).neq('status', 'archived')
+    : { count: 0 }
+
+  // ── Agency view ─────────────────────────────────────────────────────────────
+  if (isAgency) {
+    const statusColors: Record<string, string> = {
+      active: '#3ecf8e',
+      past_due: '#e0a04f',
+      canceled: '#8a8a93',
+      trialing: '#6f78e6',
+    }
+    const statusColor = statusColors[record.subscription_status ?? ''] ?? '#8a8a93'
+
+    return (
+      <div style={{ padding: '1.5rem 1rem 3rem', maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {params.agency_success && (
+          <div style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(62,207,142,.3)', background: 'rgba(62,207,142,.07)', fontSize: 13, color: '#3ecf8e' }}>
+            Agency plan activated — unlimited generations and exports are now available.
+          </div>
+        )}
+
+        {/* Subscription card */}
+        <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{
+                  fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '.07em',
+                  padding: '2px 8px', borderRadius: 99,
+                  background: 'rgba(62,207,142,.12)',
+                  color: '#3ecf8e', border: '1px solid rgba(62,207,142,.25)',
+                }}>
+                  Agency
+                </span>
+                <span style={{
+                  fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '.06em',
+                  color: statusColor,
+                }}>
+                  {record.subscription_status ?? 'unknown'}
+                </span>
+              </div>
+              <p style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.03em', color: '#f4f4f6', margin: 0 }}>
+                ${AGENCY_MONTHLY_USD}
+                <span style={{ fontSize: 14, fontWeight: 400, color: '#8a8a93', marginLeft: 4 }}>/month</span>
+              </p>
+            </div>
+            <AgencyPortalButton stripeReady={stripeReady} />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 14px' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 4px' }}>
+                Next billing
+              </p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: '#f4f4f6', margin: 0 }}>
+                {formatDate(record.current_period_end)}
+              </p>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 14px' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 4px' }}>
+                Projects used
+              </p>
+              <p style={{ fontSize: 14, fontWeight: 500, color: '#f4f4f6', margin: 0 }}>
+                {projectCount ?? 0} / {record.project_limit}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Features */}
+        <section>
+          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', marginBottom: 12 }}>
+            What{"'"}s included
+          </p>
+          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+            {[
+              ['Up to 20 active projects', '✓'],
+              ['Unlimited generations', '✓'],
+              ['Unlimited iterations', '✓'],
+              ['Full ZIP export — white-label, no branding', '✓'],
+              ['Priority generation queue', '✓'],
+            ].map(([feature, check], i, arr) => (
+              <div key={feature} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
+                <span style={{ fontSize: 13, color: '#f4f4f6' }}>{feature}</span>
+                <span style={{ fontSize: 13, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>{check}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Custom plan */}
+        {(projectCount ?? 0) >= record.project_limit && (
+          <div style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)' }}>
+            <p style={{ fontSize: 13, color: '#e0a04f', margin: '0 0 4px' }}>
+              You{"'"}ve reached the 20-project limit.
+            </p>
+            <a href="mailto:support@quante.io" style={{ fontSize: 13, color: '#e0a04f', fontWeight: 600 }}>
+              Contact us for a custom enterprise plan →
+            </a>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Credit / Free view ───────────────────────────────────────────────────────
   const [balanceResult, historyResult] = await Promise.all([
     supabase
       .from('credit_ledger')
@@ -76,7 +197,6 @@ export default async function BillingPage({ searchParams }: Props) {
 
   const balance = balanceResult.data?.balance_after ?? 0
   const history = (historyResult.data ?? []) as LedgerEntry[]
-  const stripeReady = isStripeConfigured()
   const sparkline = buildSparkline(history)
   const sparkMax = Math.max(...sparkline, 1)
   const totalUsed = history.filter(e => e.delta < 0).reduce((s, e) => s + Math.abs(e.delta), 0)
@@ -115,7 +235,7 @@ export default async function BillingPage({ searchParams }: Props) {
           )}
         </div>
 
-        {/* Sparkline — last 7 days usage */}
+        {/* Sparkline */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>
             {totalUsed > 0 ? `−${totalUsed} used` : 'no usage yet'}
@@ -135,6 +255,17 @@ export default async function BillingPage({ searchParams }: Props) {
           </div>
           <p style={{ fontSize: 10, color: '#5b5b64', margin: 0 }}>7-day usage</p>
         </div>
+      </div>
+
+      {/* Agency upsell */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.15)', background: 'rgba(62,207,142,.04)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: '0 0 3px' }}>Agency plan — ${AGENCY_MONTHLY_USD}/month</p>
+          <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Unlimited generations · 20 projects · white-label ZIP export</p>
+        </div>
+        <a href="/pricing#agency" style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: '#3ecf8e', padding: '6px 14px', borderRadius: 7, border: '1px solid rgba(62,207,142,.3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+          See Agency plan →
+        </a>
       </div>
 
       {/* Credit packs */}
@@ -177,7 +308,6 @@ export default async function BillingPage({ searchParams }: Props) {
           </div>
         ) : (
           <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
-            {/* Header */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
               {['Action', 'Amount', 'Balance', 'When'].map((h, i) => (
                 <p key={h} style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0, textAlign: i > 0 ? 'right' : 'left' }}>{h}</p>

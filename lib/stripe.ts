@@ -16,3 +16,7 @@ export function isStripeConfigured(): boolean {
 // (€99.00 / year, currency EUR) and paste the Price ID into STRIPE_HOSTING_PRICE_ID
 export const HOSTING_PRICE_ID = process.env.STRIPE_HOSTING_PRICE_ID ?? ''
 export const HOSTING_ANNUAL_EUR = 99
+
+// Agency subscription — create a recurring Price ($699/month, USD, monthly)
+// and paste the Price ID into STRIPE_AGENCY_PRICE_ID
+export const AGENCY_PRICE_ID = process.env.STRIPE_AGENCY_PRICE_ID ?? ''

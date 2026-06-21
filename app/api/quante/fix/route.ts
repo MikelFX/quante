@@ -5,11 +5,13 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_FIX } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
+import { isAgencyUser } from '@/lib/tier'
+import { CREDIT_COSTS } from '@/lib/config'
 import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 120
 
-const FIX_COST = 2
+const FIX_COST = CREDIT_COSTS.fix
 const MAX_TOKENS = 32000
 
 interface FixOutput {
@@ -43,19 +45,23 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient()
+  const agency = await isAgencyUser(userId)
 
   // Ownership check
   const { data: project } = await supabase
     .from('projects').select('id, name, vercel_project_id').eq('id', projectId).eq('user_id', userId).maybeSingle()
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  // Credits check
-  const { data: ledger } = await supabase
-    .from('credit_ledger').select('balance_after')
-    .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  const balance = ledger?.balance_after ?? 0
-  if (balance < FIX_COST) {
-    return NextResponse.json({ error: `Insufficient credits. Need ${FIX_COST}, have ${balance}.` }, { status: 402 })
+  let balance = 0
+  if (!agency) {
+    // Credits check
+    const { data: ledger } = await supabase
+      .from('credit_ledger').select('balance_after')
+      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    balance = ledger?.balance_after ?? 0
+    if (balance < FIX_COST) {
+      return NextResponse.json({ error: `Insufficient credits. Need ${FIX_COST}, have ${balance}.` }, { status: 402 })
+    }
   }
 
   // Load current code version
@@ -113,17 +119,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to save fixed files.' }, { status: 500 })
   }
 
-  // Debit credits
-  await Promise.all([
-    supabaseAdmin.from('credit_ledger').insert({
-      user_id: userId,
-      delta: -FIX_COST,
-      reason: 'fix',
-      ref_id: version.id,
-      balance_after: balance - FIX_COST,
-    }),
-    supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId),
-  ])
+  // Debit credits (skipped for agency)
+  const updateProject = supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
+  if (!agency) {
+    await Promise.all([
+      updateProject,
+      supabaseAdmin.from('credit_ledger').insert({
+        user_id: userId,
+        delta: -FIX_COST,
+        reason: 'fix',
+        ref_id: version.id,
+        balance_after: balance - FIX_COST,
+      }),
+    ])
+  } else {
+    await updateProject
+  }
 
   // Auto-trigger preview deployment
   let deploymentId: string | null = null

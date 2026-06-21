@@ -4,6 +4,8 @@ import { useRef } from 'react'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import Link from 'next/link'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
+import { AGENCY_MONTHLY_USD } from '@/lib/config'
+import { AgencyCheckoutButton } from '@/components/AgencyCheckoutButton'
 
 const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
 
@@ -402,6 +404,119 @@ export default function PricingPage() {
         </div>
       </section>
 
+      {/* AGENCY */}
+      <section id="agency" style={{
+        position: 'relative', padding: '6rem 1.5rem',
+        borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
+      }}>
+        <Ambient />
+        <GrainVignette />
+
+        <div style={{ maxWidth: 920, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
+            color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
+          }}>
+            04 — agency
+          </p>
+          <h2 style={{
+            fontSize: 'clamp(26px,4vw,40px)', fontWeight: 700, letterSpacing: '-.03em',
+            textAlign: 'center', marginBottom: 12, color: '#f4f4f6',
+          }}>
+            Build stores for clients at scale.
+          </h2>
+          <p style={{ fontSize: 15, color: '#8a8a93', textAlign: 'center', maxWidth: 520, margin: '0 auto 56px', lineHeight: 1.65 }}>
+            Flat monthly subscription. No credits to count. White-label output — clients get clean code with zero trace of this platform.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, marginBottom: 40 }}>
+            {/* Pricing card */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7 }}
+              style={{
+                background: '#0d1210',
+                border: '1px solid rgba(62,207,142,.25)',
+                borderRadius: 16, padding: '28px 28px 32px',
+                display: 'flex', flexDirection: 'column', gap: 20,
+              }}
+            >
+              <div>
+                <span style={{
+                  fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '.07em',
+                  padding: '2px 9px', borderRadius: 99,
+                  background: 'rgba(62,207,142,.12)',
+                  color: '#3ecf8e', border: '1px solid rgba(62,207,142,.25)',
+                }}>
+                  Agency
+                </span>
+                <p style={{ fontSize: 38, fontWeight: 800, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', margin: '14px 0 0' }}>
+                  ${AGENCY_MONTHLY_USD}
+                  <span style={{ fontSize: 16, fontWeight: 400, color: '#8a8a93', marginLeft: 4 }}>/month</span>
+                </p>
+              </div>
+
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  'Up to 20 active projects',
+                  'Unlimited generations + iterations',
+                  'Full ZIP export on every project',
+                  'White-label: zero platform traces',
+                  'Priority generation queue',
+                  'Dedicated support channel',
+                ].map((f) => (
+                  <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13.5, color: '#c4c4cc' }}>
+                    <span style={{ color: '#3ecf8e', flexShrink: 0, marginTop: 1 }}>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <AgencyCheckoutButton />
+              <p style={{ fontSize: 11, color: '#5b5b64', textAlign: 'center', margin: 0 }}>Cancel anytime · billed monthly</p>
+            </motion.div>
+
+            {/* What you don't get / positioning copy */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, delay: 0.1 }}
+              style={{
+                background: 'rgba(12,12,16,.6)',
+                border: '1px solid rgba(255,255,255,.07)',
+                borderRadius: 16, padding: '28px 28px',
+                display: 'flex', flexDirection: 'column', gap: 18,
+              }}
+            >
+              <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', margin: 0 }}>
+                Designed for agencies
+              </p>
+              <p style={{ fontSize: 15, color: '#f4f4f6', fontWeight: 500, lineHeight: 1.55, margin: 0 }}>
+                Build stores for clients, hand them off, repeat.
+              </p>
+              <p style={{ fontSize: 13.5, color: '#8a8a93', lineHeight: 1.7, margin: 0 }}>
+                Agency is a generation tool, not a hosted platform. Your clients receive a clean Next.js project — no Quante dependency, no vendor lock-in. They deploy it themselves or you deploy it for them.
+              </p>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,.07)', paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {[
+                  ['You get', 'Source code — ZIP export'],
+                  ['Client gets', 'Fully portable Next.js project'],
+                  ['Payments', "Client's own Stripe keys"],
+                  ['Hosting', 'Anywhere — Vercel, Railway, VPS'],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                    <span style={{ fontSize: 12, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', flexShrink: 0 }}>{label}</span>
+                    <span style={{ fontSize: 12.5, color: '#c4c4cc', textAlign: 'right' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section style={{
         position: 'relative', padding: '5rem 1.5rem 6rem',
@@ -415,7 +530,7 @@ export default function PricingPage() {
             fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
             color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase', textAlign: 'center',
           }}>
-            04 — questions
+            05 — questions
           </p>
           <h2 style={{
             fontSize: 'clamp(24px,3.6vw,32px)', fontWeight: 700, letterSpacing: '-.025em',

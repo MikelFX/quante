@@ -1,5 +1,7 @@
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { upsertUser } from '@/lib/tier'
+import { FREE_PROJECT_LIMIT, AGENCY_PROJECT_LIMIT } from '@/lib/config'
 import { clerkClient } from '@clerk/nextjs/server'
 import type Stripe from 'stripe'
 import { paymentConfirmedEmail, merchantNewOrderEmail, sendEmail } from '@/lib/email-templates'
@@ -108,47 +110,102 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Hosting subscription events ──────────────────────────────────────────────
+  // ── Subscription events (agency + hosting) ───────────────────────────────────
   if (
     event.type === 'customer.subscription.created' ||
-    event.type === 'customer.subscription.updated'
+    event.type === 'customer.subscription.updated' ||
+    event.type === 'customer.subscription.deleted'
   ) {
     const sub = event.data.object as Stripe.Subscription
-    const { userId, projectId } = sub.metadata ?? {}
-    if (!userId || !projectId) return new Response('ok', { status: 200 })
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const subAny = sub as any
-    const periodEnd = subAny.current_period_end
-      ? new Date(subAny.current_period_end * 1000).toISOString()
-      : null
+    const meta = sub.metadata ?? {}
+    const isDeleted = event.type === 'customer.subscription.deleted'
 
-    await supabaseAdmin
-      .from('hosting_subscriptions')
-      .upsert(
-        {
-          user_id: userId,
-          project_id: projectId,
+    // ── Agency subscription ─────────────────────────────────────────────────
+    if (meta.type === 'agency' && meta.userId) {
+      const userId = meta.userId
+      const periodEnd = subAny.current_period_end
+        ? new Date(subAny.current_period_end * 1000).toISOString()
+        : null
+
+      if (isDeleted) {
+        // Downgrade to credit tier; keep credit balance intact; archive excess projects
+        await upsertUser(userId, {
+          tier: 'credit',
           stripe_subscription_id: sub.id,
           stripe_customer_id: sub.customer as string,
-          status: sub.status,
+          subscription_status: 'canceled',
           current_period_end: periodEnd,
-          cancel_at_period_end: subAny.cancel_at_period_end ?? false,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'stripe_subscription_id' }
-      )
-  }
+          project_limit: FREE_PROJECT_LIMIT,
+        })
+        await archiveExcessProjects(userId, FREE_PROJECT_LIMIT)
+      } else {
+        await upsertUser(userId, {
+          tier: 'agency',
+          stripe_subscription_id: sub.id,
+          stripe_customer_id: sub.customer as string,
+          subscription_status: sub.status,
+          current_period_end: periodEnd,
+          project_limit: AGENCY_PROJECT_LIMIT,
+        })
+      }
 
-  if (event.type === 'customer.subscription.deleted') {
-    const sub = event.data.object as Stripe.Subscription
-    await supabaseAdmin
-      .from('hosting_subscriptions')
-      .update({ status: 'canceled', updated_at: new Date().toISOString() })
-      .eq('stripe_subscription_id', sub.id)
+      return new Response('ok', { status: 200 })
+    }
+
+    // ── Hosting subscription (per-project) ─────────────────────────────────
+    const { userId, projectId } = meta
+    if (!userId || !projectId) return new Response('ok', { status: 200 })
+
+    if (isDeleted) {
+      await supabaseAdmin
+        .from('hosting_subscriptions')
+        .update({ status: 'canceled', updated_at: new Date().toISOString() })
+        .eq('stripe_subscription_id', sub.id)
+    } else {
+      const periodEnd = subAny.current_period_end
+        ? new Date(subAny.current_period_end * 1000).toISOString()
+        : null
+      await supabaseAdmin
+        .from('hosting_subscriptions')
+        .upsert(
+          {
+            user_id: userId,
+            project_id: projectId,
+            stripe_subscription_id: sub.id,
+            stripe_customer_id: sub.customer as string,
+            status: sub.status,
+            current_period_end: periodEnd,
+            cancel_at_period_end: subAny.cancel_at_period_end ?? false,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'stripe_subscription_id' }
+        )
+    }
   }
 
   return new Response('ok', { status: 200 })
+}
+
+// ─── Agency downgrade: archive projects over the limit ───────────────────────
+// Sets projects to 'archived' status so they are hidden but not deleted.
+// The user sees a warning banner and can re-activate by upgrading again.
+async function archiveExcessProjects(userId: string, limit: number): Promise<void> {
+  const { data: projects } = await supabaseAdmin
+    .from('projects')
+    .select('id')
+    .eq('user_id', userId)
+    .neq('status', 'archived')
+    .order('updated_at', { ascending: false })
+
+  if (!projects || projects.length <= limit) return
+
+  const toArchive = projects.slice(limit).map((p: { id: string }) => p.id)
+  await supabaseAdmin
+    .from('projects')
+    .update({ status: 'archived', updated_at: new Date().toISOString() })
+    .in('id', toArchive)
 }
 
 // ─── Customer payment confirmed email ────────────────────────────────────────

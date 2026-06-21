@@ -68,6 +68,7 @@ interface Props {
   initialBalance: number
   hostingInfo: HostingInfo
   latestDeployment: { id: string; status: string; url: string | null } | null
+  isAgency?: boolean
   hasCodeVersion: boolean
 }
 
@@ -265,7 +266,7 @@ const QUICK_CHIPS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function StudioClient({ projectId, projectName, initialBalance, hostingInfo, latestDeployment, hasCodeVersion }: Props) {
+export function StudioClient({ projectId, projectName, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false }: Props) {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -1847,10 +1848,22 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           </button>
         </div>
 
-        {/* Credit balance */}
-        <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#8a8a93' }}>
-          {balance} cr
-        </span>
+        {/* Credit balance / Agency indicator */}
+        {isAgency ? (
+          <span style={{
+            fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600,
+            textTransform: 'uppercase', letterSpacing: '.05em',
+            padding: '2px 8px', borderRadius: 99,
+            background: 'rgba(62,207,142,.08)',
+            color: '#3ecf8e', border: '1px solid rgba(62,207,142,.2)',
+          }}>
+            Priority
+          </span>
+        ) : (
+          <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#8a8a93' }}>
+            {balance} cr
+          </span>
+        )}
 
         {/* Preview / Logs toggle (desktop only) */}
         {isDesktop && hasGeneratedOnce && (

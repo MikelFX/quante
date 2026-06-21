@@ -4,12 +4,14 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
+import { isAgencyUser } from '@/lib/tier'
+import { CREDIT_COSTS, RATE_LIMITS, AGENCY_RATE_LIMIT_PER_MIN, AGENCY_TOKEN_CAP } from '@/lib/config'
 import type { StoreCodeOutput } from '@/types/store-code'
 
 export const maxDuration = 300
 
-const GENERATE_COST = 10
-const GENERATE_RATE_LIMIT = 5
+const GENERATE_COST = CREDIT_COSTS.generate
+const GENERATE_RATE_LIMIT = RATE_LIMITS.generate
 const MAX_TOKENS = 64000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
@@ -56,27 +58,38 @@ export async function POST(request: Request) {
     if (!userId) { send({ type: 'error', message: 'Unauthorized.' }); return }
 
     const supabase = await createClient()
+    const agency = await isAgencyUser(userId)
 
-    // Credits check
-    const { data: ledger } = await supabase
-      .from('credit_ledger').select('balance_after')
-      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+    let balance = 0
 
-    const balance = ledger?.balance_after ?? 0
-    if (balance < GENERATE_COST) {
-      send({ type: 'error', message: `Insufficient credits. Need ${GENERATE_COST}, have ${balance}.` })
-      return
-    }
-
-    // Rate limit
-    const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
-    const { count: recentCount } = await supabase
-      .from('credit_ledger').select('*', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('reason', 'generate').gte('created_at', oneHourAgo)
-
-    if ((recentCount ?? 0) >= GENERATE_RATE_LIMIT) {
-      send({ type: 'error', message: `Rate limit reached — max ${GENERATE_RATE_LIMIT} generations per hour.` })
-      return
+    if (agency) {
+      // Agency: per-minute rate limit on code_versions (no credit check)
+      const oneMinAgo = new Date(Date.now() - 60_000).toISOString()
+      const { count: recentCount } = await supabase
+        .from('code_versions').select('*', { count: 'exact', head: true })
+        .eq('user_id', userId).gte('created_at', oneMinAgo)
+      if ((recentCount ?? 0) >= AGENCY_RATE_LIMIT_PER_MIN) {
+        send({ type: 'error', message: `Rate limit reached — max ${AGENCY_RATE_LIMIT_PER_MIN} generations per minute.` })
+        return
+      }
+    } else {
+      // Credit tier: balance check + hourly rate limit
+      const { data: ledger } = await supabase
+        .from('credit_ledger').select('balance_after')
+        .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      balance = ledger?.balance_after ?? 0
+      if (balance < GENERATE_COST) {
+        send({ type: 'error', message: `Insufficient credits. Need ${GENERATE_COST}, have ${balance}.` })
+        return
+      }
+      const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
+      const { count: recentCount } = await supabase
+        .from('credit_ledger').select('*', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('reason', 'generate').gte('created_at', oneHourAgo)
+      if ((recentCount ?? 0) >= GENERATE_RATE_LIMIT) {
+        send({ type: 'error', message: `Rate limit reached — max ${GENERATE_RATE_LIMIT} generations per hour.` })
+        return
+      }
     }
 
     send({ type: 'status', text: 'Designing your store…' })
@@ -84,7 +97,7 @@ export async function POST(request: Request) {
     // Call Claude
     let rawOutput = ''
     const claudeStream = anthropic.messages.stream({
-      model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
+      model: GENERATION_MODEL, max_tokens: agency ? AGENCY_TOKEN_CAP : MAX_TOKENS,
       system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: brief.trim() }],
     })
@@ -139,11 +152,13 @@ export async function POST(request: Request) {
 
     if (versionError || !version) { send({ type: 'error', message: 'Failed to save generated files.' }); return }
 
-    // Debit credits
-    await supabase.from('credit_ledger').insert({
-      user_id: userId, delta: -GENERATE_COST, reason: 'generate',
-      ref_id: version.id, balance_after: balance - GENERATE_COST,
-    })
+    // Debit credits (skipped for agency)
+    if (!agency) {
+      await supabase.from('credit_ledger').insert({
+        user_id: userId, delta: -GENERATE_COST, reason: 'generate',
+        ref_id: version.id, balance_after: balance - GENERATE_COST,
+      })
+    }
     await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
     // Auto-trigger preview deployment (free, no credit debit)
