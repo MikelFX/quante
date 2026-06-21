@@ -479,11 +479,15 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           setDeployStatus('ready')
           setDeployUrl(d.url)
           setDeployDomain(d.domain)
+          // If this is a preview deployment (no domain yet), show it in the preview panel
+          if (d.url && !d.domain) setPreviewUrl(d.url)
         } else if (d.status === 'building' && d.vercelDeploymentId) {
           setIsDeploying(true)
           setDeployStatus('building')
           setDeployDomain(d.domain)
-          deployPollRef.current = setInterval(() => pollDeployStatus(d.vercelDeploymentId), 12000)
+          if (d.url) setPreviewUrl(d.url)
+          // Stream build logs so user can see progress / errors
+          startLogStreaming(d.vercelDeploymentId)
         }
       } catch {}
     }
@@ -2852,7 +2856,35 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
             <div>
               <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 6 }}>no preview yet</p>
-              <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to generate and deploy a preview</p>
+              {hasGeneratedOnce ? (
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/quante/iterate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectId, instruction: 'Rebuild — no changes needed.' }),
+                      })
+                      if (!res.body) return
+                      for await (const event of readNdjsonStream(res)) {
+                        if (event.type === 'done' && event.previewUrl) {
+                          setPreviewUrl(event.previewUrl)
+                          if (event.deploymentId) startLogStreaming(event.deploymentId)
+                        }
+                      }
+                    } catch {}
+                  }}
+                  style={{
+                    marginTop: 12, fontSize: 12, fontWeight: 600, padding: '7px 16px',
+                    borderRadius: 7, border: '1px solid rgba(111,120,230,.3)',
+                    background: 'rgba(111,120,230,.08)', color: '#6f78e6', cursor: 'pointer',
+                  }}
+                >
+                  ⟳ Rebuild preview
+                </button>
+              ) : (
+                <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to generate and deploy a preview</p>
+              )}
             </div>
           </div>
         ) : previewDevice === 'desktop' ? (

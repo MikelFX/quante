@@ -252,10 +252,63 @@ Generate ALL of the following files:
    Product cards with image, name, price, add-to-cart button.
    Export: export default function CollectionPage({ slug }: { slug: string }) {...}
 
+─── EXACT TYPES (NEVER INVENT FIELDS — USE ONLY WHAT IS DEFINED HERE) ──────────
+
+// StoreProduct — used in data/products.ts
+interface StoreProduct {
+  id: string           // short string: "p1", "p2", ...
+  name: string
+  description: string
+  price: number        // in base currency unit (e.g. 299 = 299 CZK)
+  compareAtPrice?: number
+  images: string[]     // always empty array []
+  slug: string         // kebab-case
+  available: boolean   // always true
+  tags?: string[]
+  variants?: Array<{ id: string; name: string; price?: number; stock?: number }>
+}
+
+// StoreConfig — used in data/config.ts
+interface StoreConfig {
+  brand: {
+    name: string
+    tagline: string     // short brand tagline
+    currency: string    // ISO 4217: "CZK", "EUR", "USD", etc.
+    language: string    // "cs", "en", etc.
+    logoText?: string
+  }
+  seo: {
+    title: string
+    description: string   // ← meta description goes HERE: config.seo.description
+  }
+  design: {
+    colors: {
+      bg: string          // e.g. "#ffffff"
+      text: string
+      accent: string
+      accentText: string  // text ON the accent color
+      muted: string
+      surface: string
+      border: string
+    }
+    fonts: { heading: string; body: string }
+    radius: string        // CSS value e.g. "8px"
+  }
+  nav: Array<{ label: string; href: string }>
+  footer: {
+    columns: Array<{ title: string; links: Array<{ label: string; href: string }> }>
+    legal: string
+    socials?: Array<{ platform: string; url: string }>
+  }
+}
+
+// IMPORTANT: StoreConfig has NO top-level "description" field.
+// Use config.brand.tagline for the brand tagline, config.seo.description for meta description.
+
 ─── SCAFFOLD IMPORTS (ALWAYS AVAILABLE — NEVER GENERATE THESE) ──────────────────
 
 The scaffold provides these — import freely:
-- "@/types/store-code": StoreProduct, StoreConfig, StoreCodeOutput, CodeVersionFiles
+- "@/types/store-code": StoreProduct, StoreConfig (types defined above)
 - "@/lib/store/cart": useCart hook — returns { addItem(product: StoreProduct, qty: number): void, items: CartItem[], total: number, count: number }
 - "@/lib/utils": cn function (class-names utility, like clsx)
 - "lucide-react": any icon components (ShoppingCart, Menu, X, ChevronRight, Star, etc.)
