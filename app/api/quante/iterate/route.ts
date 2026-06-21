@@ -221,7 +221,6 @@ export async function POST(request: Request) {
         url: previewUrl.startsWith('https://') ? previewUrl : `https://${previewUrl}`,
         domain: null,
         version: version.version_no,
-        version_id: version.id,
         code_version_id: version.id,
       })
     } catch (err) {

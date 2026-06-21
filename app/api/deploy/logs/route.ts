@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { streamDeploymentLogs } from '@/lib/hosting/vercel'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -71,6 +72,11 @@ export async function GET(request: Request) {
 
             // Signal end of stream on terminal states
             if (event.type === 'ready' || event.type === 'error') {
+              // Update deployment row in DB so next page-load shows correct state
+              supabaseAdmin.from('deployments')
+                .update({ status: event.type === 'ready' ? 'ready' : 'error' })
+                .eq('vercel_deployment_id', deploymentId)
+                .then(() => {}).catch(() => {})
               sendEvent({ type: 'stream_end', state: event.type })
               controller.close()
             }

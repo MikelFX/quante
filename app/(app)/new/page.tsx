@@ -40,7 +40,13 @@ export default function NewProjectPage() {
             const evt = JSON.parse(line)
             if (evt.type === 'status') setStatus(evt.text)
             else if (evt.type === 'error') { setError(evt.message); setGenerating(false); return }
-            else if (evt.type === 'done' && evt.projectId) { router.push(`/project/${evt.projectId}`); return }
+            else if (evt.type === 'done' && evt.projectId) {
+                const qs = new URLSearchParams()
+                if (evt.deploymentId) qs.set('did', evt.deploymentId)
+                if (evt.previewUrl) qs.set('pu', encodeURIComponent(evt.previewUrl))
+                router.push(`/project/${evt.projectId}?${qs.toString()}`)
+                return
+              }
           } catch { /* skip malformed lines */ }
         }
       }

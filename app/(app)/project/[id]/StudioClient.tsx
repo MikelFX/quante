@@ -494,8 +494,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             setDeployDomain(d.domain)
             deployPollRef.current = setInterval(() => pollDeployStatus(d.vercelDeploymentId), 12000)
           } else {
-            // Preview deployment still building — stream logs (don't block the "Deploy live" button)
-            startLogStreaming(d.vercelDeploymentId)
+            // Preview deployment still building — stream logs (don't restart if URL-param effect already started it)
+            if (!logEventSourceRef.current) startLogStreaming(d.vercelDeploymentId)
           }
         } else if ((d.status === 'error' || d.status === 'canceled') && d.vercelDeploymentId && !isLiveDeploy) {
           // Preview build failed — fetch error message and show in chat
@@ -598,6 +598,14 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
   // Cleanup on unmount
   useEffect(() => () => { logEventSourceRef.current?.close() }, [])
+
+  // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl)
+  useEffect(() => {
+    const did = searchParams.get('did')
+    const pu = searchParams.get('pu')
+    if (pu) setPreviewUrl(decodeURIComponent(pu))
+    if (did) startLogStreaming(did)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function consumeStream(
     endpoint: string,
