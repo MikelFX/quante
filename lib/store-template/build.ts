@@ -159,8 +159,8 @@ export function cn(...classes: ClassValue[]): string {
 }
 `)
 
-  // ── lib/store/cart.ts ─────────────────────────────────────────────────────
-  add('lib/store/cart.ts', `'use client'
+  // ── lib/store/cart.tsx ────────────────────────────────────────────────────
+  add('lib/store/cart.tsx', `'use client'
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
 import type { StoreProduct, CartItem } from '@/types/store-code'
 
@@ -232,7 +232,7 @@ export function useCart(): CartContextValue {
   add('app/layout.tsx', `import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { CartProvider } from '@/lib/store/cart'
-import './styles/store.css'
+import '../styles/store.css'
 
 export const metadata: Metadata = {
   title: 'My Store',
