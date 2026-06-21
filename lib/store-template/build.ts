@@ -427,7 +427,7 @@ export function Footer() {
         <div style={{ borderTop: config.footer.columns.length > 0 ? '1px solid var(--color-border)' : 'none', paddingTop: config.footer.columns.length > 0 ? '1.5rem' : 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
             © {new Date().getFullYear()} {config.brand.name}
-            {config.footer.legal ? ` · ${config.footer.legal}` : ''}
+            {config.footer.legal ? ' — ' + config.footer.legal : ''}
           </span>
           {config.footer.socials && config.footer.socials.length > 0 && (
             <div style={{ display: 'flex', gap: 12 }}>
