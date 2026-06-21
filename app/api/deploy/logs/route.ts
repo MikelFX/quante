@@ -73,10 +73,13 @@ export async function GET(request: Request) {
             // Signal end of stream on terminal states
             if (event.type === 'ready' || event.type === 'error') {
               // Update deployment row in DB so next page-load shows correct state
-              supabaseAdmin.from('deployments')
-                .update({ status: event.type === 'ready' ? 'ready' : 'error' })
-                .eq('vercel_deployment_id', deploymentId)
-                .then(() => {}).catch(() => {})
+              void (async () => {
+                try {
+                  await supabaseAdmin.from('deployments')
+                    .update({ status: event.type === 'ready' ? 'ready' : 'error' })
+                    .eq('vercel_deployment_id', deploymentId)
+                } catch {}
+              })()
               sendEvent({ type: 'stream_end', state: event.type })
               controller.close()
             }
