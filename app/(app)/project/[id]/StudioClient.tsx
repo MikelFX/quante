@@ -475,19 +475,42 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         const d = data.latest
         setLiveDeployment(d)
         if (d.customDomain) setCustomDomainInput(d.customDomain)
+        const isLiveDeploy = !!d.domain  // preview deployments have no domain
         if (d.status === 'ready') {
-          setDeployStatus('ready')
-          setDeployUrl(d.url)
-          setDeployDomain(d.domain)
-          // If this is a preview deployment (no domain yet), show it in the preview panel
-          if (d.url && !d.domain) setPreviewUrl(d.url)
+          if (isLiveDeploy) {
+            setDeployStatus('ready')
+            setDeployUrl(d.url)
+            setDeployDomain(d.domain)
+          } else if (d.url) {
+            // Preview deployment ready — show in iframe
+            setPreviewUrl(d.url)
+          }
         } else if (d.status === 'building' && d.vercelDeploymentId) {
-          setIsDeploying(true)
-          setDeployStatus('building')
-          setDeployDomain(d.domain)
           if (d.url) setPreviewUrl(d.url)
-          // Stream build logs so user can see progress / errors
-          startLogStreaming(d.vercelDeploymentId)
+          if (isLiveDeploy) {
+            // Live deployment still building — resume polling
+            setIsDeploying(true)
+            setDeployStatus('building')
+            setDeployDomain(d.domain)
+            deployPollRef.current = setInterval(() => pollDeployStatus(d.vercelDeploymentId), 12000)
+          } else {
+            // Preview deployment still building — stream logs (don't block the "Deploy live" button)
+            startLogStreaming(d.vercelDeploymentId)
+          }
+        } else if ((d.status === 'error' || d.status === 'canceled') && d.vercelDeploymentId && !isLiveDeploy) {
+          // Preview build failed — fetch error message and show in chat
+          fetch(`/api/deploy?id=${d.vercelDeploymentId}`)
+            .then(r => r.json())
+            .then(err => {
+              if (err.errorMessage) {
+                setMessages(prev => [...prev, {
+                  role: 'assistant',
+                  content: `Preview build failed:\n\`\`\`\n${err.errorMessage.slice(0, 600)}\n\`\`\`\nClick **⟳ Rebuild preview** or iterate to fix.`,
+                  type: 'error' as const,
+                }])
+              }
+            })
+            .catch(() => {})
         }
       } catch {}
     }
@@ -509,7 +532,6 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   // ─── Log streaming ───────────────────────────────────────────────────────────
 
   const startLogStreaming = useCallback((deploymentId: string) => {
-    // Close any existing log stream
     if (logEventSourceRef.current) {
       logEventSourceRef.current.close()
       logEventSourceRef.current = null
@@ -517,6 +539,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
     setDeployLogs([])
     setBuildError(null)
     setRightPanel('logs')
+
+    let receivedAnyLog = false
 
     const es = new EventSource(`/api/deploy/logs?deploymentId=${deploymentId}`)
     logEventSourceRef.current = es
@@ -534,14 +558,14 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           es.close()
           logEventSourceRef.current = null
           if (data.type === 'ready') {
-            // Build succeeded — switch to preview
             setRightPanel('preview')
-            setMessages((prev) => [...prev, { role: 'assistant', content: 'Build succeeded. Preview is ready.', type: 'done' }])
+            setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview build succeeded.', type: 'done' }])
           }
           return
         }
 
         if (data.text) {
+          receivedAnyLog = true
           setDeployLogs((prev) => [...prev.slice(-500), { type: data.type, text: data.text, created: data.created }])
           logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
         }
@@ -551,6 +575,24 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
     es.onerror = () => {
       es.close()
       logEventSourceRef.current = null
+      // If the stream closed without any logs, the build likely already finished.
+      // Fetch the status to surface any error in chat.
+      if (!receivedAnyLog) {
+        fetch(`/api/deploy?id=${deploymentId}`)
+          .then(r => r.json())
+          .then(d => {
+            if (d.status === 'ready') {
+              setRightPanel('preview')
+            } else if ((d.status === 'error' || d.status === 'canceled') && d.errorMessage) {
+              setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Preview build failed:\n\`\`\`\n${d.errorMessage.slice(0, 600)}\n\`\`\`\nIterate to fix the error, or click **⟳ Rebuild preview**.`,
+                type: 'error' as const,
+              }])
+            }
+          })
+          .catch(() => {})
+      }
     }
   }, [])
 

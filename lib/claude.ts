@@ -311,7 +311,14 @@ The scaffold provides these — import freely:
 - "@/types/store-code": StoreProduct, StoreConfig (types defined above)
 - "@/lib/store/cart": useCart hook — returns { addItem(product: StoreProduct, qty: number): void, items: CartItem[], total: number, count: number }
 - "@/lib/utils": cn function (class-names utility, like clsx)
-- "lucide-react": any icon components (ShoppingCart, Menu, X, ChevronRight, Star, etc.)
+- "lucide-react": ONLY these icons exist — use no others:
+  ShoppingCart, ShoppingBag, Menu, X, ChevronRight, ChevronLeft, ChevronDown, ChevronUp,
+  Star, Heart, Search, User, UserCircle, MapPin, Phone, Mail, ArrowRight, ArrowLeft,
+  ArrowUpRight, Check, Plus, Minus, Trash2, Edit2, Eye, ExternalLink, Share2, Globe,
+  Clock, Calendar, Tag, Package, Truck, Shield, Zap, Layers, Grid, List, Filter,
+  SortAsc, Image, Camera, Play, Pause, Send, RefreshCw, Loader, Lock, Unlock,
+  Info, AlertCircle, CheckCircle, XCircle, Facebook, Youtube, Linkedin, Github, Link
+  DO NOT use Instagram, Twitter, Music, or any other icon — they don't exist in v1.
 - "framer-motion": motion, AnimatePresence
 - Tailwind CSS v4 classes (use freely in className props)
 - "react": useState, useEffect, useCallback, useRef, etc.
