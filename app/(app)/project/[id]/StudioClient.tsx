@@ -2882,7 +2882,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           </div>
         )}
 
-        {(isGenerating || isDeploying) && (
+        {isDeploying && (
           <div style={{
             position: 'absolute', inset: 0, background: 'rgba(0,0,0,.55)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -2895,7 +2895,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                 animation: 'spin 0.7s linear infinite', margin: '0 auto 10px',
               }} />
               <p style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>
-                {isDeploying ? 'deploying…' : 'generating…'}
+                deploying…
               </p>
             </div>
           </div>
