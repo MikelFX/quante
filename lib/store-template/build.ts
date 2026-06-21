@@ -228,28 +228,268 @@ export function useCart(): CartContextValue {
 }
 `)
 
-  // ── app/layout.tsx ────────────────────────────────────────────────────────
+  // ── data/config.ts (fallback — Claude's version overrides this) ──────────
+  add('data/config.ts', `import type { StoreConfig } from '@/types/store-code'
+
+export const config: StoreConfig = {
+  brand: { name: 'My Store', tagline: '', currency: 'EUR', language: 'en' },
+  seo: { title: 'My Store', description: '' },
+  design: {
+    colors: { bg: '#ffffff', text: '#111111', accent: '#111111', accentText: '#ffffff', muted: '#6b7280', surface: '#f9fafb', border: '#e5e7eb' },
+    fonts: { heading: 'Inter, sans-serif', body: 'Inter, sans-serif' },
+    radius: '8px',
+  },
+  nav: [{ label: 'Products', href: '/collections/all' }],
+  footer: { columns: [], legal: '' },
+}
+`)
+
+  // ── components/layout/CartDrawer.tsx ─────────────────────────────────────
+  add('components/layout/CartDrawer.tsx', `'use client'
+import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react'
+import Link from 'next/link'
+import { useCart } from '@/lib/store/cart'
+import { config } from '@/data/config'
+
+interface Props { open: boolean; onClose: () => void }
+
+export function CartDrawer({ open, onClose }: Props) {
+  const { items, total, removeItem, updateQty } = useCart()
+  const currency = config.brand.currency
+
+  if (!open) return null
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', zIndex: 49 }} />
+      <div style={{
+        position: 'fixed', right: 0, top: 0, bottom: 0, width: 'min(400px, 100vw)', zIndex: 50,
+        background: 'var(--color-bg)', borderLeft: '1px solid var(--color-border)',
+        display: 'flex', flexDirection: 'column',
+      }}>
+        <div style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
+          <span style={{ fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Cart ({items.length})</span>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: 4, lineHeight: 0 }}><X size={20} /></button>
+        </div>
+
+        {items.length === 0 ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--color-muted)' }}>
+            <ShoppingBag size={36} style={{ opacity: 0.3 }} />
+            <p style={{ fontSize: 14 }}>Your cart is empty</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {items.map(({ product, quantity }) => (
+                <div key={product.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  {product.images[0] ? (
+                    <img src={product.images[0]} alt={product.name} style={{ width: 68, height: 68, objectFit: 'cover', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                  ) : (
+                    <div style={{ width: 68, height: 68, background: 'var(--color-surface)', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 600 }}>{product.price} {currency}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                      <button onClick={() => updateQty(product.id, quantity - 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
+                      <span style={{ fontSize: 13, minWidth: 20, textAlign: 'center' }}>{quantity}</span>
+                      <button onClick={() => updateQty(product.id, quantity + 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={12} /></button>
+                      <button onClick={() => removeItem(product.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', marginLeft: 'auto', padding: 4, lineHeight: 0 }}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--color-border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: 14 }}>
+                <span>Total</span>
+                <span style={{ fontWeight: 700 }}>{total.toFixed(2)} {currency}</span>
+              </div>
+              <Link
+                href="/checkout" onClick={onClose}
+                style={{ display: 'block', textAlign: 'center', padding: '0.75rem', background: 'var(--color-accent)', color: 'var(--color-accent-text)', borderRadius: 'var(--radius)', fontWeight: 600, textDecoration: 'none', fontSize: 14 }}
+              >
+                Checkout
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  )
+}
+`)
+
+  // ── components/layout/Navbar.tsx ─────────────────────────────────────────
+  add('components/layout/Navbar.tsx', `'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+import { ShoppingBag, Menu, X } from 'lucide-react'
+import { useCart } from '@/lib/store/cart'
+import { config } from '@/data/config'
+import { CartDrawer } from './CartDrawer'
+
+export function Navbar() {
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
+  const { count } = useCart()
+
+  return (
+    <>
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 40,
+        background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)',
+      }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
+          <Link href="/" style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, textDecoration: 'none', color: 'var(--color-text)', letterSpacing: '-.02em', flexShrink: 0 }}>
+            {config.brand.logoText ?? config.brand.name}
+          </Link>
+
+          <nav style={{ display: 'flex', gap: 28, alignItems: 'center' }} className="hidden-mobile">
+            {config.nav.map((item) => (
+              <Link key={item.href} href={item.href} style={{ fontSize: 14, color: 'var(--color-text)', textDecoration: 'none', opacity: 0.8 }}>
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={() => setCartOpen(true)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', padding: 8, position: 'relative', lineHeight: 0 }}
+              aria-label="Open cart"
+            >
+              <ShoppingBag size={20} />
+              {count > 0 && (
+                <span style={{
+                  position: 'absolute', top: 2, right: 2, background: 'var(--color-accent)', color: 'var(--color-accent-text)',
+                  borderRadius: '50%', width: 16, height: 16, fontSize: 10, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
+                }}>
+                  {count > 9 ? '9+' : count}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setMobileOpen((v) => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', padding: 8, lineHeight: 0, display: 'none' }}
+              className="show-mobile"
+              aria-label="Menu"
+            >
+              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </div>
+        </div>
+
+        {mobileOpen && (
+          <div style={{ borderTop: '1px solid var(--color-border)', background: 'var(--color-bg)', padding: '0.75rem 1.25rem 1rem' }}>
+            {config.nav.map((item) => (
+              <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)} style={{ display: 'block', padding: '0.6rem 0', fontSize: 15, color: 'var(--color-text)', textDecoration: 'none', borderBottom: '1px solid var(--color-border)' }}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        )}
+      </header>
+
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+    </>
+  )
+}
+`)
+
+  // ── components/layout/Footer.tsx ─────────────────────────────────────────
+  add('components/layout/Footer.tsx', `import Link from 'next/link'
+import { config } from '@/data/config'
+
+export function Footer() {
+  return (
+    <footer style={{ background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)', marginTop: 'auto' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '3rem 1.25rem 2rem' }}>
+        {config.footer.columns.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '2rem', marginBottom: '2.5rem' }}>
+            {config.footer.columns.map((col, i) => (
+              <div key={i}>
+                <p style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--color-muted)', marginBottom: '0.75rem' }}>{col.title}</p>
+                <ul style={{ listStyle: 'none' }}>
+                  {col.links.map((link) => (
+                    <li key={link.href} style={{ marginBottom: '0.5rem' }}>
+                      <Link href={link.href} style={{ fontSize: 14, color: 'var(--color-text)', textDecoration: 'none', opacity: 0.75 }}>
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ borderTop: config.footer.columns.length > 0 ? '1px solid var(--color-border)' : 'none', paddingTop: config.footer.columns.length > 0 ? '1.5rem' : 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
+            © {new Date().getFullYear()} {config.brand.name}
+            {config.footer.legal ? ` · ${config.footer.legal}` : ''}
+          </span>
+          {config.footer.socials && config.footer.socials.length > 0 && (
+            <div style={{ display: 'flex', gap: 12 }}>
+              {config.footer.socials.map((s) => (
+                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--color-muted)', textDecoration: 'none' }}>
+                  {s.platform}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </footer>
+  )
+}
+`)
+
+  // ── app/layout.tsx (LOCKED — scaffold always provides Navbar + Footer) ────
   add('app/layout.tsx', `import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { CartProvider } from '@/lib/store/cart'
+import { Navbar } from '@/components/layout/Navbar'
+import { Footer } from '@/components/layout/Footer'
+import { config } from '@/data/config'
 import '../styles/store.css'
 
 export const metadata: Metadata = {
-  title: 'My Store',
-  description: 'Welcome to my store.',
+  title: config.seo?.title ?? config.brand.name,
+  description: config.seo?.description ?? config.brand.tagline,
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang={config.brand.language ?? 'en'}>
+      <body style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <CartProvider>
-          {children}
+          <Navbar />
+          <main style={{ flex: 1 }}>{children}</main>
+          <Footer />
         </CartProvider>
       </body>
     </html>
   )
 }
+`)
+
+  // ── components/store/AboutPage.tsx (fallback — Claude overrides) ──────────
+  add('components/store/AboutPage.tsx', `import { config } from '@/data/config'
+
+export default function AboutPage() {
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 1.25rem' }}>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(2rem, 5vw, 3rem)', fontWeight: 700, marginBottom: '1rem' }}>{config.brand.name}</h1>
+      <p style={{ fontSize: 18, color: 'var(--color-muted)', marginBottom: '2rem', lineHeight: 1.7 }}>{config.brand.tagline}</p>
+    </div>
+  )
+}
+`)
+
+  // ── app/about/page.tsx ────────────────────────────────────────────────────
+  add('app/about/page.tsx', `import AboutPage from '@/components/store/AboutPage'
+export default function Page() { return <AboutPage /> }
 `)
 
   // ── app/page.tsx (home) ───────────────────────────────────────────────────
@@ -282,13 +522,13 @@ export default async function Page({ params }: Props) {
 }
 `)
 
-  // ── app/styles/store.css (placeholder — will be overridden by AI) ─────────
+  // ── styles/store.css (fallback — Claude's version overrides this) ─────────
   add('styles/store.css', `@import "tailwindcss";
 
 :root {
   --color-bg: #ffffff;
   --color-text: #111111;
-  --color-accent: #2563eb;
+  --color-accent: #111111;
   --color-accent-text: #ffffff;
   --color-muted: #6b7280;
   --color-surface: #f9fafb;
@@ -301,6 +541,8 @@ export default async function Page({ params }: Props) {
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font-body); background-color: var(--color-bg); color: var(--color-text); -webkit-font-smoothing: antialiased; }
 h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
+a { color: inherit; }
+@media (max-width: 768px) { .hidden-mobile { display: none !important; } .show-mobile { display: flex !important; } }
 `)
 
   return files
@@ -383,9 +625,12 @@ export function buildStoreFiles(
     const scaffold = buildCodeGenScaffold()
 
     // Merge: AI-generated files override scaffold files with the same path.
-    // Sanitize AI files first to fix any invalid lucide-react imports.
+    // Locked paths are always taken from the scaffold — Claude cannot override them.
+    const LOCKED = new Set(['app/layout.tsx', 'components/layout/Navbar.tsx', 'components/layout/Footer.tsx', 'components/layout/CartDrawer.tsx'])
+
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
     for (const [filePath, content] of Object.entries(codeFiles)) {
+      if (LOCKED.has(filePath)) continue  // scaffold version always wins
       const sanitized = (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
         ? sanitizeLucideImports(content)
         : content

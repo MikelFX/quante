@@ -199,7 +199,6 @@ export async function POST(request: Request) {
       url: vercelUrl.startsWith('https://') ? vercelUrl : `https://${vercelUrl}`,
       domain: intendedDomain,
       version: version.version_no,
-      version_id: version.id,
       code_version_id: version.id,
     })
     .select('id')

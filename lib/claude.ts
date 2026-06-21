@@ -214,24 +214,18 @@ Generate ALL of the following files:
 2. data/config.ts
    TypeScript file that exports: export const config: StoreConfig = {...}
    Use the StoreConfig interface exactly. Choose palette, fonts, radius based on brand personality.
+   IMPORTANT: config.nav must list ALL navigation links for this store (Products, Collections, About, etc.).
+   config.footer.columns must include useful link groups (Shop, Company, Legal, etc.) with links to pages.
+   These are used by the scaffold Navbar and Footer — the user sees exactly what you put here.
 
 3. styles/store.css
    CSS file with @import "tailwindcss"; at the top, then CSS custom properties:
    :root { --color-bg: ...; --color-text: ...; --color-accent: ...; --color-accent-text: ...; --color-muted: ...; --color-surface: ...; --color-border: ...; --font-heading: ...; --font-body: ...; --radius: ...; }
    Also add Google Fonts @import for the chosen fonts.
    These custom properties must exactly match the design.colors and design.fonts in config.ts.
+   The scaffold Navbar and Footer automatically use these CSS variables.
 
-4. components/store/Header.tsx
-   React component for site navigation. Uses config from @/data/config, links from config.nav.
-   Must be responsive (mobile hamburger menu). Uses Tailwind CSS for styling.
-   Export: export default function Header() {...}
-
-5. components/store/Footer.tsx
-   React component for the site footer. Uses config from @/data/config.
-   Shows footer columns, legal text, socials. Uses Tailwind CSS.
-   Export: export default function Footer() {...}
-
-6. components/store/HomePage.tsx
+4. components/store/HomePage.tsx
    Full home page React component. Creates a compelling, conversion-oriented page:
    hero section → product showcase → value props/features → social proof → email capture.
    Imports products from @/data/products, config from @/data/config.
@@ -239,18 +233,35 @@ Generate ALL of the following files:
    Uses motion from framer-motion for subtle entrance animations.
    Export: export default function HomePage() {...}
 
-7. components/store/ProductDetailPage.tsx
+5. components/store/ProductDetailPage.tsx
    Product detail page React component. Props: { slug: string }
    Finds product by slug from products array. Shows images, title, description, price, add to cart.
    If product not found, shows a 404-style message.
    Uses useCart from @/lib/store/cart for add-to-cart.
    Export: export default function ProductDetailPage({ slug }: { slug: string }) {...}
 
-8. components/store/CollectionPage.tsx
+6. components/store/CollectionPage.tsx
    Collection/all products listing page. Props: { slug: string }
    Shows filtered products (by slug/tag) or all products if slug is "all".
    Product cards with image, name, price, add-to-cart button.
    Export: export default function CollectionPage({ slug }: { slug: string }) {...}
+
+7. components/store/AboutPage.tsx  ← ALWAYS generate this
+   About Us / brand story page. Write real brand copy based on the brief — NOT placeholder text.
+   Export: export default function AboutPage() {...}
+
+─── OPTIONAL PAGES (generate when relevant to the brief) ───────────────────────
+
+When generating additional pages like news, blog, contact, legal, etc., always generate BOTH:
+  a) app/<pagename>/page.tsx — just: import XPage from '@/components/store/XPage'; export default function Page() { return <XPage /> }
+  b) components/store/XPage.tsx — the actual page component with real content
+
+Examples:
+- Contact: app/contact/page.tsx + components/store/ContactPage.tsx
+- Legal/GDPR: app/gdpr/page.tsx + components/store/GdprPage.tsx
+- News: app/news/page.tsx + components/store/NewsPage.tsx
+
+Always add these pages to config.nav and/or config.footer.columns.
 
 ─── EXACT TYPES (NEVER INVENT FIELDS — USE ONLY WHAT IS DEFINED HERE) ──────────
 
@@ -325,13 +336,21 @@ The scaffold provides these — import freely:
 - "next/image": Image component
 - "next/link": Link component
 
-─── SCAFFOLD ROUTING (THESE FILES ALREADY EXIST) ────────────────────────────────
+─── SCAFFOLD ROUTING AND LAYOUT (THESE FILES ALREADY EXIST — DO NOT GENERATE) ──
 
-The scaffold routes are pre-wired:
+The scaffold provides and locks these files — generating them has NO effect:
+- app/layout.tsx — wraps ALL pages: <CartProvider><Navbar /><main>page</main><Footer /></CartProvider>
+  The Navbar reads config.nav. The Footer reads config.footer. CSS variables from styles/store.css apply automatically.
+- components/layout/Navbar.tsx — sticky header with logo (config.brand.logoText), config.nav links, cart icon, mobile hamburger
+- components/layout/Footer.tsx — footer grid with config.footer.columns links, legal text, socials
+- components/layout/CartDrawer.tsx — slide-out cart sidebar with checkout link → /checkout
+- lib/store/cart.tsx — CartProvider + useCart hook
 - app/page.tsx → renders <HomePage /> from @/components/store/HomePage
+- app/about/page.tsx → renders <AboutPage /> from @/components/store/AboutPage (your AboutPage.tsx is the content)
 - app/products/[slug]/page.tsx → renders <ProductDetailPage slug={slug} />
 - app/collections/[slug]/page.tsx → renders <CollectionPage slug={slug} />
-- app/layout.tsx → imports styles/store.css, wraps in CartProvider
+
+DO NOT generate app/layout.tsx, components/layout/Navbar.tsx, components/layout/Footer.tsx, or components/layout/CartDrawer.tsx.
 
 ─── GENERATION RULES ────────────────────────────────────────────────────────────
 
@@ -344,7 +363,9 @@ The scaffold routes are pre-wired:
 7. The "summary" field: 1-2 sentences describing what you built (brand name, product count, design direction).
 8. All component files must have 'use client' at the top if they use hooks (useState, useEffect, useCart, etc.).
 9. Use the CSS custom properties (--color-bg, etc.) in your components for consistent theming.
-10. Make the generated store genuinely beautiful and conversion-oriented for the brief given.`
+10. Make the generated store genuinely beautiful and conversion-oriented for the brief given.
+11. config.nav: include links to all relevant pages. Common: [{label:"Products",href:"/collections/all"},{label:"About",href:"/about"}]
+12. config.footer.columns: include at least one column with Shop / Company links matching config.nav.`
 
 export const SYSTEM_PROMPT_CODE_ITERATION = `You are Quante, an expert e-commerce designer and front-end engineer updating an existing store.
 
@@ -371,7 +392,11 @@ RULES:
 - Keep 'use client' directive at the top of client components.
 - Real specific copy — never lorem ipsum.
 - If products change (data/products.ts), keep all product slugs kebab-case and IDs short strings.
-- If design changes (data/config.ts + styles/store.css), ensure CSS custom properties match config values.`
+- If design changes (data/config.ts + styles/store.css), ensure CSS custom properties match config values.
+- LOCKED FILES — do NOT generate these (scaffold provides them, changes have no effect):
+  app/layout.tsx, components/layout/Navbar.tsx, components/layout/Footer.tsx, components/layout/CartDrawer.tsx
+- To add a nav link: update config.nav in data/config.ts. To add a footer link: update config.footer.columns.
+- To add a new page (e.g. About Us): generate components/store/AboutPage.tsx + app/about/page.tsx (the page file just imports and renders the component). Then add the link to config.nav and config.footer.`
 
 export const SYSTEM_PROMPT_CODE_FIX = `You are Quante, an expert TypeScript and React engineer fixing a build error.
 
