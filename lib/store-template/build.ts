@@ -306,6 +306,59 @@ h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
   return files
 }
 
+// ─── Lucide import sanitizer ─────────────────────────────────────────────────
+// Replaces icon names that don't exist in the installed lucide-react version.
+// Applied to every AI-generated TS/TSX file before deployment.
+
+const LUCIDE_REPLACEMENTS: Record<string, string> = {
+  Instagram: 'ExternalLink',
+  Twitter: 'ExternalLink',
+  Facebook: 'ExternalLink',
+  Youtube: 'ExternalLink',
+  YouTube: 'ExternalLink',
+  TikTok: 'ExternalLink',
+  Tiktok: 'ExternalLink',
+  Pinterest: 'ExternalLink',
+  Snapchat: 'ExternalLink',
+  Discord: 'MessageSquare',
+  Twitch: 'ExternalLink',
+  Reddit: 'ExternalLink',
+  Telegram: 'Send',
+  WhatsApp: 'MessageCircle',
+  Whatsapp: 'MessageCircle',
+  Music: 'ExternalLink',
+  Music2: 'ExternalLink',
+  Music3: 'ExternalLink',
+  Music4: 'ExternalLink',
+  Spotify: 'ExternalLink',
+  Behance: 'ExternalLink',
+  Dribbble: 'ExternalLink',
+  Vimeo: 'ExternalLink',
+  Medium: 'ExternalLink',
+}
+
+function sanitizeLucideImports(content: string): string {
+  let result = content
+
+  for (const [bad, good] of Object.entries(LUCIDE_REPLACEMENTS)) {
+    // Replace all usages: in JSX, in type annotations, in object values, in imports
+    result = result.replace(new RegExp(`\\b${bad}\\b`, 'g'), good)
+  }
+
+  // Deduplicate icon names inside lucide-react imports that may now have duplicates
+  result = result.replace(
+    /import\s*\{([^}]+)\}\s*from\s*['"]lucide-react['"]/g,
+    (_match, imports: string) => {
+      const names = [...new Set(
+        imports.split(',').map((s) => s.trim()).filter(Boolean)
+      )]
+      return `import { ${names.join(', ')} } from 'lucide-react'`
+    },
+  )
+
+  return result
+}
+
 // ─── Code-gen build (new approach) ───────────────────────────────────────────
 // Takes AI-generated files and merges them with the scaffold.
 
@@ -329,10 +382,14 @@ export function buildStoreFiles(
     const codeFiles = arg as CodeVersionFiles
     const scaffold = buildCodeGenScaffold()
 
-    // Merge: AI-generated files override scaffold files with the same path
+    // Merge: AI-generated files override scaffold files with the same path.
+    // Sanitize AI files first to fix any invalid lucide-react imports.
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
     for (const [filePath, content] of Object.entries(codeFiles)) {
-      scaffoldMap.set(filePath, { path: filePath, content, encoding: 'utf-8' })
+      const sanitized = (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
+        ? sanitizeLucideImports(content)
+        : content
+      scaffoldMap.set(filePath, { path: filePath, content: sanitized, encoding: 'utf-8' })
     }
 
     return Array.from(scaffoldMap.values())
