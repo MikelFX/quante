@@ -726,6 +726,42 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── DOMAIN OWNERSHIP ── */}
+      <section style={{
+        padding: '80px 24px',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(111,120,230,.04) 50%, transparent 100%)',
+      }}>
+        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
+          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.15em', margin: '0 0 16px' }}>
+            ownership
+          </p>
+          <h2 style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 700, color: '#e0e0e8', margin: '0 0 16px', lineHeight: 1.15, letterSpacing: '-0.02em' }}>
+            Your store.<br />Your domain.
+          </h2>
+          <p style={{ fontSize: 15, color: '#6b6b78', maxWidth: 540, margin: '0 auto 48px', lineHeight: 1.7 }}>
+            Search for the perfect domain name, buy it in seconds, and it automatically connects to your store. Or bring your own domain — it works either way.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, textAlign: 'left' }}>
+            {[
+              { icon: '🔍', title: 'Find your name', desc: 'Search .com, .io, .store, .shop — see availability and pricing instantly.' },
+              { icon: '⚡', title: 'One-click connect', desc: 'Buy and connect your domain in one flow. DNS is configured automatically.' },
+              { icon: '🔒', title: 'Privacy protection', desc: 'WHOIS privacy included. Your personal info stays private.' },
+              { icon: '🔄', title: 'Auto-renew', desc: "Never worry about expiry. We handle renewals so your store stays live." },
+            ].map(item => (
+              <div key={item.title} style={{
+                padding: '20px', borderRadius: 12,
+                border: '1px solid rgba(255,255,255,.07)',
+                background: 'rgba(255,255,255,.02)',
+              }}>
+                <div style={{ fontSize: 22, marginBottom: 10 }}>{item.icon}</div>
+                <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>{item.title}</p>
+                <p style={{ margin: 0, fontSize: 12, color: '#6b6b78', lineHeight: 1.6 }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ── PRICING PREVIEW ── */}
       <section style={{
         borderTop: '1px solid rgba(255,255,255,.07)',

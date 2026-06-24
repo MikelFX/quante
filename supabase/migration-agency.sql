@@ -15,16 +15,18 @@ create table if not exists users (
   updated_at            timestamptz not null default now()
 );
 
-create trigger users_updated_at
+create trigger if not exists users_updated_at
   before update on users
   for each row execute function update_updated_at();
 
 alter table users enable row level security;
 
 -- Users can read their own row; service role (supabaseAdmin) bypasses RLS automatically
-create policy "users read own row"
-  on users for select
-  using ((auth.jwt() ->> 'sub') = id);
+do $$ begin
+  if not exists (select 1 from pg_policies where tablename = 'users' and policyname = 'users read own row') then
+    create policy "users read own row" on users for select using ((auth.jwt() ->> 'sub') = id);
+  end if;
+end $$;
 
 -- Index for webhook lookups by Stripe subscription/customer
 create index if not exists users_stripe_subscription_id_idx

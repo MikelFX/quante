@@ -87,7 +87,7 @@ function buildCodeGenScaffold(): GeneratedFile[] {
   }, null, 2))
 
   // ── next.config.ts ────────────────────────────────────────────────────────
-  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {}\nexport default nextConfig\n`)
+  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {\n  async headers() {\n    return [{ source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: "frame-ancestors *" }] }]\n  },\n}\nexport default nextConfig\n`)
 
   // ── postcss.config.mjs ────────────────────────────────────────────────────
   add('postcss.config.mjs', `const config = { plugins: { '@tailwindcss/postcss': {} } }\nexport default config\n`)
@@ -702,7 +702,7 @@ export function buildStoreFiles(
   }, null, 2))
 
   // ── next.config.ts ────────────────────────────────────────────────────────
-  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {}\nexport default nextConfig\n`)
+  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {\n  async headers() {\n    return [{ source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: "frame-ancestors *" }] }]\n  },\n}\nexport default nextConfig\n`)
 
   // ── postcss.config.mjs ────────────────────────────────────────────────────
   add('postcss.config.mjs', `const config = { plugins: { '@tailwindcss/postcss': {} } }\nexport default config\n`)

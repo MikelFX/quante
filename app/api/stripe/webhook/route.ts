@@ -6,6 +6,8 @@ import { clerkClient } from '@clerk/nextjs/server'
 import type Stripe from 'stripe'
 import { paymentConfirmedEmail, merchantNewOrderEmail, sendEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
+import { registerDomain } from '@/lib/namecheap'
+import { attachDomain } from '@/lib/hosting/vercel'
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -49,6 +51,12 @@ export async function POST(request: Request) {
 
     // Hosting subscription checkout — subscription webhook handles credits
     if (type === 'hosting') {
+      return new Response('ok', { status: 200 })
+    }
+
+    // Domain purchase — register with Namecheap, attach to Vercel, record in DB
+    if (type === 'domain_purchase' && userId) {
+      await handleDomainPurchase(session, userId)
       return new Response('ok', { status: 200 })
     }
 
@@ -365,4 +373,76 @@ async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Sessi
   })
 
   await sendEmail(ownerEmail, subject, html, 'orders@quante.io')
+}
+
+// ─── Domain purchase: register + attach to Vercel + save row ─────────────────
+
+async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: string) {
+  const { domain, projectId, includeProtection } = session.metadata ?? {}
+  if (!domain) return
+
+  // Check idempotency
+  const { data: existing } = await supabaseAdmin
+    .from('user_domains').select('id').eq('domain', domain).maybeSingle()
+  if (existing) return
+
+  let namecheapOrderId: string | null = null
+  let status = 'active'
+
+  try {
+    const result = await registerDomain(domain, 1)
+    namecheapOrderId = result.orderId
+  } catch (err) {
+    console.error('[webhook] Namecheap registration failed:', err)
+    status = 'failed'
+  }
+
+  // Attach to Vercel if project linked
+  let vercelProjectId: string | null = null
+  if (projectId && status === 'active') {
+    try {
+      const { data: project } = await supabaseAdmin
+        .from('projects').select('vercel_project_id').eq('id', projectId).maybeSingle()
+      if (project?.vercel_project_id) {
+        await attachDomain(project.vercel_project_id, domain)
+        vercelProjectId = project.vercel_project_id
+      }
+    } catch (err) {
+      console.error('[webhook] Vercel attach failed:', err)
+    }
+  }
+
+  const expiresAt = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
+
+  await supabaseAdmin.from('user_domains').insert({
+    user_id: userId,
+    project_id: projectId || null,
+    domain,
+    status,
+    registered_at: new Date().toISOString(),
+    expires_at: expiresAt,
+    namecheap_order_id: namecheapOrderId,
+    vercel_project_id: vercelProjectId,
+    protection_enabled: includeProtection === 'true',
+    dns_verified: false,
+  })
+
+  // If protection requested, create a recurring Stripe subscription
+  if (includeProtection === 'true' && session.customer && status === 'active') {
+    try {
+      const protectionPriceId = process.env.DOMAIN_PROTECTION_STRIPE_PRICE_ID
+      if (protectionPriceId) {
+        const sub = await stripe.subscriptions.create({
+          customer: session.customer as string,
+          items: [{ price: protectionPriceId }],
+          metadata: { type: 'domain_protection', userId, domain },
+        })
+        await supabaseAdmin.from('user_domains')
+          .update({ stripe_subscription_id: sub.id })
+          .eq('domain', domain)
+      }
+    } catch (err) {
+      console.error('[webhook] protection subscription creation failed:', err)
+    }
+  }
 }

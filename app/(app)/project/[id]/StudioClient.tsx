@@ -256,12 +256,12 @@ function diffManifest(oldM: ShopManifest, newM: ShopManifest): string[] {
 }
 
 const QUICK_CHIPS = [
-  { label: 'GDPR stránka', prompt: 'Vytvoř kompletní stránku Zásady ochrany osobních údajů (GDPR) s reálným textem dle české legislativy.' },
-  { label: 'Obchodní podmínky', prompt: 'Vytvoř stránku Obchodní podmínky s 14denním právem na vrácení zboží, reklamačním řádem a identifikací prodávajícího.' },
-  { label: 'Přepsat copy', prompt: 'Přepiš texty na celém webu — hero, produkty i sekce — aby znělý sebevědomě a prodejně.' },
-  { label: 'Přidat produkt', prompt: 'Přidej nový produkt: ' },
-  { label: 'Nová sekce', prompt: 'Přidej na homepage sekci: ' },
-  { label: 'Změnit design', prompt: 'Změň celý vizuální styl na ' },
+  { label: 'GDPR page', prompt: 'Vytvoř kompletní stránku Zásady ochrany osobních údajů (GDPR) s reálným textem dle české legislativy.' },
+  { label: 'Terms of service', prompt: 'Vytvoř stránku Obchodní podmínky s 14denním právem na vrácení zboží, reklamačním řádem a identifikací prodávajícího.' },
+  { label: 'Rewrite copy', prompt: 'Rewrite all the text on the site — hero, products, and sections — so it sounds confident and sales-ready.' },
+  { label: 'Add product', prompt: 'Add a new product: ' },
+  { label: 'New section', prompt: 'Add a section to the homepage: ' },
+  { label: 'Change design', prompt: 'Change the entire visual style to ' },
 ]
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -280,6 +280,12 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   const [deployLogs, setDeployLogs] = useState<LogLine[]>([])
   const [buildError, setBuildError] = useState<BuildError | null>(null)
   const [isFixing, setIsFixing] = useState(false)
+  const [previewReady, setPreviewReady] = useState<boolean>(
+    // If we have a latestDeployment that's already 'ready', the preview is already live
+    latestDeployment?.status === 'ready'
+  )
+  const [autoFixAttempts, setAutoFixAttempts] = useState(0)
+  const MAX_AUTO_FIX = 3
   const logsEndRef = useRef<HTMLDivElement>(null)
   const logEventSourceRef = useRef<EventSource | null>(null)
   // Legacy compatibility stubs — keep panels from crashing during transition
@@ -357,6 +363,15 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   const [customDomainInput, setCustomDomainInput] = useState('')
   const [isAddingDomain, setIsAddingDomain] = useState(false)
   const [domainResult, setDomainResult] = useState<{ domain: string; verified: boolean; dnsInstructions?: string } | null>(null)
+  // Domain search/purchase
+  const [domainQuery, setDomainQuery] = useState('')
+  const [domainSearching, setDomainSearching] = useState(false)
+  const [domainResults, setDomainResults] = useState<Array<{ domain: string; available: boolean; price: number; currency: string }>>([])
+  const [ownedDomains, setOwnedDomains] = useState<Array<{ id: string; domain: string; status: string; dns_verified: boolean; project_id: string | null }>>([])
+  const [domainConnectInput, setDomainConnectInput] = useState('')
+  const [domainConnecting, setDomainConnecting] = useState(false)
+  const [domainConnectResult, setDomainConnectResult] = useState<{ instructions: string; dnsValue: string } | null>(null)
+  const [domainPurchasing, setDomainPurchasing] = useState(false)
   const [liveDeployment, setLiveDeployment] = useState<{
     vercelDeploymentId: string | null; status: string; url: string | null
     domain: string | null; customDomain: string | null; customDomainVerified: boolean
@@ -466,6 +481,13 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   }, [projectId])
 
   useEffect(() => {
+    fetch('/api/domains/list')
+      .then(r => r.json())
+      .then(d => { if (d.domains) setOwnedDomains(d.domains) })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
     async function fetchLatestDeploy() {
       try {
         const res = await fetch(`/api/projects/${projectId}/deployments`)
@@ -484,6 +506,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           } else if (d.url) {
             // Preview deployment ready — show in iframe
             setPreviewUrl(d.url)
+            setPreviewReady(true)
           }
         } else if (d.status === 'building' && d.vercelDeploymentId) {
           if (d.url) setPreviewUrl(d.url)
@@ -558,8 +581,9 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           es.close()
           logEventSourceRef.current = null
           if (data.type === 'ready') {
+            setPreviewReady(true)
             setRightPanel('preview')
-            setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview build succeeded.', type: 'done' }])
+            setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' }])
           }
           return
         }
@@ -582,6 +606,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           .then(r => r.json())
           .then(d => {
             if (d.status === 'ready') {
+              setPreviewReady(true)
               setRightPanel('preview')
             } else if ((d.status === 'error' || d.status === 'canceled') && d.errorMessage) {
               setMessages(prev => [...prev, {
@@ -598,6 +623,16 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
   // Cleanup on unmount
   useEffect(() => () => { logEventSourceRef.current?.close() }, [])
+
+  // Auto-fix loop: trigger handleFix automatically when a build error is detected (max 3 attempts)
+  useEffect(() => {
+    if (!buildError || isFixing || autoFixAttempts >= MAX_AUTO_FIX) return
+    const timer = setTimeout(() => {
+      setAutoFixAttempts(prev => prev + 1)
+      void handleFix()
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [buildError]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl)
   useEffect(() => {
@@ -698,7 +733,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         }
         return updated
       })
-      if (data.previewUrl) setPreviewUrl(data.previewUrl)
+      if (data.previewUrl) { setPreviewUrl(data.previewUrl); setPreviewReady(false) }
       if (data.deploymentId) startLogStreaming(data.deploymentId)
     } catch {
       setMessages((prev) => {
@@ -722,6 +757,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
       { role: 'assistant', content: '…', type: 'status' },
     ])
     setIsGenerating(true)
+    setAutoFixAttempts(0)
 
     if (!hasGeneratedOnce) {
       // Generation flow — first time
@@ -739,7 +775,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           setHasGeneratedOnce(true)
           refreshBalance()
           fetchVersions()
-          if (newPreviewUrl) setPreviewUrl(newPreviewUrl)
+          if (newPreviewUrl) { setPreviewUrl(newPreviewUrl); setPreviewReady(false) }
           if (deploymentId) startLogStreaming(deploymentId)
         })
       } catch {
@@ -772,7 +808,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           })
           refreshBalance()
           fetchVersions()
-          if (newPreviewUrl) setPreviewUrl(newPreviewUrl)
+          if (newPreviewUrl) { setPreviewUrl(newPreviewUrl); setPreviewReady(false) }
           if (deploymentId) startLogStreaming(deploymentId)
         }
       )
@@ -1069,14 +1105,14 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
       })
       const data = await res.json()
       if (!res.ok) {
-        setShipmentResults(p => ({ ...p, [orderId]: { error: data.error ?? 'Chyba při vytváření zásilky.' } }))
+        setShipmentResults(p => ({ ...p, [orderId]: { error: data.error ?? 'Failed to create shipment.' } }))
       } else {
         setShipmentResults(p => ({ ...p, [orderId]: { barcode: data.barcode } }))
         // refresh orders so status updates
         handleLoadStoreOrders()
       }
     } catch {
-      setShipmentResults(p => ({ ...p, [orderId]: { error: 'Chyba sítě.' } }))
+      setShipmentResults(p => ({ ...p, [orderId]: { error: 'Network error.' } }))
     } finally {
       setCreatingShipment(null)
     }
@@ -1094,7 +1130,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) { alert('Nepodařilo se uložit.'); return }
+      if (!res.ok) { alert('Failed to save.'); return }
       if (zasilkovnaKey) setHasZasilkovnaKey(true)
       if (zasilkovnaPassword) setHasZasilkovnaPassword(true)
       setZasilkovnaKey('')
@@ -1119,7 +1155,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-      if (!res.ok) { alert('Nepodařilo se uložit.'); return }
+      if (!res.ok) { alert('Failed to save.'); return }
       if (dhlApiKey) setHasDhlApiKey(true)
       if (dhlApiSecret) setHasDhlApiSecret(true)
       if (dhlAccountNumber) setHasDhlAccount(true)
@@ -1141,13 +1177,13 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
       })
       const data = await res.json()
       if (!res.ok) {
-        setDhlResults(p => ({ ...p, [orderId]: { error: data.error ?? 'Chyba DHL API.' } }))
+        setDhlResults(p => ({ ...p, [orderId]: { error: data.error ?? 'DHL API error.' } }))
       } else {
         setDhlResults(p => ({ ...p, [orderId]: { trackingNumber: data.trackingNumber, trackingUrl: data.trackingUrl, labelBase64: data.labelBase64 } }))
         handleLoadStoreOrders()
       }
     } catch {
-      setDhlResults(p => ({ ...p, [orderId]: { error: 'Chyba sítě.' } }))
+      setDhlResults(p => ({ ...p, [orderId]: { error: 'Network error.' } }))
     } finally {
       setCreatingDhlShipment(null)
     }
@@ -1182,6 +1218,48 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
     } finally {
       setIsAddingDomain(false)
     }
+  }
+
+  async function handleDomainSearch() {
+    if (!domainQuery.trim() || domainSearching) return
+    setDomainSearching(true)
+    setDomainResults([])
+    try {
+      const res = await fetch(`/api/domains/search?q=${encodeURIComponent(domainQuery.trim())}`)
+      const data = await res.json()
+      setDomainResults(data.results ?? [])
+    } catch {}
+    setDomainSearching(false)
+  }
+
+  async function handleDomainBuy(domain: string, price: number) {
+    setDomainPurchasing(true)
+    try {
+      const res = await fetch('/api/domains/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain, projectId, price, includeProtection: true }),
+      })
+      const data = await res.json()
+      if (data.url) window.open(data.url, '_blank')
+    } catch {}
+    setDomainPurchasing(false)
+  }
+
+  async function handleDomainConnect() {
+    if (!domainConnectInput.trim() || domainConnecting) return
+    setDomainConnecting(true)
+    setDomainConnectResult(null)
+    try {
+      const res = await fetch('/api/domains/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: domainConnectInput.trim(), projectId }),
+      })
+      const data = await res.json()
+      if (data.instructions) setDomainConnectResult({ instructions: data.instructions, dnsValue: data.dnsValue })
+    } catch {}
+    setDomainConnecting(false)
   }
 
   async function handleSaveIban() {
@@ -1429,12 +1507,12 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
   // Publish readiness checklist
   const publishChecklist = currentManifest ? [
-    { id: 'merchant', label: 'Firemní data (IČO, sídlo, kontakt)', ok: !!(currentManifest.merchant?.ico && currentManifest.merchant?.obchodni_nazev && currentManifest.merchant?.kontakt?.email) },
-    { id: 'legal', label: '4 právní stránky v patičce', ok: ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt'].every(slug => currentManifest.customPages?.some(p => p.slug === slug)) },
-    { id: 'payment', label: 'Min. 1 platební metoda', ok: !!(currentManifest.payments?.providers?.length || currentManifest.payments?.dobirka?.enabled || currentManifest.payments?.prevod?.enabled) },
-    { id: 'shipping', label: 'Min. 1 způsob dopravy', ok: !!(currentManifest.shipping?.methods?.length) },
-    { id: 'products', label: 'Min. 1 produkt s cenou a dostupností', ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every(p => p.price > 0) },
-    { id: 'product_images', label: 'Každý produkt má alespoň 1 fotku', ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every(p => (p.images?.length ?? 0) > 0) },
+    { id: 'merchant', label: 'Business info (IČO, address, contact)', ok: !!(currentManifest.merchant?.ico && currentManifest.merchant?.obchodni_nazev && currentManifest.merchant?.kontakt?.email) },
+    { id: 'legal', label: '4 legal pages in footer', ok: ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt'].every(slug => currentManifest.customPages?.some(p => p.slug === slug)) },
+    { id: 'payment', label: 'At least 1 payment method', ok: !!(currentManifest.payments?.providers?.length || currentManifest.payments?.dobirka?.enabled || currentManifest.payments?.prevod?.enabled) },
+    { id: 'shipping', label: 'At least 1 shipping method', ok: !!(currentManifest.shipping?.methods?.length) },
+    { id: 'products', label: 'At least 1 product with price', ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every(p => p.price > 0) },
+    { id: 'product_images', label: 'Every product has at least 1 image', ok: currentManifest.catalog.products.length > 0 && currentManifest.catalog.products.every(p => (p.images?.length ?? 0) > 0) },
   ] : []
   const checklistAllOk = publishChecklist.every(c => c.ok)
 
@@ -2082,7 +2160,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
             disabled={isGenerating}
-            placeholder={!hasGeneratedOnce ? 'Popiš svůj obchod — vygenerujeme ho celý…' : 'Cokoliv — nová stránka, jiný design, přepsat texty, přidat produkty…'}
+            placeholder={!hasGeneratedOnce ? 'Describe your store — we\'ll build the whole thing…' : 'Anything — new page, different design, rewrite copy, add products…'}
             rows={3}
             style={{
               flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
@@ -2448,6 +2526,148 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
   const PublishPanel = (
     <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── 0. Domain section ────────────────────────────────────────────────── */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 16 }}>🌐</span>
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>Your Domain</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#5b5b64' }}>Buy a domain or connect one you already own</p>
+          </div>
+        </div>
+        <div style={{ padding: '16px' }}>
+          {/* Search */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <input
+              value={domainQuery}
+              onChange={e => setDomainQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleDomainSearch() }}
+              placeholder="mystorename"
+              style={{
+                flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 13,
+                border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)',
+                color: '#e0e0e8', outline: 'none',
+              }}
+            />
+            <button
+              onClick={handleDomainSearch}
+              disabled={domainSearching || !domainQuery.trim()}
+              style={{
+                padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.12)',
+                color: '#6f78e6', cursor: domainSearching || !domainQuery.trim() ? 'not-allowed' : 'pointer',
+                opacity: domainSearching || !domainQuery.trim() ? 0.5 : 1,
+                flexShrink: 0,
+              }}
+            >
+              {domainSearching ? '…' : 'Search'}
+            </button>
+          </div>
+
+          {/* Search results */}
+          {domainResults.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+              {domainResults.map(r => (
+                <div key={r.domain} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '9px 12px', borderRadius: 8,
+                  border: `1px solid ${r.available ? 'rgba(62,207,142,.2)' : 'rgba(255,255,255,.05)'}`,
+                  background: r.available ? 'rgba(62,207,142,.04)' : 'rgba(255,255,255,.02)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.available ? '#3ecf8e' : '#4a4a55', flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: r.available ? '#e0e0e8' : '#5b5b64' }}>{r.domain}</span>
+                  </div>
+                  {r.available ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 12, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>${r.price.toFixed(2)}/yr</span>
+                      <button
+                        onClick={() => handleDomainBuy(r.domain, r.price)}
+                        disabled={domainPurchasing}
+                        style={{
+                          padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                          border: 'none', background: '#3ecf8e', color: '#0a0a0e',
+                          cursor: domainPurchasing ? 'not-allowed' : 'pointer', opacity: domainPurchasing ? 0.6 : 1,
+                        }}
+                      >
+                        Buy
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: 11, color: '#4a4a55' }}>taken</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Owned domains */}
+          {ownedDomains.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Your domains</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {ownedDomains.map(d => (
+                  <div key={d.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)',
+                    background: 'rgba(255,255,255,.02)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: d.status === 'active' ? '#3ecf8e' : d.status === 'pending' ? '#fbbf24' : '#f87171' }} />
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#d0d0da' }}>{d.domain}</span>
+                    </div>
+                    <span style={{ fontSize: 10, color: '#5b5b64', textTransform: 'uppercase' }}>
+                      {d.dns_verified ? 'verified' : d.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Connect own domain */}
+          <div>
+            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Connect existing domain</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                value={domainConnectInput}
+                onChange={e => setDomainConnectInput(e.target.value)}
+                placeholder="yourstore.com"
+                style={{
+                  flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 13,
+                  border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)',
+                  color: '#e0e0e8', outline: 'none',
+                }}
+              />
+              <button
+                onClick={handleDomainConnect}
+                disabled={domainConnecting || !domainConnectInput.trim()}
+                style={{
+                  padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)',
+                  color: '#d0d0da', cursor: domainConnecting || !domainConnectInput.trim() ? 'not-allowed' : 'pointer',
+                  opacity: domainConnecting || !domainConnectInput.trim() ? 0.5 : 1, flexShrink: 0,
+                }}
+              >
+                {domainConnecting ? '…' : 'Connect'}
+              </button>
+            </div>
+            {domainConnectResult && (
+              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: 'rgba(111,120,230,.06)', border: '1px solid rgba(111,120,230,.15)' }}>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: '#6f78e6', fontFamily: 'var(--font-geist-mono)', fontWeight: 600 }}>Add this DNS record:</p>
+                <pre style={{ margin: 0, fontSize: 11, color: '#d0d0da', fontFamily: 'var(--font-geist-mono)', whiteSpace: 'pre-wrap' }}>{domainConnectResult.instructions}</pre>
+                <button
+                  onClick={() => navigator.clipboard.writeText(domainConnectResult!.dnsValue)}
+                  style={{ marginTop: 8, fontSize: 11, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Copy DNS value
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* ── 1. Checklist ─────────────────────────────────────────────────────── */}
       {publishChecklist.length > 0 && (
@@ -2844,6 +3064,17 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           </div>
         </div>
       )}
+      {isFixing && (
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#6f78e6', fontFamily: 'var(--font-geist-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(111,120,230,.3)', borderTopColor: '#6f78e6', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+          Auto-fixing error (attempt {autoFixAttempts}/{MAX_AUTO_FIX})…
+        </div>
+      )}
+      {!isFixing && autoFixAttempts >= MAX_AUTO_FIX && buildError && (
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#f87171', fontFamily: 'var(--font-geist-mono)' }}>
+          Auto-fix failed after {MAX_AUTO_FIX} attempts. Try describing the fix in chat.
+        </div>
+      )}
     </div>
   )
 
@@ -2919,6 +3150,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                       for await (const event of readNdjsonStream(res)) {
                         if (event.type === 'done' && event.previewUrl) {
                           setPreviewUrl(event.previewUrl)
+                          setPreviewReady(false)
                           if (event.deploymentId) startLogStreaming(event.deploymentId)
                         }
                       }
@@ -2936,6 +3168,12 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                 <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to generate and deploy a preview</p>
               )}
             </div>
+          </div>
+        ) : !previewReady ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 14 }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ fontSize: 12, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>Building on Vercel…</p>
+            <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>Usually takes 1–2 minutes. Check the logs tab.</p>
           </div>
         ) : previewDevice === 'desktop' ? (
           <iframe
@@ -3135,7 +3373,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
       {/* Tab switcher: Store orders vs Stripe */}
       <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.04)', borderRadius: 9, padding: 4, alignSelf: 'flex-start' }}>
         {[
-          { id: 'store' as const, label: 'Zásilkovna / Comgate' },
+          { id: 'store' as const, label: 'Packeta / Comgate' },
           { id: 'stripe' as const, label: 'Stripe' },
         ].map(({ id, label }) => (
           <button
@@ -3168,22 +3406,22 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         ) : storeOrders.length === 0 ? (
           <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
             <ClipboardList size={36} style={{ color: '#5b5b64' }} />
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Žádné objednávky</p>
-            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Zde se zobrazí objednávky přes Zásilkovánu, Comgate a bankovní převod.</p>
-            <button onClick={handleLoadStoreOrders} style={{ fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Obnovit</button>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
+            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Orders via Packeta, Comgate and bank transfer will appear here.</p>
+            <button onClick={handleLoadStoreOrders} style={{ fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </div>
         ) : (
           <>
             {/* Summary */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Tržby (zaplaceno)</p>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue (paid)</p>
                 <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
                   {currency} {storeOrderRevenue.toFixed(2)}
                 </p>
               </div>
               <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Objednávky</p>
+                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
                 <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{storeOrders.length}</p>
               </div>
             </div>
@@ -3221,7 +3459,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                     {/* Row 2: badges */}
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: paid ? 'rgba(62,207,142,.12)' : 'rgba(224,160,79,.12)', color: paid ? 'var(--live)' : '#e0a04f' }}>
-                        {paid ? 'Zaplaceno' : o.paymentStatus}
+                        {paid ? 'Paid' : o.paymentStatus}
                       </span>
                       <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,.06)', color: '#8a8a93' }}>
                         {o.paymentMethod}
@@ -3230,13 +3468,13 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(111,120,230,.12)', color: '#a5b4fc' }}>
                           📦 {o.zasilkovnaBranchCountry && o.zasilkovnaBranchCountry !== 'cz'
                             ? `Packeta International · ${o.zasilkovnaBranchCountry.toUpperCase()}`
-                            : 'Zásilkovna'}
+                            : 'Packeta'}
                           {o.zasilkovnaBranchId ? ` #${o.zasilkovnaBranchId}` : ''}
                         </span>
                       )}
                       {shipped && (
                         <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(62,207,142,.12)', color: 'var(--live)' }}>
-                          ✓ Odesláno
+                          ✓ Shipped
                         </span>
                       )}
                     </div>
@@ -3252,7 +3490,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                             {(o.trackingUrl ?? undefined) && (
                               <a href={o.trackingUrl ?? undefined} target="_blank" rel="noopener noreferrer"
                                 style={{ fontSize: 10, color: '#6f78e6', textDecoration: 'none' }}>
-                                Sledovat →
+                                Track →
                               </a>
                             )}
                           </div>
@@ -3272,12 +3510,12 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                                 border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
                                 color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)',
                               }}
-                              title="Hmotnost zásilky v kg (povinné pro mezinárodní dopravce)"
+                              title="Shipment weight in kg (required for international carriers)"
                             />
                             <button
                               onClick={() => handleCreateShipment(o.id, parseFloat(shipmentWeights[o.id] ?? '1') || 1)}
                               disabled={creating || !paid}
-                              title={!paid ? 'Objednávka musí být zaplacena' : 'Vytvořit zásilku v Packetě'}
+                              title={!paid ? 'Order must be paid first' : 'Create shipment in Packeta'}
                               style={{
                                 fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
                                 border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
@@ -3285,14 +3523,14 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                                 opacity: !paid ? 0.5 : 1,
                               }}
                             >
-                              {creating ? 'Vytvářím…' : '📦 Vytvořit zásilku'}
+                              {creating ? 'Creating…' : '📦 Create shipment'}
                             </button>
                           </div>
                         )}
                         {o.invoiceUrl && (
                           <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
                             style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
-                            Faktura →
+                            Invoice →
                           </a>
                         )}
                       </div>
@@ -3319,7 +3557,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                               {(o.trackingUrl || dhlResult?.trackingUrl) && (
                                 <a href={o.trackingUrl ?? dhlResult?.trackingUrl ?? ''} target="_blank" rel="noopener noreferrer"
                                   style={{ fontSize: 10, color: '#6f78e6', textDecoration: 'none' }}>
-                                  Sledovat →
+                                  Track →
                                 </a>
                               )}
                               {dhlResult?.labelBase64 && (
@@ -3327,7 +3565,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                                   onClick={() => downloadDhlLabel(o.id, o.orderNumber, dhlResult.labelBase64!)}
                                   style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: 'pointer' }}
                                 >
-                                  ⬇ Štítek PDF
+                                  ⬇ PDF Label
                                 </button>
                               )}
                             </div>
@@ -3339,16 +3577,16 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
                                 type="number" min="0.1" step="0.1" placeholder="kg"
                                 value={dhlWeights[o.id] ?? ''}
                                 onChange={e => setDhlWeights(p => ({ ...p, [o.id]: e.target.value }))}
-                                title="Hmotnost zásilky v kg"
+                                title="Shipment weight in kg"
                                 style={{ width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
                               />
                               <button
                                 onClick={() => handleCreateDhlShipment(o.id, { weight: parseFloat(dhlWeights[o.id] ?? '1') || 1 })}
                                 disabled={creatingDhl || !paid}
-                                title={!paid ? 'Objednávka musí být zaplacena' : 'Odeslat přes DHL Express'}
+                                title={!paid ? 'Order must be paid first' : 'Send via DHL Express'}
                                 style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: creatingDhl || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
                               >
-                                {creatingDhl ? 'Vytvářím…' : '✈️ Odeslat DHL'}
+                                {creatingDhl ? 'Creating…' : '✈️ Send DHL'}
                               </button>
                             </div>
                           )}
@@ -3367,7 +3605,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               })}
             </div>
 
-            <button onClick={handleLoadStoreOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Obnovit</button>
+            <button onClick={handleLoadStoreOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </>
         )
       ) : (
@@ -3566,34 +3804,34 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Zásilkovna / Packeta</p>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
-              API klíče pro widget (zobrazení poboček) a pro tvorbu zásilek. Oba klíče najdeš v
-              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>Zásilkovna klientské zóně</a>.
+              API keys for the pickup-point widget and shipment creation. Find both in your
+              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>Packeta client zone</a>.
             </p>
           </div>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API klíč — widget (veřejný)
-              {hasZasilkovnaKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+              API key — widget (public)
+              {hasZasilkovnaKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input
               value={zasilkovnaKey}
               onChange={e => setZasilkovnaKey(e.target.value)}
-              placeholder={hasZasilkovnaKey ? '••••••••••••••••' : 'Vložte API klíč pro widget…'}
+              placeholder={hasZasilkovnaKey ? '••••••••••••••••' : 'Enter widget API key…'}
               style={inpSt}
             />
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API heslo — zásilky (soukromé)
-              {hasZasilkovnaPassword && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaveno</span>}
+              API password — shipments (private)
+              {hasZasilkovnaPassword && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input
               type="password"
               value={zasilkovnaPassword}
               onChange={e => setZasilkovnaPassword(e.target.value)}
-              placeholder={hasZasilkovnaPassword ? '••••••••••••••••' : 'Vložte API heslo…'}
+              placeholder={hasZasilkovnaPassword ? '••••••••••••••••' : 'Enter API password…'}
               style={inpSt}
             />
           </div>
@@ -3602,11 +3840,11 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             disabled={isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword)}
             style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword) ? 0.5 : 1 }}
           >
-            {isSavingZasilkovna ? 'Ukládám…' : 'Uložit klíče Zásilkovny'}
+            {isSavingZasilkovna ? 'Saving…' : 'Save Packeta keys'}
           </button>
           {(hasZasilkovnaKey && hasZasilkovnaPassword) && (
             <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
-              ✓ Zásilkovna je nakonfigurována — tlačítko &quot;Vytvořit zásilku&quot; je aktivní v Objednávkách.
+              ✓ Packeta is configured — the &quot;Create shipment&quot; button is active in Orders.
             </p>
           )}
         </div>
@@ -3617,9 +3855,9 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,193,7,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>✈️</span>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>DHL Express — celosvětová doprava</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>DHL Express — worldwide shipping</p>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
-              Přihlašovací údaje najdeš na{' '}
+              Find your credentials at{' '}
               <a href="https://developer.dhl.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>developer.dhl.com</a>
               {' '}→ MyDHL+ API.
             </p>
@@ -3628,19 +3866,19 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API Key{hasDhlApiKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+              API Key{hasDhlApiKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={dhlApiKey} onChange={e => setDhlApiKey(e.target.value)} placeholder={hasDhlApiKey ? '••••••••••••••••' : 'DHL API Key…'} style={inpSt} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API Secret{hasDhlApiSecret && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+              API Secret{hasDhlApiSecret && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input type="password" value={dhlApiSecret} onChange={e => setDhlApiSecret(e.target.value)} placeholder={hasDhlApiSecret ? '••••••••••••••••' : 'DHL API Secret…'} style={inpSt} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              Account Number{hasDhlAccount && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ nastaven</span>}
+              Account Number{hasDhlAccount && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={dhlAccountNumber} onChange={e => setDhlAccountNumber(e.target.value)} placeholder={hasDhlAccount ? '••••••••' : '123456789'} style={inpSt} />
           </div>
@@ -3649,11 +3887,11 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             disabled={isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber)}
             style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) ? 0.5 : 1 }}
           >
-            {isSavingDhl ? 'Ukládám…' : 'Uložit DHL klíče'}
+            {isSavingDhl ? 'Saving…' : 'Save DHL keys'}
           </button>
           {(hasDhlApiKey && hasDhlApiSecret && hasDhlAccount) && (
             <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
-              ✓ DHL nakonfigurováno — tlačítko &quot;Odeslat DHL&quot; je aktivní v Objednávkách.
+              ✓ DHL configured — the &quot;Send DHL&quot; button is active in Orders.
             </p>
           )}
         </div>

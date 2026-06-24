@@ -105,13 +105,13 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
 
   async function lookupAres() {
     const ico = form.ico.replace(/\s/g, '')
-    if (!validateIco(ico)) { setIcoError('Neplatné IČO (kontrolní číslice nesouhlasí)'); return }
+    if (!validateIco(ico)) { setIcoError('Invalid IČO (check digit mismatch)'); return }
     setIcoError('')
     setAresLoading(true)
     setAresMsg('')
     try {
       const res = await fetch(`/api/ares?ico=${ico}`)
-      if (!res.ok) { setAresMsg((await res.json()).error ?? 'IČO nenalezeno v ARES'); return }
+      if (!res.ok) { setAresMsg((await res.json()).error ?? 'IČO not found in ARES'); return }
       const data = await res.json()
       setForm((prev) => ({
         ...prev,
@@ -124,9 +124,9 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
           zeme: 'CZ',
         },
       }))
-      setAresMsg('Data načtena z ARES')
+      setAresMsg('Data loaded from ARES')
     } catch {
-      setAresMsg('Chyba při načítání z ARES')
+      setAresMsg('Error loading from ARES')
     } finally {
       setAresLoading(false)
     }
@@ -134,14 +134,14 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
 
   function icoBlur() {
     const ico = form.ico.replace(/\s/g, '')
-    if (ico && !validateIco(ico)) setIcoError('Neplatné IČO (kontrolní číslice nesouhlasí)')
+    if (ico && !validateIco(ico)) setIcoError('Invalid IČO (check digit mismatch)')
     else setIcoError('')
   }
 
   async function saveMerchant() {
     if (!manifest) return
     const ico = form.ico.replace(/\s/g, '')
-    if (!validateIco(ico)) { setIcoError('Neplatné IČO'); return }
+    if (!validateIco(ico)) { setIcoError('Invalid IČO'); return }
     setIsSaving(true)
     setSaveMsg('')
     try {
@@ -151,13 +151,13 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, manifest: updatedManifest }),
       })
-      if (!res.ok) { setSaveMsg('Chyba při ukládání'); return }
+      if (!res.ok) { setSaveMsg('Failed to save'); return }
       const { manifest: saved } = await res.json()
       onManifestUpdate(saved)
-      setSaveMsg('Uloženo')
+      setSaveMsg('Saved')
       setTimeout(() => setSaveMsg(''), 2500)
     } catch {
-      setSaveMsg('Chyba při ukládání')
+      setSaveMsg('Failed to save')
     } finally {
       setIsSaving(false)
     }
@@ -172,11 +172,11 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, resend_from_email: emailFrom || null }),
       })
-      if (!res.ok) { setEmailFromMsg('Chyba při ukládání'); return }
-      setEmailFromMsg(emailFrom ? 'Uloženo' : 'Obnoveno na výchozí (objednavky@quante.io)')
+      if (!res.ok) { setEmailFromMsg('Failed to save'); return }
+      setEmailFromMsg(emailFrom ? 'Saved' : 'Reset to default (objednavky@quante.io)')
       setTimeout(() => setEmailFromMsg(''), 3000)
     } catch {
-      setEmailFromMsg('Chyba při ukládání')
+      setEmailFromMsg('Failed to save')
     } finally {
       setIsSavingEmail(false)
     }
@@ -192,17 +192,17 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         body: JSON.stringify({ projectId }),
       })
       const data = await res.json()
-      if (!res.ok) { setTestEmailMsg(data.error ?? 'Chyba'); return }
-      setTestEmailMsg(`Testovací e-mail odeslán na ${data.sentTo}`)
+      if (!res.ok) { setTestEmailMsg(data.error ?? 'Error'); return }
+      setTestEmailMsg(`Test email sent to ${data.sentTo}`)
     } catch {
-      setTestEmailMsg('Chyba při odesílání')
+      setTestEmailMsg('Failed to send')
     } finally {
       setIsSendingTest(false)
     }
   }
 
   async function generateLegalPages() {
-    if (!manifest?.merchant) { setLegalMsg('Nejdříve uložte firemní data'); return }
+    if (!manifest?.merchant) { setLegalMsg('Save business data first'); return }
     setIsGeneratingLegal(true)
     setLegalMsg('')
     try {
@@ -211,13 +211,13 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId }),
       })
-      if (!res.ok) { setLegalMsg((await res.json()).error ?? 'Chyba'); return }
+      if (!res.ok) { setLegalMsg((await res.json()).error ?? 'Error'); return }
       const { manifest: updated } = await res.json()
       onManifestUpdate(updated)
       onBalanceRefresh()
-      setLegalMsg('Právní stránky vygenerovány a přidány do obchodu')
+      setLegalMsg('Legal pages generated and added to the store')
     } catch {
-      setLegalMsg('Chyba při generování')
+      setLegalMsg('Generation failed')
     } finally {
       setIsGeneratingLegal(false)
     }
@@ -268,13 +268,13 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, manifest: updatedManifest }),
       })
-      if (!res.ok) { setPayShipMsg('Chyba při ukládání'); return }
+      if (!res.ok) { setPayShipMsg('Failed to save'); return }
       const { manifest: saved } = await res.json()
       onManifestUpdate(saved)
-      setPayShipMsg('Uloženo')
+      setPayShipMsg('Saved')
       setTimeout(() => setPayShipMsg(''), 2500)
     } catch {
-      setPayShipMsg('Chyba při ukládání')
+      setPayShipMsg('Failed to save')
     } finally {
       setIsSavingPayShip(false)
     }
@@ -302,13 +302,13 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-        Firemní údaje jsou povinné pro generování právních stránek a fakturace.
-        Bez nich nelze shop publikovat na ostrou doménu.
+        Business details are required for generating legal pages and invoicing.
+        Without them the store cannot be published to a live domain.
       </p>
 
       {/* IČO + ARES */}
       <div>
-        <p style={sectionHeadStyle}>Identifikace</p>
+        <p style={sectionHeadStyle}>Identification</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
           <div>
             <label style={labelStyle}>IČO *</label>
@@ -341,7 +341,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
               </button>
             </div>
             {icoError && <p style={{ fontSize: 10, color: '#f87171', marginTop: 3 }}>{icoError}</p>}
-            {aresMsg && <p style={{ fontSize: 10, color: aresMsg.includes('Chyba') || aresMsg.includes('nenalezeno') ? '#f87171' : '#34d399', marginTop: 3 }}>{aresMsg}</p>}
+            {aresMsg && <p style={{ fontSize: 10, color: aresMsg.includes('Error') || aresMsg.includes('not found') ? '#f87171' : '#34d399', marginTop: 3 }}>{aresMsg}</p>}
           </div>
           <div>
             <label style={labelStyle}>DIČ</label>
@@ -354,12 +354,12 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
           </div>
         </div>
         <div style={{ marginBottom: 8 }}>
-          <label style={labelStyle}>Obchodní název *</label>
+          <label style={labelStyle}>Business name *</label>
           <input
             style={fieldStyle}
             value={form.obchodni_nazev}
             onChange={(e) => setField('obchodni_nazev', e.target.value)}
-            placeholder="Moje firma s.r.o."
+            placeholder="My Company s.r.o."
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -371,26 +371,26 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             style={{ margin: 0 }}
           />
           <label htmlFor="platce_dph" style={{ fontSize: 11, color: 'var(--foreground)', cursor: 'pointer' }}>
-            Plátce DPH
+            VAT registered
           </label>
         </div>
       </div>
 
       {/* Sídlo */}
       <div>
-        <p style={sectionHeadStyle}>Sídlo</p>
+        <p style={sectionHeadStyle}>Registered address</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
-            <label style={labelStyle}>Ulice a číslo popisné *</label>
-            <input style={fieldStyle} value={form.sidlo.ulice} onChange={(e) => setSidlo('ulice', e.target.value)} placeholder="Příkladná 1" />
+            <label style={labelStyle}>Street and number *</label>
+            <input style={fieldStyle} value={form.sidlo.ulice} onChange={(e) => setSidlo('ulice', e.target.value)} placeholder="Example Street 1" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 6 }}>
             <div>
-              <label style={labelStyle}>Město *</label>
-              <input style={fieldStyle} value={form.sidlo.mesto} onChange={(e) => setSidlo('mesto', e.target.value)} placeholder="Praha" />
+              <label style={labelStyle}>City *</label>
+              <input style={fieldStyle} value={form.sidlo.mesto} onChange={(e) => setSidlo('mesto', e.target.value)} placeholder="Prague" />
             </div>
             <div>
-              <label style={labelStyle}>PSČ *</label>
+              <label style={labelStyle}>ZIP *</label>
               <input style={fieldStyle} value={form.sidlo.psc} onChange={(e) => setSidlo('psc', e.target.value)} placeholder="11000" maxLength={6} />
             </div>
           </div>
@@ -399,14 +399,14 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
 
       {/* Kontakt */}
       <div>
-        <p style={sectionHeadStyle}>Kontaktní údaje</p>
+        <p style={sectionHeadStyle}>Contact details</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
             <label style={labelStyle}>E-mail *</label>
             <input style={fieldStyle} type="email" value={form.kontakt.email} onChange={(e) => setKontakt('email', e.target.value)} placeholder="info@mujshop.cz" />
           </div>
           <div>
-            <label style={labelStyle}>Telefon *</label>
+            <label style={labelStyle}>Phone *</label>
             <input style={fieldStyle} type="tel" value={form.kontakt.telefon} onChange={(e) => setKontakt('telefon', e.target.value)} placeholder="+420 777 123 456" />
           </div>
         </div>
@@ -414,9 +414,9 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
 
       {/* Bankovní účet */}
       <div>
-        <p style={sectionHeadStyle}>Platební údaje</p>
+        <p style={sectionHeadStyle}>Banking</p>
         <div>
-          <label style={labelStyle}>Bankovní účet (pro bankovní převod)</label>
+          <label style={labelStyle}>Bank account (for bank transfer)</label>
           <input style={fieldStyle} value={form.bankovni_ucet ?? ''} onChange={(e) => setField('bankovni_ucet', e.target.value)} placeholder="123456789/0800" />
         </div>
       </div>
@@ -438,18 +438,18 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             opacity: isSaving || !form.ico || !form.obchodni_nazev ? 0.6 : 1,
           }}
         >
-          {isSaving ? 'Ukládám…' : 'Uložit firemní data'}
+          {isSaving ? 'Saving…' : 'Save business data'}
         </button>
         {saveMsg && (
-          <p style={{ fontSize: 10, color: saveMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{saveMsg}</p>
+          <p style={{ fontSize: 10, color: saveMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{saveMsg}</p>
         )}
       </div>
 
       {/* E-mail sender */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Transakční e-maily</p>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Transactional emails</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          E-maily zákazníkům jsou odesílány od <code style={{ fontSize: 9 }}>objednavky@quante.io</code> (výchozí). Pro vlastní doménu ověřte ji v Resend a zadejte adresu níže.
+          Customer emails are sent from <code style={{ fontSize: 9 }}>objednavky@quante.io</code> (default). For your own domain, verify it in Resend and enter the address below.
         </p>
         <div style={{ display: 'flex', gap: 4 }}>
           <input
@@ -457,32 +457,32 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             type="email"
             value={emailFrom}
             onChange={(e) => setEmailFrom(e.target.value)}
-            placeholder="objednavky@vasshop.cz (volitelné)"
+            placeholder="orders@yourshop.com (optional)"
           />
           <button
             onClick={saveEmailFrom}
             disabled={isSavingEmail}
             style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            {isSavingEmail ? '…' : 'Uložit'}
+            {isSavingEmail ? '…' : 'Save'}
           </button>
         </div>
-        {emailFromMsg && <p style={{ fontSize: 10, color: emailFromMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{emailFromMsg}</p>}
+        {emailFromMsg && <p style={{ fontSize: 10, color: emailFromMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{emailFromMsg}</p>}
         <button
           onClick={sendTestEmail}
           disabled={isSendingTest || !manifest?.merchant?.kontakt?.email}
           style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--foreground)', opacity: isSendingTest || !manifest?.merchant?.kontakt?.email ? 0.5 : 1 }}
         >
-          {isSendingTest ? 'Odesílám…' : 'Odeslat testovací e-mail →'}
+          {isSendingTest ? 'Sending…' : 'Send test email →'}
         </button>
         {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{testEmailMsg}</p>}
       </div>
 
       {/* Legal pages */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Právní stránky</p>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Legal pages</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          Vygeneruje 4 povinné stránky (Obchodní podmínky, GDPR, Cookies, Kontakt) z vašich firemních dat a přidá je do obchodu. Šablony jsou deterministické — lze je znovu vygenerovat po změně dat.
+          Generates 4 required pages (Terms of Service, GDPR, Cookies, Contact) from your business data and adds them to the store. Templates are deterministic — regenerate after changing data.
         </p>
         <button
           onClick={generateLegalPages}
@@ -499,31 +499,31 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             opacity: isGeneratingLegal ? 0.6 : 1,
           }}
         >
-          {isGeneratingLegal ? 'Generuji…' : 'Generovat právní stránky'}
+          {isGeneratingLegal ? 'Generating…' : 'Generate legal pages'}
         </button>
         {legalMsg && (
-          <p style={{ fontSize: 10, color: legalMsg.includes('Chyba') || legalMsg.includes('Nejdříve') ? '#f87171' : '#34d399', margin: 0 }}>
+          <p style={{ fontSize: 10, color: legalMsg.includes('failed') || legalMsg.includes('first') ? '#f87171' : '#34d399', margin: 0 }}>
             {legalMsg}
           </p>
         )}
         <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
-          Šablony jsou základ — finální odpovědnost nese provozovatel. Doporučujeme kontrolu právníkem.
+          Templates are a starting point — the operator is ultimately responsible. We recommend a legal review.
         </p>
       </div>
 
       {/* Payment methods */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Platební metody</p>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Payment methods</p>
 
         {/* Quante managed payments banner */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
           <span style={{ fontSize: 12, marginTop: 1 }}>🔒</span>
           <div>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', margin: '0 0 2px' }}>Platby zajišťuje Quante</p>
+            <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', margin: '0 0 2px' }}>Payments managed by Quante</p>
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-              Vybrané metody jsou automaticky nakonfigurovány — žádné API klíče nepotřebujete.
-              Výnosy se zobrazí na záložce <strong style={{ color: 'var(--foreground)' }}>Výplaty</strong> a vyplatíte je převodem na IBAN.
-              Vlastní API (Stripe, Comgate, GoPay) nastavíte až po exportu v souboru <code style={{ fontSize: 9 }}>.env.local</code>.
+              Selected methods are automatically configured — no API keys required.
+              Revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via IBAN transfer.
+              Custom API keys (Stripe, Comgate, GoPay) are set after export in <code style={{ fontSize: 9 }}>.env.local</code>.
             </p>
           </div>
         </div>
@@ -531,19 +531,19 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         {/* Stripe — always available via Quante */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(111,120,230,0.04)' }}>
           <span style={{ fontSize: 10, width: 14, textAlign: 'center', color: '#34d399' }}>✓</span>
-          <span style={{ fontSize: 11, flex: 1 }}>Stripe — karta, Apple Pay, Google Pay</span>
+          <span style={{ fontSize: 11, flex: 1 }}>Stripe — card, Apple Pay, Google Pay</span>
           <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (karta, Apple Pay, bankovní tlačítka)</label>
+          <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (card, Apple Pay, bank buttons)</label>
           {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (karta, Google Pay, bankovní převod)</label>
+          <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (card, Google Pay, bank transfer)</label>
           {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
         </div>
 
@@ -551,11 +551,11 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payDobirka ? 6 : 0 }}>
             <input type="checkbox" id="pay_dobirka" checked={payDobirka} onChange={(e) => setPayDobirka(e.target.checked)} style={{ margin: 0 }} />
-            <label htmlFor="pay_dobirka" style={{ fontSize: 11, cursor: 'pointer' }}>Dobírka (platba při převzetí)</label>
+            <label htmlFor="pay_dobirka" style={{ fontSize: 11, cursor: 'pointer' }}>Cash on delivery</label>
           </div>
           {payDobirka && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Příplatek (Kč):</label>
+              <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Surcharge (CZK):</label>
               <input style={{ ...fieldStyle, width: 80 }} type="number" min={0} value={payDobirkaFee} onChange={(e) => setPayDobirkaFee(Number(e.target.value))} />
             </div>
           )}
@@ -564,17 +564,17 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         {/* Bankovní převod */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="pay_prevod" checked={payPrevod} onChange={(e) => setPayPrevod(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_prevod" style={{ fontSize: 11, cursor: 'pointer' }}>Bankovní převod (QR kód + platební instrukce)</label>
+          <label htmlFor="pay_prevod" style={{ fontSize: 11, cursor: 'pointer' }}>Bank transfer (QR code + payment instructions)</label>
         </div>
       </div>
 
       {/* Shipping */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Doprava</p>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Shipping</p>
         {[
-          { id: 'zasilkovna', label: 'Zásilkovna', enabled: shipZasilkovna, setEnabled: setShipZasilkovna, price: shipZasilkovnaPrice, setPrice: setShipZasilkovnaPrice },
-          { id: 'ppl', label: 'PPL — doručení na adresu', enabled: shipPpl, setEnabled: setShipPpl, price: shipPplPrice, setPrice: setShipPplPrice },
-          { id: 'dpd', label: 'DPD — doručení na adresu', enabled: shipDpd, setEnabled: setShipDpd, price: shipDpdPrice, setPrice: setShipDpdPrice },
+          { id: 'zasilkovna', label: 'Zásilkovna / Packeta', enabled: shipZasilkovna, setEnabled: setShipZasilkovna, price: shipZasilkovnaPrice, setPrice: setShipZasilkovnaPrice },
+          { id: 'ppl', label: 'PPL — home delivery', enabled: shipPpl, setEnabled: setShipPpl, price: shipPplPrice, setPrice: setShipPplPrice },
+          { id: 'dpd', label: 'DPD — home delivery', enabled: shipDpd, setEnabled: setShipDpd, price: shipDpdPrice, setPrice: setShipDpdPrice },
           { id: 'balikovna', label: 'Balíkovna', enabled: shipBalikovna, setEnabled: setShipBalikovna, price: shipBalikovnaPrice, setPrice: setShipBalikovnaPrice },
         ].map((m) => (
           <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
@@ -590,11 +590,11 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         ))}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="ship_osobni" checked={shipOsobni} onChange={(e) => setShipOsobni(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="ship_osobni" style={{ fontSize: 11, cursor: 'pointer' }}>Osobní odběr (zdarma)</label>
+          <label htmlFor="ship_osobni" style={{ fontSize: 11, cursor: 'pointer' }}>Pickup in person (free)</label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Doprava zdarma od (Kč):</label>
-          <input style={{ ...fieldStyle, width: 90 }} type="number" min={0} value={freeShippingFrom} onChange={(e) => setFreeShippingFrom(Number(e.target.value))} placeholder="0 = vypnuto" />
+          <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Free shipping from (CZK):</label>
+          <input style={{ ...fieldStyle, width: 90 }} type="number" min={0} value={freeShippingFrom} onChange={(e) => setFreeShippingFrom(Number(e.target.value))} placeholder="0 = off" />
         </div>
       </div>
 
@@ -615,9 +615,9 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             opacity: isSavingPayShip || !manifest ? 0.6 : 1,
           }}
         >
-          {isSavingPayShip ? 'Ukládám…' : 'Uložit platby & dopravu'}
+          {isSavingPayShip ? 'Saving…' : 'Save payments & shipping'}
         </button>
-        {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{payShipMsg}</p>}
+        {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{payShipMsg}</p>}
       </div>
     </div>
   )

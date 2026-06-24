@@ -423,10 +423,10 @@ export default function PricingPage() {
             fontSize: 'clamp(26px,4vw,40px)', fontWeight: 700, letterSpacing: '-.03em',
             textAlign: 'center', marginBottom: 12, color: '#f4f4f6',
           }}>
-            Build stores for clients at scale.
+            One prompt. Twenty stores. Done.
           </h2>
           <p style={{ fontSize: 15, color: '#8a8a93', textAlign: 'center', maxWidth: 520, margin: '0 auto 56px', lineHeight: 1.65 }}>
-            Flat monthly subscription. No credits to count. White-label output — clients get clean code with zero trace of this platform.
+            Write a single brief listing 20 niches — Quante generates each store in parallel, every one with its own name, design, and catalog. Hand them straight to clients.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24, marginBottom: 40 }}>
@@ -460,8 +460,9 @@ export default function PricingPage() {
 
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
-                  'Up to 20 active projects',
-                  'Unlimited generations + iterations',
+                  'Batch-generate up to 20 stores in one prompt',
+                  'Each store gets its own name, niche & design',
+                  'Unlimited projects — no active-store cap',
                   'Full ZIP export on every project',
                   'White-label: zero platform traces',
                   'Priority generation queue',
@@ -491,13 +492,13 @@ export default function PricingPage() {
               }}
             >
               <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', margin: 0 }}>
-                Designed for agencies
+                Batch generation
               </p>
               <p style={{ fontSize: 15, color: '#f4f4f6', fontWeight: 500, lineHeight: 1.55, margin: 0 }}>
-                Build stores for clients, hand them off, repeat.
+                Describe the stores you need. Quante builds all of them at once.
               </p>
               <p style={{ fontSize: 13.5, color: '#8a8a93', lineHeight: 1.7, margin: 0 }}>
-                Agency is a generation tool, not a hosted platform. Your clients receive a clean Next.js project — no Quante dependency, no vendor lock-in. They deploy it themselves or you deploy it for them.
+                List up to 20 store names and niches in one message — Quante generates each in parallel, with its own identity, palette, and product catalog. Every output is a self-contained Next.js project, ready to hand off or deploy instantly.
               </p>
               <div style={{ borderTop: '1px solid rgba(255,255,255,.07)', paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {[
