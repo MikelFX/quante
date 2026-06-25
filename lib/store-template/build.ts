@@ -578,6 +578,11 @@ const LUCIDE_REPLACEMENTS: Record<string, string> = {
   Medium: 'ExternalLink',
 }
 
+function sanitizeCss(content: string): string {
+  // Strip any HTML <style> / </style> tags Claude may accidentally inject into .css files
+  return content.replace(/<\/?style[^>]*>/gi, '').trim()
+}
+
 function sanitizeLucideImports(content: string): string {
   let result = content
 
@@ -630,9 +635,11 @@ export function buildStoreFiles(
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
     for (const [filePath, content] of Object.entries(codeFiles)) {
       if (LOCKED.has(filePath)) continue  // scaffold version always wins
-      const sanitized = (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
-        ? sanitizeLucideImports(content)
-        : content
+      const sanitized = filePath.endsWith('.css')
+        ? sanitizeCss(content)
+        : (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
+          ? sanitizeLucideImports(content)
+          : content
       scaffoldMap.set(filePath, { path: filePath, content: sanitized, encoding: 'utf-8' })
     }
 

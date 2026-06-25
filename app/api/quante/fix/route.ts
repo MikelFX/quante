@@ -9,7 +9,7 @@ import { isAgencyUser } from '@/lib/tier'
 import { CREDIT_COSTS } from '@/lib/config'
 import type { CodeVersionFiles } from '@/types/store-code'
 
-export const maxDuration = 120
+export const maxDuration = 300
 
 const FIX_COST = CREDIT_COSTS.fix
 const MAX_TOKENS = 32000
@@ -105,8 +105,9 @@ export async function POST(request: Request) {
     })
     rawOutput = response.content[0].type === 'text' ? response.content[0].text : ''
   } catch (err) {
-    console.error('[fix] Claude call failed:', err)
-    return NextResponse.json({ error: 'AI fix request failed.' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[fix] Claude call failed:', msg)
+    return NextResponse.json({ error: `AI fix request failed: ${msg}` }, { status: 500 })
   }
 
   // Parse the fix output
