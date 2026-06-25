@@ -153,6 +153,7 @@ export default function NewProjectPage() {
     setError('')
     setCodeChunks('')
 
+    let redirected = false
     try {
       const res = await fetch('/api/quante/generate', {
         method: 'POST',
@@ -163,25 +164,33 @@ export default function NewProjectPage() {
 
       const reader = res.body.getReader()
       const dec = new TextDecoder()
+      let buf = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const raw = dec.decode(value, { stream: true })
-        for (const line of raw.split('\n').filter(l => l.trim())) {
+        buf += dec.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.trim()) continue
           try {
             const evt = JSON.parse(line)
             if (evt.type === 'status') setStatusText(evt.text)
             else if (evt.type === 'chunk') {
-              setCodeChunks(prev => (prev + evt.text).slice(-2000))
+              setCodeChunks(prev => (prev + evt.text).slice(-3000))
             }
             else if (evt.type === 'error') { setError(evt.message); setStage('ready'); return }
-            else if (evt.type === 'done' && evt.projectId) { router.push(`/project/${evt.projectId}`); return }
-          } catch { /* skip */ }
+            else if (evt.type === 'done' && evt.projectId) { redirected = true; router.push(`/project/${evt.projectId}`); return }
+          } catch { /* malformed line — skip */ }
         }
       }
     } catch {
-      setError('Generation failed. Please try again.')
+      // network error or timeout
+    }
+    // Stream ended without a done event (timeout, crash, or Vercel limit)
+    if (!redirected) {
+      setError('Generation timed out or failed. Your project may still appear in the dashboard — check there, or try again.')
       setStage('ready')
     }
   }
@@ -237,26 +246,28 @@ export default function NewProjectPage() {
           })}
         </div>
 
-        {/* Live code terminal */}
-        {codeChunks && (
-          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: '#070709', overflow: 'hidden' }}>
-            <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f87171' }} />
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fbbf24' }} />
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ade80' }} />
-              <span style={{ marginLeft: 8, fontSize: 10, color: '#4a4a55', fontFamily: 'var(--font-geist-mono)' }}>generating store…</span>
-            </div>
-            <pre style={{
-              margin: 0, padding: '12px 14px', fontSize: 11,
-              fontFamily: 'var(--font-geist-mono)', color: '#6f78e6',
-              lineHeight: 1.6, overflowX: 'auto', overflowY: 'hidden',
-              maxHeight: 220, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-            }}>
-              {codeChunks.slice(-1200)}
-              <span style={{ opacity: 0.5, animation: 'blink 1s step-end infinite' }}>▌</span>
-            </pre>
+        {/* Live code terminal — always visible during generation */}
+        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: '#070709', overflow: 'hidden' }}>
+          <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f87171' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fbbf24' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#4ade80' }} />
+            <span style={{ marginLeft: 8, fontSize: 10, color: '#4a4a55', fontFamily: 'var(--font-geist-mono)' }}>generating store…</span>
           </div>
-        )}
+          <pre style={{
+            margin: 0, padding: '12px 14px', fontSize: 11,
+            fontFamily: 'var(--font-geist-mono)', color: '#6f78e6',
+            lineHeight: 1.6, overflowX: 'auto', overflowY: 'hidden',
+            maxHeight: 220, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            minHeight: 52,
+          }}>
+            {codeChunks
+              ? codeChunks.slice(-1500)
+              : <span style={{ color: '#363640' }}>Waiting for Claude…</span>
+            }
+            <span style={{ opacity: 0.5, animation: 'blink 1s step-end infinite' }}>▌</span>
+          </pre>
+        </div>
 
         {error && (
           <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center' }}>{error}</p>

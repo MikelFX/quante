@@ -10,16 +10,22 @@ export const maxDuration = 300
 
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
-const MAX_TOKENS = 250000
+const MAX_TOKENS = 64000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
       function send(event: object) {
-        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'))
+        try { controller.enqueue(encoder.encode(JSON.stringify(event) + '\n')) } catch {}
       }
-      try { await fn(send) } finally { controller.close() }
+      try {
+        await fn(send)
+      } catch (err) {
+        send({ type: 'error', message: err instanceof Error ? err.message : 'Generation failed.' })
+      } finally {
+        controller.close()
+      }
     },
   })
   return new Response(stream, {
