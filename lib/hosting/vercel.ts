@@ -95,6 +95,7 @@ export async function createDeployment(
 export async function createPreviewDeployment(
   vercelProjectId: string,
   files: Array<{ path: string; data: string; encoding?: string }>,
+  storeSlug?: string,
 ): Promise<{ deploymentId: string; url: string }> {
   const result = await vercel.deployments.createDeployment({
     teamId: TEAM_ID,
@@ -109,7 +110,23 @@ export async function createPreviewDeployment(
       })),
     },
   })
-  return { deploymentId: result.id, url: result.url.startsWith('https://') ? result.url : `https://${result.url}` }
+
+  // Assign store subdomain (e.g. my-store.stores.quantecode.com)
+  if (storeSlug && HOSTING_ROOT_DOMAIN) {
+    const storeDomain = `${storeSlug}.${HOSTING_ROOT_DOMAIN}`
+    try {
+      await attachDomain(vercelProjectId, storeDomain)
+    } catch (err) {
+      console.warn('[vercel] attachDomain failed (non-fatal):', err)
+    }
+  }
+
+  const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
+  // Return the subdomain URL if we assigned one, otherwise the Vercel preview URL
+  const storeUrl = storeSlug && HOSTING_ROOT_DOMAIN
+    ? `https://${storeSlug}.${HOSTING_ROOT_DOMAIN}`
+    : rawUrl
+  return { deploymentId: result.id, url: storeUrl }
 }
 
 export async function streamDeploymentLogs(

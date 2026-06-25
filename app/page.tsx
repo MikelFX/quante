@@ -509,7 +509,7 @@ export default function HomePage() {
                 <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#3ecf8e', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
                   Quante
                 </p>
-                {['One click in the Studio', 'SSL included automatically', 'Live on your-store.quante.app', 'Ready in about 3 minutes'].map(t => (
+                {['One click in the Studio', 'SSL included automatically', 'Live on your-store.stores.quantecode.com', 'Ready in about 3 minutes'].map(t => (
                   <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ color: '#3ecf8e' }}>✓</span> {t}
                   </p>
@@ -690,7 +690,7 @@ export default function HomePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
             {[
               { icon: '⬆', title: 'One-click deploy', desc: 'Hit Deploy in the Studio. Quante handles the build, CDN and SSL certificate in about 3 minutes.' },
-              { icon: '🌐', title: 'Your own subdomain', desc: 'Every store gets a clean URL like my-store.quante.app — live and shareable the moment it\'s ready.' },
+              { icon: '🌐', title: 'Your own subdomain', desc: 'Every store gets a clean URL like my-store.stores.quantecode.com — live and shareable the moment it\'s ready.' },
               { icon: '🔗', title: 'Custom domain', desc: 'Already own a domain? Point your CNAME and Quante verifies it automatically. No DNS nightmare.' },
               { icon: '↓', title: 'Or take the code', desc: 'Prefer self-hosting? Export the full Next.js source as a ZIP and deploy anywhere you want.' },
             ].map(({ icon, title, desc }) => (
@@ -716,7 +716,7 @@ export default function HomePage() {
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 8px rgba(52,211,153,.8)' }} />
               <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: '#34d399' }}>
-                my-store.quante.app
+                my-store.stores.quantecode.com
               </span>
               <span style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>
                 · live · ssl ✓
