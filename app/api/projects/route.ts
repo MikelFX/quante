@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: isAgency
-          ? `Agency plan limit reached (${record.project_limit} active projects). Contact support for a custom plan.`
-          : `Project limit reached (${record.project_limit}). Upgrade to Agency for up to 20 projects.`,
+          ? `Agency batch limit reached (${record.project_limit} simultaneous stores). Contact support for a custom plan.`
+          : `Active store limit reached (${record.project_limit}). Upgrade to Agency to generate & export up to 20 stores at once.`,
         code: 'PROJECT_LIMIT_REACHED',
         limit: record.project_limit,
       },

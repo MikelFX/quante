@@ -40,7 +40,7 @@ export default async function DashboardPage() {
   const creditBalance = ledgerResult.data?.balance_after ?? 0
   const activeCount = projects.length
   const atLimit = activeCount >= record.project_limit
-  const limitLabel = `${activeCount} / ${record.project_limit} projects`
+  const limitLabel = `${activeCount} / ${record.project_limit} active`
 
   return (
     <div style={{ padding: '1.5rem 1rem', maxWidth: 680, margin: '0 auto' }}>
@@ -74,8 +74,8 @@ export default async function DashboardPage() {
       {atLimit && (
         <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', fontSize: 13, color: '#e0a04f' }}>
           {isAgency
-            ? <>You&apos;ve reached the 20-project Agency limit. <a href="mailto:support@quante.io" style={{ color: '#e0a04f' }}>Contact us for a custom plan.</a></>
-            : <><Link href="/pricing" style={{ color: '#e0a04f' }}>Upgrade to Agency</Link> for up to 20 projects.</>
+            ? <>You&apos;ve reached the Agency batch limit (20 simultaneous stores). <a href="mailto:support@quante.io" style={{ color: '#e0a04f' }}>Contact us for a custom plan.</a></>
+            : <><Link href="/pricing" style={{ color: '#e0a04f' }}>Upgrade to Agency</Link> to generate &amp; export up to 20 stores at once.</>
           }
         </div>
       )}

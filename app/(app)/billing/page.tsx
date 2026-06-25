@@ -133,10 +133,10 @@ export default async function BillingPage({ searchParams }: Props) {
             </div>
             <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 14px' }}>
               <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 4px' }}>
-                Projects used
+                Active stores
               </p>
               <p style={{ fontSize: 14, fontWeight: 500, color: '#f4f4f6', margin: 0 }}>
-                {projectCount ?? 0} / {record.project_limit}
+                {projectCount ?? 0} / {record.project_limit} batch slots
               </p>
             </div>
           </div>
@@ -149,7 +149,7 @@ export default async function BillingPage({ searchParams }: Props) {
           </p>
           <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
             {[
-              ['Up to 20 active projects', '✓'],
+              ['Batch-generate & export up to 20 stores at once', '✓'],
               ['Unlimited generations', '✓'],
               ['Unlimited iterations', '✓'],
               ['Full ZIP export — white-label, no branding', '✓'],
@@ -167,7 +167,7 @@ export default async function BillingPage({ searchParams }: Props) {
         {(projectCount ?? 0) >= record.project_limit && (
           <div style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)' }}>
             <p style={{ fontSize: 13, color: '#e0a04f', margin: '0 0 4px' }}>
-              You{"'"}ve reached the 20-project limit.
+              You{"'"}ve reached the Agency batch limit (20 simultaneous stores).
             </p>
             <a href="mailto:support@quante.io" style={{ fontSize: 13, color: '#e0a04f', fontWeight: 600 }}>
               Contact us for a custom enterprise plan →
@@ -261,7 +261,7 @@ export default async function BillingPage({ searchParams }: Props) {
       <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.15)', background: 'rgba(62,207,142,.04)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: '0 0 3px' }}>Agency plan — ${AGENCY_MONTHLY_USD}/month</p>
-          <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Unlimited generations · 20 projects · white-label ZIP export</p>
+          <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Generate &amp; export up to 20 stores at once · unlimited projects · white-label ZIP export</p>
         </div>
         <a href="/pricing#agency" style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: '#3ecf8e', padding: '6px 14px', borderRadius: 7, border: '1px solid rgba(62,207,142,.3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
           See Agency plan →
