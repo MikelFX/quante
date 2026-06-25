@@ -345,7 +345,7 @@ export function Navbar() {
             {config.brand.logoText ?? config.brand.name}
           </Link>
 
-          <nav style={{ display: 'flex', gap: 28, alignItems: 'center' }} className="hidden-mobile">
+          <nav className="hidden md:flex" style={{ gap: 28, alignItems: 'center' }}>
             {config.nav.map((item) => (
               <Link key={item.href} href={item.href} style={{ fontSize: 14, color: 'var(--color-text)', textDecoration: 'none', opacity: 0.8 }}>
                 {item.label}
@@ -372,8 +372,8 @@ export function Navbar() {
             </button>
             <button
               onClick={() => setMobileOpen((v) => !v)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', padding: 8, lineHeight: 0, display: 'none' }}
-              className="show-mobile"
+              className="md:hidden"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text)', padding: 8, lineHeight: 0 }}
               aria-label="Menu"
             >
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -542,7 +542,6 @@ export default async function Page({ params }: Props) {
 body { font-family: var(--font-body); background-color: var(--color-bg); color: var(--color-text); -webkit-font-smoothing: antialiased; }
 h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }
 a { color: inherit; }
-@media (max-width: 768px) { .hidden-mobile { display: none !important; } .show-mobile { display: flex !important; } }
 `)
 
   return files

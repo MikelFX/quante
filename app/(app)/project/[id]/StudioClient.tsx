@@ -528,7 +528,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               if (err.errorMessage) {
                 setMessages(prev => [...prev, {
                   role: 'assistant',
-                  content: `Preview build failed:\n\`\`\`\n${err.errorMessage.slice(0, 600)}\n\`\`\`\nClick **⟳ Rebuild preview** or iterate to fix.`,
+                  content: `Preview build failed:\n\`\`\`\n${err.errorMessage.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
                   type: 'error' as const,
                 }])
               }
@@ -718,6 +718,9 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         return
       }
     }
+    // Stream ended without a 'done' or 'error' event — surface as an error
+    setStreamingText('')
+    throw new Error('Stream ended unexpectedly. Please try again.')
   }
 
   async function handleFix() {
@@ -891,6 +894,16 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
     }
   }
 
+  async function triggerRedeploy() {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/redeploy`, { method: 'POST' })
+      if (!res.ok) return
+      const data = await res.json() as { deploymentId?: string; previewUrl?: string }
+      if (data.previewUrl) { setPreviewUrl(data.previewUrl); setPreviewReady(false) }
+      if (data.deploymentId) startLogStreaming(data.deploymentId)
+    } catch {}
+  }
+
   async function handleRestore(versionId: string) {
     setShowVersions(false)
     try {
@@ -900,9 +913,9 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         body: JSON.stringify({ versionId }),
       })
       if (res.ok) {
-        await res.json()
         fetchVersions()
-        setMessages((prev) => [...prev, { role: 'assistant', content: 'Version restored. Re-deploy preview to see changes.', type: 'done' }])
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Version restored — rebuilding preview…', type: 'done' }])
+        await triggerRedeploy()
       }
     } catch {}
   }
@@ -3161,23 +3174,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 6 }}>no preview yet</p>
               {hasGeneratedOnce ? (
                 <button
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/quante/iterate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ projectId, instruction: 'Rebuild — no changes needed.' }),
-                      })
-                      if (!res.body) return
-                      for await (const event of readNdjsonStream(res)) {
-                        if (event.type === 'done' && event.previewUrl) {
-                          setPreviewUrl(event.previewUrl)
-                          setPreviewReady(false)
-                          if (event.deploymentId) startLogStreaming(event.deploymentId)
-                        }
-                      }
-                    } catch {}
-                  }}
+                  onClick={() => triggerRedeploy()}
                   style={{
                     marginTop: 12, fontSize: 12, fontWeight: 600, padding: '7px 16px',
                     borderRadius: 7, border: '1px solid rgba(111,120,230,.3)',

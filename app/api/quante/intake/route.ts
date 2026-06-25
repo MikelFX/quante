@@ -7,8 +7,16 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (e: object) => controller.enqueue(encoder.encode(JSON.stringify(e) + '\n'))
-      try { await fn(send) } finally { controller.close() }
+      function send(event: object) {
+        try { controller.enqueue(encoder.encode(JSON.stringify(event) + '\n')) } catch {}
+      }
+      try {
+        await fn(send)
+      } catch (err) {
+        send({ type: 'error', message: err instanceof Error ? err.message : 'Something went wrong.' })
+      } finally {
+        controller.close()
+      }
     },
   })
   return new Response(stream, { headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' } })
