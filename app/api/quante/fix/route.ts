@@ -71,12 +71,28 @@ export async function POST(request: Request) {
   if (!current) return NextResponse.json({ error: 'No code version found.' }, { status: 404 })
 
   const currentFiles = current.files as CodeVersionFiles
-  const fileContent = currentFiles[filePath]
-  if (!fileContent) {
-    return NextResponse.json({ error: `File not found in code version: ${filePath}` }, { status: 404 })
+
+  // Resolve file: exact → basename match → all-files fallback
+  let resolvedPath = filePath
+  let fileContent: string | undefined = currentFiles[filePath]
+
+  if (!fileContent && filePath !== 'store') {
+    const base = filePath.split('/').pop() ?? ''
+    const match = Object.keys(currentFiles).find(k => k.endsWith('/' + base) || k === base)
+    if (match) { resolvedPath = match; fileContent = currentFiles[match] }
   }
 
-  const userMessage = `BUILD ERROR:\n${errorMessage}\n\nFILE TO FIX: ${filePath}\n\nFILE CONTENT:\n${fileContent}`
+  let userMessage: string
+  if (fileContent) {
+    userMessage = `BUILD ERROR:\n${errorMessage}\n\nFILE TO FIX: ${resolvedPath}\n\nFILE CONTENT:\n${fileContent}`
+  } else {
+    // File can't be pinpointed — send all generated files and ask Claude to find and fix
+    const allFilesText = Object.entries(currentFiles)
+      .map(([path, content]) => `<file path="${path}">\n${content}\n</file>`)
+      .join('\n\n')
+    userMessage = `BUILD ERROR:\n${errorMessage}\n\nThe error may be in any of these files. Identify the problematic file and fix it:\n\n${allFilesText}`
+    resolvedPath = filePath
+  }
 
   // Call Claude to fix the error
   let rawOutput = ''
@@ -96,7 +112,7 @@ export async function POST(request: Request) {
   // Parse the fix output
   let output: FixOutput
   try {
-    output = parseFixOutput(rawOutput, filePath)
+    output = parseFixOutput(rawOutput, resolvedPath)
   } catch {
     return NextResponse.json({ error: 'Could not parse fix output.' }, { status: 500 })
   }

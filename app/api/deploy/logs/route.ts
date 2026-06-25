@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
-import { streamDeploymentLogs } from '@/lib/hosting/vercel'
+import { streamDeploymentLogs, getBuildError, getDeploymentStatus } from '@/lib/hosting/vercel'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
@@ -16,8 +16,8 @@ interface ParsedError {
 }
 
 function parseBuildError(text: string): ParsedError | null {
-  // Match Next.js/TypeScript error format: ./path/to/file.tsx:line:col
-  const fileLineMatch = text.match(/\.\/([^:]+\.(?:ts|tsx|js|jsx)):(\d+)(?::\d+)?/)
+  // Match Next.js/TypeScript error format: (./)?path/to/file.tsx:line:col
+  const fileLineMatch = text.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)(?::\d+)?/)
   if (!fileLineMatch) return null
 
   const filePath = fileLineMatch[1]
@@ -72,16 +72,33 @@ export async function GET(request: Request) {
 
             // Signal end of stream on terminal states
             if (event.type === 'ready' || event.type === 'error') {
-              // Update deployment row in DB so next page-load shows correct state
               void (async () => {
                 try {
                   await supabaseAdmin.from('deployments')
                     .update({ status: event.type === 'ready' ? 'ready' : 'error' })
                     .eq('vercel_deployment_id', deploymentId)
                 } catch {}
+
+                // On error: fetch full build error text and send as build_error event
+                // so the client can surface it and trigger auto-fix even if log lines were missed
+                if (event.type === 'error') {
+                  try {
+                    const errorText = await getBuildError(deploymentId)
+                    if (errorText && !errorText.startsWith('Build failed — ')) {
+                      const parsed = parseBuildError(errorText)
+                      sendEvent({
+                        type: 'build_error',
+                        filePath: parsed?.filePath ?? 'store',
+                        line: parsed?.line ?? 0,
+                        message: errorText.slice(0, 800),
+                      })
+                    }
+                  } catch {}
+                }
+
+                sendEvent({ type: 'stream_end', state: event.type })
+                controller.close()
               })()
-              sendEvent({ type: 'stream_end', state: event.type })
-              controller.close()
             }
           },
           abortController.signal,

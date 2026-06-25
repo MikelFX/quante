@@ -570,7 +570,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
     es.onmessage = (evt) => {
       try {
-        const data = JSON.parse(evt.data) as LogLine & { filePath?: string; line?: number; message?: string }
+        const data = JSON.parse(evt.data) as LogLine & { filePath?: string; line?: number; message?: string; state?: string }
 
         if (data.type === 'build_error' && data.filePath) {
           setBuildError({ filePath: data.filePath, line: data.line ?? 0, message: data.message ?? data.text })
@@ -580,10 +580,25 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         if (data.type === 'stream_end' || data.type === 'ready' || data.type === 'error') {
           es.close()
           logEventSourceRef.current = null
-          if (data.type === 'ready') {
+          if (data.state === 'ready' || data.type === 'ready') {
             setPreviewReady(true)
             setRightPanel('preview')
             setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' }])
+          } else if ((data.state === 'error' || data.type === 'error') && !buildError) {
+            // Stream ended with a build error but no build_error event was received —
+            // fetch the error details directly so auto-fix can trigger
+            fetch(`/api/deploy?id=${deploymentId}`)
+              .then(r => r.json())
+              .then((d: { status?: string; errorMessage?: string }) => {
+                const msg = d.errorMessage ?? 'Build failed — check Vercel logs for details.'
+                const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
+                setBuildError({
+                  filePath: fileMatch?.[1] ?? 'store',
+                  line: fileMatch ? parseInt(fileMatch[2]) : 0,
+                  message: msg.slice(0, 800),
+                })
+              })
+              .catch(() => {})
           }
           return
         }
@@ -609,9 +624,16 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               setPreviewReady(true)
               setRightPanel('preview')
             } else if ((d.status === 'error' || d.status === 'canceled') && d.errorMessage) {
+              const msg = d.errorMessage.slice(0, 800)
+              const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
+              setBuildError({
+                filePath: fileMatch?.[1] ?? 'store',
+                line: fileMatch ? parseInt(fileMatch[2]) : 0,
+                message: msg,
+              })
               setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: `Preview build failed:\n\`\`\`\n${d.errorMessage.slice(0, 600)}\n\`\`\`\nIterate to fix the error, or click **⟳ Rebuild preview**.`,
+                content: `Preview build failed:\n\`\`\`\n${msg.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
                 type: 'error' as const,
               }])
             }

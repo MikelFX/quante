@@ -252,6 +252,163 @@ function StackCard({ card, index, total, progress }: {
   )
 }
 
+// ─── Domain bloom section ─────────────────────────────────────────────────────
+
+function DomainBloomSection() {
+  const ref = useRef<HTMLElement>(null)
+  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
+
+  const l1Opacity = useTransform(scrollYProgress, [0, 0.08, 0.28, 0.44], [0.5, 0.65, 0.28, 0])
+  const l1Filter  = useTransform(scrollYProgress, p => `blur(${(8 + p * 28).toFixed(1)}px)`)
+  const l1Y       = useTransform(scrollYProgress, [0, 1], ['0px', '-28px'])
+
+  const l2Opacity = useTransform(scrollYProgress, [0, 0.12, 0.36, 0.53], [0.35, 0.72, 0.35, 0])
+  const l2Filter  = useTransform(scrollYProgress, p => `blur(${Math.max(0, 5 + (p - 0.05) * 22).toFixed(1)}px)`)
+  const l2Y       = useTransform(scrollYProgress, [0, 1], ['0px', '-18px'])
+
+  const l3Opacity = useTransform(scrollYProgress, [0, 0.18, 0.44, 0.60], [0.25, 0.72, 0.5, 0])
+  const l3Filter  = useTransform(scrollYProgress, p => `blur(${Math.max(0, 3 + (p - 0.08) * 14).toFixed(1)}px)`)
+  const l3Y       = useTransform(scrollYProgress, [0, 1], ['0px', '-10px'])
+
+  const l4Opacity = useTransform(scrollYProgress, [0, 0.22, 0.54, 0.78, 0.93], [0, 1, 1, 0.8, 0])
+  const l4Filter  = useTransform(scrollYProgress, p => {
+    const blur = p < 0.35 ? Math.max(0, (0.35 - p) * 22) : Math.max(0, (p - 0.76) * 32)
+    return `blur(${blur.toFixed(1)}px)`
+  })
+
+  const tableOpacity = useTransform(scrollYProgress, [0.52, 0.68, 0.90, 0.99], [0, 1, 1, 0])
+
+  return (
+    <section ref={ref} style={{ position: 'relative', height: '320vh' }}>
+      <div style={{
+        position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
+        background: '#060608',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        {/* Blue glow top-left */}
+        <div style={{
+          position: 'absolute', top: -100, left: -130,
+          width: 680, height: 680, borderRadius: '50%', pointerEvents: 'none',
+          background: 'radial-gradient(circle at 30% 30%, rgba(55,78,210,.38) 0%, rgba(40,60,180,.15) 40%, transparent 68%)',
+        }} />
+        {/* Green glow bottom-right */}
+        <div style={{
+          position: 'absolute', bottom: -80, right: -100,
+          width: 520, height: 520, borderRadius: '50%', pointerEvents: 'none',
+          background: 'radial-gradient(circle at 62% 65%, rgba(30,200,110,.30) 0%, rgba(16,185,129,.13) 42%, transparent 68%)',
+        }} />
+        {/* Grain */}
+        <div style={{
+          position: 'absolute', inset: 0, opacity: 0.025, pointerEvents: 'none', zIndex: 1,
+          backgroundImage: `url("${GRAIN_SVG}")`,
+        }} />
+
+        {/* Content */}
+        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 24px', maxWidth: 960, width: '100%' }}>
+          <p style={{
+            fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#383845',
+            letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 44,
+          }}>
+            02 — from idea to live store
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <motion.p style={{
+              margin: 0, opacity: l1Opacity, filter: l1Filter, y: l1Y,
+              fontSize: 'clamp(22px, 3.4vw, 40px)', fontWeight: 700,
+              letterSpacing: '-.03em', color: '#b8b8cc', lineHeight: 1.15,
+            }}>
+              Describe what you want.
+            </motion.p>
+
+            <motion.p style={{
+              margin: 0, opacity: l2Opacity, filter: l2Filter, y: l2Y,
+              fontSize: 'clamp(22px, 3.4vw, 40px)', fontWeight: 700,
+              letterSpacing: '-.03em', color: '#c4c4d8', lineHeight: 1.15,
+            }}>
+              Quante{' '}
+              <span style={{
+                color: '#7a88f2',
+                textShadow: '0 0 22px rgba(100,120,245,.55), 0 0 56px rgba(80,100,230,.28)',
+              }}>
+                builds the store
+              </span>{' '}—
+            </motion.p>
+
+            <motion.p style={{
+              margin: '4px 0', opacity: l3Opacity, filter: l3Filter, y: l3Y,
+              fontSize: 'clamp(13px, 1.8vw, 18px)', fontWeight: 400,
+              letterSpacing: '-.005em', color: '#606070', lineHeight: 1.5,
+            }}>
+              copy, design, products. All of it. Then hit Deploy —
+            </motion.p>
+
+            <motion.p style={{
+              margin: '8px 0 0', opacity: l4Opacity, filter: l4Filter,
+              fontSize: 'clamp(30px, 5vw, 60px)', fontWeight: 800,
+              letterSpacing: '-.04em', color: '#f2f2fa', lineHeight: 1.1,
+            }}>
+              and you&apos;re{' '}
+              <span style={{ filter: 'drop-shadow(0 0 18px rgba(52,211,153,.58)) drop-shadow(0 0 50px rgba(52,211,153,.30))' }}>
+                <span style={{
+                  background: 'linear-gradient(95deg, #34d399 0%, #10b981 55%, #059669 100%)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+                }}>
+                  live on your own domain
+                </span>
+              </span>{' '}in minutes.
+            </motion.p>
+          </div>
+
+          {/* Comparison table */}
+          <motion.div style={{ opacity: tableOpacity, marginTop: 52 }}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr',
+              gap: '0 56px', maxWidth: 600, margin: '0 auto', textAlign: 'left',
+            }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {[
+                  'Set up a server or Vercel account',
+                  'Configure DNS and SSL yourself',
+                  'DevOps before your first sale',
+                  'Hours before you can share a link',
+                ].map(txt => (
+                  <div key={txt} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                    <span style={{ color: '#5a2828', fontSize: 12, flexShrink: 0, marginTop: 1 }}>✕</span>
+                    <span style={{ fontSize: 12, color: '#3c3c4c', textDecoration: 'line-through', lineHeight: 1.45 }}>{txt}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p style={{
+                  fontFamily: 'var(--font-geist-mono)', fontSize: 9.5, color: '#2a9e6e',
+                  letterSpacing: '.14em', textTransform: 'uppercase', margin: '0 0 12px',
+                }}>
+                  QUANTE
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                  {[
+                    'One click in the Studio',
+                    'SSL included automatically',
+                    'Live on your-store.stores.quantecode.com',
+                    'Ready in about 3 minutes',
+                  ].map(txt => (
+                    <div key={txt} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                      <span style={{ color: '#34d399', fontSize: 12, flexShrink: 0, marginTop: 1 }}>✓</span>
+                      <span style={{ fontSize: 12, color: '#7a7a8a', lineHeight: 1.45 }}>{txt}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -726,41 +883,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── DOMAIN OWNERSHIP ── */}
-      <section style={{
-        padding: '80px 24px',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(111,120,230,.04) 50%, transparent 100%)',
-      }}>
-        <div style={{ maxWidth: 800, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.15em', margin: '0 0 16px' }}>
-            ownership
-          </p>
-          <h2 style={{ fontSize: 'clamp(28px, 5vw, 48px)', fontWeight: 700, color: '#e0e0e8', margin: '0 0 16px', lineHeight: 1.15, letterSpacing: '-0.02em' }}>
-            Your store.<br />Your domain.
-          </h2>
-          <p style={{ fontSize: 15, color: '#6b6b78', maxWidth: 540, margin: '0 auto 48px', lineHeight: 1.7 }}>
-            Search for the perfect domain name, buy it in seconds, and it automatically connects to your store. Or bring your own domain — it works either way.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, textAlign: 'left' }}>
-            {[
-              { icon: '🔍', title: 'Find your name', desc: 'Search .com, .io, .store, .shop — see availability and pricing instantly.' },
-              { icon: '⚡', title: 'One-click connect', desc: 'Buy and connect your domain in one flow. DNS is configured automatically.' },
-              { icon: '🔒', title: 'Privacy protection', desc: 'WHOIS privacy included. Your personal info stays private.' },
-              { icon: '🔄', title: 'Auto-renew', desc: "Never worry about expiry. We handle renewals so your store stays live." },
-            ].map(item => (
-              <div key={item.title} style={{
-                padding: '20px', borderRadius: 12,
-                border: '1px solid rgba(255,255,255,.07)',
-                background: 'rgba(255,255,255,.02)',
-              }}>
-                <div style={{ fontSize: 22, marginBottom: 10 }}>{item.icon}</div>
-                <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>{item.title}</p>
-                <p style={{ margin: 0, fontSize: 12, color: '#6b6b78', lineHeight: 1.6 }}>{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <DomainBloomSection />
 
       {/* ── PRICING PREVIEW ── */}
       <section style={{

@@ -102,7 +102,7 @@ export async function createPreviewDeployment(
     requestBody: {
       name: vercelProjectId,
       project: vercelProjectId,
-      target: 'preview',
+      target: 'production',
       files: files.map((f) => ({
         file: f.path,
         data: f.data,
