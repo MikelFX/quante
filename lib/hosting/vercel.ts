@@ -92,6 +92,9 @@ export async function createDeployment(
   return { deploymentId: result.id, url: result.url }
 }
 
+// Auto-deploy (used by generate/iterate/fix/redeploy): production target so the store
+// is always up to date, but returns the raw Vercel URL so the iframe works immediately
+// regardless of whether the custom subdomain DNS is configured.
 export async function createPreviewDeployment(
   vercelProjectId: string,
   files: Array<{ path: string; data: string; encoding?: string }>,
@@ -111,22 +114,39 @@ export async function createPreviewDeployment(
     },
   })
 
-  // Assign store subdomain (e.g. my-store.stores.quantecode.com)
+  // Wire up subdomain in background — DNS may not be configured yet, non-fatal
   if (storeSlug && HOSTING_ROOT_DOMAIN) {
     const storeDomain = `${storeSlug}.${HOSTING_ROOT_DOMAIN}`
-    try {
-      await attachDomain(vercelProjectId, storeDomain)
-    } catch (err) {
+    attachDomain(vercelProjectId, storeDomain).catch((err) => {
       console.warn('[vercel] attachDomain failed (non-fatal):', err)
-    }
+    })
   }
 
+  // Always return the raw Vercel URL — the subdomain serves once DNS is configured
   const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
-  // Return the subdomain URL if we assigned one, otherwise the Vercel preview URL
-  const storeUrl = storeSlug && HOSTING_ROOT_DOMAIN
-    ? `https://${storeSlug}.${HOSTING_ROOT_DOMAIN}`
-    : rawUrl
-  return { deploymentId: result.id, url: storeUrl }
+  return { deploymentId: result.id, url: rawUrl }
+}
+
+// True Vercel preview (no target): unique URL per deploy, no subdomain.
+// Used for manual "Preview deploy" (2 credits) from the Studio.
+export async function createVercelPreviewDeploy(
+  vercelProjectId: string,
+  files: Array<{ path: string; data: string; encoding?: string }>,
+): Promise<{ deploymentId: string; url: string }> {
+  const result = await vercel.deployments.createDeployment({
+    teamId: TEAM_ID,
+    requestBody: {
+      name: vercelProjectId,
+      project: vercelProjectId,
+      files: files.map((f) => ({
+        file: f.path,
+        data: f.data,
+        encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+      })),
+    },
+  })
+  const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
+  return { deploymentId: result.id, url: rawUrl }
 }
 
 export async function streamDeploymentLogs(

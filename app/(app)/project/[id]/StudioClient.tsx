@@ -306,6 +306,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
   const [isDeploying, setIsDeploying] = useState(false)
+  const [isPreviewDeploying, setIsPreviewDeploying] = useState(false)
   const [deployStatus, setDeployStatus] = useState<'idle' | 'building' | 'ready' | 'error'>('idle')
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [deployDomain, setDeployDomain] = useState<string | null>(null)
@@ -1034,6 +1035,48 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         updated[updated.length - 1] = { role: 'assistant', content: 'Deployment request failed. Try again.', type: 'error' }
         return updated
       })
+    }
+  }
+
+  async function handlePreviewDeploy() {
+    if (!hasGeneratedOnce || isPreviewDeploying) return
+    setIsPreviewDeploying(true)
+    setMessages((prev) => [...prev, { role: 'assistant', content: 'Creating preview deployment… (2 credits)', type: 'status' }])
+    try {
+      const res = await fetch('/api/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, type: 'preview' }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: data.error ?? 'Preview deploy failed.', type: 'error' }
+          return updated
+        })
+        return
+      }
+      refreshBalance()
+      const url = data.previewUrl as string
+      if (data.deploymentId) startLogStreaming(data.deploymentId)
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = {
+          role: 'assistant',
+          content: `Preview deployment started. Once built, it'll be available at:\n\n[${url}](${url})\n\nThis is a unique preview URL — it doesn't affect your live store.`,
+          type: 'done',
+        }
+        return updated
+      })
+    } catch {
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { role: 'assistant', content: 'Preview deploy request failed.', type: 'error' }
+        return updated
+      })
+    } finally {
+      setIsPreviewDeploying(false)
     }
   }
 
@@ -2761,28 +2804,36 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', wordBreak: 'break-all', marginBottom: 12 }}>
               {liveDomain ?? liveUrl}
             </p>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <a
                 href={liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--live)', color: '#000', textDecoration: 'none', textAlign: 'center' }}
+                style={{ flex: 1, minWidth: 80, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--live)', color: '#000', textDecoration: 'none', textAlign: 'center' }}
               >
-                Visit store ↗
+                Visit ↗
               </a>
               <button
                 onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
-                style={{ fontSize: 12, padding: '8px 12px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
               >
                 Copy
               </button>
               <button
-                onClick={handleDeploy}
-                disabled={isDeploying || !currentManifest}
-                title="Redeploy latest changes"
-                style={{ fontSize: 12, padding: '8px 12px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
+                onClick={handlePreviewDeploy}
+                disabled={isPreviewDeploying || isDeploying || !currentManifest}
+                title="Preview deploy — 2 credits, unique URL"
+                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isPreviewDeploying ? 'not-allowed' : 'pointer', opacity: isPreviewDeploying ? 0.5 : 1 }}
               >
-                {isDeploying ? '…' : '⟳'}
+                {isPreviewDeploying ? '…' : 'Preview'}
+              </button>
+              <button
+                onClick={handleDeploy}
+                disabled={isDeploying || isPreviewDeploying || !currentManifest}
+                title="Production redeploy — 5 credits"
+                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
+              >
+                {isDeploying ? '…' : '⟳ Prod'}
               </button>
             </div>
           </div>
@@ -2802,26 +2853,45 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         ) : (
           /* Not deployed yet */
           <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Deploy to Quante hosting</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Deploy your store</p>
             <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
-              Your store goes live on a <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.quante.app</span> subdomain. Connect a custom domain after.
+              <strong style={{ color: '#f4f4f6' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.quante.app</span> subdomain (5 cr).<br />
+              <strong style={{ color: '#f4f4f6' }}>Preview</strong> — unique URL for testing, doesn&apos;t affect live store (2 cr).
             </p>
             {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && (
-              <p style={{ fontSize: 11, color: '#e0a04f', margin: 0 }}>Starts your 30-day free trial.</p>
+              <p style={{ fontSize: 11, color: '#e0a04f', margin: 0 }}>First production deploy starts your 30-day free trial.</p>
             )}
-            <button
-              onClick={handleDeploy}
-              disabled={!currentManifest || isDeploying || !checklistAllOk}
-              style={{
-                width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none',
-                cursor: !currentManifest || isDeploying || !checklistAllOk ? 'not-allowed' : 'pointer',
-                background: checklistAllOk ? 'var(--live)' : 'rgba(255,255,255,.06)',
-                color: checklistAllOk ? '#000' : '#5b5b64',
-                transition: 'background 0.15s, color 0.15s',
-              }}
-            >
-              {!currentManifest ? 'Generate a store first' : !checklistAllOk ? 'Complete checklist to deploy' : isDeploying ? '⟳ Deploying…' : 'Deploy store'}
-            </button>
+            {!currentManifest ? (
+              <p style={{ fontSize: 12, color: '#5b5b64', margin: 0, textAlign: 'center' }}>Generate a store first</p>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handlePreviewDeploy}
+                  disabled={isPreviewDeploying || isDeploying}
+                  style={{
+                    flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 7,
+                    border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
+                    color: isPreviewDeploying || isDeploying ? '#5b5b64' : '#f4f4f6',
+                    cursor: isPreviewDeploying || isDeploying ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {isPreviewDeploying ? '⟳ …' : 'Preview — 2 cr'}
+                </button>
+                <button
+                  onClick={handleDeploy}
+                  disabled={isDeploying || isPreviewDeploying || !checklistAllOk}
+                  style={{
+                    flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none',
+                    cursor: isDeploying || isPreviewDeploying || !checklistAllOk ? 'not-allowed' : 'pointer',
+                    background: checklistAllOk ? 'var(--live)' : 'rgba(255,255,255,.06)',
+                    color: checklistAllOk ? '#000' : '#5b5b64',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                >
+                  {isDeploying ? '⟳ …' : !checklistAllOk ? 'Complete checklist' : 'Production — 5 cr'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </section>

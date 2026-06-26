@@ -28,7 +28,8 @@ export const CREDIT_COSTS = {
   custom_component:  3,
   export:            5,
   export_admin:     10,
-  deploy:            5,
+  deploy:            5,  // production deploy (subdomain)
+  preview_deploy:    2,  // preview deploy (unique URL, no subdomain)
   fix:               2,
   vision:            1,
   welcome_grant:    25,

@@ -3,10 +3,12 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { buildStoreFiles, toStoreSlug } from '@/lib/store-template/build'
+import { CREDIT_COSTS } from '@/lib/config'
 import {
   ensureVercelProject,
   setEnvVars,
   createDeployment,
+  createVercelPreviewDeploy,
   getDeploymentStatus,
   getBuildError,
   attachDomain,
@@ -17,6 +19,7 @@ import type { CodeVersionFiles } from '@/types/store-code'
 export const maxDuration = 60
 
 const DEPLOY_COST = 5
+const PREVIEW_DEPLOY_COST = CREDIT_COSTS.preview_deploy
 
 // ─── POST /api/deploy ─────────────────────────────────────────────────────────
 // Kick off a deployment. Returns immediately with { deploymentId, domain }.
@@ -28,8 +31,83 @@ export async function POST(request: Request) {
 
   const supabase = await createClient()
 
-  const { projectId } = await request.json()
+  const body = await request.json()
+  const { projectId, type = 'production' }: { projectId: string; type?: 'preview' | 'production' } = body
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
+
+  // ── Preview deploy path (2 credits, unique Vercel URL, no subdomain) ──────────
+  if (type === 'preview') {
+    const supabase = await createClient()
+
+    const { data: project } = await supabase
+      .from('projects').select('id, name, vercel_project_id').eq('id', projectId).eq('user_id', userId).maybeSingle()
+    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+
+    const { data: ledger } = await supabase
+      .from('credit_ledger').select('balance_after').eq('user_id', userId)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const balance = ledger?.balance_after ?? 0
+    if (balance < PREVIEW_DEPLOY_COST) {
+      return NextResponse.json({ error: `Insufficient credits. Need ${PREVIEW_DEPLOY_COST}, have ${balance}.` }, { status: 402 })
+    }
+
+    const { data: version } = await supabase
+      .from('code_versions').select('id, files, version_no').eq('project_id', projectId)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (!version) return NextResponse.json({ error: 'No generated store found.' }, { status: 404 })
+
+    const slug = (() => {
+      try {
+        const cfg = (version.files as Record<string, string>)['data/config.ts'] ?? ''
+        const m = cfg.match(/name:\s*['"]([^'"]+)['"]/)
+        return m ? toStoreSlug(m[1]) : toStoreSlug(project.name)
+      } catch { return toStoreSlug(project.name) }
+    })() || 'my-store'
+
+    let vercelProjectId: string
+    try {
+      const r = await ensureVercelProject(slug)
+      vercelProjectId = r.vercelProjectId
+      if (!project.vercel_project_id) {
+        await supabaseAdmin.from('projects').update({ vercel_project_id: vercelProjectId }).eq('id', projectId)
+      }
+    } catch (err) {
+      console.error('[deploy/preview] ensureVercelProject failed:', err)
+      return NextResponse.json({ error: 'Failed to provision hosting project.' }, { status: 500 })
+    }
+
+    let files
+    try { files = buildStoreFiles(version.files as Record<string, string>) }
+    catch (err) { console.error('[deploy/preview] buildStoreFiles failed:', err); return NextResponse.json({ error: 'Failed to build store files.' }, { status: 500 }) }
+
+    let deploymentId: string, previewUrl: string
+    try {
+      const r = await createVercelPreviewDeploy(
+        vercelProjectId,
+        files.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
+      )
+      deploymentId = r.deploymentId
+      previewUrl = r.url
+    } catch (err) {
+      console.error('[deploy/preview] createVercelPreviewDeploy failed:', err)
+      return NextResponse.json({ error: 'Failed to start preview deployment.' }, { status: 500 })
+    }
+
+    // Debit credits immediately for preview (no polling)
+    await supabaseAdmin.from('credit_ledger').insert({
+      user_id: userId, delta: -PREVIEW_DEPLOY_COST, reason: 'preview_deploy',
+      ref_id: projectId, balance_after: balance - PREVIEW_DEPLOY_COST,
+    })
+
+    await supabaseAdmin.from('deployments').insert({
+      project_id: projectId, user_id: userId,
+      vercel_project_id: vercelProjectId, vercel_deployment_id: deploymentId,
+      status: 'building', url: previewUrl, domain: null,
+      version: version.version_no, code_version_id: version.id,
+    })
+
+    return NextResponse.json({ deploymentId, previewUrl, type: 'preview' })
+  }
 
   // Load project (ownership check via RLS) — fetch trial column separately so a missing
   // migration column doesn't silently break the whole lookup
