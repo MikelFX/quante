@@ -93,8 +93,8 @@ export async function createDeployment(
 }
 
 // Auto-deploy (used by generate/iterate/fix/redeploy): production target so the store
-// is always up to date, but returns the raw Vercel URL so the iframe works immediately
-// regardless of whether the custom subdomain DNS is configured.
+// is always up to date. Returns the subdomain URL if DNS is verified, otherwise the
+// raw Vercel deployment URL so the iframe always works.
 export async function createPreviewDeployment(
   vercelProjectId: string,
   files: Array<{ path: string; data: string; encoding?: string }>,
@@ -114,16 +114,26 @@ export async function createPreviewDeployment(
     },
   })
 
-  // Wire up subdomain in background — DNS may not be configured yet, non-fatal
+  const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
+
+  // If a slug is provided, try to attach the subdomain and use it when DNS is verified
   if (storeSlug && HOSTING_ROOT_DOMAIN) {
     const storeDomain = `${storeSlug}.${HOSTING_ROOT_DOMAIN}`
-    attachDomain(vercelProjectId, storeDomain).catch((err) => {
+    try {
+      const { verified } = await attachDomain(vercelProjectId, storeDomain)
+      if (verified) {
+        return { deploymentId: result.id, url: `https://${storeDomain}` }
+      }
+    } catch (err) {
+      const msg = String(err)
+      // "already exists" means the domain was attached in a previous deploy — DNS is configured
+      if (msg.includes('already') || msg.includes('409') || msg.includes('exist')) {
+        return { deploymentId: result.id, url: `https://${storeDomain}` }
+      }
       console.warn('[vercel] attachDomain failed (non-fatal):', err)
-    })
+    }
   }
 
-  // Always return the raw Vercel URL — the subdomain serves once DNS is configured
-  const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
   return { deploymentId: result.id, url: rawUrl }
 }
 
