@@ -94,15 +94,16 @@ export async function POST(request: Request) {
     resolvedPath = filePath
   }
 
-  // Call Claude to fix the error
+  // Call Claude to fix the error (streaming required for long operations)
   let rawOutput = ''
   try {
-    const response = await anthropic.messages.create({
+    const stream = anthropic.messages.stream({
       model: ITERATION_MODEL,
       max_tokens: MAX_TOKENS,
       system: SYSTEM_PROMPT_CODE_FIX,
       messages: [{ role: 'user', content: userMessage }],
     })
+    const response = await stream.finalMessage()
     rawOutput = response.content[0].type === 'text' ? response.content[0].text : ''
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
