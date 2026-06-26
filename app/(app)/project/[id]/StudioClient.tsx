@@ -615,32 +615,33 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
     es.onerror = () => {
       es.close()
       logEventSourceRef.current = null
-      // If the stream closed without any logs, the build likely already finished.
-      // Fetch the status to surface any error in chat.
-      if (!receivedAnyLog) {
-        fetch(`/api/deploy?id=${deploymentId}`)
-          .then(r => r.json())
-          .then(d => {
-            if (d.status === 'ready') {
-              setPreviewReady(true)
-              setRightPanel('preview')
-            } else if ((d.status === 'error' || d.status === 'canceled') && d.errorMessage) {
-              const msg = d.errorMessage.slice(0, 800)
-              const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
-              setBuildError({
-                filePath: fileMatch?.[1] ?? 'store',
-                line: fileMatch ? parseInt(fileMatch[2]) : 0,
-                message: msg,
-              })
-              setMessages(prev => [...prev, {
-                role: 'assistant',
-                content: `Preview build failed:\n\`\`\`\n${msg.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
-                type: 'error' as const,
-              }])
+      // Always poll for final status — if the SSE connection dropped mid-stream
+      // (network hiccup, timeout, server close) we still need to resolve previewReady.
+      fetch(`/api/deploy?id=${deploymentId}`)
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'ready') {
+            setPreviewReady(true)
+            setRightPanel('preview')
+            if (!receivedAnyLog) {
+              setMessages(prev => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' as const }])
             }
-          })
-          .catch(() => {})
-      }
+          } else if ((d.status === 'error' || d.status === 'canceled') && d.errorMessage) {
+            const msg = d.errorMessage.slice(0, 800)
+            const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
+            setBuildError({
+              filePath: fileMatch?.[1] ?? 'store',
+              line: fileMatch ? parseInt(fileMatch[2]) : 0,
+              message: msg,
+            })
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `Preview build failed:\n\`\`\`\n${msg.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
+              type: 'error' as const,
+            }])
+          }
+        })
+        .catch(() => {})
     }
   }, [])
 
@@ -971,6 +972,10 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         setDeployUrl(data.url ?? null)
         setDeployDomain(data.domain ?? null)
         setLiveDeployment((prev) => prev ? { ...prev, status: 'ready', url: data.url ?? prev.url, domain: data.domain ?? prev.domain } : null)
+        // Show the production store in the iframe
+        if (data.url) setPreviewUrl(data.url)
+        setPreviewReady(true)
+        setRightPanel('preview')
         refreshBalance()
         setMessages((prev) => [
           ...prev,
