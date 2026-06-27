@@ -275,7 +275,9 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   const [hasGeneratedOnce, setHasGeneratedOnce] = useState(hasCodeVersion || !!latestDeployment)
   const [activeTab, setActiveTab] = useState<StudioTab>('chat')
   // Preview + logs state (new code-gen approach)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(latestDeployment?.url ?? null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    (() => { const u = latestDeployment?.url ?? null; return (u && !u.includes('://null') && u !== 'null') ? u : null })()
+  )
   const [rightPanel, setRightPanel] = useState<RightPanelTab>('preview')
   const [deployLogs, setDeployLogs] = useState<LogLine[]>([])
   const [buildError, setBuildError] = useState<BuildError | null>(null)
@@ -502,15 +504,15 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         if (d.status === 'ready') {
           if (isLiveDeploy) {
             setDeployStatus('ready')
-            setDeployUrl(d.url)
+            setDeployUrl((d.url && !d.url.includes('://null')) ? d.url : null)
             setDeployDomain(d.domain)
-          } else if (d.url) {
+          } else if (d.url && !d.url.includes('://null')) {
             // Preview deployment ready — show in iframe
             setPreviewUrl(d.url)
             setPreviewReady(true)
           }
         } else if (d.status === 'building' && d.vercelDeploymentId) {
-          if (d.url) setPreviewUrl(d.url)
+          if (d.url && !d.url.includes('://null')) setPreviewUrl(d.url)
           if (isLiveDeploy) {
             // Live deployment still building — resume polling
             setIsDeploying(true)
@@ -969,11 +971,12 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         stopDeployPoll()
         setIsDeploying(false)
         setDeployStatus('ready')
-        setDeployUrl(data.url ?? null)
+        const safeUrl = (data.url && !data.url.includes('://null')) ? data.url : null
+        setDeployUrl(safeUrl)
         setDeployDomain(data.domain ?? null)
-        setLiveDeployment((prev) => prev ? { ...prev, status: 'ready', url: data.url ?? prev.url, domain: data.domain ?? prev.domain } : null)
+        setLiveDeployment((prev) => prev ? { ...prev, status: 'ready', url: safeUrl ?? prev.url, domain: data.domain ?? prev.domain } : null)
         // Show the production store in the iframe
-        if (data.url) setPreviewUrl(data.url)
+        if (data.url && !data.url.includes('://null')) setPreviewUrl(data.url)
         setPreviewReady(true)
         setRightPanel('preview')
         refreshBalance()
@@ -1584,9 +1587,10 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
   // Deployment derived state — used in TopBar and panels
   const liveDomain = liveDeployment?.customDomain || deployDomain || liveDeployment?.domain
-  const liveUrl = liveDeployment?.customDomain
+  const liveUrlRaw = liveDeployment?.customDomain
     ? `https://${liveDeployment.customDomain}`
     : deployUrl || liveDeployment?.url
+  const liveUrl = (liveUrlRaw && !liveUrlRaw.includes('://null')) ? liveUrlRaw : null
 
   // Publish readiness checklist
   const publishChecklist = currentManifest ? [

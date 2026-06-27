@@ -321,9 +321,10 @@ export async function GET(request: Request) {
 
   // Already settled — return cached state
   if (row.status === 'ready' || row.status === 'error' || row.status === 'canceled') {
+    const safeUrl = (row.url && !row.url.includes('://null')) ? row.url : null
     return NextResponse.json({
       status: row.status,
-      url: row.url,
+      url: safeUrl,
       domain: row.domain,
       errorMessage: row.error_message,
     })
@@ -355,19 +356,21 @@ export async function GET(request: Request) {
   }
 
   if (vercelStatus.state === 'ready') {
-    const domain = row.domain as string
+    const domain = row.domain as string | null
     let finalUrl = vercelStatus.url ?? row.url
 
-    // Attach the subdomain (idempotent — if already attached, Vercel returns 400 which we ignore)
-    try {
-      const domainResult = await attachDomain(row.vercel_project_id as string, domain)
-      if (domainResult.verified) {
+    // Only attach domain for production deploys (preview deploys have domain = null)
+    if (domain) {
+      try {
+        const domainResult = await attachDomain(row.vercel_project_id as string, domain)
+        if (domainResult.verified) {
+          finalUrl = `https://${domain}`
+        }
+      } catch (err) {
+        // Domain already attached or wildcard DNS handles it — log and continue
+        console.warn('[deploy/status] attachDomain non-fatal:', err)
         finalUrl = `https://${domain}`
       }
-    } catch (err) {
-      // Domain already attached or wildcard DNS handles it — log and continue
-      console.warn('[deploy/status] attachDomain non-fatal:', err)
-      finalUrl = `https://${domain}`
     }
 
     // Update deployment row

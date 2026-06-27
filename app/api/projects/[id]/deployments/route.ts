@@ -25,7 +25,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           id: latest.id,
           vercelDeploymentId: latest.vercel_deployment_id,
           status: latest.status,
-          url: latest.url,
+          url: (latest.url && !latest.url.includes('://null')) ? latest.url : null,
           domain: latest.domain,
           customDomain: latest.custom_domain,
           customDomainVerified: latest.custom_domain_verified,
