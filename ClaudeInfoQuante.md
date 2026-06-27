@@ -58,7 +58,7 @@
 │   ├── login/page.tsx              — Clerk <SignIn> page
 │   ├── signup/page.tsx             — Clerk <SignUp> page
 │   ├── pricing/page.tsx            — Public pricing page (cinematic scroll, credit packs, Agency, FAQ)
-│   ├── showcase/page.tsx           — Public showcase page
+│   ├── showcase/page.tsx           — Public showcase: two real live stores (Axiom + Mamut) as interactive iframes with browser-chrome wrapper
 │   ├── about/page.tsx              — Public about page
 │   ├── auth/
 │   │   ├── callback/route.ts       — Clerk OAuth callback handler
@@ -78,9 +78,9 @@
 │   │   ├── settings/page.tsx       — User settings page
 │   │   ├── admin/page.tsx          — Internal admin page (grant credits, etc.)
 │   │   └── project/[id]/
-│   │       ├── page.tsx            — Studio page (server: loads project, balance, hosting, deployments → passes to StudioClient)
+│   │       ├── page.tsx            — Studio page (server: loads project, balance, hosting, deployments, computes storeUrl → passes to StudioClient)
 │   │       ├── layout.tsx          — Thin layout wrapper for project route
-│   │       ├── StudioClient.tsx    — LARGE 'use client' Studio component (~2,200 lines; see §7)
+│   │       ├── StudioClient.tsx    — LARGE 'use client' Studio component (~4,400 lines; see §7)
 │   │       └── MerchantPanel.tsx   — Merchant checkout/settings panel used inside Studio
 │   │
 │   ├── (preview)/                  — Preview iframe shell (separate layout, no platform chrome)
@@ -787,16 +787,22 @@ Client component. Three stages:
 On error: shows error message and returns to `ready` stage. Handles timeout gracefully ("check dashboard").
 
 ### `app/(app)/project/[id]/StudioClient.tsx` — The Studio
-Very large (~2,200 lines) 'use client' component. Key features:
+Very large (~4,400 lines) 'use client' component. Key features:
 - **Tabs (mobile)**: `chat | preview | logs | sections | products | theme | publish`
 - **Tabs (desktop left panel)**: `chat | sections | products | theme | publish`
 - **Right panel**: `preview (iframe) | logs`
 - **Admin mode** toggle (separate admin view): `dashboard | products | orders | customers | settings`
 
+**Props:**
+- `projectId`, `projectName`, `storeUrl: string | null` — canonical domain URL for preview iframe (e.g. `https://axiom.stores.quantecode.com`), computed server-side from `toStoreSlug(project.name) + HOSTING_ROOT_DOMAIN`
+- `initialBalance`, `hostingInfo`, `latestDeployment`, `hasCodeVersion`, `isAgency`
+
 **State managed:**
 - Messages (chat history), streaming text, input
 - Balance (refreshed after each action)
-- Preview URL (Vercel URL in iframe)
+- `previewUrl` — canonical URL shown in iframe; always resolved through `resolveUrl()` which substitutes `storeUrl` when a raw `vercel.app` URL would otherwise be used
+- `previewReady` — true when iframe should render (build complete)
+- `showPushToLive` — true after first-time generation; shows a green "Push to Live — 5 cr" button instead of the build loading spinner
 - Deploy logs (SSE from `/api/deploy/logs`)
 - Build errors (parsed from logs) + auto-fix (up to 3 attempts)
 - Versions list (`/api/projects/[id]/versions`)
@@ -805,26 +811,27 @@ Very large (~2,200 lines) 'use client' component. Key features:
 - Image upload
 - Vision analysis (image → brand)
 - Unsplash image suggestions
-- Custom domain input
+- Custom domain input — filtered to only show domains belonging to this project (`d.project_id === projectId || !d.project_id`)
 - Domain search/purchase
 - Owned domains list
-- Live deployment state (polling)
+- Live deployment state (polling) — only shown for deployments with `domain` set (production), not preview/auto-deploys
 - Hosting trial state
 - Admin: orders (Stripe + store), customers, revenue, shipment creation (Zásilkovna + DHL), payout account, IBAN
 - Zásilkovna / DHL credentials (set via settings tab)
 - Command palette (Cmd+K)
 
 **Key flows:**
-- **Chat send**: POST `/api/quante/iterate`, stream `text_chunk` events, on `done` reload iframe with new `previewUrl`
-- **Deploy**: POST `/api/deploy` → start polling `GET /api/deploy?id=...` every 12s
-- **Preview**: When `previewUrl` is set, renders it in `<iframe>`. `handleIframeLoad` resets if iframe navigates outside `/preview/`
-- **Log streaming**: `GET /api/deploy/logs?deploymentId=<id>` SSE via `EventSource`. On `build_error` event, sets `buildError` and can trigger auto-fix.
-- **Auto-fix**: POST `/api/quante/fix` (max 3 attempts). On success, new preview deploy starts.
+- **First-time generate**: after generation completes, sets `showPushToLive = true`. Right panel shows "🚀 Store ready to publish" card with "Push to Live — 5 cr" button. Clicking calls `handleDeploy()`.
+- **Chat iterate/fix**: POST `/api/quante/iterate` or `/api/quante/fix`, stream events, on `done` sets `previewUrl` via `resolveUrl()` and calls `startLogStreaming(deploymentId)`.
+- **Log streaming**: `GET /api/deploy/logs?deploymentId=<id>` SSE via `EventSource`. On `stream_end: ready` event, updates `previewUrl` to `storeUrl` (or falls back to fetching latest from `/api/projects/${projectId}/deployments`). On `build_error`, sets `buildError` and can trigger auto-fix.
+- **Auto-fix on page reload**: `fetchLatestDeploy` polls `GET /api/deploy?id=...` for status instead of starting SSE directly, to avoid triggering auto-fix for old errors.
+- **Production deploy**: POST `/api/deploy` → start polling `GET /api/deploy?id=...` every 12s. On ready: sets `previewUrl` via `resolveUrl()`, `previewReady = true`, clears `showPushToLive`.
+- **`resolveUrl(url)`**: helper that returns `storeUrl` if `url` contains `vercel.app` and `storeUrl` is set, otherwise returns `url ?? storeUrl ?? null`. Applied to ALL `setPreviewUrl()` calls.
 
 **Quick chips**: Pre-filled prompts in the chat input: GDPR page, Terms of service, Rewrite copy, Add product, New section, Change design.
 
 ### `app/(app)/project/[id]/page.tsx` — Studio Server Page
-Loads: project data, credit balance, hosting subscription, latest deployment, code version existence, agency flag. Passes all as props to `<StudioClient>`. Wrapped in `<Suspense>`.
+Loads: project data, credit balance, hosting subscription, latest deployment, code version existence, agency flag. Also computes `storeUrl = https://${toStoreSlug(project.name)}.${HOSTING_ROOT_DOMAIN}` (only when `hasCodeVersion` is true). Passes all as props to `<StudioClient>`. Wrapped in `<Suspense>`. Imports `toStoreSlug` from `lib/store-template/build` and `HOSTING_ROOT_DOMAIN` from `lib/hosting/vercel`.
 
 ### `app/(app)/dashboard/page.tsx`
 Server component. Ensures welcome grant (25 cr) on first visit. Shows project list, at-limit warnings (free: 3 projects, agency: 20), archived project notice.
@@ -878,10 +885,15 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
 
 3. Client redirects to /project/[id] (Studio)
 
-4. Studio loads, shows iframe with previewUrl
-   └── SSE from /api/deploy/logs?deploymentId=... streams build progress
-   └── On build_error: shows error, can auto-fix (POST /api/quante/fix)
-   └── On ready: previewReady = true, iframe shows live store
+4. Studio loads, shows "Push to Live" button (NOT log streaming on first generate)
+   └── showPushToLive = true; right panel shows green "Push to Live — 5 cr" card
+   └── Auto-deploy still created in DB (status='building') but client ignores its logs
+   └── User must click "Push to Live" to make store live at domain URL
+
+4a. User clicks "Push to Live" → handleDeploy() → POST /api/deploy (5 credits)
+   └── Polls GET /api/deploy?id=... every 12s
+   └── On ready: attachDomain, start 30-day trial, debit 5 credits
+   └── previewReady = true, iframe shows live store at storeUrl
 
 5. User iterates via chat (1 cr each)
    └── POST /api/quante/iterate
@@ -891,8 +903,11 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
        ├── merge changed files with current
        ├── save new code_versions row (version_no incremented)
        ├── debit 1 credit (or free for agency)
-       ├── createPreviewDeployment → new iframe URL
-       └── send { type: 'done', reply, previewUrl }
+       ├── createPreviewDeployment(vercelProjectId, files, slug) → always returns storeUrl (domain URL)
+       ├── insert into deployments (domain=null — iterate deploys are NOT live deploys)
+       └── send { type: 'done', reply, previewUrl=storeUrl, deploymentId }
+   Client: calls resolveUrl(previewUrl) → sets previewUrl, calls startLogStreaming(deploymentId)
+   On stream_end:ready → sets previewUrl = storeUrl, previewReady = true
 
 6. User deploys (5 cr, charged on success)
    └── POST /api/deploy
@@ -1000,7 +1015,7 @@ Uses `@vercel/sdk` + `VERCEL_TOKEN` + `VERCEL_TEAM_ID`.
 Search Vercel for project by name (exact match). If not found, create with `framework: 'nextjs'`. Returns `{ vercelProjectId }`. Idempotent.
 
 ### `createPreviewDeployment(vercelProjectId, files, storeSlug?)`
-Sends all files to Vercel deployments API (`target: 'production'`). If `storeSlug` provided, calls `attachDomain(vercelProjectId, slug.HOSTING_ROOT_DOMAIN)` — attaches the subdomain. Returns `{ deploymentId, url }` where `url` is either the subdomain URL or the raw Vercel URL.
+Sends all files to Vercel deployments API (`target: 'production'`). If `storeSlug` provided, calls `attachDomain(vercelProjectId, slug.HOSTING_ROOT_DOMAIN)` then **always returns `https://slug.HOSTING_ROOT_DOMAIN`** regardless of whether `attachDomain` throws (domain is almost certainly already attached from a prior deploy; all non-fatal errors are logged and swallowed). If `storeSlug` is absent, falls back to raw Vercel URL.
 
 ### `createDeployment(vercelProjectId, files, { target: 'production' })`
 Same as above without subdomain assignment. Used for live deploys where domain is assigned later via `attachDomain` in the GET `/api/deploy` handler.
@@ -1061,8 +1076,21 @@ The Stripe webhook (`/api/stripe/webhook`) distinguishes events by `session.meta
 - `type = 'hosting'` = hosting subscription (subscription webhook handles separately)
 - `type = 'domain_purchase'` = domain registration flow
 
-### preview vs production deployment distinction
-In `code_versions`/`deployments`, preview deployments have `domain = null`. Live (production) deployments have `domain = 'slug.quante.app'`. StudioClient uses this to distinguish: if latest deployment has a `domain`, it's a live deploy; otherwise it's a preview.
+### Preview URL — always use storeUrl, never raw vercel.app URLs
+Raw Vercel deployment URLs (e.g. `axiom-az20nza2a-mikelfxs-project.vercel.app`) are blocked in iframes by Vercel's security headers. The canonical `storeUrl` (computed server-side) is ALWAYS used instead. The `resolveUrl()` helper in StudioClient swaps any `vercel.app` URL for `storeUrl` at every `setPreviewUrl()` call site.
+
+### Preview vs production deployment distinction
+In `deployments` table: iterate/fix/auto-deploys have `domain = null`. Live (production) deploys have `domain = 'slug.stores.quantecode.com'`. StudioClient uses `!!d.domain` (`isLiveDeploy`) to distinguish:
+- Live deploy building → shows Deploy tab loading card, polls `GET /api/deploy?id=...` every 12s
+- Auto-deploy building → polls status once on page load (to avoid SSE triggering auto-fix for stale errors), then starts `startLogStreaming` only if genuinely still building
+- Live deploy ready → updates `deployStatus`, `deployUrl`, `deployDomain`
+- Auto-deploy ready → updates `previewUrl = storeUrl`, `previewReady = true`
+
+### SSE log streaming — termination guarantee
+`streamDeploymentLogs` can return without emitting a terminal event (build was already complete when streaming started). `GET /api/deploy/logs` handles this: after `streamDeploymentLogs` returns, if no terminal event was emitted, it calls `getDeploymentStatus` and sends appropriate `stream_end` + closes the SSE controller. This prevents the client from hanging indefinitely on "Building on Vercel…".
+
+### First-time generate requires Push to Live
+After `POST /api/quante/generate`, the client sets `showPushToLive = true` instead of starting log streaming. The auto-deploy runs on Vercel in the background but the client shows a "Push to Live — 5 cr" button. The user must click it to trigger a proper production deploy that attaches the subdomain. Iterate/fix auto-deploys (not first generation) still use the existing log streaming + `previewReady` flow.
 
 ---
 
@@ -1140,17 +1168,18 @@ All defined in `.env.local.example`:
 - **Custom domain**: Connect user-owned domains to deployed stores.
 
 ### In Progress / Known Issues
-- **Preview iframe**: The preview uses `/preview/[id]/...` routes inside the platform for legacy manifest-based stores. For code-gen stores, the preview is the actual Vercel preview deployment URL (loaded in iframe). The legacy preview components still exist but code-gen stores bypass them.
+- **Preview iframe**: For code-gen stores, the preview is the `storeUrl` domain URL (e.g. `https://axiom.stores.quantecode.com`) loaded in an iframe. The legacy `/preview/[id]/...` routes inside the platform exist for legacy manifest-based stores but code-gen stores bypass them. The iframe content equals what's live at the domain — not a separate "staging" view.
 - **maxDuration on Vercel**: 300s routes are at the Vercel max for Pro plans. Long briefs with claude-opus-4-7 can approach this. No graceful timeout/resume mechanism — user sees timeout error message.
 - **RLS inconsistency**: Some older migration policies use `auth.uid()::text` instead of `(auth.jwt() ->> 'sub')`. This works because Supabase maps the JWT sub claim to uid, but if the JWT structure changes it could break. All server code uses service-role client anyway.
 - **Admin panel feature flag**: `adminPanel?: boolean` exists in ShopManifest but the admin panel in the Studio is always available (not gated by the flag in the current UI).
+- **Auto-deploy on first generate is wasted**: The generate API creates a Vercel deployment (auto-deploy), but StudioClient now shows "Push to Live" instead of tracking it. A second production deploy is triggered when the user clicks "Push to Live". The first deploy runs silently and is effectively unused.
 
 ### Not Yet Implemented
-- **Phase 6 (Polish)**: showcase page content, full docs page, empty/error states, rate limit UI.
+- **Phase 6 (Polish)**: full docs page, empty/error states, rate limit UI.
 - **Supabase anon-key client**: `lib/supabase/client.ts` exists but is not used — all auth is via Clerk + service role.
 - **Middleware**: `lib/supabase/middleware.ts` exists but route protection may be minimal.
-- **`/showcase` page**: Route exists but content is likely placeholder.
 - **Three.js hero**: Mentioned in CLAUDE.md but not implemented.
+- **`/preview/demo`** route: still exists but no longer linked from the showcase page (which now uses real stores).
 
 ---
 
