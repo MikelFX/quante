@@ -763,7 +763,10 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         return updated
       })
       if (data.previewUrl) { setPreviewUrl(data.previewUrl); setPreviewReady(false) }
-      if (data.deploymentId) startLogStreaming(data.deploymentId)
+      if (data.deploymentId) {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Redeploying with the fix — watch the Logs tab on the right.', type: 'status' }])
+        startLogStreaming(data.deploymentId)
+      }
     } catch {
       setMessages((prev) => {
         const updated = [...prev]
@@ -838,7 +841,10 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           refreshBalance()
           fetchVersions()
           if (newPreviewUrl) { setPreviewUrl(newPreviewUrl); setPreviewReady(false) }
-          if (deploymentId) startLogStreaming(deploymentId)
+          if (deploymentId) {
+            setMessages(prev => [...prev, { role: 'assistant', content: 'Building preview in the background — watch the Logs tab on the right (~2 min).', type: 'status' }])
+            startLogStreaming(deploymentId)
+          }
         }
       )
     } catch {
@@ -1749,9 +1755,13 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         setPendingImageTarget(null)
       }} />
 
-      {!currentManifest ? (
+      {!hasGeneratedOnce ? (
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Generate a store first.</p>
+        </div>
+      ) : !currentManifest ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Use the chat to add or edit products — e.g. &quot;add a new product&quot;.</p>
         </div>
       ) : productDraft ? (
         // ── Product form ──
@@ -2290,10 +2300,15 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
 
   const SectionsPanel = (
     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-      {!currentManifest ? (
+      {!hasGeneratedOnce ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '3rem 1.5rem', gap: 8 }}>
           <Layers size={28} style={{ color: '#5b5b64' }} />
           <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center' }}>Generate a store first to manage sections.</p>
+        </div>
+      ) : !currentManifest ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '3rem 1.5rem', gap: 8 }}>
+          <Layers size={28} style={{ color: '#5b5b64' }} />
+          <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center' }}>Use the chat to add or rearrange sections — e.g. &quot;add a testimonials section&quot;.</p>
         </div>
       ) : (
         <>
@@ -2605,6 +2620,10 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         <p style={{ fontSize: 11, color: '#8a8a93', textAlign: 'center', fontFamily: 'var(--font-geist-mono)', marginTop: 4 }}>Saving…</p>
       )}
     </div>
+  ) : hasGeneratedOnce ? (
+    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 1.5rem' }}>
+      <p style={{ fontSize: 12, color: '#8a8a93' }}>Use the chat to change design — e.g. &ldquo;change accent to blue&rdquo; or &ldquo;use a minimal font&rdquo;.</p>
+    </div>
   ) : (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <p style={{ fontSize: 12, color: '#8a8a93' }}>Generate a store to unlock Theme controls.</p>
@@ -2690,11 +2709,11 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           )}
 
           {/* Owned domains */}
-          {ownedDomains.length > 0 && (
+          {ownedDomains.filter(d => !d.project_id || d.project_id === projectId).length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Your domains</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {ownedDomains.map(d => (
+                {ownedDomains.filter(d => !d.project_id || d.project_id === projectId).map(d => (
                   <div key={d.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)',
@@ -2870,7 +2889,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && (
               <p style={{ fontSize: 11, color: '#e0a04f', margin: 0 }}>First production deploy starts your 30-day free trial.</p>
             )}
-            {!currentManifest ? (
+            {!hasGeneratedOnce ? (
               <p style={{ fontSize: 12, color: '#5b5b64', margin: 0, textAlign: 'center' }}>Generate a store first</p>
             ) : (
               <div style={{ display: 'flex', gap: 8 }}>
