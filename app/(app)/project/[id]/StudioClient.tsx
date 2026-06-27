@@ -520,8 +520,31 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             setDeployDomain(d.domain)
             deployPollRef.current = setInterval(() => pollDeployStatus(d.vercelDeploymentId), 12000)
           } else {
-            // Preview deployment still building — stream logs (don't restart if URL-param effect already started it)
-            if (!logEventSourceRef.current) startLogStreaming(d.vercelDeploymentId)
+            // Preview deployment: poll Vercel status directly first to avoid triggering
+            // auto-fix for errors that happened before this page load.
+            if (!logEventSourceRef.current) {
+              fetch(`/api/deploy?id=${d.vercelDeploymentId}`)
+                .then(r => r.json())
+                .then(s => {
+                  if (s.status === 'ready') {
+                    const safeUrl = (s.url && !s.url.includes('://null')) ? s.url : null
+                    if (safeUrl) setPreviewUrl(safeUrl)
+                    setPreviewReady(true)
+                  } else if (s.status === 'error' || s.status === 'canceled') {
+                    if (s.errorMessage) {
+                      setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: `Previous build failed:\n\`\`\`\n${s.errorMessage.slice(0, 600)}\n\`\`\`\nDescribe a fix in chat to retry.`,
+                        type: 'error' as const,
+                      }])
+                    }
+                  } else {
+                    // Genuinely still building — stream logs live
+                    startLogStreaming(d.vercelDeploymentId)
+                  }
+                })
+                .catch(() => {})
+            }
           }
         } else if ((d.status === 'error' || d.status === 'canceled') && d.vercelDeploymentId && !isLiveDeploy) {
           // Preview build failed — fetch error message and show in chat
@@ -531,7 +554,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               if (err.errorMessage) {
                 setMessages(prev => [...prev, {
                   role: 'assistant',
-                  content: `Preview build failed:\n\`\`\`\n${err.errorMessage.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
+                  content: `Previous build failed:\n\`\`\`\n${err.errorMessage.slice(0, 600)}\n\`\`\`\nDescribe a fix in chat to retry.`,
                   type: 'error' as const,
                 }])
               }
@@ -2822,7 +2845,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
       {/* ── 2. Deploy / Live status ──────────────────────────────────────────── */}
       <section>
         <p style={eyebrowSt}>Deploy</p>
-        {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && liveUrl ? (
+        {(deployStatus === 'ready' || (liveDeployment?.domain && liveDeployment?.status === 'ready')) && liveUrl ? (
           /* Live card */
           <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.05)', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
@@ -2849,7 +2872,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               </button>
               <button
                 onClick={handlePreviewDeploy}
-                disabled={isPreviewDeploying || isDeploying || !currentManifest}
+                disabled={isPreviewDeploying || isDeploying}
                 title="Preview deploy — 2 credits, unique URL"
                 style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isPreviewDeploying ? 'not-allowed' : 'pointer', opacity: isPreviewDeploying ? 0.5 : 1 }}
               >
@@ -2857,7 +2880,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               </button>
               <button
                 onClick={handleDeploy}
-                disabled={isDeploying || isPreviewDeploying || !currentManifest}
+                disabled={isDeploying || isPreviewDeploying}
                 title="Production redeploy — 5 credits"
                 style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
               >
@@ -2865,7 +2888,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
               </button>
             </div>
           </div>
-        ) : deployStatus === 'building' || liveDeployment?.status === 'building' ? (
+        ) : deployStatus === 'building' || (liveDeployment?.domain && liveDeployment?.status === 'building') ? (
           /* Building card */
           <div style={{ borderRadius: 10, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
