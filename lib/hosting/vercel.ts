@@ -122,14 +122,14 @@ export async function createPreviewDeployment(
     const storeDomain = `${storeSlug}.${HOSTING_ROOT_DOMAIN}`
     try {
       await attachDomain(vercelProjectId, storeDomain)
-      return { deploymentId: result.id, url: `https://${storeDomain}` }
     } catch (err) {
       const msg = String(err)
-      if (msg.includes('already') || msg.includes('409') || msg.includes('exist')) {
-        return { deploymentId: result.id, url: `https://${storeDomain}` }
+      if (!msg.includes('already') && !msg.includes('409') && !msg.includes('exist') && !msg.includes('onflict')) {
+        console.error('[vercel] attachDomain failed:', err)
       }
-      console.error('[vercel] attachDomain failed:', err)
+      // Domain is almost certainly already attached from a prior deploy — use domain URL regardless
     }
+    return { deploymentId: result.id, url: `https://${storeDomain}` }
   }
 
   return { deploymentId: result.id, url: rawUrl }

@@ -607,6 +607,14 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           es.close()
           logEventSourceRef.current = null
           if (data.state === 'ready' || data.type === 'ready') {
+            // Fetch final URL from DB (domain URL, not raw Vercel URL) before showing iframe
+            fetch(`/api/projects/${projectId}/deployments`)
+              .then(r => r.json())
+              .then((d: { latest?: { url?: string; domain?: string } }) => {
+                const url = d.latest?.url
+                if (url && !url.includes('://null')) setPreviewUrl(url)
+              })
+              .catch(() => {})
             setPreviewReady(true)
             setRightPanel('preview')
             setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' }])
@@ -646,6 +654,7 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         .then(r => r.json())
         .then(d => {
           if (d.status === 'ready') {
+            if (d.url && !d.url.includes('://null')) setPreviewUrl(d.url)
             setPreviewReady(true)
             setRightPanel('preview')
             if (!receivedAnyLog) {
