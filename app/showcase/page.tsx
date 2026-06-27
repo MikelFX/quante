@@ -78,13 +78,25 @@ function LineReveal({ children, delay = 0, blue = false }: { children: string; d
   )
 }
 
-const STORE_TYPES = [
-  { category: 'Skincare', name: 'Minimal skincare ritual', voice: 'Clean · editorial · warm neutral palette', accent: '#c8a06a', demo: true },
-  { category: 'Fashion', name: 'Sustainable streetwear', voice: 'Bold · playful · high contrast', accent: '#e066b8' },
-  { category: 'Homeware', name: 'Artisan ceramics studio', voice: 'Earthy · spacious · editorial', accent: '#b8955a' },
-  { category: 'Tech', name: 'Developer tools & SaaS', voice: 'Technical · minimal · mono accents', accent: '#6f78e6' },
-  { category: 'Food', name: 'Specialty coffee roastery', voice: 'Warm · rich · strong CTA focus', accent: '#c9913a' },
-  { category: 'Wellness', name: 'Yoga studio & apparel', voice: 'Soft · playful · pastel palette', accent: '#84d0b8' },
+const LIVE_STORES = [
+  {
+    n: '01',
+    name: 'Axiom',
+    description: 'Technical outdoor equipment · Bold minimal aesthetic · CZK currency',
+    brief: 'A modern outdoor & technical gear brand. CZK currency. Clean, bold design with strong product focus.',
+    url: 'https://axiom.stores.quantecode.com/',
+    addressBar: 'axiom.stores.quantecode.com',
+    accent: '#6f78e6',
+  },
+  {
+    n: '02',
+    name: 'Mamut',
+    description: 'Outdoor adventure apparel · Rugged editorial style · CZK currency',
+    brief: 'An adventure apparel & gear store. CZK currency. Earthy, spacious editorial vibe with a strong CTA focus.',
+    url: 'https://mamut.stores.quantecode.com/',
+    addressBar: 'mamut.stores.quantecode.com',
+    accent: '#b8955a',
+  },
 ]
 
 export default function ShowcasePage() {
@@ -160,8 +172,8 @@ export default function ShowcasePage() {
               transition={{ duration: 0.8, delay: 0.4 }}
               style={{ fontSize: 16, lineHeight: 1.7, color: '#a4a4ad', maxWidth: 520, margin: '24px auto 0' }}
             >
-              Each store below was generated from a one-paragraph brief —
-              <br />complete, styled, ready to deploy. No manual design.
+              Real stores, live on the web — each generated from a one-paragraph brief.
+              <br />Complete, styled, deployed. No manual design.
             </motion.p>
           </motion.div>
 
@@ -172,213 +184,117 @@ export default function ShowcasePage() {
         </div>
       </section>
 
-      {/* LIVE DEMO */}
-      <section style={{
-        position: 'relative', padding: '5rem 1.5rem',
-        borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
+      {/* LIVE STORES */}
+      {LIVE_STORES.map((store) => (
+        <section key={store.name} style={{
+          position: 'relative', padding: '5rem 1.5rem',
+          borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
+        }}>
+          <Ambient />
+          <GrainVignette />
 
-        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.3 }}
-            transition={{ duration: 0.8 }}
-            style={{ marginBottom: 32 }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                  <span style={{
-                    fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.06em',
-                    color: '#5b5b64', textTransform: 'uppercase',
-                  }}>
-                    01 — live demo
-                  </span>
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)',
-                  }}>
-                    <span className="dot-pulse-el" style={{
-                      width: 6, height: 6, borderRadius: '50%',
-                      background: '#3ecf8e', boxShadow: '0 0 8px rgba(62,207,142,.7)',
-                    }} />
-                    interactive
-                  </span>
-                </div>
-                <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 4 }}>
-                  Aura Skincare
-                </h2>
-                <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55 }}>
-                  Minimal skincare brand · Warm neutral palette · Playfair Display + DM Sans
-                </p>
-              </div>
-              <Link
-                href="/preview/demo"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontSize: 12, color: '#8a8a93', textDecoration: 'underline',
-                  textUnderlineOffset: 4, fontFamily: 'var(--font-geist-mono)',
-                }}
-              >
-                Open full screen ↗
-              </Link>
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.96 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 1, ease: [0.16, 0.84, 0.24, 1] }}
-            style={{
-              borderRadius: 16, overflow: 'hidden',
-              border: '1px solid rgba(255,255,255,.1)',
-              background: '#FAFAF8',
-              boxShadow: '0 30px 80px rgba(0,0,0,.5), 0 0 100px rgba(79,91,213,.15)',
-              height: 600,
-            }}
-          >
-            {/* browser chrome */}
-            <div style={{
-              height: 30, background: '#1a1a20',
-              display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px',
-              borderBottom: '1px solid rgba(255,255,255,.06)',
-            }}>
-              {['#ff5f57', '#febc2e', '#28c840'].map((c, i) => (
-                <span key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: c, opacity: 0.9 }} />
-              ))}
-              <span style={{
-                marginLeft: 14, fontSize: 10.5, color: '#5b5b64',
-                fontFamily: 'var(--font-geist-mono)',
-              }}>
-                aura-skincare.preview.quante
-              </span>
-            </div>
-            <iframe
-              src="/preview/demo"
-              style={{ width: '100%', height: 'calc(100% - 30px)', border: 'none', display: 'block' }}
-              title="Aura Skincare — Quante demo store"
-              loading="lazy"
-            />
-          </motion.div>
-
-          <motion.p
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            style={{
-              fontSize: 12, color: '#5b5b64', marginTop: 14,
-              fontStyle: 'italic', textAlign: 'center', maxWidth: 720, marginInline: 'auto',
-              lineHeight: 1.6,
-            }}
-          >
-            Generated from brief: &ldquo;A minimal skincare brand. EUR currency. Products: serum,
-            moisturiser, cleanser, night oil. Clean editorial vibe, warm neutral palette.&rdquo;
-          </motion.p>
-        </div>
-      </section>
-
-      {/* STORE TYPES GRID */}
-      <section style={{
-        position: 'relative', padding: '6rem 1.5rem',
-        borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
-
-        <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 26 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 0.7 }}
-            style={{ textAlign: 'center', marginBottom: 48 }}
-          >
-            <p style={{
-              fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
-              color: '#5b5b64', marginBottom: 14, textTransform: 'uppercase',
-            }}>
-              02 — what quante can build
-            </p>
-            <h2 style={{
-              fontSize: 'clamp(26px,4vw,38px)', fontWeight: 700, letterSpacing: '-.025em',
-              marginBottom: 14, color: '#f4f4f6',
-            }}>
-              Any kind of store, any voice.
-            </h2>
-            <p style={{ fontSize: 14, color: '#8a8a93', maxWidth: 480, margin: '0 auto', lineHeight: 1.65 }}>
-              Quante reads the brief and chooses a palette, type, density and copy voice to match.
-              Each archetype below takes under 30 seconds.
-            </p>
-          </motion.div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-            gap: 14,
-          }}>
-            {STORE_TYPES.map((store, i) => (
-              <motion.div
-                key={store.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, delay: (i % 3) * 0.08, ease: [0.16, 0.84, 0.24, 1] }}
-                whileHover={{ y: -4, transition: { duration: 0.25 } }}
-                style={{
-                  background: store.demo ? 'rgba(12,12,16,.85)' : 'rgba(12,12,16,.5)',
-                  border: `1px solid ${store.demo ? 'rgba(111,120,230,.3)' : 'rgba(255,255,255,.07)'}`,
-                  borderRadius: 14,
-                  padding: '20px 22px',
-                  display: 'flex', flexDirection: 'column', gap: 10,
-                  position: 'relative', overflow: 'hidden',
-                  ...(store.demo ? { boxShadow: '0 0 40px rgba(79,91,213,.12)' } : {}),
-                }}
-              >
-                {/* color swatch */}
-                <span style={{
-                  position: 'absolute', top: 0, right: 0, width: 60, height: 60,
-                  background: `radial-gradient(circle at top right, ${store.accent}60, transparent 70%)`,
-                  pointerEvents: 'none',
-                }} />
-
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{
-                    fontFamily: 'var(--font-geist-mono)', fontSize: 10.5, letterSpacing: '.04em',
-                    color: '#5b5b64', textTransform: 'uppercase',
-                  }}>
-                    {store.category}
-                  </span>
-                  {store.demo && (
+          <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+            <motion.div
+              initial={{ opacity: 0, y: 28 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.8 }}
+              style={{ marginBottom: 32 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={{
-                      fontFamily: 'var(--font-geist-mono)', fontSize: 10,
-                      color: '#3ecf8e', display: 'flex', alignItems: 'center', gap: 4,
+                      fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.06em',
+                      color: '#5b5b64', textTransform: 'uppercase',
                     }}>
-                      live above ↑
+                      {store.n} — live store
                     </span>
-                  )}
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)',
+                    }}>
+                      <span className="dot-pulse-el" style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: '#3ecf8e', boxShadow: '0 0 8px rgba(62,207,142,.7)',
+                      }} />
+                      interactive
+                    </span>
+                  </div>
+                  <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 4 }}>
+                    {store.name}
+                  </h2>
+                  <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55 }}>
+                    {store.description}
+                  </p>
                 </div>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', letterSpacing: '-.01em' }}>
-                  {store.name}
-                </p>
-                <p style={{ fontSize: 12.5, color: '#8a8a93', lineHeight: 1.5 }}>
-                  {store.voice}
-                </p>
+                <a
+                  href={store.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 12, color: '#8a8a93', textDecoration: 'underline',
+                    textUnderlineOffset: 4, fontFamily: 'var(--font-geist-mono)',
+                  }}
+                >
+                  Open full screen ↗
+                </a>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.96 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 1, ease: [0.16, 0.84, 0.24, 1] }}
+              style={{
+                borderRadius: 16, overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,.1)',
+                background: '#FAFAF8',
+                boxShadow: `0 30px 80px rgba(0,0,0,.5), 0 0 100px ${store.accent}26`,
+                height: 620,
+              }}
+            >
+              {/* browser chrome */}
+              <div style={{
+                height: 32, background: '#1a1a20',
+                display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px',
+                borderBottom: '1px solid rgba(255,255,255,.06)',
+              }}>
+                {['#ff5f57', '#febc2e', '#28c840'].map((c, i) => (
+                  <span key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: c, opacity: 0.9 }} />
+                ))}
                 <span style={{
-                  marginTop: 4, width: 36, height: 3, borderRadius: 2,
-                  background: store.accent,
-                  boxShadow: `0 0 12px ${store.accent}88`,
-                }} />
-              </motion.div>
-            ))}
+                  marginLeft: 14, fontSize: 10.5, color: '#5b5b64',
+                  fontFamily: 'var(--font-geist-mono)',
+                }}>
+                  {store.addressBar}
+                </span>
+              </div>
+              <iframe
+                src={store.url}
+                style={{ width: '100%', height: 'calc(100% - 32px)', border: 'none', display: 'block' }}
+                title={`${store.name} — live store built with Quante`}
+                loading="lazy"
+              />
+            </motion.div>
+
+            <motion.p
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              style={{
+                fontSize: 12, color: '#5b5b64', marginTop: 14,
+                fontStyle: 'italic', textAlign: 'center', maxWidth: 720, marginInline: 'auto',
+                lineHeight: 1.6,
+              }}
+            >
+              Generated from brief: &ldquo;{store.brief}&rdquo;
+            </motion.p>
           </div>
-        </div>
-      </section>
+        </section>
+      ))}
 
       {/* HOW IT WORKS strip */}
       <section style={{
