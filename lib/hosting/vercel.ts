@@ -116,21 +116,19 @@ export async function createPreviewDeployment(
 
   const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
 
-  // If a slug is provided, try to attach the subdomain and use it when DNS is verified
+  // Attach subdomain and always use it as the canonical URL once the domain is on the project.
+  // verified=false just means DNS isn't confirmed yet — Vercel will start routing as soon as it propagates.
   if (storeSlug && HOSTING_ROOT_DOMAIN) {
     const storeDomain = `${storeSlug}.${HOSTING_ROOT_DOMAIN}`
     try {
-      const { verified } = await attachDomain(vercelProjectId, storeDomain)
-      if (verified) {
-        return { deploymentId: result.id, url: `https://${storeDomain}` }
-      }
+      await attachDomain(vercelProjectId, storeDomain)
+      return { deploymentId: result.id, url: `https://${storeDomain}` }
     } catch (err) {
       const msg = String(err)
-      // "already exists" means the domain was attached in a previous deploy — DNS is configured
       if (msg.includes('already') || msg.includes('409') || msg.includes('exist')) {
         return { deploymentId: result.id, url: `https://${storeDomain}` }
       }
-      console.warn('[vercel] attachDomain failed (non-fatal):', err)
+      console.error('[vercel] attachDomain failed:', err)
     }
   }
 
