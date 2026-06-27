@@ -56,6 +56,8 @@ export async function GET(request: Request) {
       // If client disconnects, abort polling
       request.signal?.addEventListener('abort', () => abortController.abort())
 
+      let terminalEventEmitted = false
+
       try {
         await streamDeploymentLogs(
           deploymentId,
@@ -72,10 +74,11 @@ export async function GET(request: Request) {
 
             // Signal end of stream on terminal states
             if (event.type === 'ready' || event.type === 'error') {
+              terminalEventEmitted = true
               void (async () => {
                 try {
                   await supabaseAdmin.from('deployments')
-                    .update({ status: event.type === 'ready' ? 'ready' : 'error' })
+                    .update({ status: event.type === 'ready' ? 'ready' : 'error', updated_at: new Date().toISOString() })
                     .eq('vercel_deployment_id', deploymentId)
                 } catch {}
 
@@ -107,6 +110,42 @@ export async function GET(request: Request) {
         if (!abortController.signal.aborted) {
           console.error('[deploy/logs] streaming error:', err)
           sendEvent({ type: 'stream_error', message: String(err) })
+        }
+        controller.close()
+        return
+      }
+
+      // Vercel's event stream closed without emitting a readyState event — this
+      // happens when the build was already complete before we started streaming.
+      // Check actual deployment state and resolve the client.
+      if (!terminalEventEmitted && !abortController.signal.aborted) {
+        try {
+          const status = await getDeploymentStatus(deploymentId)
+          if (status.state === 'ready') {
+            await supabaseAdmin.from('deployments')
+              .update({ status: 'ready', updated_at: new Date().toISOString() })
+              .eq('vercel_deployment_id', deploymentId)
+            sendEvent({ type: 'ready', text: '', created: Date.now() })
+            sendEvent({ type: 'stream_end', state: 'ready' })
+          } else if (status.state === 'error' || status.state === 'canceled') {
+            const errorText = await getBuildError(deploymentId)
+            await supabaseAdmin.from('deployments')
+              .update({ status: status.state, error_message: errorText, updated_at: new Date().toISOString() })
+              .eq('vercel_deployment_id', deploymentId)
+            if (errorText && !errorText.startsWith('Build failed — ')) {
+              const parsed = parseBuildError(errorText)
+              sendEvent({
+                type: 'build_error',
+                filePath: parsed?.filePath ?? 'store',
+                line: parsed?.line ?? 0,
+                message: errorText.slice(0, 800),
+              })
+            }
+            sendEvent({ type: 'stream_end', state: 'error' })
+          }
+          // For 'building'/'queued': close without stream_end — client onerror fires and polls
+        } catch (err) {
+          console.error('[deploy/logs] post-stream status check failed:', err)
         }
         controller.close()
       }
