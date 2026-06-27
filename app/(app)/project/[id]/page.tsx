@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isAgencyUser } from '@/lib/tier'
 import { StudioClient } from './StudioClient'
 import { Suspense } from 'react'
+import { toStoreSlug } from '@/lib/store-template/build'
+import { HOSTING_ROOT_DOMAIN } from '@/lib/hosting/vercel'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -52,11 +54,15 @@ export default async function StudioPage({ params }: Props) {
   const hasCodeVersion = !!codeVersionResult.data
   const isAgency = !!agencyFlag
 
+  const slug = toStoreSlug(project.name)
+  const storeUrl = (slug && hasCodeVersion) ? `https://${slug}.${HOSTING_ROOT_DOMAIN}` : null
+
   return (
     <Suspense fallback={null}>
       <StudioClient
         projectId={id}
         projectName={project.name}
+        storeUrl={storeUrl}
         initialBalance={balance}
         hostingInfo={hostingInfo}
         latestDeployment={latestDeployment}

@@ -65,6 +65,7 @@ interface HostingInfo {
 interface Props {
   projectId: string
   projectName: string
+  storeUrl: string | null
   initialBalance: number
   hostingInfo: HostingInfo
   latestDeployment: { id: string; status: string; url: string | null } | null
@@ -266,7 +267,7 @@ const QUICK_CHIPS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function StudioClient({ projectId, projectName, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false }: Props) {
+export function StudioClient({ projectId, projectName, storeUrl, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false }: Props) {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -276,7 +277,13 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   const [activeTab, setActiveTab] = useState<StudioTab>('chat')
   // Preview + logs state (new code-gen approach)
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    (() => { const u = latestDeployment?.url ?? null; return (u && !u.includes('://null') && u !== 'null') ? u : null })()
+    (() => {
+      const u = latestDeployment?.url ?? null
+      const safe = (u && !u.includes('://null') && u !== 'null') ? u : null
+      // Prefer canonical store domain URL over raw Vercel deployment URLs (which block in iframes)
+      if (safe?.includes('vercel.app') && storeUrl) return storeUrl
+      return safe ?? storeUrl ?? null
+    })()
   )
   const [rightPanel, setRightPanel] = useState<RightPanelTab>('preview')
   const [deployLogs, setDeployLogs] = useState<LogLine[]>([])
@@ -288,6 +295,9 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
   )
   const [autoFixAttempts, setAutoFixAttempts] = useState(0)
   const MAX_AUTO_FIX = 3
+  // Returns the best available preview URL — prefers canonical domain URL over raw vercel.app URLs
+  const resolveUrl = (url: string | null | undefined) =>
+    (url && url.includes('vercel.app') && storeUrl) ? storeUrl : (url ?? storeUrl ?? null)
   const logsEndRef = useRef<HTMLDivElement>(null)
   const logEventSourceRef = useRef<EventSource | null>(null)
   // Legacy compatibility stubs — keep panels from crashing during transition
@@ -506,13 +516,19 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
             setDeployStatus('ready')
             setDeployUrl((d.url && !d.url.includes('://null')) ? d.url : null)
             setDeployDomain(d.domain)
-          } else if (d.url && !d.url.includes('://null')) {
-            // Preview deployment ready — show in iframe
-            setPreviewUrl(d.url)
+          } else {
+            // Auto-deploy ready — always use canonical domain URL, not raw Vercel URL
+            const readyUrl = storeUrl ?? ((d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) ? d.url : null)
+            if (readyUrl) setPreviewUrl(readyUrl)
             setPreviewReady(true)
           }
         } else if (d.status === 'building' && d.vercelDeploymentId) {
-          if (d.url && !d.url.includes('://null')) setPreviewUrl(d.url)
+          // Show canonical URL immediately (iframe will load when build finishes)
+          if (storeUrl) {
+            setPreviewUrl(storeUrl)
+          } else if (d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) {
+            setPreviewUrl(d.url)
+          }
           if (isLiveDeploy) {
             // Live deployment still building — resume polling
             setIsDeploying(true)
@@ -607,14 +623,18 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           es.close()
           logEventSourceRef.current = null
           if (data.state === 'ready' || data.type === 'ready') {
-            // Fetch final URL from DB (domain URL, not raw Vercel URL) before showing iframe
-            fetch(`/api/projects/${projectId}/deployments`)
-              .then(r => r.json())
-              .then((d: { latest?: { url?: string; domain?: string } }) => {
-                const url = d.latest?.url
-                if (url && !url.includes('://null')) setPreviewUrl(url)
-              })
-              .catch(() => {})
+            // Always point the iframe at the canonical domain URL (not a raw vercel.app URL)
+            if (storeUrl) {
+              setPreviewUrl(storeUrl)
+            } else {
+              fetch(`/api/projects/${projectId}/deployments`)
+                .then(r => r.json())
+                .then((d: { latest?: { url?: string } }) => {
+                  const url = d.latest?.url
+                  if (url && !url.includes('://null') && !url.includes('vercel.app')) setPreviewUrl(url)
+                })
+                .catch(() => {})
+            }
             setPreviewReady(true)
             setRightPanel('preview')
             setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' }])
@@ -654,7 +674,11 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         .then(r => r.json())
         .then(d => {
           if (d.status === 'ready') {
-            if (d.url && !d.url.includes('://null')) setPreviewUrl(d.url)
+            if (storeUrl) {
+              setPreviewUrl(storeUrl)
+            } else if (d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) {
+              setPreviewUrl(d.url)
+            }
             setPreviewReady(true)
             setRightPanel('preview')
             if (!receivedAnyLog) {
@@ -794,7 +818,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
         }
         return updated
       })
-      if (data.previewUrl) { setPreviewUrl(data.previewUrl); setPreviewReady(false) }
+      const fixUrl = resolveUrl(data.previewUrl)
+      if (fixUrl) { setPreviewUrl(fixUrl); setPreviewReady(false) }
       if (data.deploymentId) {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Redeploying with the fix — watch the Logs tab on the right.', type: 'status' }])
         startLogStreaming(data.deploymentId)
@@ -839,7 +864,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           setHasGeneratedOnce(true)
           refreshBalance()
           fetchVersions()
-          if (newPreviewUrl) { setPreviewUrl(newPreviewUrl); setPreviewReady(false) }
+          const genUrl = resolveUrl(newPreviewUrl)
+          if (genUrl) { setPreviewUrl(genUrl); setPreviewReady(false) }
           if (deploymentId) startLogStreaming(deploymentId)
         })
       } catch {
@@ -872,7 +898,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           })
           refreshBalance()
           fetchVersions()
-          if (newPreviewUrl) { setPreviewUrl(newPreviewUrl); setPreviewReady(false) }
+          const iterUrl = resolveUrl(newPreviewUrl)
+          if (iterUrl) { setPreviewUrl(iterUrl); setPreviewReady(false) }
           if (deploymentId) {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Building preview in the background — watch the Logs tab on the right (~2 min).', type: 'status' }])
             startLogStreaming(deploymentId)
@@ -920,7 +947,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
           setSectionInput('')
           refreshBalance()
           fetchVersions()
-          if (newPreviewUrl) setPreviewUrl(newPreviewUrl)
+          const secUrl = resolveUrl(newPreviewUrl)
+          if (secUrl) setPreviewUrl(secUrl)
           if (deploymentId) startLogStreaming(deploymentId)
         }
       )
@@ -941,7 +969,8 @@ export function StudioClient({ projectId, projectName, initialBalance, hostingIn
       const res = await fetch(`/api/projects/${projectId}/redeploy`, { method: 'POST' })
       if (!res.ok) return
       const data = await res.json() as { deploymentId?: string; previewUrl?: string }
-      if (data.previewUrl) { setPreviewUrl(data.previewUrl); setPreviewReady(false) }
+      const redeployUrl = resolveUrl(data.previewUrl)
+      if (redeployUrl) { setPreviewUrl(redeployUrl); setPreviewReady(false) }
       if (data.deploymentId) startLogStreaming(data.deploymentId)
     } catch {}
   }
