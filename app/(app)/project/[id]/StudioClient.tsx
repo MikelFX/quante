@@ -317,6 +317,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [isDesktop, setIsDesktop] = useState(false)
   const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
+  const [showPushToLive, setShowPushToLive] = useState(false)
   const [isDeploying, setIsDeploying] = useState(false)
   const [isPreviewDeploying, setIsPreviewDeploying] = useState(false)
   const [deployStatus, setDeployStatus] = useState<'idle' | 'building' | 'ready' | 'error'>('idle')
@@ -865,8 +866,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           refreshBalance()
           fetchVersions()
           const genUrl = resolveUrl(newPreviewUrl)
-          if (genUrl) { setPreviewUrl(genUrl); setPreviewReady(false) }
-          if (deploymentId) startLogStreaming(deploymentId)
+          if (genUrl) setPreviewUrl(genUrl)
+          // Show Push to Live button instead of loading spinner —
+          // first-time deploy needs a production push to activate the domain
+          setPreviewReady(false)
+          setShowPushToLive(true)
         })
       } catch {
         setMessages((prev) => {
@@ -1037,13 +1041,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       if (data.status === 'ready') {
         stopDeployPoll()
         setIsDeploying(false)
+        setShowPushToLive(false)
         setDeployStatus('ready')
         const safeUrl = (data.url && !data.url.includes('://null')) ? data.url : null
         setDeployUrl(safeUrl)
         setDeployDomain(data.domain ?? null)
         setLiveDeployment((prev) => prev ? { ...prev, status: 'ready', url: safeUrl ?? prev.url, domain: data.domain ?? prev.domain } : null)
-        // Show the production store in the iframe
-        if (data.url && !data.url.includes('://null')) setPreviewUrl(data.url)
+        const liveUrl = resolveUrl(data.url)
+        if (liveUrl) setPreviewUrl(liveUrl)
         setPreviewReady(true)
         setRightPanel('preview')
         refreshBalance()
@@ -1066,6 +1071,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   async function handleDeploy() {
     if (!hasGeneratedOnce || isDeploying) return
+    setShowPushToLive(false)
     setIsDeploying(true)
     setDeployStatus('building')
     setMessages((prev) => [
@@ -3327,7 +3333,45 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         flex: 1, position: 'relative', overflow: 'hidden',
         display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
       }}>
-        {!previewUrl ? (
+        {showPushToLive && !isDeploying ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 18, textAlign: 'center', padding: '0 32px' }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: 'rgba(62,207,142,.1)', border: '1px solid rgba(62,207,142,.2)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 22,
+            }}>
+              🚀
+            </div>
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 700, color: '#f4f4f6', margin: '0 0 6px', letterSpacing: '-.01em' }}>
+                Store ready to publish
+              </p>
+              <p style={{ fontSize: 12, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>
+                Push to Live to deploy your store to{' '}
+                <span style={{ color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', fontSize: 11 }}>
+                  {storeUrl?.replace('https://', '') ?? 'your domain'}
+                </span>
+              </p>
+            </div>
+            <button
+              onClick={handleDeploy}
+              disabled={isDeploying}
+              style={{
+                fontSize: 13, fontWeight: 700, padding: '10px 28px',
+                borderRadius: 9, border: 'none', cursor: 'pointer',
+                background: 'rgba(62,207,142,1)', color: '#000',
+                boxShadow: '0 0 24px rgba(62,207,142,.35)',
+                transition: 'opacity 0.15s',
+              }}
+            >
+              Push to Live — 5 cr
+            </button>
+            <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>
+              Takes ~2 min on Vercel
+            </p>
+          </div>
+        ) : !previewUrl ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
             <div>
               <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 6 }}>no preview yet</p>
