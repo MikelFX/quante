@@ -10,7 +10,9 @@ export const maxDuration = 300
 
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
-const MAX_TOKENS = 64000
+const MAX_TOKENS = 40000
+// Abort Claude at 240s — leaves 60s for DB + deploy before Vercel's hard 300s limit
+const SOFT_TIMEOUT_MS = 240_000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
   const encoder = new TextEncoder()
@@ -33,19 +35,31 @@ function makeStream(fn: (send: (event: object) => void) => Promise<void>): Respo
   })
 }
 
+const CORE_FILES = [
+  'data/products.ts',
+  'data/config.ts',
+  'styles/store.css',
+  'components/store/HomePage.tsx',
+]
+
 function parseCodeOutput(raw: string): StoreCodeOutput {
   const files: Record<string, string> = {}
 
-  // Extract <file path="...">content</file> blocks
   const fileRegex = /<file path="([^"]+)">([\s\S]*?)<\/file>/g
   let match
   while ((match = fileRegex.exec(raw)) !== null) {
     files[match[1].trim()] = match[2].replace(/^\n/, '').replace(/\n$/, '')
   }
 
-  if (Object.keys(files).length === 0) throw new Error('No <file> blocks found in output')
+  if (Object.keys(files).length === 0) {
+    throw new Error('Generation produced no files. Please try again with a shorter brief.')
+  }
 
-  // Extract <summary>...</summary>
+  const missing = CORE_FILES.filter(f => !files[f])
+  if (missing.length > 0) {
+    throw new Error(`Generation incomplete — missing: ${missing.join(', ')}. Please try again.`)
+  }
+
   const summaryMatch = raw.match(/<summary>([\s\S]*?)<\/summary>/)
   const summary = summaryMatch ? summaryMatch[1].trim() : 'Store generated.'
 
@@ -87,7 +101,8 @@ export async function POST(request: Request) {
 
     send({ type: 'status', text: 'Designing your store…' })
 
-    // Call Claude
+    // Call Claude with soft timeout: abort stream at 240s so we have time to
+    // finish DB + deploy within Vercel's hard 300s function limit.
     let rawOutput = ''
     const claudeStream = anthropic.messages.stream({
       model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
@@ -95,21 +110,38 @@ export async function POST(request: Request) {
       messages: [{ role: 'user', content: brief.trim() }],
     })
 
-    for await (const event of claudeStream) {
-      if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-        rawOutput += event.delta.text
-        send({ type: 'chunk', text: event.delta.text })
+    const softAbort = setTimeout(() => {
+      console.warn('[generate] soft timeout — aborting Claude stream for partial recovery')
+      claudeStream.abort()
+    }, SOFT_TIMEOUT_MS)
+
+    let lastPing = Date.now()
+    try {
+      for await (const event of claudeStream) {
+        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+          rawOutput += event.delta.text
+          send({ type: 'chunk', text: event.delta.text })
+        }
+        // Keepalive ping every 15s — prevents proxy/browser idle-connection timeouts
+        if (Date.now() - lastPing > 15_000) {
+          send({ type: 'ping' })
+          lastPing = Date.now()
+        }
       }
+    } catch {
+      // Stream aborted (soft timeout) or network error — attempt partial file recovery below
+    } finally {
+      clearTimeout(softAbort)
     }
 
     send({ type: 'status', text: 'Parsing generated files…' })
 
-    // Parse the output
+    // Parse the output — succeeds even with partial output as long as all 4 core files are present
     let output: StoreCodeOutput
     try {
       output = parseCodeOutput(rawOutput)
-    } catch {
-      send({ type: 'error', message: 'Could not parse generated files. Please try again.' })
+    } catch (err) {
+      send({ type: 'error', message: err instanceof Error ? err.message : 'Could not parse generated files. Please try again.' })
       return
     }
 

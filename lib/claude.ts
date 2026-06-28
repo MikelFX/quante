@@ -5,7 +5,7 @@ export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-export const GENERATION_MODEL = 'claude-opus-4-7'
+export const GENERATION_MODEL = 'claude-sonnet-4-6'
 export const ITERATION_MODEL = 'claude-sonnet-4-6'
 export const INTAKE_MODEL = 'claude-haiku-4-5-20251001'
 
@@ -365,7 +365,9 @@ DO NOT generate app/layout.tsx, components/layout/Navbar.tsx, components/layout/
 9. Use the CSS custom properties (--color-bg, etc.) in your components for consistent theming.
 10. Make the generated store genuinely beautiful and conversion-oriented for the brief given.
 11. config.nav: include links to all relevant pages. Common: [{label:"Products",href:"/collections/all"},{label:"About",href:"/about"}]
-12. config.footer.columns: include at least one column with Shop / Company links matching config.nav.`
+12. config.footer.columns: include at least one column with Shop / Company links matching config.nav.
+13. Write clean, minimal TypeScript — no inline comments, no JSDoc. Compact but fully functional.
+14. CRITICAL: You MUST output ALL 7 required files in the correct order. Missing any core file breaks the build entirely.`
 
 export const SYSTEM_PROMPT_CODE_ITERATION = `You are Quante, an expert e-commerce designer and front-end engineer updating an existing store.
 

@@ -154,6 +154,35 @@ export default function NewProjectPage() {
     setCodeChunks('')
 
     let redirected = false
+
+    // After 250s warn the user; after 290s give up and check dashboard automatically
+    const warnTimer = setTimeout(() => {
+      if (!redirected) setStatusText('Almost there — finalizing your store…')
+    }, 250_000)
+    const giveUpTimer = setTimeout(async () => {
+      if (redirected) return
+      setStatusText('Checking if your store was saved…')
+      try {
+        const r = await fetch('/api/projects')
+        if (r.ok) {
+          const data = await r.json()
+          const projects: Array<{ id: string; created_at: string }> = data.projects ?? data ?? []
+          // Find a project created in the last 6 minutes
+          const cutoff = Date.now() - 6 * 60_000
+          const recent = projects
+            .filter(p => new Date(p.created_at).getTime() > cutoff)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+          if (recent) {
+            redirected = true
+            router.push(`/project/${recent.id}`)
+            return
+          }
+        }
+      } catch {}
+      setError('Generation timed out. Check your dashboard — your store may have been saved there.')
+      setStage('ready')
+    }, 290_000)
+
     try {
       const res = await fetch('/api/quante/generate', {
         method: 'POST',
@@ -180,17 +209,46 @@ export default function NewProjectPage() {
             else if (evt.type === 'chunk') {
               setCodeChunks(prev => (prev + evt.text).slice(-3000))
             }
-            else if (evt.type === 'error') { setError(evt.message); setStage('ready'); return }
-            else if (evt.type === 'done' && evt.projectId) { redirected = true; router.push(`/project/${evt.projectId}`); return }
+            else if (evt.type === 'ping') { /* keepalive — ignore */ }
+            else if (evt.type === 'error') {
+              clearTimeout(warnTimer); clearTimeout(giveUpTimer)
+              setError(evt.message); setStage('ready'); return
+            }
+            else if (evt.type === 'done' && evt.projectId) {
+              redirected = true
+              clearTimeout(warnTimer); clearTimeout(giveUpTimer)
+              router.push(`/project/${evt.projectId}`); return
+            }
           } catch { /* malformed line — skip */ }
         }
       }
     } catch {
-      // network error or timeout
+      // network error or Vercel hard limit — let giveUpTimer handle recovery
+    } finally {
+      clearTimeout(warnTimer)
+      // giveUpTimer clears itself after redirect or error
     }
-    // Stream ended without a done event (timeout, crash, or Vercel limit)
+
+    // Stream ended cleanly without a done event — run the same recovery check
     if (!redirected) {
-      setError('Generation timed out or failed. Your project may still appear in the dashboard — check there, or try again.')
+      clearTimeout(giveUpTimer)
+      setStatusText('Checking if your store was saved…')
+      try {
+        const r = await fetch('/api/projects')
+        if (r.ok) {
+          const data = await r.json()
+          const projects: Array<{ id: string; created_at: string }> = data.projects ?? data ?? []
+          const cutoff = Date.now() - 6 * 60_000
+          const recent = projects
+            .filter(p => new Date(p.created_at).getTime() > cutoff)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+          if (recent) {
+            router.push(`/project/${recent.id}`)
+            return
+          }
+        }
+      } catch {}
+      setError('Generation failed. Your store may still appear in the dashboard — check there, or try again.')
       setStage('ready')
     }
   }
