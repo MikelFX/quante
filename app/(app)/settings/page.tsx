@@ -8,7 +8,8 @@ export const metadata = { title: 'Settings — Quante' }
 const cardSt: React.CSSProperties = {
   borderRadius: 12,
   border: '1px solid rgba(255,255,255,.07)',
-  background: '#0d0d11',
+  background: '#0c0c10',
+  boxShadow: '0 0 0 1px rgba(255,255,255,.06), 0 4px 20px rgba(0,0,0,.3)',
   overflow: 'hidden',
 }
 
@@ -48,10 +49,11 @@ export default async function SettingsPage() {
     : '—'
 
   return (
-    <div style={{ padding: '1.5rem 1rem 3rem', maxWidth: 540, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-.02em', color: '#f4f4f6', margin: '0 0 4px' }}>Settings</h1>
+        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', margin: '0 0 8px' }}>account</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', color: '#f4f4f6', margin: '0 0 4px' }}>Settings</h1>
         <p style={{ fontSize: 13, color: '#8a8a93', margin: 0 }}>Manage your account and preferences.</p>
       </div>
 
@@ -61,7 +63,7 @@ export default async function SettingsPage() {
         <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
             <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Email</p>
-            <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', margin: 0 }}>{email}</p>
+            <p style={{ fontSize: 14, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', margin: 0, fontWeight: 500 }}>{email}</p>
           </div>
           <div>
             <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>User ID</p>
@@ -79,7 +81,7 @@ export default async function SettingsPage() {
         <p style={cardHeaderSt}>Credits</p>
         <div style={rowSt}>
           <div>
-            <p style={{ fontSize: 36, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 4px' }}>{balance}</p>
+            <p style={{ fontSize: 48, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 4px', textShadow: '0 0 40px rgba(111,120,230,.4)' }}>{balance}</p>
             <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>credits remaining</p>
             {balance < 10 && (
               <p style={{ fontSize: 11, color: '#e0a04f', marginTop: 5 }}>Low balance</p>

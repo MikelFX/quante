@@ -4,6 +4,8 @@ import { getUserRecord } from '@/lib/tier'
 import { CREDIT_COSTS } from '@/lib/config'
 import Link from 'next/link'
 import { DashboardGrid } from './DashboardGrid'
+import { DashboardHeader } from './DashboardHeader'
+import { DashboardEmptyState } from './DashboardEmptyState'
 
 async function ensureWelcomeGrant(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
   const { data } = await supabase
@@ -43,32 +45,9 @@ export default async function DashboardPage() {
   const limitLabel = `${activeCount} / ${record.project_limit} active`
 
   return (
-    <div style={{ padding: '1.5rem 1rem', maxWidth: 680, margin: '0 auto' }}>
+    <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 1100, margin: '0 auto' }}>
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em' }}>Projects</h1>
-          <span style={{
-            fontSize: 11, fontFamily: 'var(--font-geist-mono)',
-            color: atLimit ? '#e0a04f' : '#5b5b64',
-            background: atLimit ? 'rgba(224,160,79,.08)' : 'transparent',
-            border: atLimit ? '1px solid rgba(224,160,79,.2)' : '1px solid transparent',
-            padding: '2px 7px', borderRadius: 5,
-          }}>
-            {limitLabel}
-          </span>
-        </div>
-        {!atLimit && (
-          <Link href="/new" style={{
-            fontSize: 12, fontWeight: 600, textDecoration: 'none',
-            color: '#070709', background: '#f4f4f6',
-            padding: '0.45rem 1rem', borderRadius: 7,
-            letterSpacing: '-.005em',
-          }}>
-            + New project
-          </Link>
-        )}
-      </div>
+      <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} />
 
       {/* At-limit warning */}
       {atLimit && (
@@ -89,20 +68,7 @@ export default async function DashboardPage() {
       )}
 
       {projects.length === 0 ? (
-        <div style={{ border: '1px dashed rgba(255,255,255,.1)', borderRadius: 14, padding: '4rem 1.5rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 32, marginBottom: 12, opacity: .4 }}>◻</div>
-          <p style={{ fontSize: 14, color: 'var(--foreground)', fontWeight: 500, marginBottom: 6 }}>No projects yet</p>
-          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20, maxWidth: 280, margin: '0 auto 20px' }}>
-            Describe a store and Quante builds it in seconds.
-          </p>
-          <Link href="/new" style={{
-            fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            color: '#070709', background: '#f4f4f6',
-            padding: '0.6rem 1.4rem', borderRadius: 8, display: 'inline-block',
-          }}>
-            Build your first store
-          </Link>
-        </div>
+        <DashboardEmptyState />
       ) : (
         <DashboardGrid
           projects={projects}

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 
 interface Project {
   id: string
@@ -95,24 +96,6 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject, credit
   return (
     <>
       <style>{`
-        .project-card {
-          background: #0c0c10;
-          border: 1px solid rgba(255,255,255,.07);
-          border-radius: 12px;
-          padding: 14px 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          transition: border-color 0.15s, box-shadow 0.15s;
-          cursor: pointer;
-        }
-        .project-card:hover {
-          border-color: rgba(255,255,255,.15);
-        }
-        .project-card.selected {
-          border-color: rgba(62,207,142,.35);
-          background: rgba(62,207,142,.04);
-        }
         .check-box {
           width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
           border: 1.5px solid rgba(255,255,255,.2);
@@ -171,7 +154,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject, credit
       )}
 
       {/* Select-all row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, padding: '0 4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '0 4px' }}>
         <button
           onClick={toggleAll}
           style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', color: '#8a8a93', fontSize: 12 }}
@@ -186,58 +169,116 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject, credit
         )}
       </div>
 
-      {/* Project cards */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {projects.map((project) => {
+      {/* Project card grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+        gap: 14,
+      }}>
+        {projects.map((project, i) => {
           const isSelected = selected.has(project.id)
+          const dotColor = STATUS_DOT[project.status] ?? '#6f78e6'
           return (
-            <div
+            <motion.div
               key={project.id}
-              className={`project-card${isSelected ? ' selected' : ''}`}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: i * 0.07, ease: [0.16, 0.84, 0.24, 1] }}
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
               onClick={() => toggle(project.id)}
+              style={{
+                position: 'relative',
+                background: isSelected ? 'rgba(62,207,142,.035)' : '#0c0c10',
+                border: isSelected
+                  ? '1px solid rgba(62,207,142,.35)'
+                  : '1px solid rgba(255,255,255,.07)',
+                borderRadius: 14,
+                padding: '20px',
+                cursor: 'pointer',
+                boxShadow: isSelected
+                  ? '0 0 32px rgba(62,207,142,.12)'
+                  : '0 0 0px transparent',
+                transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                if (!isSelected) {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,.14)'
+                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 32px rgba(111,120,230,.12)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isSelected) {
+                  (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,.07)'
+                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 0px transparent'
+                }
+              }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                {/* Checkbox */}
-                <div
-                  className={`check-box${isSelected ? ' checked' : ''}`}
-                  onClick={(e) => { e.preventDefault(); toggle(project.id) }}
-                >
-                  {isSelected && <span style={{ color: '#070709', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
-                </div>
-
-                <span style={{
-                  width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
-                  background: STATUS_DOT[project.status] ?? '#6f78e6',
-                  boxShadow: `0 0 6px ${STATUS_DOT[project.status] ?? '#6f78e6'}88`,
-                }} />
-
-                <p style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
-                  {project.name}
-                </p>
+              {/* Checkbox — top-right absolute */}
+              <div
+                className={`check-box${isSelected ? ' checked' : ''}`}
+                onClick={(e) => { e.stopPropagation(); toggle(project.id) }}
+                style={{ position: 'absolute', top: 14, right: 14 }}
+              >
+                {isSelected && <span style={{ color: '#070709', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+              {/* Top row: status dot + project name + "Open →" */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingRight: 28 }}>
                 <span style={{
-                  fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em',
-                  padding: '2px 7px', borderRadius: 99,
-                  background: STATUS_COLORS[project.status] ?? STATUS_COLORS.draft,
-                  color: STATUS_DOT[project.status] ?? '#6f78e6',
+                  width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+                  background: dotColor,
+                  boxShadow: `0 0 6px ${dotColor}88`,
+                  display: 'inline-block',
+                }} />
+                <p style={{
+                  fontSize: 15, fontWeight: 600,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  margin: 0, flex: 1, color: '#f4f4f6',
                 }}>
-                  {project.status}
-                </span>
-                <span style={{ fontSize: 11, color: 'var(--muted-foreground)', fontFamily: 'var(--font-geist-mono)' }}>
-                  {timeAgo(project.updated_at)}
-                </span>
-                {/* Open project without triggering checkbox */}
+                  {project.name}
+                </p>
                 <Link
                   href={`/project/${project.id}`}
                   onClick={(e) => e.stopPropagation()}
-                  style={{ fontSize: 11, color: '#5b5b64', textDecoration: 'none', padding: '2px 6px', borderRadius: 5, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', flexShrink: 0 }}
+                  style={{
+                    fontSize: 11, color: '#8a8a93', textDecoration: 'none',
+                    padding: '3px 8px', borderRadius: 6,
+                    border: '1px solid rgba(255,255,255,.09)',
+                    background: 'rgba(255,255,255,.04)',
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                    transition: 'color 0.12s, border-color 0.12s',
+                  }}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLAnchorElement).style.color = '#f4f4f6'
+                    ;(e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,.18)'
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLAnchorElement).style.color = '#8a8a93'
+                    ;(e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,.09)'
+                  }}
                 >
                   Open →
                 </Link>
               </div>
-            </div>
+
+              {/* Second row: status badge + timeAgo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em',
+                  padding: '2px 7px', borderRadius: 99,
+                  background: STATUS_COLORS[project.status] ?? STATUS_COLORS.draft,
+                  color: dotColor,
+                }}>
+                  {project.status}
+                </span>
+                <span style={{
+                  fontSize: 11, color: '#5b5b64',
+                  fontFamily: 'var(--font-geist-mono)',
+                }}>
+                  {timeAgo(project.updated_at)}
+                </span>
+              </div>
+            </motion.div>
           )
         })}
       </div>

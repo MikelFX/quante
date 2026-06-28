@@ -55,7 +55,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       ) : (
         /* ── App shell routes ──────────────────────────────────────── */
         <>
-          <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
+
+            {/* Ambient background layer — fixed, behind all content */}
+            <div style={{
+              position: 'fixed', inset: 0, zIndex: 0,
+              pointerEvents: 'none', overflow: 'hidden',
+            }}>
+              {/* Blob 1 */}
+              <div className="blob-drift1" style={{
+                position: 'absolute',
+                width: 560, height: 560,
+                top: -80, left: 60,
+                background: 'radial-gradient(circle,rgba(79,91,213,.14),transparent 66%)',
+                borderRadius: '50%',
+              }} />
+              {/* Blob 2 */}
+              <div className="blob-drift2" style={{
+                position: 'absolute',
+                width: 480, height: 480,
+                bottom: -80, right: -40,
+                background: 'radial-gradient(circle,rgba(62,207,142,.06),transparent 66%)',
+                borderRadius: '50%',
+              }} />
+              {/* Blob 3 */}
+              <div className="blob-drift1r" style={{
+                position: 'absolute',
+                width: 360, height: 360,
+                top: '45%', left: '55%',
+                background: 'radial-gradient(circle,rgba(111,120,230,.10),transparent 68%)',
+                borderRadius: '50%',
+              }} />
+              {/* Grain overlay */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+                opacity: 0.025,
+              }} />
+            </div>
 
             {/* Desktop sidebar — hidden on mobile via Tailwind */}
             <aside
@@ -64,6 +101,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 width: 220, flexShrink: 0,
                 background: '#0d0d11',
                 borderRight: '1px solid rgba(255,255,255,.07)',
+                position: 'relative', zIndex: 1,
               }}
             >
               {/* Nav */}
@@ -106,7 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Main content — scrolls independently */}
             <main
               className="flex-1 overflow-y-auto pb-[4.5rem] lg:pb-0"
-              style={{ minWidth: 0 }}
+              style={{ minWidth: 0, position: 'relative', zIndex: 1 }}
             >
               {children}
             </main>

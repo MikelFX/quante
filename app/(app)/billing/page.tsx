@@ -85,7 +85,14 @@ export default async function BillingPage({ searchParams }: Props) {
     const statusColor = statusColors[record.subscription_status ?? ''] ?? '#8a8a93'
 
     return (
-      <div style={{ padding: '1.5rem 1rem 3rem', maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* Page header */}
+        <div style={{ marginBottom: 4 }}>
+          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', margin: '0 0 8px' }}>billing</p>
+          <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.03em', color: '#f4f4f6', margin: 0 }}>Credits & Billing</h1>
+        </div>
+
         {params.agency_success && (
           <div style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(62,207,142,.3)', background: 'rgba(62,207,142,.07)', fontSize: 13, color: '#3ecf8e' }}>
             Agency plan activated — unlimited generations and exports are now available.
@@ -93,7 +100,7 @@ export default async function BillingPage({ searchParams }: Props) {
         )}
 
         {/* Subscription card */}
-        <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0c0c10', boxShadow: '0 0 60px rgba(79,91,213,.08)', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -203,7 +210,13 @@ export default async function BillingPage({ searchParams }: Props) {
   const isLow = balance < 10
 
   return (
-    <div style={{ padding: '1.5rem 1rem 3rem', maxWidth: 680, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Page header */}
+      <div style={{ marginBottom: 4 }}>
+        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', margin: '0 0 8px' }}>billing</p>
+        <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-.03em', color: '#f4f4f6', margin: 0 }}>Credits & Billing</h1>
+      </div>
 
       {/* Notifications */}
       {params.success && (
@@ -218,7 +231,7 @@ export default async function BillingPage({ searchParams }: Props) {
       )}
 
       {/* Balance hero */}
-      <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '20px 22px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+      <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0c0c10', boxShadow: '0 0 60px rgba(79,91,213,.08)', padding: '20px 22px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: isLow ? '#e0a04f' : '#6f78e6', boxShadow: isLow ? '0 0 8px rgba(224,160,79,.6)' : '0 0 8px rgba(111,120,230,.6)', flexShrink: 0, animation: 'dot-pulse 2.4s ease-in-out infinite' }} />
@@ -226,9 +239,11 @@ export default async function BillingPage({ searchParams }: Props) {
               Credit balance
             </p>
           </div>
-          <p style={{ fontSize: 48, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 6px' }}>
-            {balance}
-          </p>
+          <div style={{ textShadow: '0 0 40px rgba(111,120,230,.4)' }}>
+            <p style={{ fontSize: 64, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 6px' }}>
+              {balance}
+            </p>
+          </div>
           <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>credits remaining</p>
           {isLow && (
             <p style={{ fontSize: 11, color: '#e0a04f', marginTop: 8, margin: '8px 0 0' }}>Low balance — top up to keep building.</p>
@@ -269,8 +284,8 @@ export default async function BillingPage({ searchParams }: Props) {
       </div>
 
       {/* Credit packs */}
-      <section>
-        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', marginBottom: 12 }}>Buy credits</p>
+      <section style={{ paddingTop: 4 }}>
+        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', marginBottom: 16 }}>Buy credits</p>
         {!stripeReady && (
           <div style={{ marginBottom: 12, padding: '9px 12px', borderRadius: 7, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', fontSize: 12, color: '#e0a04f' }}>
             Stripe not configured — add <code style={{ fontFamily: 'var(--font-geist-mono)', background: 'rgba(255,255,255,.07)', padding: '1px 5px', borderRadius: 3 }}>STRIPE_SECRET_KEY</code> to enable purchases.
