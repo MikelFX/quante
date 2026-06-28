@@ -126,7 +126,7 @@ export async function POST(request: Request) {
           quantity: item.quantity,
         })),
         ...(shippingCost > 0 ? [{
-          price_data: { currency: currency.toLowerCase(), product_data: { name: 'Doprava' }, unit_amount: Math.round(shippingCost * 100) },
+          price_data: { currency: currency.toLowerCase(), product_data: { name: 'Shipping' }, unit_amount: Math.round(shippingCost * 100) },
           quantity: 1,
         }] : []),
         ...(dobirkaFee > 0 ? [{
@@ -152,13 +152,13 @@ export async function POST(request: Request) {
 
   if (paymentMethod === 'comgate') {
     const provider = createComgateProvider()
-    if (!provider) return NextResponse.json({ error: 'Comgate není nakonfigurován' }, { status: 503 })
+    if (!provider) return NextResponse.json({ error: 'Comgate is not configured' }, { status: 503 })
     try {
       const result = await provider.createPayment({
         orderId,
         amount: Math.round(totalAmount * 100),
         currency,
-        label: `Objednávka ${orderNumber}`,
+        label: `Order ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
         returnUrl: `${storeBase}/success?order=${orderNumber}`,
         cancelUrl: `${storeBase}/checkout`,
@@ -190,13 +190,13 @@ export async function POST(request: Request) {
 
   if (paymentMethod === 'gopay') {
     const provider = createGopayProvider()
-    if (!provider) return NextResponse.json({ error: 'GoPay není nakonfigurován' }, { status: 503 })
+    if (!provider) return NextResponse.json({ error: 'GoPay is not configured' }, { status: 503 })
     try {
       const result = await provider.createPayment({
         orderId,
         amount: Math.round(totalAmount * 100),
         currency,
-        label: `Objednávka ${orderNumber}`,
+        label: `Order ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
         returnUrl: `${storeBase}/success?order=${orderNumber}`,
         cancelUrl: `${storeBase}/checkout`,
@@ -211,13 +211,13 @@ export async function POST(request: Request) {
 
   if (paymentMethod === 'paypal') {
     const provider = createPayPalProvider()
-    if (!provider) return NextResponse.json({ error: 'PayPal není nakonfigurován' }, { status: 503 })
+    if (!provider) return NextResponse.json({ error: 'PayPal is not configured' }, { status: 503 })
     try {
       const result = await provider.createPayment({
         orderId,
         amount: Math.round(totalAmount * 100),
         currency,
-        label: `Objednávka ${orderNumber}`,
+        label: `Order ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
         returnUrl: `${storeBase}/success?order=${orderNumber}`,
         cancelUrl: `${storeBase}/checkout`,

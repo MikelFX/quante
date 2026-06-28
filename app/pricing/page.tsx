@@ -88,7 +88,7 @@ const COSTS = [
   { action: 'Add a custom component', cost: '3', unit: 'credits' },
   { action: 'Download your store (ZIP)', cost: '5', unit: 'credits' },
   { action: 'Deploy to Quante hosting', cost: '5', unit: 'credits' },
-  { action: 'Quante Hosting Plan', cost: '€99', unit: '/rok' },
+  { action: 'Quante Hosting Plan', cost: '€99', unit: '/year' },
   { action: 'Welcome bonus on signup', cost: '+25', unit: 'free' },
 ]
 
@@ -167,7 +167,7 @@ export default function PricingPage() {
 
             <div style={{ position: 'relative' }} className="headline-sheen">
               <LineReveal>Credits for AI.</LineReveal>
-              <LineReveal delay={0.12} blue>€99/rok hosting.</LineReveal>
+              <LineReveal delay={0.12} blue>€99/year hosting.</LineReveal>
             </div>
 
             <motion.p
@@ -175,8 +175,8 @@ export default function PricingPage() {
               transition={{ duration: 0.8, delay: 0.4 }}
               style={{ fontSize: 16, lineHeight: 1.7, color: '#a4a4ad', maxWidth: 520, margin: '24px auto 0' }}
             >
-              Kredity platíte jen za to, co vytvoříte. Hosting je jedno roční předplatné — €99/rok, vše ostatní v ceně.
-              Začněte s <span style={{ color: '#3ecf8e', fontWeight: 600 }}>25 kredity zdarma</span>. Karta není potřeba.
+              Pay only for what you create. Hosting is one annual subscription — €99/year, everything included.
+              Start with <span style={{ color: '#3ecf8e', fontWeight: 600 }}>25 free credits</span>. No card required.
             </motion.p>
 
             {/* Mini stat strip */}
@@ -189,7 +189,7 @@ export default function PricingPage() {
               }}
             >
               {[
-                { value: '€99', label: 'hosting / rok' },
+                { value: '€99', label: 'hosting / year' },
                 { value: '25', label: 'free credits' },
                 { value: '∞', label: 'never expire' },
               ].map(s => (
@@ -332,10 +332,10 @@ export default function PricingPage() {
                 <span style={{ fontSize: 14, color: '#f4f4f6' }}>{c.action}</span>
                 <span style={{
                   fontFamily: 'var(--font-geist-mono)', fontSize: 13, fontWeight: 600,
-                  color: c.unit === 'free' ? '#3ecf8e' : c.unit === '/rok' ? '#6f78e6' : '#a4a4ad',
+                  color: c.unit === 'free' ? '#3ecf8e' : c.unit === '/year' ? '#6f78e6' : '#a4a4ad',
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  {c.cost}<span style={{ fontSize: 11, color: c.unit === '/rok' ? '#6f78e6' : '#5b5b64' }}>{c.unit}</span>
+                  {c.cost}<span style={{ fontSize: 11, color: c.unit === '/year' ? '#6f78e6' : '#5b5b64' }}>{c.unit}</span>
                 </span>
               </motion.div>
             ))}
@@ -373,7 +373,7 @@ export default function PricingPage() {
             borderRadius: 14, overflow: 'hidden',
           }}>
             {[
-              { label: 'Annual hosting plan', value: '€99 / rok · billed annually', mono: true },
+              { label: 'Annual hosting plan', value: '€99 / year · billed annually', mono: true },
               { label: 'URL format', value: 'my-store.quante.app', mono: true },
               { label: 'Custom domain', value: 'Bring your own — CNAME verified automatically', mono: false },
               { label: 'SSL certificate', value: 'Included, auto-renewed', mono: false },

@@ -38,9 +38,9 @@ const SHOWCASE_PROJECTS = [
     url: 'Alegant.cz',
     label: 'fashion · CZ',
     brand: 'ALEGANT',
-    tagline: 'Styl, který zůstane.',
-    cta: 'Prozkoumat kolekci',
-    navRight: 'Košík (0)',
+    tagline: 'Style that lasts.',
+    cta: 'Explore collection',
+    navRight: 'Cart (0)',
     bg: '#f5f0ea',
     navBg: '#f5f0ea',
     heroBg: '#ede7dd',
@@ -905,7 +905,7 @@ export default function HomePage() {
             Pay only when you create
           </h2>
           <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 48, maxWidth: 420, margin: '0 auto 48px' }}>
-            Kredity za AI tvorbu. Hosting za €99/rok — SSL, subdoména a CDN v ceně. 25 kreditů zdarma při registraci, karta není potřeba.
+            Credits for AI creation. Hosting for €99/year — SSL, subdomain and CDN included. 25 free credits on signup, no card required.
           </p>
 
           <div className="pricing-grid">

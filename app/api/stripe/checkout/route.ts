@@ -20,9 +20,9 @@ export async function POST(request: Request) {
     payment_method_types: ['card'],
     line_items: [{
       price_data: {
-        currency: 'eur',
+        currency: 'usd',
         product_data: { name: `${pack.credits} Quante Credits`, description: pack.description },
-        unit_amount: pack.priceEurCents,
+        unit_amount: pack.priceCents,
       },
       quantity: 1,
     }],
