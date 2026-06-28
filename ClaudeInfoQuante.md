@@ -645,7 +645,7 @@ RATE_LIMITS = { generate: 5, iterate: 60, section: 15 }  // per hour
 ```
 
 ### `lib/credit-packs.ts`
-CREDIT_PACKS array: 100 cr/€9.99, 300 cr/€24.99 (popular), 1000 cr/€69.99. Prices in Euro cents.
+CREDIT_PACKS array: 20 cr/$9.99, 45 cr/$24.99 (popular), 100 cr/$69.99. Prices in USD cents (`priceCents` field — renamed from `priceEurCents`). Interface: `{ id, credits, label, description, priceCents, priceDisplay, perCreditDisplay, popular? }`.
 
 ### `lib/tier.ts`
 - `getUserRecord(userId)` — fetches `users` table row, returns `UserRecord` with tier/limits
@@ -962,9 +962,10 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
 - Agency users' iterate/fix skip credit debit entirely
 
 ### Credit packs (Stripe)
-- 100 cr = €9.99
-- 300 cr = €24.99 (popular)
-- 1000 cr = €69.99
+- 20 cr = $9.99
+- 45 cr = $24.99 (popular)
+- 100 cr = $69.99
+- Stripe checkout uses `currency: 'usd'` and `pack.priceCents`
 - Stripe webhook (`checkout.session.completed` with no `type` metadata) → inserts purchase row + credits ledger entry
 
 ---
