@@ -20,6 +20,13 @@ export async function POST(request: Request) {
   const supabase = await createClient()
   const agency = await isAgencyUser(userId)
 
+  if (!agency) {
+    return NextResponse.json(
+      { error: 'Bulk export requires an Agency plan. Export individual projects from the Studio.' },
+      { status: 403 },
+    )
+  }
+
   const { projectIds } = await request.json() as { projectIds: string[] }
   if (!Array.isArray(projectIds) || projectIds.length === 0) {
     return NextResponse.json({ error: 'projectIds required' }, { status: 400 })

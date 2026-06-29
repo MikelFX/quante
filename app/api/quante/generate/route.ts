@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
+import { getUserRecord } from '@/lib/tier'
 import type { StoreCodeOutput } from '@/types/store-code'
 
 export const maxDuration = 300
@@ -97,6 +98,21 @@ export async function POST(request: Request) {
     if ((recentCount ?? 0) >= GENERATE_RATE_LIMIT) {
       send({ type: 'error', message: `Rate limit reached — max ${GENERATE_RATE_LIMIT} generations per hour.` })
       return
+    }
+
+    // Project limit check — fail fast before calling Claude (only when creating a new project)
+    if (!existingProjectId) {
+      const record = await getUserRecord(userId)
+      const { count: activeCount } = await supabase
+        .from('projects').select('*', { count: 'exact', head: true })
+        .eq('user_id', userId).neq('status', 'archived')
+      if ((activeCount ?? 0) >= record.project_limit) {
+        send({
+          type: 'error',
+          message: `Active project limit reached (${activeCount ?? 0}/${record.project_limit}). Delete a project first, or upgrade to Agency for up to 20 stores.`,
+        })
+        return
+      }
     }
 
     send({ type: 'status', text: 'Designing your store…' })
