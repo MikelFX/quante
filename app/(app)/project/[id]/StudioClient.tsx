@@ -324,6 +324,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [deployUrl, setDeployUrl] = useState<string | null>(null)
   const [deployDomain, setDeployDomain] = useState<string | null>(null)
   const deployPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const previewBuildPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [isSubscribing, setIsSubscribing] = useState(false)
   // Admin mode
   const [adminMode, setAdminMode] = useState(false)
@@ -502,6 +503,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   }, [])
 
   useEffect(() => {
+    if (searchParams.get('did')) return
     async function fetchLatestDeploy() {
       try {
         const res = await fetch(`/api/projects/${projectId}/deployments`)
@@ -548,13 +550,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     if (safeUrl) setPreviewUrl(safeUrl)
                     setPreviewReady(true)
                   } else if (s.status === 'error' || s.status === 'canceled') {
-                    if (s.errorMessage) {
-                      setMessages(prev => [...prev, {
-                        role: 'assistant',
-                        content: `Previous build failed:\n\`\`\`\n${s.errorMessage.slice(0, 600)}\n\`\`\`\nDescribe a fix in chat to retry.`,
-                        type: 'error' as const,
-                      }])
-                    }
+                    const msg = (s.errorMessage ?? 'Build failed — check Vercel logs.').slice(0, 800)
+                    const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
+                    setBuildError({
+                      filePath: fileMatch?.[1] ?? 'store',
+                      line: fileMatch ? parseInt(fileMatch[2]) : 0,
+                      message: msg,
+                    })
+                    setMessages(prev => [...prev, {
+                      role: 'assistant',
+                      content: `Previous build failed:\n\`\`\`\n${msg.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
+                      type: 'error' as const,
+                    }])
                   } else {
                     // Genuinely still building — stream logs live
                     startLogStreaming(d.vercelDeploymentId)
@@ -564,17 +571,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             }
           }
         } else if ((d.status === 'error' || d.status === 'canceled') && d.vercelDeploymentId && !isLiveDeploy) {
-          // Preview build failed — fetch error message and show in chat
+          // Preview build failed — surface error and trigger auto-fix
           fetch(`/api/deploy?id=${d.vercelDeploymentId}`)
             .then(r => r.json())
-            .then(err => {
-              if (err.errorMessage) {
-                setMessages(prev => [...prev, {
-                  role: 'assistant',
-                  content: `Previous build failed:\n\`\`\`\n${err.errorMessage.slice(0, 600)}\n\`\`\`\nDescribe a fix in chat to retry.`,
-                  type: 'error' as const,
-                }])
-              }
+            .then((err: { errorMessage?: string }) => {
+              const msg = (err.errorMessage ?? 'Build failed — check Vercel logs.').slice(0, 800)
+              const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
+              setBuildError({
+                filePath: fileMatch?.[1] ?? 'store',
+                line: fileMatch ? parseInt(fileMatch[2]) : 0,
+                message: msg,
+              })
+              setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Previous build failed:\n\`\`\`\n${msg.slice(0, 600)}\n\`\`\`\nAttempting auto-fix…`,
+                type: 'error' as const,
+              }])
             })
             .catch(() => {})
         }
@@ -601,6 +613,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     if (logEventSourceRef.current) {
       logEventSourceRef.current.close()
       logEventSourceRef.current = null
+    }
+    if (previewBuildPollRef.current) {
+      clearInterval(previewBuildPollRef.current)
+      previewBuildPollRef.current = null
     }
     setDeployLogs([])
     setBuildError(null)
@@ -669,24 +685,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     es.onerror = () => {
       es.close()
       logEventSourceRef.current = null
-      // Always poll for final status — if the SSE connection dropped mid-stream
-      // (network hiccup, timeout, server close) we still need to resolve previewReady.
-      fetch(`/api/deploy?id=${deploymentId}`)
+
+      const pollOnce = () => fetch(`/api/deploy?id=${deploymentId}`)
         .then(r => r.json())
-        .then(d => {
+        .then((d: { status?: string; url?: string; errorMessage?: string }) => {
           if (d.status === 'ready') {
-            if (storeUrl) {
-              setPreviewUrl(storeUrl)
-            } else if (d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) {
-              setPreviewUrl(d.url)
-            }
+            if (previewBuildPollRef.current) { clearInterval(previewBuildPollRef.current); previewBuildPollRef.current = null }
+            const safeUrl = d.url && !d.url.includes('://null') ? resolveUrl(d.url) : (storeUrl ?? null)
+            if (safeUrl) setPreviewUrl(safeUrl)
             setPreviewReady(true)
             setRightPanel('preview')
             if (!receivedAnyLog) {
               setMessages(prev => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' as const }])
             }
-          } else if ((d.status === 'error' || d.status === 'canceled') && d.errorMessage) {
-            const msg = d.errorMessage.slice(0, 800)
+          } else if (d.status === 'error' || d.status === 'canceled') {
+            if (previewBuildPollRef.current) { clearInterval(previewBuildPollRef.current); previewBuildPollRef.current = null }
+            const msg = (d.errorMessage ?? 'Build failed — check Vercel logs.').slice(0, 800)
             const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
             setBuildError({
               filePath: fileMatch?.[1] ?? 'store',
@@ -699,13 +713,34 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               type: 'error' as const,
             }])
           }
+          // else: still building/queued — keep polling
         })
         .catch(() => {})
+
+      // Poll immediately, then every 5s until resolved or 5-minute timeout
+      void pollOnce()
+      const pollStart = Date.now()
+      previewBuildPollRef.current = setInterval(() => {
+        if (Date.now() - pollStart > 5 * 60 * 1000) {
+          clearInterval(previewBuildPollRef.current!)
+          previewBuildPollRef.current = null
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'Build is taking longer than expected (>5 min). Check the Vercel dashboard, or try generating again.',
+            type: 'error' as const,
+          }])
+          return
+        }
+        void pollOnce()
+      }, 5000)
     }
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup on unmount
-  useEffect(() => () => { logEventSourceRef.current?.close() }, [])
+  useEffect(() => () => {
+    logEventSourceRef.current?.close()
+    if (previewBuildPollRef.current) clearInterval(previewBuildPollRef.current)
+  }, [])
 
   // Auto-fix loop: trigger handleFix automatically when a build error is detected (max 3 attempts)
   useEffect(() => {
@@ -3392,10 +3427,24 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             </div>
           </div>
         ) : !previewReady ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 14 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '2px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.8s linear infinite' }} />
-            <p style={{ fontSize: 12, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>Building on Vercel…</p>
-            <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>Usually takes 1–2 minutes. Check the logs tab.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {([
+                { label: 'Store generated', done: true },
+                { label: 'Pushed to Vercel', done: true },
+                { label: 'Building…', done: false },
+              ] as { label: string; done: boolean }[]).map(({ label, done }) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {done ? (
+                    <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34c759', fontSize: 13, flexShrink: 0 }}>✓</span>
+                  ) : (
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                  )}
+                  <p style={{ fontSize: 12, color: done ? '#5b5b64' : '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{label}</p>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>Usually takes 1–2 minutes</p>
           </div>
         ) : previewDevice === 'desktop' ? (
           <iframe

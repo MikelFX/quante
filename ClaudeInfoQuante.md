@@ -66,16 +66,18 @@
 │   ├── invoice/[orderId]/route.ts  — GET: streams invoice PDF for a store order
 │   │
 │   ├── (app)/                      — Auth-gated app shell
-│   │   ├── layout.tsx              — App shell: sticky header, sidebar (desktop), bottom nav (mobile)
+│   │   ├── layout.tsx              — App shell: sticky header, sidebar (desktop), bottom nav (mobile); ambient blob background (3 animated blobs + grain SVG overlay) on all non-studio routes
 │   │   ├── dashboard/
-│   │   │   ├── page.tsx            — Project list, welcome grant, at-limit warnings
-│   │   │   └── DashboardGrid.tsx   — Client grid of project cards
+│   │   │   ├── page.tsx            — Project list, welcome grant, at-limit warnings; maxWidth 1100px; uses DashboardHeader + DashboardEmptyState client components
+│   │   │   ├── DashboardGrid.tsx   — Client responsive card grid (auto-fill minmax 260px), Framer Motion entrance/hover animations, checkbox top-right absolute, bulk export bar
+│   │   │   ├── DashboardHeader.tsx — Client component: mono "workspace" label + motion.h1 "Projects" entrance + at-limit badge + "New project" button
+│   │   │   └── DashboardEmptyState.tsx — Client component: motion.div empty state with dashed border and "Build your first store" CTA
 │   │   ├── new/page.tsx            — New project flow: intake chat → brief → generate (client component)
 │   │   ├── billing/
-│   │   │   ├── page.tsx            — Credit balance, sparkline, history, credit packs, agency view
+│   │   │   ├── page.tsx            — Credit balance, sparkline, history, credit packs, agency view; maxWidth 860px; mono label + h1 header; balance card with 64px glow typography (textShadow + boxShadow glow)
 │   │   │   ├── PurchaseButtons.tsx — Client credit-pack purchase buttons (POST /api/stripe/checkout)
 │   │   │   └── AgencyPortalButton.tsx — Client button for Stripe customer portal
-│   │   ├── settings/page.tsx       — User settings page
+│   │   ├── settings/page.tsx       — User settings page; maxWidth 680px; mono label + h1 header; cards with #0c0c10 bg + glow box-shadow; credits balance 48px with textShadow glow
 │   │   ├── admin/page.tsx          — Internal admin page (grant credits, etc.)
 │   │   └── project/[id]/
 │   │       ├── page.tsx            — Studio page (server: loads project, balance, hosting, deployments, computes storeUrl → passes to StudioClient)
@@ -238,7 +240,7 @@
 | Route | Method | Cost | maxDuration | Description |
 |---|---|---|---|---|
 | `/api/quante/intake` | POST | Free | 60s | Conversational intake: streams `text_chunk` events; on enough info emits `{ type: 'ready', brief }`. Uses `claude-haiku-4-5-20251001`. Input: `{ history: [{role,content}] }`. |
-| `/api/quante/generate` | POST | 10 cr | 300s | Full store generation: calls Claude with `SYSTEM_PROMPT_CODE_GENERATION` using `claude-opus-4-7`. Parses `<file path="...">...</file>` blocks. Creates project in DB, saves to `code_versions`, auto-triggers preview deployment. Streams NDJSON: `status`, `chunk`, `done`. Input: `{ brief, projectName?, projectId? }`. |
+| `/api/quante/generate` | POST | 10 cr | 300s | Full store generation: calls Claude with `SYSTEM_PROMPT_CODE_GENERATION` using `claude-sonnet-4-6` (`MAX_TOKENS=40000`). Soft abort at 240s — aborts Claude stream and attempts partial file recovery (requires 4 core files). Sends keepalive `ping` events every 15s. Parses `<file path="...">...</file>` blocks. Creates project in DB, saves to `code_versions`, auto-triggers preview deployment. Streams NDJSON: `status`, `chunk`, `ping`, `done`. Input: `{ brief, projectName?, projectId? }`. |
 | `/api/quante/iterate` | POST | 1 cr (agency: free) | 300s | Update existing store: loads current `code_versions` files, sends to Claude (`claude-sonnet-4-6`) with instruction. Parses `<reply>` + `<file>` blocks. Merges changed files with current, saves new version, auto-triggers preview deploy. Input: `{ projectId, instruction }`. |
 | `/api/quante/fix` | POST | 2 cr (agency: free) | 120s | Auto-fix a build error: send failing file + error to Claude, get fixed file back, save new version, re-deploy. Input: `{ projectId, errorMessage, filePath }`. |
 | `/api/quante/section` | POST | 2 cr | — | Regenerate a single manifest section. Input: `{ projectId, sectionIndex, instruction }`. |
@@ -614,7 +616,7 @@ All tables have RLS enabled. Server-side code uses `supabaseAdmin` (service role
 ### `lib/claude.ts`
 Exports:
 - `anthropic` — Anthropic client instance
-- `GENERATION_MODEL = 'claude-opus-4-7'`
+- `GENERATION_MODEL = 'claude-sonnet-4-6'` (switched from Opus 4.7 to eliminate timeouts — Sonnet is 5-10x faster, sufficient for code-gen)
 - `ITERATION_MODEL = 'claude-sonnet-4-6'`
 - `INTAKE_MODEL = 'claude-haiku-4-5-20251001'`
 - `SYSTEM_PROMPT_INTAKE` — conversational intake; ends response with `<ready>[brief]</ready>` when enough info collected
@@ -782,7 +784,7 @@ CodeVersionFiles = Record<string, string>
 Client component. Three stages:
 1. **`chat`** — Conversational intake with Quante (streams `/api/quante/intake`). Shows thinking dots, streaming text cursor. On `{ type: 'ready', brief }` event, moves to `ready`.
 2. **`ready`** — Shows editable textarea with the store brief + project name input. "Generate store" button costs 10 cr.
-3. **`generating`** — Progress steps (visual only, timed), live code preview terminal streaming raw Claude output from `/api/quante/generate`. On `{ type: 'done', projectId }`, redirects to `/project/[id]`.
+3. **`generating`** — Progress steps (visual only, timed), live code preview terminal streaming raw Claude output from `/api/quante/generate`. On `{ type: 'done', projectId }`, redirects to `/project/[id]`. `ping` events are silently ignored. At 250s, status changes to "Almost there — finalizing…". At 290s, auto-fetches `/api/projects`, finds the most recently created project (within 6 min), and redirects — user never gets stuck on a timeout screen.
 
 On error: shows error message and returns to `ready` stage. Handles timeout gracefully ("check dashboard").
 
@@ -833,8 +835,11 @@ Very large (~4,400 lines) 'use client' component. Key features:
 ### `app/(app)/project/[id]/page.tsx` — Studio Server Page
 Loads: project data, credit balance, hosting subscription, latest deployment, code version existence, agency flag. Also computes `storeUrl = https://${toStoreSlug(project.name)}.${HOSTING_ROOT_DOMAIN}` (only when `hasCodeVersion` is true). Passes all as props to `<StudioClient>`. Wrapped in `<Suspense>`. Imports `toStoreSlug` from `lib/store-template/build` and `HOSTING_ROOT_DOMAIN` from `lib/hosting/vercel`.
 
+### `app/(app)/layout.tsx` — App Shell Layout
+Client component. Sticky header (3rem, blurred), desktop sidebar (220px), mobile bottom nav. For all non-studio routes (anything except `/project/*`), a fixed ambient background layer renders behind all content: three animated blobs using existing `blob-drift1`, `blob-drift2`, `blob-drift1r` CSS keyframe classes (defined in `app/globals.css`) + grain SVG overlay at 2.5% opacity. Children are wrapped in `position: relative, zIndex: 1` to sit above the blobs. Studio routes (`/project/*`) skip the blobs and render children directly in a full-height overflow-hidden div.
+
 ### `app/(app)/dashboard/page.tsx`
-Server component. Ensures welcome grant (25 cr) on first visit. Shows project list, at-limit warnings (free: 3 projects, agency: 20), archived project notice.
+Server component. Ensures welcome grant (25 cr) on first visit. Shows project list, at-limit warnings (free: 3 projects, agency: 20), archived project notice. maxWidth 1100px. Delegates animated header to `<DashboardHeader>` and empty state to `<DashboardEmptyState>` (both client components for Framer Motion).
 
 ### `lib/store-template/build.ts` — Scaffold Builder
 `buildCodeGenScaffold()` generates ~20 deterministic files:
@@ -870,8 +875,9 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
    └── POST /api/quante/generate
        ├── check credits (>= 10)
        ├── check rate limit (5 per hour)
-       ├── call claude-opus-4-7 with SYSTEM_PROMPT_CODE_GENERATION
-       │   streams chunk events to client (live terminal display)
+       ├── call claude-sonnet-4-6 with SYSTEM_PROMPT_CODE_GENERATION (MAX_TOKENS=40000)
+       │   streams chunk events + keepalive ping every 15s to client (live terminal display)
+       │   soft abort at 240s — Claude stream killed, partial recovery attempted
        ├── parse <file path="...">...</file> blocks
        ├── create projects row in DB
        ├── insert into code_versions (files jsonb)
@@ -1038,7 +1044,7 @@ Calls Vercel add-domain API. Returns `{ verified: boolean, dnsInstructions? }`. 
 ## 12. Known Bugs / Gotchas
 
 ### maxDuration Limits (Vercel)
-- `/api/quante/generate`: `maxDuration = 300` (5 min). Claude generation with claude-opus-4-7 at 64k tokens can approach this. If stream ends without `done` event, the `/new` page shows a graceful timeout message ("check dashboard").
+- `/api/quante/generate`: `maxDuration = 300`. Uses `claude-sonnet-4-6` at `MAX_TOKENS=40000` — typical generation is 60-120s, well within the 300s limit. A **soft abort** fires at 240s: the Claude stream is killed and the route attempts to use whatever files were generated so far (requires the 4 core files: `data/products.ts`, `data/config.ts`, `styles/store.css`, `components/store/HomePage.tsx`). Keepalive `ping` events sent every 15s prevent idle-connection drops. Client-side: 250s warning, 290s auto-check dashboard for a recently created project + auto-redirect.
 - `/api/quante/iterate`: `maxDuration = 300`. With large stores (many files), sending all files as context can be slow.
 - `/api/deploy/logs`: `maxDuration = 300`. Build logs stream for the duration of the Vercel build (~2-3 min typically).
 
@@ -1194,7 +1200,9 @@ All defined in `.env.local.example`:
 | New project flow | `app/(app)/new/page.tsx` |
 | Studio server page | `app/(app)/project/[id]/page.tsx` |
 | Studio client (LARGE) | `app/(app)/project/[id]/StudioClient.tsx` |
-| App shell layout | `app/(app)/layout.tsx` |
+| App shell layout (+ ambient blobs) | `app/(app)/layout.tsx` |
+| Dashboard header (animated, client) | `app/(app)/dashboard/DashboardHeader.tsx` |
+| Dashboard empty state (animated, client) | `app/(app)/dashboard/DashboardEmptyState.tsx` |
 | Credit balance API | `app/api/credits/balance/route.ts` |
 | Generate API | `app/api/quante/generate/route.ts` |
 | Iterate API | `app/api/quante/iterate/route.ts` |

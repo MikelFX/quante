@@ -58,6 +58,15 @@ export async function GET(request: Request) {
 
       let terminalEventEmitted = false
 
+      // Safety valve: if Vercel's events API hangs without sending a terminal event
+      // (common for errored builds), abort after 90s so the client falls back to polling.
+      const hangTimeout = setTimeout(() => {
+        if (!terminalEventEmitted) {
+          console.warn('[deploy/logs] Vercel events stream hung (90s, no terminal event) — aborting')
+          abortController.abort()
+        }
+      }, 90_000)
+
       try {
         await streamDeploymentLogs(
           deploymentId,
@@ -107,6 +116,7 @@ export async function GET(request: Request) {
           abortController.signal,
         )
       } catch (err) {
+        clearTimeout(hangTimeout)
         if (!abortController.signal.aborted) {
           console.error('[deploy/logs] streaming error:', err)
           sendEvent({ type: 'stream_error', message: String(err) })
@@ -115,8 +125,11 @@ export async function GET(request: Request) {
         return
       }
 
+      clearTimeout(hangTimeout)
+
       // Vercel's event stream closed without emitting a readyState event — this
-      // happens when the build was already complete before we started streaming.
+      // happens when the build was already complete before we started streaming,
+      // or when the 90s hang timeout fired and aborted the stream.
       // Check actual deployment state and resolve the client.
       if (!terminalEventEmitted && !abortController.signal.aborted) {
         try {
