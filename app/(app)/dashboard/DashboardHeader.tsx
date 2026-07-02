@@ -55,7 +55,7 @@ export function DashboardHeader({ atLimit, limitLabel }: Props) {
             style={{
               fontSize: 12, fontWeight: 600, textDecoration: 'none',
               color: '#070709', background: '#f4f4f6',
-              padding: '0.48rem 1.1rem', borderRadius: 7,
+              padding: '10px 18px', borderRadius: 7,
               letterSpacing: '-.005em', display: 'inline-block',
               filter: 'brightness(1)',
               transition: 'filter 0.15s',

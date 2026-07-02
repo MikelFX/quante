@@ -3936,14 +3936,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{orders.length}</p>
               </div>
             </div>
-            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'auto' }}>
+              <div style={{ minWidth: 460, display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
                 {['Customer', 'Items', 'Amount', 'Date'].map(h => (
                   <p key={h} style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>{h}</p>
                 ))}
               </div>
               {orders.map((o, idx) => (
-                <div key={o.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+                <div key={o.id} style={{ minWidth: 460, display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
                   <div style={{ minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                       {o.customerName !== '—' ? o.customerName : o.customerEmail}

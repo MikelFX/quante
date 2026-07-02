@@ -344,16 +344,15 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                   </span>
                 </div>
 
-                {/* Delete trigger — reveals on card hover */}
+                {/* Delete trigger — hover on desktop, always visible (0.45 opacity) on touch */}
                 <button
                   onClick={e => { e.stopPropagation(); setDeletingId(project.id) }}
                   title="Delete project"
+                  className={`q-del-btn${hoveredCardId === project.id && !isConfirmingDelete ? ' q-del-visible' : ''}`}
                   style={{
-                    opacity: hoveredCardId === project.id && !isConfirmingDelete ? 1 : 0,
-                    transition: 'opacity 0.15s, color 0.12s',
                     background: 'none', border: 'none', color: '#5b5b64',
                     cursor: 'pointer', fontSize: 13, lineHeight: 1,
-                    padding: '2px 4px', borderRadius: 4, flexShrink: 0,
+                    padding: '6px 8px', borderRadius: 4, flexShrink: 0,
                   }}
                   onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f87171' }}
                   onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#5b5b64' }}

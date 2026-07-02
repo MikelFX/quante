@@ -45,7 +45,7 @@ export default async function DashboardPage() {
   const limitLabel = `${activeCount} / ${record.project_limit} active`
 
   return (
-    <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 1100, margin: '0 auto' }}>
+    <div className="q-page-wrap">
 
       <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} />
 

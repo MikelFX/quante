@@ -367,9 +367,9 @@ function DomainBloomSection() {
 
           {/* Comparison table */}
           <motion.div style={{ opacity: tableOpacity, marginTop: 52 }}>
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr',
-              gap: '0 56px', maxWidth: 600, margin: '0 auto', textAlign: 'left',
+            <div className="manifesto-compare" style={{
+              display: 'grid',
+              gap: '14px 56px', maxWidth: 600, margin: '0 auto', textAlign: 'left',
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
                 {[
@@ -832,7 +832,7 @@ export default function HomePage() {
       {/* ── HOSTING ── */}
       <section style={{
         borderTop: '1px solid rgba(255,255,255,.07)',
-        padding: '7rem 2rem',
+        padding: 'clamp(4rem,8vw,7rem) 1.5rem',
         position: 'relative', overflow: 'hidden',
       }}>
         <Ambient />
@@ -870,10 +870,10 @@ export default function HomePage() {
           {/* Live URL pill */}
           <div style={{ marginTop: 44, display: 'flex', justifyContent: 'center' }}>
             <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 10,
+              display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center',
               background: 'rgba(52,211,153,.07)',
               border: '1px solid rgba(52,211,153,.2)',
-              borderRadius: 99, padding: '8px 20px',
+              borderRadius: 99, padding: '8px 20px', maxWidth: '100%',
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 8px rgba(52,211,153,.8)' }} />
               <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: '#34d399' }}>
@@ -892,7 +892,7 @@ export default function HomePage() {
       {/* ── PRICING PREVIEW ── */}
       <section style={{
         borderTop: '1px solid rgba(255,255,255,.07)',
-        padding: '7rem 2rem',
+        padding: 'clamp(4rem,8vw,7rem) 1.5rem',
         position: 'relative', overflow: 'hidden',
       }}>
         <Ambient />
@@ -951,7 +951,7 @@ export default function HomePage() {
       }}>
         <Ambient />
         <GrainVignette />
-        <div style={{ position: 'relative', zIndex: 2 }}>
+        <div style={{ position: 'relative', zIndex: 2, padding: '0 1.5rem' }}>
           <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-.03em', marginBottom: 16 }}>
             Ready to try it?
           </h2>

@@ -555,7 +555,7 @@ export default function NewProjectPage() {
             onClick={handleSend}
             disabled={!input.trim() || thinking}
             style={{
-              flexShrink: 0, width: 30, height: 30, borderRadius: 8,
+              flexShrink: 0, width: 36, height: 36, borderRadius: 8,
               background: input.trim() && !thinking ? '#6f78e6' : 'rgba(255,255,255,.06)',
               border: 'none', cursor: input.trim() && !thinking ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

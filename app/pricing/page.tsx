@@ -381,7 +381,7 @@ export default function PricingPage() {
               { label: 'Re-deploy after edits', value: 'Same URL, same domain — just updated', mono: false },
             ].map((row, i, arr) => (
               <div key={row.label} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap',
                 padding: '14px 22px',
                 borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none',
               }}>
@@ -507,7 +507,7 @@ export default function PricingPage() {
                   ['Payments', "Client's own Stripe keys"],
                   ['Hosting', 'Anywhere — Vercel, Railway, VPS'],
                 ].map(([label, value]) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 }}>
+                  <div key={label} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 12, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', flexShrink: 0 }}>{label}</span>
                     <span style={{ fontSize: 12.5, color: '#c4c4cc', textAlign: 'right' }}>{value}</span>
                   </div>

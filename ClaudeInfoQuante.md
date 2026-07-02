@@ -1169,6 +1169,7 @@ All defined in `.env.local.example`:
 - **Landing page** (`/`): Cinematic scroll with sticky sections, horizontal showcase, pricing preview.
 - **Pricing page** (`/pricing`): Full pricing info, credit packs, hosting details, Agency plan, FAQ.
 - **Agency tier**: Batch generation limit (20), no credit cost, subscription management, project archiving on downgrade.
+- **Mobile responsivity (platform)**: Complete. App shell uses Tailwind `hidden lg:flex` sidebar + `lg:hidden` bottom nav. Platform pages use shared CSS classes in `globals.css` (`q-page-wrap`, `q-billing-wrap`, `q-settings-wrap`, `q-settings-row`, `billing-info-grid`, `billing-hist-row/hide`, `q-del-btn`, `manifesto-compare`, `pricing-grid`, `landing-footer`). Typography uses `clamp()` in inline styles. Marketing pages fixed: roadmap track `max()` padding (negative-value bug at 375px), roadmap cards `min(460px, 100vw - 32px)`, cycle diagram `min(360px, 100%)` + `aspectRatio: 1`. Studio Stripe orders table uses `overflow: auto` + `minWidth: 460` for horizontal scroll on narrow viewports.
 - **Vision analysis**: Image → brand palette/typography detection.
 - **Unsplash image suggestions**: Product photo finder.
 - **Stripe Connect**: Per-project connected accounts for direct merchant payouts.

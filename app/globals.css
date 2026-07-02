@@ -199,3 +199,53 @@
     grid-template-columns: 1fr 1fr !important;
   }
 }
+
+/* ─── App-shell mobile responsiveness ────────────────────────────── */
+
+/* Generic page wrappers */
+.q-page-wrap  { padding: 2rem 1.5rem 3rem; max-width: 1100px; margin: 0 auto; }
+.q-billing-wrap { padding: 2rem 1.5rem 3rem; max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+.q-settings-wrap { padding: 2rem 1.5rem 3rem; max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 640px) {
+  .q-page-wrap      { padding: 1.25rem 1rem 2rem; }
+  .q-billing-wrap   { padding: 1.25rem 1rem 2rem; }
+  .q-settings-wrap  { padding: 1.25rem 1rem 2rem; }
+}
+
+/* Billing — agency subscription info grid (2-col → 1-col on mobile) */
+.billing-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 479px) {
+  .billing-info-grid { grid-template-columns: 1fr; }
+}
+
+/* Billing — history table (4-col → 2-col on mobile, hide Balance + When) */
+.billing-hist-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+}
+@media (max-width: 479px) {
+  .billing-hist-row { grid-template-columns: 1fr auto; }
+  .billing-hist-hide { display: none !important; }
+}
+
+/* Dashboard — delete button: hover-only on desktop, always visible on touch */
+.q-del-btn { opacity: 0; transition: opacity 0.15s, color 0.12s; }
+.q-del-btn.q-del-visible { opacity: 1; }
+@media (hover: none) { .q-del-btn { opacity: 0.45; } }
+
+/* Settings — row layout wraps on very narrow screens */
+.q-settings-row {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}

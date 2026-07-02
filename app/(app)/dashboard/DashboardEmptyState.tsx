@@ -9,9 +9,10 @@ export function DashboardEmptyState() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.15 }}
+      className="px-6 py-10 sm:py-[4rem]"
       style={{
         border: '1px dashed rgba(255,255,255,.1)',
-        borderRadius: 14, padding: '4rem 1.5rem', textAlign: 'center',
+        borderRadius: 14, textAlign: 'center',
       }}
     >
       <div style={{ fontSize: 32, marginBottom: 12, opacity: .4 }}>◻</div>

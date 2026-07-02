@@ -234,7 +234,7 @@ function RoadmapNode({ node, trackX, cardCenter, stageW, index, cardRef }: {
     <motion.div
       ref={cardRef}
       style={{
-        flex: '0 0 460px', display: 'flex', flexDirection: 'column', gap: 20,
+        flex: '0 0 auto', width: 'min(460px, calc(100vw - 32px))', display: 'flex', flexDirection: 'column', gap: 20,
         padding: '36px 32px', background: '#0c0c10',
         border: `1px solid ${node.accent}33`,
         borderRadius: 20, position: 'relative',
@@ -586,7 +586,7 @@ export default function AboutPage() {
           <motion.div
             ref={hTrackRef}
             style={{
-              display: 'flex', gap: 32, padding: '0 calc(50vw - 230px)',
+              display: 'flex', gap: 32, padding: '0 max(16px, calc(50vw - 230px))',
               position: 'relative', zIndex: 2,
               x: roadmapX,
               alignItems: 'center',
@@ -673,7 +673,7 @@ export default function AboutPage() {
           </p>
 
           {/* Cycle diagram */}
-          <div style={{ position: 'relative', width: 360, height: 360, margin: '0 auto' }}>
+          <div style={{ position: 'relative', width: 'min(360px, 100%)', aspectRatio: '1', margin: '0 auto' }}>
             <span style={{
               position: 'absolute', inset: 0,
               borderRadius: '50%',

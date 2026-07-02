@@ -85,7 +85,7 @@ export default async function BillingPage({ searchParams }: Props) {
     const statusColor = statusColors[record.subscription_status ?? ''] ?? '#8a8a93'
 
     return (
-      <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="q-billing-wrap">
 
         {/* Page header */}
         <div style={{ marginBottom: 4 }}>
@@ -129,7 +129,7 @@ export default async function BillingPage({ searchParams }: Props) {
             <AgencyPortalButton stripeReady={stripeReady} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="billing-info-grid">
             <div style={{ background: 'rgba(255,255,255,.03)', borderRadius: 8, padding: '10px 14px' }}>
               <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 4px' }}>
                 Next billing
@@ -210,7 +210,7 @@ export default async function BillingPage({ searchParams }: Props) {
   const isLow = balance < 10
 
   return (
-    <div style={{ padding: '2rem 1.5rem 3rem', maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="q-billing-wrap">
 
       {/* Page header */}
       <div style={{ marginBottom: 4 }}>
@@ -240,7 +240,7 @@ export default async function BillingPage({ searchParams }: Props) {
             </p>
           </div>
           <div style={{ textShadow: '0 0 40px rgba(111,120,230,.4)' }}>
-            <p style={{ fontSize: 64, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 6px' }}>
+            <p style={{ fontSize: 'clamp(40px, 10.7vw, 64px)', fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 6px' }}>
               {balance}
             </p>
           </div>
@@ -323,19 +323,20 @@ export default async function BillingPage({ searchParams }: Props) {
           </div>
         ) : (
           <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
-              {['Action', 'Amount', 'Balance', 'When'].map((h, i) => (
-                <p key={h} style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0, textAlign: i > 0 ? 'right' : 'left' }}>{h}</p>
-              ))}
+            <div className="billing-hist-row" style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0 }}>Action</p>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0, textAlign: 'right' }}>Amount</p>
+              <p className="billing-hist-hide" style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0, textAlign: 'right' }}>Balance</p>
+              <p className="billing-hist-hide" style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0, textAlign: 'right' }}>When</p>
             </div>
             {history.slice(0, 25).map((entry, idx) => (
-              <div key={entry.id} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: 12, padding: '10px 16px', borderBottom: idx < Math.min(history.length, 25) - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+              <div key={entry.id} className="billing-hist-row" style={{ padding: '10px 16px', borderBottom: idx < Math.min(history.length, 25) - 1 ? '1px solid rgba(255,255,255,.04)' : 'none' }}>
                 <span style={{ fontSize: 13, color: '#f4f4f6' }}>{REASON_LABELS[entry.reason] ?? entry.reason}</span>
                 <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: entry.delta > 0 ? '#3ecf8e' : '#8a8a93', textAlign: 'right' }}>
                   {entry.delta > 0 ? `+${entry.delta}` : entry.delta}
                 </span>
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textAlign: 'right' }}>{entry.balance_after}</span>
-                <span style={{ fontSize: 11, color: '#5b5b64', textAlign: 'right', whiteSpace: 'nowrap' }}>{timeAgo(entry.created_at)}</span>
+                <span className="billing-hist-hide" style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textAlign: 'right' }}>{entry.balance_after}</span>
+                <span className="billing-hist-hide" style={{ fontSize: 11, color: '#5b5b64', textAlign: 'right', whiteSpace: 'nowrap' }}>{timeAgo(entry.created_at)}</span>
               </div>
             ))}
           </div>
