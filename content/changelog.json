@@ -1,0 +1,38 @@
+[
+  {
+    "date": "2026-07-05",
+    "title": "Hero iframe showcase + build error recovery",
+    "description": "Homepage hero now embeds a live generated store (Maison Sève) instead of the static AURA mockup. Fixed a race condition in SSE log streaming where a failed first-generation build could leave the Studio stuck on loading forever.",
+    "tags": ["platform", "bugfix"]
+  },
+  {
+    "date": "2026-07-04",
+    "title": "Custom domain purchasing via Namecheap",
+    "description": "You can now search, buy, and connect a custom domain directly inside the Studio. Quante handles DNS configuration and SSL provisioning automatically. Domains are billed via your existing Stripe payment method.",
+    "tags": ["feature", "domains"]
+  },
+  {
+    "date": "2026-06-28",
+    "title": "Mobile responsiveness across all platform pages",
+    "description": "Complete mobile pass across the dashboard, Studio, billing, and settings pages. All layouts now adapt gracefully down to 320px viewport width.",
+    "tags": ["platform", "design"]
+  },
+  {
+    "date": "2026-06-22",
+    "title": "Project deletion + bulk export gating",
+    "description": "Projects can now be deleted from the dashboard (with a confirmation prompt). Bulk export is now gated to Agency plan users. Fixed a bug where the project limit was not enforced correctly on the first generation attempt.",
+    "tags": ["platform", "bugfix"]
+  },
+  {
+    "date": "2026-06-15",
+    "title": "Generation reliability — 40k token model, soft abort",
+    "description": "Switched the generation model to Claude Sonnet with a 40k token budget. Added a soft-abort mechanism so incomplete responses are recovered client-side rather than timing out. Eliminates the rare 'generation stuck' state.",
+    "tags": ["ai", "reliability"]
+  },
+  {
+    "date": "2026-06-08",
+    "title": "Studio redesign with ambient motion",
+    "description": "Builder and admin UIs rebuilt with a wider layout, layered surface system, and purposeful ambient motion. Split view now uses the full screen width. Version timeline is more accessible on smaller displays.",
+    "tags": ["design", "platform"]
+  }
+]

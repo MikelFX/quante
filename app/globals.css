@@ -41,6 +41,9 @@
 
 /* Quante platform — always dark */
 :root {
+  /* ── Announcement banner height (set by AnnouncementBanner.tsx) ─ */
+  --banner-h: 0px;
+
   /* ── Layered surfaces ─────────────────────────────────────────── */
   --surface-0: #08080a;
   --surface-1: #0d0d11;

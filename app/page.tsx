@@ -4,10 +4,16 @@ import { useRef, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import Link from 'next/link'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
+import { SiteFooter } from '@/components/SiteFooter'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
+
+const HERO_SHOWCASE = {
+  url: 'https://maison-s-ve.stores.quantecode.com/',
+  label: 'Maison Sève',
+}
 
 const STACK_CARDS = [
   { n: '01', title: 'Live in 3 minutes', desc: 'Click Deploy. Quante provisions hosting, SSL, and your subdomain automatically. Zero server setup, zero DevOps.' },
@@ -108,6 +114,51 @@ function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
 function fp(p: number) { return eOut(cl((p - 0.12) / 0.7)) }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function HeroStorefront() {
+  const [mounted, setMounted] = useState(false)
+  const [loaded, setLoaded]   = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setMounted(true); obs.disconnect() } },
+      { rootMargin: '200px' },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  return (
+    <div ref={wrapRef} style={{ flex: 1, minHeight: 0, position: 'relative', background: '#f2efe9' }}>
+      {/* Skeleton — fades out once iframe fires onLoad */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        background: '#f2efe9',
+        opacity: loaded ? 0 : 1,
+        transition: 'opacity 0.35s ease',
+        pointerEvents: 'none',
+      }} />
+      {mounted && (
+        <iframe
+          src={HERO_SHOWCASE.url}
+          title={`${HERO_SHOWCASE.label} store preview`}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin"
+          referrerPolicy="no-referrer-when-downgrade"
+          onLoad={() => setLoaded(true)}
+          style={{
+            width: '100%', height: '100%',
+            border: 'none', display: 'block',
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+    </div>
+  )
+}
 
 function Ambient() {
   return (
@@ -252,167 +303,6 @@ function StackCard({ card, index, total, progress }: {
   )
 }
 
-// ─── Domain bloom section ─────────────────────────────────────────────────────
-
-function DomainBloomSection() {
-  const ref = useRef<HTMLElement>(null)
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end end'] })
-
-  // All lines start invisible (opacity 0) — appear as you scroll in, then blur out
-  // At ~scroll 0.45: lines 1–3 blurred + fading, line 4 sharp = the screenshot moment
-
-  const l1Opacity = useTransform(scrollYProgress, [0, 0.06, 0.14, 0.20, 0.44, 0.56], [0, 0, 0.72, 0.72, 0.28, 0])
-  const l1Filter  = useTransform(scrollYProgress, p => {
-    if (p < 0.06)  return 'blur(14px)'
-    if (p < 0.14)  return `blur(${(14 * (1 - (p - 0.06) / 0.08)).toFixed(1)}px)`
-    return `blur(${Math.min((p - 0.14) * 52, 22).toFixed(1)}px)`
-  })
-  const l1Y = useTransform(scrollYProgress, [0, 0.7], ['0px', '-26px'])
-
-  const l2Opacity = useTransform(scrollYProgress, [0, 0.10, 0.19, 0.26, 0.52, 0.64], [0, 0, 0.78, 0.78, 0.32, 0])
-  const l2Filter  = useTransform(scrollYProgress, p => {
-    if (p < 0.10)  return 'blur(12px)'
-    if (p < 0.19)  return `blur(${(12 * (1 - (p - 0.10) / 0.09)).toFixed(1)}px)`
-    return `blur(${Math.min((p - 0.19) * 44, 18).toFixed(1)}px)`
-  })
-  const l2Y = useTransform(scrollYProgress, [0, 0.8], ['0px', '-18px'])
-
-  const l3Opacity = useTransform(scrollYProgress, [0, 0.15, 0.24, 0.32, 0.58, 0.70], [0, 0, 0.74, 0.74, 0.38, 0])
-  const l3Filter  = useTransform(scrollYProgress, p => {
-    if (p < 0.15)  return 'blur(10px)'
-    if (p < 0.24)  return `blur(${(10 * (1 - (p - 0.15) / 0.09)).toFixed(1)}px)`
-    return `blur(${Math.min((p - 0.24) * 32, 12).toFixed(1)}px)`
-  })
-  const l3Y = useTransform(scrollYProgress, [0, 0.9], ['0px', '-10px'])
-
-  // Hero line — enters last, stays sharpest and longest
-  const l4Opacity = useTransform(scrollYProgress, [0, 0.27, 0.40, 0.60, 0.80, 0.93], [0, 0, 1, 1, 0.75, 0])
-  const l4Filter  = useTransform(scrollYProgress, p => {
-    if (p < 0.27) return 'blur(12px)'
-    if (p < 0.40) return `blur(${(12 * (1 - (p - 0.27) / 0.13)).toFixed(1)}px)`
-    if (p < 0.72) return 'blur(0px)'
-    return `blur(${Math.min((p - 0.72) * 36, 14).toFixed(1)}px)`
-  })
-
-  const tableOpacity = useTransform(scrollYProgress, [0.56, 0.68, 0.88, 0.97], [0, 1, 1, 0])
-
-  return (
-    <section ref={ref} style={{ position: 'relative', height: '320vh' }}>
-      <div style={{
-        position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-        background: '#070709',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        {/* Same animated ambient blobs as all other sections */}
-        <Ambient />
-        <GrainVignette />
-
-        {/* Content */}
-        <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '0 24px', maxWidth: 960, width: '100%' }}>
-          <p style={{
-            fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#383845',
-            letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 44,
-          }}>
-            02 — from idea to live store
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <motion.p style={{
-              margin: 0, opacity: l1Opacity, filter: l1Filter, y: l1Y,
-              fontSize: 'clamp(22px, 3.4vw, 40px)', fontWeight: 700,
-              letterSpacing: '-.03em', color: '#b8b8cc', lineHeight: 1.15,
-            }}>
-              Describe what you want.
-            </motion.p>
-
-            <motion.p style={{
-              margin: 0, opacity: l2Opacity, filter: l2Filter, y: l2Y,
-              fontSize: 'clamp(22px, 3.4vw, 40px)', fontWeight: 700,
-              letterSpacing: '-.03em', color: '#c4c4d8', lineHeight: 1.15,
-            }}>
-              Quante{' '}
-              <span style={{
-                color: '#7a88f2',
-                textShadow: '0 0 22px rgba(100,120,245,.55), 0 0 56px rgba(80,100,230,.28)',
-              }}>
-                builds the store
-              </span>{' '}—
-            </motion.p>
-
-            <motion.p style={{
-              margin: '4px 0', opacity: l3Opacity, filter: l3Filter, y: l3Y,
-              fontSize: 'clamp(13px, 1.8vw, 18px)', fontWeight: 400,
-              letterSpacing: '-.005em', color: '#606070', lineHeight: 1.5,
-            }}>
-              copy, design, products. All of it. Then hit Deploy —
-            </motion.p>
-
-            <motion.p style={{
-              margin: '8px 0 0', opacity: l4Opacity, filter: l4Filter,
-              fontSize: 'clamp(30px, 5vw, 60px)', fontWeight: 800,
-              letterSpacing: '-.04em', color: '#f2f2fa', lineHeight: 1.1,
-            }}>
-              and you&apos;re{' '}
-              <span style={{ filter: 'drop-shadow(0 0 18px rgba(52,211,153,.58)) drop-shadow(0 0 50px rgba(52,211,153,.30))' }}>
-                <span style={{
-                  background: 'linear-gradient(95deg, #34d399 0%, #10b981 55%, #059669 100%)',
-                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                }}>
-                  live on your own domain
-                </span>
-              </span>{' '}in minutes.
-            </motion.p>
-          </div>
-
-          {/* Comparison table */}
-          <motion.div style={{ opacity: tableOpacity, marginTop: 52 }}>
-            <div className="manifesto-compare" style={{
-              display: 'grid',
-              gap: '14px 56px', maxWidth: 600, margin: '0 auto', textAlign: 'left',
-            }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                {[
-                  'Set up a server or Vercel account',
-                  'Configure DNS and SSL yourself',
-                  'DevOps before your first sale',
-                  'Hours before you can share a link',
-                ].map(txt => (
-                  <div key={txt} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                    <span style={{ color: '#5a2828', fontSize: 12, flexShrink: 0, marginTop: 1 }}>✕</span>
-                    <span style={{ fontSize: 12, color: '#3c3c4c', textDecoration: 'line-through', lineHeight: 1.45 }}>{txt}</span>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <p style={{
-                  fontFamily: 'var(--font-geist-mono)', fontSize: 9.5, color: '#2a9e6e',
-                  letterSpacing: '.14em', textTransform: 'uppercase', margin: '0 0 12px',
-                }}>
-                  QUANTE
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  {[
-                    'One click in the Studio',
-                    'SSL included automatically',
-                    'Live on your-store.stores.quantecode.com',
-                    'Ready in about 3 minutes',
-                  ].map(txt => (
-                    <div key={txt} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
-                      <span style={{ color: '#34d399', fontSize: 12, flexShrink: 0, marginTop: 1 }}>✓</span>
-                      <span style={{ fontSize: 12, color: '#7a7a8a', lineHeight: 1.45 }}>{txt}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -482,7 +372,7 @@ export default function HomePage() {
 
       {/* ── Nav ── */}
       <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
+        position: 'fixed', top: 'var(--banner-h, 0px)', left: 0, right: 0, zIndex: 50,
         height: '3.5rem', display: 'flex', alignItems: 'center',
         padding: '0 2rem', justifyContent: 'space-between',
         borderBottom: '1px solid rgba(255,255,255,.07)',
@@ -569,27 +459,13 @@ export default function HomePage() {
             overflow: 'hidden', position: 'relative', zIndex: 2,
             opacity: storeOp, width: storeW, height: storeH,
             borderRadius: storeR, transform: storeTrn,
+            display: 'flex', flexDirection: 'column',
           }}>
-            <div style={{ height: 24, background: '#e6e3db', display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px' }}>
+            {/* browser chrome — unchanged */}
+            <div style={{ height: 24, background: '#e6e3db', display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', flexShrink: 0 }}>
               {[0,1,2].map(i => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: '#c4c0b5', display: 'inline-block' }} />)}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 16px', borderBottom: '1px solid rgba(0,0,0,.06)' }}>
-              <b style={{ fontFamily: 'Georgia,serif', letterSpacing: '.2em', fontSize: 12, color: '#1a1a18' }}>AURA</b>
-              <span style={{ fontSize: 10, color: '#7a7a74' }}>Cart (0)</span>
-            </div>
-            <div style={{ padding: '26px 16px', textAlign: 'center' }}>
-              <div style={{ fontFamily: 'Georgia,serif', fontSize: 'clamp(16px,2.6vw,24px)', color: '#1a1a18', lineHeight: 1.08 }}>
-                Skin that speaks for itself.
-              </div>
-              <div style={{
-                marginTop: 16, display: 'inline-block', fontSize: 11,
-                padding: '8px 16px', borderRadius: 6,
-                background: '#c8a06a', color: '#2a1e0c',
-                boxShadow: '0 0 24px rgba(200,160,106,.35)',
-              }}>
-                Shop the ritual
-              </div>
-            </div>
+            <HeroStorefront />
           </motion.div>
 
           {/* scroll cue */}
@@ -887,8 +763,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <DomainBloomSection />
-
       {/* ── PRICING PREVIEW ── */}
       <section style={{
         borderTop: '1px solid rgba(255,255,255,.07)',
@@ -968,16 +842,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="landing-footer" style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: '1.5rem 1.25rem' }}>
-        <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#5b5b64' }}>quante</span>
-        <div className="footer-links">
-          {[['Pricing', '/pricing'], ['Showcase', '/showcase'], ['About', '/about'], ['Log in', '/login']].map(([l, h]) => (
-            <Link key={h} href={h} style={{ fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>{l}</Link>
-          ))}
-        </div>
-        <p style={{ fontSize: 12, color: '#5b5b64', margin: 0 }}>© 2026 Quante</p>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

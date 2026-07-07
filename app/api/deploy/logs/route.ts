@@ -121,6 +121,39 @@ export async function GET(request: Request) {
           console.error('[deploy/logs] streaming error:', err)
           sendEvent({ type: 'stream_error', message: String(err) })
         }
+
+        if (!terminalEventEmitted) {
+          const MAX_POLLS = 30
+          const POLL_INTERVAL = 10_000
+          let resolved = false
+
+          for (let i = 0; i < MAX_POLLS; i++) {
+            await new Promise(r => setTimeout(r, POLL_INTERVAL))
+
+            const status = await getDeploymentStatus(deploymentId)
+
+            if (status.state === 'ready') {
+              sendEvent({ type: 'stream_end', state: 'ready' })
+              terminalEventEmitted = true
+              resolved = true
+              break
+            }
+
+            if (status.state === 'error') {
+              const errorText = await getBuildError(deploymentId)
+              sendEvent({ type: 'build_error', message: errorText })
+              sendEvent({ type: 'stream_end', state: 'error' })
+              terminalEventEmitted = true
+              resolved = true
+              break
+            }
+          }
+
+          if (!resolved) {
+            sendEvent({ type: 'stream_error', message: 'Build timed out after 5 minutes.' })
+          }
+        }
+
         controller.close()
         return
       }

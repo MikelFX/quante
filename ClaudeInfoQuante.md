@@ -49,9 +49,9 @@
 ```
 /                                   — project root
 ├── app/                            — Next.js App Router
-│   ├── layout.tsx                  — Root layout: ClerkProvider, Geist fonts, TooltipProvider
-│   ├── globals.css                 — Platform CSS vars (dark theme), animation keyframes
-│   ├── page.tsx                    — Landing page (/ route) — large 'use client' component
+│   ├── layout.tsx                  — Root layout: ClerkProvider, Geist fonts, TooltipProvider, AnnouncementBanner (before TooltipProvider)
+│   ├── globals.css                 — Platform CSS vars (dark theme), animation keyframes; --banner-h: 0px in :root (set dynamically by AnnouncementBanner)
+│   ├── page.tsx                    — Landing page (/ route) — large 'use client' component; hero browser-window mockup contains a live iframe of Maison Sève store (https://maison-s-ve.stores.quantecode.com/) via IntersectionObserver lazy-mount + HeroStorefront component; nav top: var(--banner-h, 0px); uses <SiteFooter />
 │   ├── error.tsx                   — Root error boundary
 │   ├── not-found.tsx               — Global 404
 │   ├── favicon.ico
@@ -60,6 +60,18 @@
 │   ├── pricing/page.tsx            — Public pricing page (cinematic scroll, credit packs, Agency, FAQ)
 │   ├── showcase/page.tsx           — Public showcase: two real live stores (Axiom + Mamut) as interactive iframes with browser-chrome wrapper
 │   ├── about/page.tsx              — Public about page
+│   │
+│   ├── (marketing)/                — Marketing route group (transparent to URL routing)
+│   │   ├── layout.tsx              — Marketing layout: sticky nav (top: var(--banner-h)), <main>, <SiteFooter>
+│   │   ├── domains/page.tsx        — Custom domains page ('use client'): search form, mock TLD results, how-it-works steps, FAQ, CTA
+│   │   ├── changelog/page.tsx      — Changelog: groups entries from content/changelog.json by month, color-coded tags
+│   │   ├── terms/page.tsx          — Terms of Service (SaaS ToS draft, 14 sections, governing law: Czech Republic/EU)
+│   │   ├── privacy/page.tsx        — GDPR Privacy Policy (sub-processors table: Stripe, Vercel, Anthropic, Namecheap, Clerk, Supabase; ÚOOÚ supervisory authority)
+│   │   ├── cookies/page.tsx        — Cookie Policy (Clerk session cookies, quante_banner_v1_dismissed localStorage, no analytics currently)
+│   │   ├── refund/page.tsx         — Refund Policy (14-day window, unused credits refundable, EU withdrawal right)
+│   │   ├── contact/page.tsx        — Contact page ('use client'): form (stub submit), business address from site-config
+│   │   └── api/page.tsx            — API page ('use client'): "Coming soon", mock API code preview, email signup stub
+│   │
 │   ├── auth/
 │   │   ├── callback/route.ts       — Clerk OAuth callback handler
 │   │   └── signout/route.ts        — Sign out route
@@ -103,7 +115,12 @@
 │   │
 │   └── api/                        — All API routes (see §3)
 │
+├── content/
+│   └── changelog.json              — 6 seeded changelog entries (fields: date, title, description, tags[]); dates 2026-06-08 to 2026-07-05
+│
 ├── components/
+│   ├── AnnouncementBanner.tsx      — 'use client'; dismissible 40px site-wide sticky banner (z-index 100); sets --banner-h CSS var on :root (40px shown / 0px dismissed); localStorage key: quante_banner_v1_dismissed; content: domain feature announcement → /domains
+│   ├── SiteFooter.tsx              — Multi-column footer; imports from lib/site-config; gracefully omits IČO/DIČ/email if empty; social row hidden when socialLinks=[]; bottom bar: copyright left, Terms·Privacy·Cookies right; impressum block with operator name/role/address
 │   ├── AgencyCheckoutButton.tsx    — Client button that POSTs to /api/stripe/agency-checkout
 │   ├── shell/
 │   │   └── CreditPill.tsx          — Shows credit balance in sidebar/header (fetches /api/credits/balance)
@@ -165,6 +182,7 @@
 │       └── tooltip.tsx
 │
 ├── lib/                            — Server-side utilities (see §5)
+│   ├── site-config.ts              — Central site identity, nav, and operator config (see §5 → site-config); edit this to update identity across all pages/footer/legal pages
 │   ├── ares.ts                     — Czech ARES business registry API (IČO lookup)
 │   ├── claude.ts                   — Anthropic client + all system prompts + model constants
 │   ├── config.ts                   — CREDIT_COSTS, RATE_LIMITS, AGENCY_PRICE_ID, limits
@@ -722,6 +740,33 @@ Stripe client + `isStripeConfigured()` + re-exports `CREDIT_PACKS` from credit-p
 ### `lib/rate-limit.ts`
 Rate limiting utilities for API routes.
 
+### `lib/site-config.ts`
+Central site identity, navigation, and operator config. Edit this file to update identity across all public pages, footer, and legal pages.
+
+```ts
+export const operator: {
+  name: string; role: string; address: string;
+  ico: string; dic: string; contactEmail: string;
+} = {
+  name: 'Michal Svoboda',
+  role: 'Founder & Developer of Quante',
+  address: 'Švermova 441/12, 273 43 Buštěhrad, Czech Republic',
+  ico: '',          // [TO FILL IN] — Czech IČO
+  dic: '',          // [TO FILL IN IF VAT REGISTERED]
+  contactEmail: '', // [TO FILL IN — e.g. hello@quantecode.com]
+}
+
+export const domainProvider = { name: 'Namecheap', note: '...' } as const
+export const socialLinks: Array<{ label: string; href: string }> = []  // empty = no social row in footer
+export const footerNav = {
+  product: [ Pricing, Showcase, Domains, Changelog, Roadmap, API (Soon) ],
+  company: [ About, Contact ],
+  legal: [ Terms of Service, Privacy Policy, Cookie Policy, Refund Policy ],
+} as const
+```
+
+**TypeScript note:** `operator` must have an **explicit type annotation** (not `as const`). Using `as const` narrows `ico: ''` to type `""` (string literal) which makes `operator.ico && ...` always narrow the RHS to `never` (the empty string is always falsy) — TypeScript then errors on `.includes()` with "Property 'includes' does not exist on type 'never'".
+
 ### `lib/utils.ts`
 `cn(...classes)` — class name utility (like clsx).
 
@@ -1094,7 +1139,18 @@ In `deployments` table: iterate/fix/auto-deploys have `domain = null`. Live (pro
 - Auto-deploy ready → updates `previewUrl = storeUrl`, `previewReady = true`
 
 ### SSE log streaming — termination guarantee
-`streamDeploymentLogs` can return without emitting a terminal event (build was already complete when streaming started). `GET /api/deploy/logs` handles this: after `streamDeploymentLogs` returns, if no terminal event was emitted, it calls `getDeploymentStatus` and sends appropriate `stream_end` + closes the SSE controller. This prevents the client from hanging indefinitely on "Building on Vercel…".
+`streamDeploymentLogs` can return without emitting a terminal event (build was already complete when streaming started). `GET /api/deploy/logs` handles this in two layers:
+
+1. **Post-stream check (normal path)**: After `streamDeploymentLogs` returns, if no terminal event was emitted, it calls `getDeploymentStatus` and sends appropriate `stream_end` + closes the SSE controller.
+2. **Catch block polling (hang timeout path — fixed 2026-07)**: The 90-second hang timeout (`abortController.abort()`) causes the Vercel events SSE to throw AbortError. The catch block now polls `getDeploymentStatus` every 10s for up to 5 minutes (30 iterations), emits `build_error`/`stream_end` when the status resolves, then closes. Without this fix, the catch block would early-return after silently closing — leaving the client stuck on "Building on Vercel…" forever for builds that errored before the stream opened.
+
+```ts
+// Key variables: terminalEventEmitted (bool), resolved (bool, scoped to catch block)
+// sendEvent({ type: 'build_error', message }) + sendEvent({ type: 'stream_end', state: 'error' })
+// sendEvent({ type: 'stream_end', state: 'ready' })
+```
+
+This prevents the client from hanging indefinitely on "Building on Vercel…" in all cases.
 
 ### First-time generate requires Push to Live
 After `POST /api/quante/generate`, the client sets `showPushToLive = true` instead of starting log streaming. The auto-deploy runs on Vercel in the background but the client shows a "Push to Live — 5 cr" button. The user must click it to trigger a proper production deploy that attaches the subdomain. Iterate/fix auto-deploys (not first generation) still use the existing log streaming + `previewReady` flow.
@@ -1166,7 +1222,18 @@ All defined in `.env.local.example`:
 - **Invoice generation**: PDF invoices via `/invoice/[orderId]`.
 - **Domain management**: Search (Namecheap), purchase (Stripe → Namecheap), attach to Vercel, DNS verification.
 - **Admin panel in Studio**: Orders (Stripe + store), customers, revenue chart, shipment creation, payout account, IBAN management.
-- **Landing page** (`/`): Cinematic scroll with sticky sections, horizontal showcase, pricing preview.
+- **Landing page** (`/`): Cinematic scroll with sticky sections, horizontal showcase, pricing preview. Hero browser-window mockup now shows a live iframe (Maison Sève store, lazy-mounted via IntersectionObserver). Uses SiteFooter.
+- **Announcement banner**: Dismissible 40px site-wide banner; persists dismiss state to localStorage (`quante_banner_v1_dismissed`); coordinates with nav via `--banner-h` CSS custom property.
+- **Structured footer** (`SiteFooter`): 4-column (Product / Company / Legal / Impressum), copyright, social row (hidden if empty). Identity from `lib/site-config.ts`.
+- **Marketing pages** (`(marketing)/` route group with shared nav + SiteFooter layout):
+  - `/domains` — custom domain search, mock TLD results, how-it-works, SSL callout, FAQ, CTA
+  - `/changelog` — grouped by month, color-coded tags; seeded from `content/changelog.json`
+  - `/terms` — SaaS Terms of Service (14 sections; DRAFT — needs legal review)
+  - `/privacy` — GDPR Privacy Policy with sub-processors table (DRAFT)
+  - `/cookies` — Cookie Policy listing Clerk session + banner localStorage key (DRAFT)
+  - `/refund` — Refund policy, 14-day window, EU withdrawal right (DRAFT)
+  - `/contact` — Contact form (stub submit) + business address
+  - `/api` — "Coming soon" API page, mock code preview, email signup stub
 - **Pricing page** (`/pricing`): Full pricing info, credit packs, hosting details, Agency plan, FAQ.
 - **Agency tier**: Batch generation limit (20), no credit cost, subscription management, project archiving on downgrade.
 - **Mobile responsivity (platform)**: Complete. App shell uses Tailwind `hidden lg:flex` sidebar + `lg:hidden` bottom nav. Platform pages use shared CSS classes in `globals.css` (`q-page-wrap`, `q-billing-wrap`, `q-settings-wrap`, `q-settings-row`, `billing-info-grid`, `billing-hist-row/hide`, `q-del-btn`, `manifesto-compare`, `pricing-grid`, `landing-footer`). Typography uses `clamp()` in inline styles. Marketing pages fixed: roadmap track `max()` padding (negative-value bug at 375px), roadmap cards `min(460px, 100vw - 32px)`, cycle diagram `min(360px, 100%)` + `aspectRatio: 1`. Studio Stripe orders table uses `overflow: auto` + `minWidth: 460` for horizontal scroll on narrow viewports.
@@ -1182,6 +1249,15 @@ All defined in `.env.local.example`:
 - **Admin panel feature flag**: `adminPanel?: boolean` exists in ShopManifest but the admin panel in the Studio is always available (not gated by the flag in the current UI).
 - **Auto-deploy on first generate is wasted**: The generate API creates a Vercel deployment (auto-deploy), but StudioClient now shows "Push to Live" instead of tracking it. A second production deploy is triggered when the user clicks "Push to Live". The first deploy runs silently and is effectively unused.
 
+### Pending Operator Actions (before public launch)
+- Fill in `lib/site-config.ts`: `operator.ico` (Czech IČO), `operator.dic` (if VAT registered), `operator.contactEmail`
+- Legal review of all 4 draft pages: `/terms`, `/privacy`, `/cookies`, `/refund`
+- Wire `/contact` form to a real backend (currently stub `handleSubmit`)
+- Wire `/api` email signup to a real backend (currently stub)
+- Namecheap reseller credentials: `NAMECHEAP_API_USER`, `NAMECHEAP_API_KEY`, `NAMECHEAP_CLIENT_IP`
+- Existing `/pricing`, `/showcase`, `/about` pages still use their own minimal footers — not yet migrated to `SiteFooter`
+- `socialLinks` array in `lib/site-config.ts` is empty — footer social row is hidden until populated
+
 ### Not Yet Implemented
 - **Phase 6 (Polish)**: full docs page, empty/error states, rate limit UI.
 - **Supabase anon-key client**: `lib/supabase/client.ts` exists but is not used — all auth is via Clerk + service role.
@@ -1195,9 +1271,14 @@ All defined in `.env.local.example`:
 
 | What | Path |
 |---|---|
-| Root layout (Clerk + fonts) | `app/layout.tsx` |
-| Platform CSS (dark theme, tokens) | `app/globals.css` |
-| Landing page | `app/page.tsx` |
+| Root layout (Clerk + fonts + AnnouncementBanner) | `app/layout.tsx` |
+| Platform CSS (dark theme, tokens, --banner-h) | `app/globals.css` |
+| Landing page (hero iframe, SiteFooter) | `app/page.tsx` |
+| Site identity / footer nav config | `lib/site-config.ts` |
+| Announcement banner | `components/AnnouncementBanner.tsx` |
+| Structured site footer | `components/SiteFooter.tsx` |
+| Marketing layout (nav + SiteFooter) | `app/(marketing)/layout.tsx` |
+| Changelog data | `content/changelog.json` |
 | New project flow | `app/(app)/new/page.tsx` |
 | Studio server page | `app/(app)/project/[id]/page.tsx` |
 | Studio client (LARGE) | `app/(app)/project/[id]/StudioClient.tsx` |
