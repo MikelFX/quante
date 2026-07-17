@@ -1,18 +1,25 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { anthropic, GENERATION_MODEL, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
+import { anthropic, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { getUserRecord } from '@/lib/tier'
 import type { StoreCodeOutput } from '@/types/store-code'
 
+// 300s = Hobby/Pro hard cap. Raise to 600 (Enterprise) once plan is upgraded,
+// then also raise SOFT_TIMEOUT_MS to 500_000 for Fable 5's adaptive-thinking latency.
 export const maxDuration = 300
 
+const PRIMARY_MODEL = 'claude-fable-5'
+const FALLBACK_MODEL = 'claude-sonnet-5'
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
-const MAX_TOKENS = 40000
-// Abort Claude at 240s — leaves 60s for DB + deploy before Vercel's hard 300s limit
+// Fable 5 advertises 128k max output tokens. Unverifiable until the model ships in the SDK —
+// if the API rejects this value, drop back to 64000 (current Claude 4 ceiling).
+const MAX_TOKENS = 128000
+// Abort Claude at 240s — leaves 60s for DB + deploy before Vercel's hard 300s limit.
+// Raise to 500_000 once maxDuration is increased to 600 on Enterprise.
 const SOFT_TIMEOUT_MS = 240_000
 
 function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
@@ -117,23 +124,30 @@ export async function POST(request: Request) {
 
     send({ type: 'status', text: 'Designing your store…' })
 
-    // Call Claude with soft timeout: abort stream at 240s so we have time to
-    // finish DB + deploy within Vercel's hard 300s function limit.
+    // --- Primary: claude-fable-5 ---
+    // Falls back to claude-sonnet-5 on refusal or hard API error (rate limit, access denied, network).
+    // Our own soft-timeout AbortError is NOT treated as a fallback trigger — it goes to partial-file
+    // recovery below, the same as before, because by 240s there's no budget left for a second call.
     let rawOutput = ''
-    const claudeStream = anthropic.messages.stream({
-      model: GENERATION_MODEL, max_tokens: MAX_TOKENS,
+    let modelUsed = PRIMARY_MODEL
+    let needFallback = false
+    let fallbackReason = ''
+    let fableStreamCompleted = false
+
+    const fableStream = anthropic.messages.stream({
+      model: PRIMARY_MODEL, max_tokens: MAX_TOKENS,
       system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: brief.trim() }],
     })
 
     const softAbort = setTimeout(() => {
-      console.warn('[generate] soft timeout — aborting Claude stream for partial recovery')
-      claudeStream.abort()
+      console.warn('[generate] soft timeout — aborting Fable 5 stream for partial recovery')
+      fableStream.abort()
     }, SOFT_TIMEOUT_MS)
 
     let lastPing = Date.now()
     try {
-      for await (const event of claudeStream) {
+      for await (const event of fableStream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           rawOutput += event.delta.text
           send({ type: 'chunk', text: event.delta.text })
@@ -144,11 +158,70 @@ export async function POST(request: Request) {
           lastPing = Date.now()
         }
       }
-    } catch {
-      // Stream aborted (soft timeout) or network error — attempt partial file recovery below
+      fableStreamCompleted = true
+    } catch (err) {
+      // AbortError = our own soft-timeout → attempt partial file recovery with collected output.
+      // Anything else = hard API failure (rate limit, suspended access, network) → fall back.
+      const isOurAbort = err instanceof Error && err.name === 'AbortError'
+      if (!isOurAbort) {
+        needFallback = true
+        fallbackReason = err instanceof Error ? err.message : 'api_error'
+      }
     } finally {
       clearTimeout(softAbort)
     }
+
+    if (fableStreamCompleted) {
+      try {
+        const finalMsg = await fableStream.finalMessage()
+        if ((finalMsg.stop_reason as string) === 'refusal') {
+          needFallback = true
+          fallbackReason = 'refusal'
+          rawOutput = ''
+        }
+      } catch {
+        // finalMessage() failing after a completed stream is non-fatal — proceed with collected output
+      }
+    }
+
+    // --- Fallback: claude-sonnet-5 ---
+    if (needFallback) {
+      console.warn(`[generate] model=${PRIMARY_MODEL} failed (${fallbackReason}) — retrying with ${FALLBACK_MODEL}`)
+      rawOutput = ''
+      modelUsed = FALLBACK_MODEL
+      send({ type: 'status', text: 'Retrying with fallback model…' })
+
+      const sonnetStream = anthropic.messages.stream({
+        model: FALLBACK_MODEL, max_tokens: MAX_TOKENS,
+        system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: brief.trim() }],
+      })
+
+      const softAbortFallback = setTimeout(() => {
+        console.warn('[generate] soft timeout — aborting Sonnet 5 stream (fallback) for partial recovery')
+        sonnetStream.abort()
+      }, SOFT_TIMEOUT_MS)
+
+      lastPing = Date.now()
+      try {
+        for await (const event of sonnetStream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            rawOutput += event.delta.text
+            send({ type: 'chunk', text: event.delta.text })
+          }
+          if (Date.now() - lastPing > 15_000) {
+            send({ type: 'ping' })
+            lastPing = Date.now()
+          }
+        }
+      } catch {
+        // Partial file recovery for fallback stream too
+      } finally {
+        clearTimeout(softAbortFallback)
+      }
+    }
+
+    console.warn(`[generate] model_used=${modelUsed} project=${existingProjectId ?? '(new)'}`)
 
     send({ type: 'status', text: 'Parsing generated files…' })
 
@@ -194,14 +267,12 @@ export async function POST(request: Request) {
 
     if (versionError || !version) { send({ type: 'error', message: 'Failed to save generated files.' }); return }
 
-    // Debit credits
-    let creditDebited = false
+    // Debit credits — refunded via /api/credits/refund if the auto-fix loop gives up
     const { error: debitError } = await supabase.from('credit_ledger').insert({
       user_id: userId, delta: -GENERATE_COST, reason: 'generate',
       ref_id: version.id, balance_after: balance - GENERATE_COST,
     })
     if (debitError) console.error('[generate] credit debit failed:', debitError)
-    else creditDebited = true
     await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
     // Auto-trigger preview deployment (free, no credit debit)
@@ -251,6 +322,5 @@ export async function POST(request: Request) {
     }
 
     send({ type: 'done', projectId, versionId: version.id, deploymentId, previewUrl, summary: output.summary })
-    void creditDebited // tracked for future refund path
   })
 }

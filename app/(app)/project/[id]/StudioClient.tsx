@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
 import type { ShopManifest, Section } from '@/types/manifest'
 import { MerchantPanel } from './MerchantPanel'
 import {
@@ -294,7 +295,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     latestDeployment?.status === 'ready'
   )
   const [autoFixAttempts, setAutoFixAttempts] = useState(0)
-  const MAX_AUTO_FIX = 3
+  const MAX_AUTO_FIX = MAX_AUTO_FIX_ATTEMPTS
+  // Version whose generate/iterate debit gets refunded if the auto-fix loop gives up
+  const lastPaidVersionIdRef = useRef<string | null>(null)
+  const refundRequestedRef = useRef(false)
   // Returns the best available preview URL — prefers canonical domain URL over raw vercel.app URLs
   const resolveUrl = (url: string | null | undefined) =>
     (url && url.includes('vercel.app') && storeUrl) ? storeUrl : (url ?? storeUrl ?? null)
@@ -742,7 +746,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     if (previewBuildPollRef.current) clearInterval(previewBuildPollRef.current)
   }, [])
 
-  // Auto-fix loop: trigger handleFix automatically when a build error is detected (max 3 attempts)
+  // Auto-fix loop: trigger handleFix automatically when a build error is detected
   useEffect(() => {
     if (!buildError || isFixing || autoFixAttempts >= MAX_AUTO_FIX) return
     const timer = setTimeout(() => {
@@ -752,18 +756,57 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     return () => clearTimeout(timer)
   }, [buildError]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl)
+  // Refund path: all fix attempts exhausted and the build is still broken →
+  // refund the generate/iterate debit (server validates + idempotent per version).
+  // Retries a few times because Vercel may still be flipping the deployment to 'error'.
+  useEffect(() => {
+    if (!buildError || isFixing || autoFixAttempts < MAX_AUTO_FIX) return
+    if (refundRequestedRef.current || !lastPaidVersionIdRef.current) return
+    refundRequestedRef.current = true
+    const versionId = lastPaidVersionIdRef.current
+    let cancelled = false
+
+    const attempt = async (triesLeft: number) => {
+      try {
+        const res = await fetch('/api/credits/refund', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ versionId }),
+        })
+        if (res.status === 409 && triesLeft > 0 && !cancelled) {
+          setTimeout(() => void attempt(triesLeft - 1), 12_000)
+          return
+        }
+        const data = await res.json() as { ok?: boolean; refunded?: number }
+        const refunded = data.refunded ?? 0
+        if (data.ok && refunded > 0 && !cancelled) {
+          refreshBalance()
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `The build couldn't be repaired automatically, so your ${refunded} credit${refunded > 1 ? 's were' : ' was'} refunded. Try rephrasing your request, or describe the fix in chat.`,
+            type: 'error' as const,
+          }])
+        }
+      } catch {}
+    }
+    void attempt(3)
+    return () => { cancelled = true }
+  }, [buildError, isFixing, autoFixAttempts]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl + versionId)
   useEffect(() => {
     const did = searchParams.get('did')
     const pu = searchParams.get('pu')
+    const vid = searchParams.get('vid')
     if (pu) setPreviewUrl(decodeURIComponent(pu))
+    if (vid) lastPaidVersionIdRef.current = vid
     if (did) startLogStreaming(did)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function consumeStream(
     endpoint: string,
     body: object,
-    onDone: (reply?: string, deploymentId?: string, previewUrl?: string) => void,
+    onDone: (reply?: string, deploymentId?: string, previewUrl?: string, versionId?: string) => void,
     onError?: (msg: string) => void
   ) {
     const response = await fetch(endpoint, {
@@ -810,7 +853,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         return
       } else if (event.type === 'done') {
         setStreamingText('')
-        onDone(event.reply, event.deploymentId, event.previewUrl)
+        onDone(event.reply, event.deploymentId, event.previewUrl, event.versionId)
         return
       }
     }
@@ -883,11 +926,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     ])
     setIsGenerating(true)
     setAutoFixAttempts(0)
+    refundRequestedRef.current = false
 
     if (!hasGeneratedOnce) {
       // Generation flow — first time
       try {
-        await consumeStream('/api/quante/generate', { brief: text, projectId }, (reply, deploymentId, newPreviewUrl) => {
+        await consumeStream('/api/quante/generate', { brief: text, projectId }, (reply, deploymentId, newPreviewUrl, versionId) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {
@@ -898,6 +942,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             return updated
           })
           setHasGeneratedOnce(true)
+          if (versionId) lastPaidVersionIdRef.current = versionId
           refreshBalance()
           fetchVersions()
           const genUrl = resolveUrl(newPreviewUrl)
@@ -906,6 +951,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           // first-time deploy needs a production push to activate the domain
           setPreviewReady(false)
           setShowPushToLive(true)
+          // Stream build logs so failures surface and the auto-fix loop can engage
+          if (deploymentId) startLogStreaming(deploymentId)
         })
       } catch {
         setMessages((prev) => {
@@ -925,7 +972,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       await consumeStream(
         '/api/quante/iterate',
         { projectId, instruction: text },
-        (reply, deploymentId, newPreviewUrl) => {
+        (reply, deploymentId, newPreviewUrl, versionId) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {
@@ -935,6 +982,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             }
             return updated
           })
+          if (versionId) lastPaidVersionIdRef.current = versionId
           refreshBalance()
           fetchVersions()
           const iterUrl = resolveUrl(newPreviewUrl)
@@ -960,6 +1008,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   async function handleSectionRegenerate(sectionIndex: number, instruction: string) {
     if (isGenerating) return
     setIsGenerating(true)
+    setAutoFixAttempts(0)
+    refundRequestedRef.current = false
     setRegeneratingSection(sectionIndex)
     setExpandedSection(null)
     // Section regeneration is now handled via iteration in the new code-gen approach
@@ -973,7 +1023,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       await consumeStream(
         '/api/quante/iterate',
         { projectId, instruction: instruction || `Improve section ${sectionIndex + 1}` },
-        (reply, deploymentId, newPreviewUrl) => {
+        (reply, deploymentId, newPreviewUrl, versionId) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {
@@ -984,6 +1034,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             return updated
           })
           setSectionInput('')
+          if (versionId) lastPaidVersionIdRef.current = versionId
           refreshBalance()
           fetchVersions()
           const secUrl = resolveUrl(newPreviewUrl)
@@ -3307,7 +3358,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       )}
       {!isFixing && autoFixAttempts >= MAX_AUTO_FIX && buildError && (
         <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#f87171', fontFamily: 'var(--font-geist-mono)' }}>
-          Auto-fix failed after {MAX_AUTO_FIX} attempts. Try describing the fix in chat.
+          Auto-fix failed after {MAX_AUTO_FIX} attempts — your credits were refunded. Try describing the fix in chat.
         </div>
       )}
     </div>

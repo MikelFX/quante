@@ -30,10 +30,15 @@ export const CREDIT_COSTS = {
   export_admin:     10,
   deploy:            5,  // production deploy (subdomain)
   preview_deploy:    2,  // preview deploy (unique URL, no subdomain)
-  fix:               2,
+  fix:               0,  // fixes repair a paid generation — always free
   vision:            1,
   welcome_grant:    25,
 } as const
+
+// ─── Self-healing deploy loop ─────────────────────────────────────────────────
+// Max automatic fix attempts per failed build. After the last attempt fails,
+// the generate/iterate debit is refunded (reason 'generation_failed').
+export const MAX_AUTO_FIX_ATTEMPTS = 5
 
 // ─── Credit-tier rate limits (requests / hour) ────────────────────────────────
 export const RATE_LIMITS = {

@@ -217,7 +217,7 @@ export default function NewProjectPage() {
             else if (evt.type === 'done' && evt.projectId) {
               redirected = true
               clearTimeout(warnTimer); clearTimeout(giveUpTimer)
-              router.push(`/project/${evt.projectId}?did=${evt.deploymentId}`); return
+              router.push(`/project/${evt.projectId}?did=${evt.deploymentId}${evt.versionId ? `&vid=${evt.versionId}` : ''}`); return
             }
           } catch { /* malformed line — skip */ }
         }

@@ -5,13 +5,14 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_FIX } from '@/lib/claude'
 import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
-import { isAgencyUser } from '@/lib/tier'
-import { CREDIT_COSTS } from '@/lib/config'
+import { rateLimit } from '@/lib/rate-limit'
 import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 300
 
-const FIX_COST = CREDIT_COSTS.fix
+// Fixes are free — they repair failures of a generation the user already paid for.
+// Rate limit is the abuse guard instead of credits.
+const FIX_RATE_LIMIT_PER_HOUR = 30
 const MAX_TOKENS = 32000
 
 interface FixOutput {
@@ -44,25 +45,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'projectId, errorMessage, and filePath are required' }, { status: 400 })
   }
 
+  const limited = rateLimit(`fix:${userId}`, FIX_RATE_LIMIT_PER_HOUR, 3_600_000)
+  if (!limited.allowed) {
+    return NextResponse.json({ error: `Rate limit reached — max ${FIX_RATE_LIMIT_PER_HOUR} fixes per hour.` }, { status: 429 })
+  }
+
   const supabase = await createClient()
-  const agency = await isAgencyUser(userId)
 
   // Ownership check
   const { data: project } = await supabase
     .from('projects').select('id, name, vercel_project_id').eq('id', projectId).eq('user_id', userId).maybeSingle()
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-
-  let balance = 0
-  if (!agency) {
-    // Credits check
-    const { data: ledger } = await supabase
-      .from('credit_ledger').select('balance_after')
-      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-    balance = ledger?.balance_after ?? 0
-    if (balance < FIX_COST) {
-      return NextResponse.json({ error: `Insufficient credits. Need ${FIX_COST}, have ${balance}.` }, { status: 402 })
-    }
-  }
 
   // Load current code version
   const { data: current } = await supabase
@@ -137,22 +130,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Failed to save fixed files.' }, { status: 500 })
   }
 
-  // Debit credits (skipped for agency)
-  const updateProject = supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
-  if (!agency) {
-    await Promise.all([
-      updateProject,
-      supabaseAdmin.from('credit_ledger').insert({
-        user_id: userId,
-        delta: -FIX_COST,
-        reason: 'fix',
-        ref_id: version.id,
-        balance_after: balance - FIX_COST,
-      }),
-    ])
-  } else {
-    await updateProject
-  }
+  await supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
   // Auto-trigger preview deployment
   let deploymentId: string | null = null
