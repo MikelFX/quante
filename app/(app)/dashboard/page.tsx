@@ -53,7 +53,7 @@ export default async function DashboardPage() {
       {atLimit && (
         <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', fontSize: 13, color: '#e0a04f' }}>
           {isAgency
-            ? <>You&apos;ve reached the Agency batch limit (20 simultaneous stores). <a href="mailto:support@quante.io" style={{ color: '#e0a04f' }}>Contact us for a custom plan.</a></>
+            ? <>You&apos;ve reached the Agency batch limit (20 simultaneous stores). <a href="mailto:support@quantecode.com" style={{ color: '#e0a04f' }}>Contact us for a custom plan.</a></>
             : <><Link href="/pricing" style={{ color: '#e0a04f' }}>Upgrade to Agency</Link> to generate &amp; export up to 20 stores at once.</>
           }
         </div>

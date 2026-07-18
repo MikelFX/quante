@@ -45,9 +45,7 @@ export async function POST(
     .maybeSingle()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-  if (order.shipping_method !== 'dhl') {
-    return NextResponse.json({ error: 'Order shipping method is not DHL' }, { status: 422 })
-  }
+  // No shipping_method check — the merchant picks the carrier in the unified dropdown.
   if (order.status === 'shipped') {
     return NextResponse.json({ error: 'Order already shipped', trackingNumber: order.tracking_code }, { status: 409 })
   }

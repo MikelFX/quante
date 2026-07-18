@@ -4,7 +4,7 @@ import type { GeneratedFile } from '@/lib/store-template/build'
 
 const vercel = new Vercel({ bearerToken: process.env.VERCEL_TOKEN! })
 const TEAM_ID = process.env.VERCEL_TEAM_ID!
-export const HOSTING_ROOT_DOMAIN = process.env.HOSTING_ROOT_DOMAIN ?? 'quante.app'
+export const HOSTING_ROOT_DOMAIN = process.env.HOSTING_ROOT_DOMAIN ?? 'stores.quantecode.com'
 
 export type DeploymentState = 'queued' | 'building' | 'ready' | 'error' | 'canceled'
 

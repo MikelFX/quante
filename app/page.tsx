@@ -779,7 +779,7 @@ export default function HomePage() {
             Pay only when you create
           </h2>
           <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 48, maxWidth: 420, margin: '0 auto 48px' }}>
-            Credits for AI creation. Hosting for €99/year — SSL, subdomain and CDN included. 25 free credits on signup, no card required.
+            Credits for AI creation. Hosting from $9.99/month or $99/year — SSL, subdomain and CDN included. 25 free credits on signup, no card required.
           </p>
 
           <div className="pricing-grid">

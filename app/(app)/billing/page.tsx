@@ -176,7 +176,7 @@ export default async function BillingPage({ searchParams }: Props) {
             <p style={{ fontSize: 13, color: '#e0a04f', margin: '0 0 4px' }}>
               You{"'"}ve reached the Agency batch limit (20 simultaneous stores).
             </p>
-            <a href="mailto:support@quante.io" style={{ fontSize: 13, color: '#e0a04f', fontWeight: 600 }}>
+            <a href="mailto:support@quantecode.com" style={{ fontSize: 13, color: '#e0a04f', fontWeight: 600 }}>
               Contact us for a custom enterprise plan →
             </a>
           </div>

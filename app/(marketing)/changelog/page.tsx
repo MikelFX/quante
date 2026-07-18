@@ -1,29 +1,28 @@
-// To add a new entry: append one object to content/changelog.json.
-// Fields: date (YYYY-MM-DD), title (string), description (string), tags (string[]).
-// Entries are displayed newest-first, grouped by month.
-//
-// PHASE 4b stub — future automation via Vercel REST API:
-// Instead of (or in addition to) manual entries, production deployments could be
-// fetched automatically:
-//   GET https://api.vercel.com/v6/deployments
-//     ?projectId=<VERCEL_PROJECT_ID>&target=production&limit=50
-//   Authorization: Bearer <VERCEL_TOKEN>
-// This would surface each production deploy as a changelog entry.
-// Add VERCEL_TOKEN and VERCEL_PROJECT_ID to env vars, then replace the static
-// import below with a server-side fetch call.
+// Entries live in the changelog_entries table (managed from /admin).
+// Falls back to content/changelog.json if the table doesn't exist yet.
 
 import type { Metadata } from 'next'
-import entries from '@/content/changelog.json'
+import { supabaseAdmin } from '@/lib/supabase/admin'
+import fallbackEntries from '@/content/changelog.json'
+
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Changelog — Quante',
   description: 'What\'s new in Quante — release notes and product updates.',
 }
 
+interface Entry {
+  date: string
+  title: string
+  description: string
+  tags: string[]
+}
+
 const mono = 'var(--font-geist-mono)'
 
-function groupByMonth(items: typeof entries) {
-  const groups: Record<string, typeof entries> = {}
+function groupByMonth(items: Entry[]) {
+  const groups: Record<string, Entry[]> = {}
   for (const item of [...items].sort((a, b) => b.date.localeCompare(a.date))) {
     const [year, month] = item.date.split('-')
     const key = `${year}-${month}`
@@ -63,7 +62,13 @@ const TAG_TEXT: Record<string, string> = {
   reliability: '#34d399',
 }
 
-export default function ChangelogPage() {
+export default async function ChangelogPage() {
+  const { data } = await supabaseAdmin
+    .from('changelog_entries')
+    .select('date, title, description, tags')
+    .order('date', { ascending: false })
+
+  const entries: Entry[] = data && data.length > 0 ? (data as Entry[]) : fallbackEntries
   const groups = groupByMonth(entries)
 
   return (

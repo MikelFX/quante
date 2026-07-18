@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: rows } = await supabaseAdmin
     .from('store_orders')
-    .select('id, order_number, customer_email, customer_name, customer_phone, total_cents, currency, status, payment_status, payment_method, shipping_method, zasilkovna_branch_id, zasilkovna_branch_country, shipping_country, shipping_address, tracking_code, tracking_url, invoice_number, created_at')
+    .select('id, order_number, customer_email, customer_name, customer_phone, total_cents, currency, status, payment_status, payment_method, shipping_method, zasilkovna_branch_id, zasilkovna_branch_country, shipping_country, shipping_address, tracking_code, tracking_url, fulfillment_provider, fulfillment_ref, fulfillment_status, invoice_number, created_at')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(200)
@@ -48,6 +48,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     shippingAddress: o.shipping_address as Record<string, string> | null,
     trackingCode: o.tracking_code as string | null,
     trackingUrl: o.tracking_url as string | null,
+    fulfillmentProvider: (o.fulfillment_provider as string | null) ?? null,
+    fulfillmentRef: (o.fulfillment_ref as string | null) ?? null,
+    fulfillmentStatus: (o.fulfillment_status as string | null) ?? null,
     invoiceUrl: o.invoice_number ? `${QUANTE_URL}/invoice/${o.id}` : null,
     createdAt: o.created_at,
   }))

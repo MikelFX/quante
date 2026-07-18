@@ -1,19 +1,29 @@
 // PATCH /api/project/secrets — update per-project secrets/settings.
-// Allowed fields: resend_from_email, payment_test_mode, zasilkovna_api_key, zasilkovna_api_password.
-// All other fields are ignored to prevent privilege escalation.
+// Payment gateway secrets (Comgate/GoPay/PayPal) are AES-256-GCM encrypted
+// at rest via lib/crypto.ts. All other fields are ignored to prevent
+// privilege escalation. GET never returns secret values — only has-flags.
 
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { encryptSecret, isEncryptionConfigured } from '@/lib/crypto'
 
-const ALLOWED_FIELDS = [
+const PLAIN_FIELDS = [
   'resend_from_email',
   'payment_test_mode',
   'zasilkovna_api_key',
   'zasilkovna_api_password',
+  'comgate_merchant_id',
+  'gopay_client_id',
+  'gopay_go_id',
+  'paypal_client_id',
 ] as const
 
-type AllowedField = typeof ALLOWED_FIELDS[number]
+const ENCRYPTED_FIELDS = [
+  'comgate_secret',
+  'gopay_client_secret',
+  'paypal_client_secret',
+] as const
 
 export async function PATCH(request: Request) {
   const { userId } = await auth()
@@ -33,9 +43,22 @@ export async function PATCH(request: Request) {
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  const updates: Partial<Record<AllowedField, unknown>> = {}
-  for (const field of ALLOWED_FIELDS) {
+  const updates: Record<string, unknown> = {}
+  for (const field of PLAIN_FIELDS) {
     if (field in body) updates[field] = body[field]
+  }
+  for (const field of ENCRYPTED_FIELDS) {
+    if (!(field in body)) continue
+    const value = body[field]
+    if (value === null || value === '') {
+      updates[field] = null
+      continue
+    }
+    if (typeof value !== 'string') continue
+    if (!isEncryptionConfigured()) {
+      return NextResponse.json({ error: 'Server misconfiguration: SECRETS_ENCRYPTION_KEY is not set.' }, { status: 500 })
+    }
+    updates[field] = encryptSecret(value)
   }
 
   if (Object.keys(updates).length === 0) {
@@ -71,13 +94,20 @@ export async function GET(request: Request) {
 
   const { data } = await supabaseAdmin
     .from('project_secrets')
-    .select('resend_from_email, payment_test_mode, zasilkovna_api_key')
+    .select('resend_from_email, payment_test_mode, zasilkovna_api_key, comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id, paypal_client_id, paypal_client_secret')
     .eq('project_id', projectId)
     .maybeSingle()
 
   return NextResponse.json({
     resendFromEmail: (data?.resend_from_email as string | null) ?? null,
     paymentTestMode: (data?.payment_test_mode as boolean | null) ?? true,
-    hasZasilkovnaKey: !!(data?.zasilkovna_api_key as string | null),
+    hasZasilkovnaKey: !!data?.zasilkovna_api_key,
+    comgateMerchantId: (data?.comgate_merchant_id as string | null) ?? null,
+    hasComgateSecret: !!data?.comgate_secret,
+    gopayClientId: (data?.gopay_client_id as string | null) ?? null,
+    gopayGoId: (data?.gopay_go_id as string | null) ?? null,
+    hasGopaySecret: !!data?.gopay_client_secret,
+    paypalClientId: (data?.paypal_client_id as string | null) ?? null,
+    hasPaypalSecret: !!data?.paypal_client_secret,
   })
 }

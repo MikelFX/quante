@@ -40,6 +40,7 @@ export default async function StudioPage({ params }: Props) {
     subscribed: !!hostingSubResult.data,
     subscriptionEndsAt: hostingSubResult.data?.current_period_end ?? null,
     cancelAtPeriodEnd: hostingSubResult.data?.cancel_at_period_end ?? false,
+    suspendedAt: (project.hosting_suspended_at as string | null) ?? null,
   }
 
   const latestDeploy = latestDeploymentResult.data

@@ -1,6 +1,7 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { ChangelogAdmin, type ChangelogEntry } from './ChangelogAdmin'
 
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
 
@@ -48,6 +49,13 @@ export default async function AdminPage() {
   }
 
   const users = (agencyUsers ?? []) as AgencyUser[]
+
+  const { data: changelogRows } = await supabaseAdmin
+    .from('changelog_entries')
+    .select('id, date, title, description, tags')
+    .order('date', { ascending: false })
+    .limit(50)
+  const changelogEntries = (changelogRows ?? []) as ChangelogEntry[]
 
   const statusColor: Record<string, string> = {
     active: '#3ecf8e',
@@ -109,6 +117,8 @@ export default async function AdminPage() {
           ))}
         </div>
       )}
+
+      <ChangelogAdmin entries={changelogEntries} />
     </div>
   )
 }

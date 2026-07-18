@@ -25,6 +25,7 @@ export interface OrderEmailData {
     ulice: string
     mesto: string
     psc: string
+    zeme?: string
   }
   // Store branding
   storeName: string
@@ -105,7 +106,7 @@ export function orderConfirmationEmail(d: OrderEmailData): { subject: string; ht
   const shippingNote = d.zasilkovnaBranchName
     ? `<p style="font-size:13px;color:#555">Výdejní místo Zásilkovna: <strong>${d.zasilkovnaBranchName}</strong></p>`
     : d.shippingAddress
-    ? `<p style="font-size:13px;color:#555">Adresa doručení: ${d.shippingAddress.ulice}, ${d.shippingAddress.psc} ${d.shippingAddress.mesto}</p>`
+    ? `<p style="font-size:13px;color:#555">Adresa doručení: ${d.shippingAddress.ulice}, ${d.shippingAddress.psc} ${d.shippingAddress.mesto}${d.shippingAddress.zeme ? `, ${d.shippingAddress.zeme}` : ''}</p>`
     : ''
 
   const content = `
@@ -236,7 +237,7 @@ export interface MerchantOrderEmailData {
   currency: string
   paymentMethod: string
   shippingMethod?: string
-  shippingAddress?: { ulice: string; mesto: string; psc: string }
+  shippingAddress?: { ulice: string; mesto: string; psc: string; zeme?: string }
   storeName: string
   accentColor: string
   adminUrl?: string  // link to the Studio admin orders tab
@@ -273,7 +274,7 @@ export function merchantNewOrderEmail(d: MerchantOrderEmailData): { subject: str
 
     <div style="background:#f9f9f9;border-radius:8px;padding:14px 16px;margin:0 0 16px;font-size:13px;line-height:1.7;color:#444">
       <p style="margin:0 0 4px"><strong>Zákazník:</strong> ${d.customerName} (${d.customerEmail}${d.customerPhone ? `, ${d.customerPhone}` : ''})</p>
-      ${d.shippingAddress ? `<p style="margin:0 0 4px"><strong>Adresa:</strong> ${d.shippingAddress.ulice}, ${d.shippingAddress.psc} ${d.shippingAddress.mesto}</p>` : ''}
+      ${d.shippingAddress ? `<p style="margin:0 0 4px"><strong>Adresa:</strong> ${d.shippingAddress.ulice}, ${d.shippingAddress.psc} ${d.shippingAddress.mesto}${d.shippingAddress.zeme ? `, ${d.shippingAddress.zeme}` : ''}</p>` : ''}
       ${d.shippingMethod ? `<p style="margin:0 0 4px"><strong>Doprava:</strong> ${d.shippingMethod}</p>` : ''}
       <p style="margin:0"><strong>Platba:</strong> ${d.paymentMethod}</p>
     </div>
@@ -319,9 +320,80 @@ export function merchantLowStockEmail(d: LowStockEmailData): { subject: string; 
   }
 }
 
+// ─── Platform: hosting expiry reminder (to store owner) ──────────────────────
+
+export interface HostingReminderEmailData {
+  storeName: string
+  storeUrl: string | null
+  endsAt: string          // ISO date
+  daysLeft: number        // 7 or 1
+  isTrial: boolean
+  projectUrl: string      // link to the Studio
+}
+
+export function hostingReminderEmail(d: HostingReminderEmailData): { subject: string; html: string } {
+  const endDate = new Date(d.endsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  const what = d.isTrial ? 'free hosting trial' : 'hosting plan'
+  const urgency = d.daysLeft === 1 ? 'tomorrow' : `in ${d.daysLeft} days`
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:2rem 1rem;color:#111">
+      <h2 style="margin:0 0 8px;font-size:20px">Your ${what} ends ${urgency}</h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.6">
+        The ${what} for <strong>${d.storeName}</strong> ends on <strong>${endDate}</strong>.
+        After that your store${d.storeUrl ? ` at <a href="${d.storeUrl}" style="color:#6f78e6">${d.storeUrl.replace('https://', '')}</a>` : ''} will be paused and visitors will see a maintenance page.
+      </p>
+      <div style="background:#f6f6f8;border-radius:8px;padding:14px 16px;margin:0 0 20px">
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.6">
+          Keep your store live with a hosting plan: <strong>$99 / year</strong> or <strong>$9.99 / month</strong>.
+          Your store data is never deleted — you can reactivate anytime.
+        </p>
+      </div>
+      <a href="${d.projectUrl}" style="display:inline-block;padding:10px 20px;background:#6f78e6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Subscribe now →</a>
+      <p style="margin:24px 0 0;font-size:12px;color:#999">Sent by Quante · quantecode.com</p>
+    </div>
+  `
+  return {
+    subject: `Your ${what} for ${d.storeName} ends ${urgency}`,
+    html,
+  }
+}
+
+// ─── Platform: hosting suspended (to store owner) ─────────────────────────────
+
+export interface HostingSuspendedEmailData {
+  storeName: string
+  storeUrl: string | null
+  projectUrl: string
+}
+
+export function hostingSuspendedEmail(d: HostingSuspendedEmailData): { subject: string; html: string } {
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:2rem 1rem;color:#111">
+      <h2 style="margin:0 0 8px;font-size:20px">Your store has been paused</h2>
+      <p style="margin:0 0 20px;font-size:14px;color:#555;line-height:1.6">
+        Hosting for <strong>${d.storeName}</strong> has expired.
+        ${d.storeUrl ? `Visitors to <a href="${d.storeUrl}" style="color:#6f78e6">${d.storeUrl.replace('https://', '')}</a> now see a maintenance page.` : 'Visitors now see a maintenance page.'}
+      </p>
+      <div style="background:#fff8ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 16px;margin:0 0 20px">
+        <p style="margin:0;font-size:13px;color:#9a3412;line-height:1.6">
+          <strong>Nothing is lost.</strong> Your store, products and orders are safely stored for at least 90 days.
+          Subscribe ($99 / year or $9.99 / month) and your store goes back online automatically.
+        </p>
+      </div>
+      <a href="${d.projectUrl}" style="display:inline-block;padding:10px 20px;background:#6f78e6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Restore my store →</a>
+      <p style="margin:24px 0 0;font-size:12px;color:#999">Sent by Quante · quantecode.com</p>
+    </div>
+  `
+  return {
+    subject: `${d.storeName} is paused — hosting expired`,
+    html,
+  }
+}
+
 // ─── Resend helper ────────────────────────────────────────────────────────────
 
-export async function sendEmail(to: string, subject: string, html: string, from = 'objednavky@quante.io'): Promise<boolean> {
+export async function sendEmail(to: string, subject: string, html: string, from = 'objednavky@quantecode.com'): Promise<boolean> {
   const key = process.env.RESEND_API_KEY
   if (!key) return false
   try {
@@ -348,8 +420,8 @@ export async function getProjectFromEmail(projectId: string): Promise<string> {
       .select('resend_from_email')
       .eq('project_id', projectId)
       .maybeSingle()
-    return (data?.resend_from_email as string | null) ?? 'objednavky@quante.io'
+    return (data?.resend_from_email as string | null) ?? 'objednavky@quantecode.com'
   } catch {
-    return 'objednavky@quante.io'
+    return 'objednavky@quantecode.com'
   }
 }

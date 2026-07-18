@@ -64,7 +64,7 @@
 │   ├── (marketing)/                — Marketing route group (transparent to URL routing)
 │   │   ├── layout.tsx              — Marketing layout: sticky nav (top: var(--banner-h)), <main>, <SiteFooter>
 │   │   ├── domains/page.tsx        — Custom domains page ('use client'): search form, mock TLD results, how-it-works steps, FAQ, CTA
-│   │   ├── changelog/page.tsx      — Changelog: groups entries from content/changelog.json by month, color-coded tags
+│   │   ├── changelog/page.tsx      — Changelog: reads changelog_entries table (fallback content/changelog.json), grouped by month, color-coded tags, revalidate 300s
 │   │   ├── terms/page.tsx          — Terms of Service (SaaS ToS draft, 14 sections, governing law: Czech Republic/EU)
 │   │   ├── privacy/page.tsx        — GDPR Privacy Policy (sub-processors table: Stripe, Vercel, Anthropic, Namecheap, Clerk, Supabase; ÚOOÚ supervisory authority)
 │   │   ├── cookies/page.tsx        — Cookie Policy (Clerk session cookies, quante_banner_v1_dismissed localStorage, no analytics currently)
@@ -116,7 +116,7 @@
 │   └── api/                        — All API routes (see §3)
 │
 ├── content/
-│   └── changelog.json              — 6 seeded changelog entries (fields: date, title, description, tags[]); dates 2026-06-08 to 2026-07-05
+│   └── changelog.json              — fallback changelog entries (primary source is the changelog_entries DB table, managed from /admin)
 │
 ├── components/
 │   ├── AnnouncementBanner.tsx      — 'use client'; dismissible 40px site-wide sticky banner (z-index 100); sets --banner-h CSS var on :root (40px shown / 0px dismissed); localStorage key: quante_banner_v1_dismissed; content: domain feature announcement → /domains
@@ -291,11 +291,15 @@
 | `/api/projects/[id]/settings` | GET | Project settings including shipping credential flags. |
 | `/api/projects/[id]/orders` | GET | Stripe orders for the project. |
 | `/api/projects/[id]/store-orders` | GET | Store orders (Comgate/Zásilkovna/bank) for the project. |
-| `/api/projects/[id]/store-orders/[orderId]/zasilkovna-shipment` | POST | Create Zásilkovna parcel. |
-| `/api/projects/[id]/store-orders/[orderId]/dhl-shipment` | POST | Create DHL Express shipment. |
+| `/api/projects/[id]/store-orders/[orderId]/zasilkovna-shipment` | POST | Create Zásilkovna parcel. No `shipping_method` gate (merchant picks carrier in the unified Orders dropdown), but requires `zasilkovna_branch_id` on the order. |
+| `/api/projects/[id]/store-orders/[orderId]/dhl-shipment` | POST | Create DHL Express shipment (any order, no `shipping_method` gate). Returns tracking + label PDF base64. |
+| `/api/projects/[id]/store-orders/[orderId]/gls-shipment` | POST | Create GLS parcel via MyGLS API (`lib/gls.ts`). Uses `gls_*` creds from `project_secrets`; pickup address defaults to the GLS client account address (no manifest merchant dependency). COD auto for `payment_method='dobirka'`. Returns `{ parcelNumber, trackingUrl, labelBase64 }`, marks order shipped + sends tracking e-mail. |
+| `/api/projects/[id]/store-orders/[orderId]/fulfillment` | POST/GET | byrd fulfillment (`lib/fulfillment/byrd.ts`). POST sends the order to the byrd warehouse (items matched by SKU, COD for dobírka, 409 if already shipped/sent) and stores `fulfillment_provider/ref/status` on the order. GET polls byrd; once a tracking number exists it marks the order shipped, saves tracking + sends the tracking e-mail. |
 | `/api/projects/[id]/customers` | GET | Customer records. |
 | `/api/projects/[id]/revenue` | GET | Revenue stats. |
 | `/api/projects/[id]/inventory` | GET/PATCH | Stock management. |
+| `/api/projects/[id]/products` | GET/PUT | Inline product editing for code-gen stores. GET parses `data/products.ts` from the latest `code_versions` row via `lib/store-products.ts` (JSON5, no code execution) → `{ products, editable, currency, versionId }`; `editable: false` when the file isn't a plain literal (UI falls back to chat editing). PUT sanitizes + writes a new `code_versions` row (append-only history); changes go live on next deploy. |
+| `/api/projects/[id]/insights` | GET/POST | AI Store Analyzer. GET returns cached cards from `store_insights` (+ `stale` flag after 7 days). POST (1 credit, 1h cooldown) sends catalog + orders + earnings summary to `INTAKE_MODEL`, returns 4–8 `InsightCard`s (`category: finance\|ux`, `severity: good\|suggestion\|warning`), debits only after success. |
 
 ### Export
 
@@ -309,7 +313,7 @@
 | Route | Method | Description |
 |---|---|---|
 | `/api/stripe/checkout` | POST | Create Stripe Checkout session for credit pack. Sets `metadata.type=''`, `metadata.credits`, `metadata.userId`. |
-| `/api/stripe/webhook` | POST | Handles: `checkout.session.completed` (credit packs, store sales, domain purchases, hosting), `customer.subscription.*` (agency tier, hosting subscriptions), `account.updated` (Stripe Connect onboarding). |
+| `/api/stripe/webhook` | POST | Handles: `checkout.session.completed` (credit packs, store sales, domain purchases, hosting), `customer.subscription.*` (agency tier, hosting subscriptions — on active/trialing hosting sub, auto-restores a suspended store: redeploys latest `code_versions` via `buildStoreFiles` + `createPreviewDeployment`, clears `hosting_suspended_at`), `account.updated` (Stripe Connect onboarding). |
 | `/api/stripe/agency-checkout` | POST | Create Stripe Checkout session for Agency subscription. |
 | `/api/stripe/portal` | POST | Create Stripe Customer Portal session. |
 | `/api/stripe/connect/onboard` | POST | Create Stripe Connect Express onboarding link. |
@@ -345,10 +349,11 @@
 | `/api/upload` | POST | Upload image to Supabase Storage `store-assets` bucket. Returns public URL. |
 | `/api/user/tier` | GET | Get current user tier. |
 | `/api/admin/grant-credits` | POST | Admin: grant credits to any user. |
-| `/api/hosting/subscribe` | POST | Start hosting subscription via Stripe. |
+| `/api/hosting/subscribe` | POST | Start hosting subscription via Stripe. Body `{ projectId, interval: 'month' \| 'year' }` — picks `STRIPE_HOSTING_MONTHLY_PRICE_ID` ($9.99/mo) or `STRIPE_HOSTING_PRICE_ID` ($99/yr). |
+| `/api/cron/hosting` | GET | Daily cron (vercel.json, 06:00 UTC). Optional `CRON_SECRET` Bearer auth. Sends trial/subscription expiry reminders (7d + 1d, deduped via `hosting_reminders`), suspends expired stores by deploying a white-label maintenance page (`lib/hosting/maintenance-site.ts`) and setting `hosting_suspended_at`. |
 | `/api/hosting/domain` | POST | Add custom domain to project hosting. |
 | `/api/domains/search` | GET | Search domain availability (Namecheap). |
-| `/api/domains/purchase` | POST | Purchase domain via Stripe → Namecheap webhook. |
+| `/api/domains/purchase` | POST | Purchase domain via Stripe → webhook registers at Namecheap, auto-configures DNS to Vercel (`setDnsToVercel`), attaches apex + www to the project's Vercel project. |
 | `/api/domains/list` | GET | List user's domains. |
 | `/api/domains/[id]` | GET/DELETE | Single domain. |
 | `/api/domains/connect` | POST | Connect custom domain to project. |
@@ -376,6 +381,7 @@ name text
 status text DEFAULT 'draft'    -- draft | published | archived
 vercel_project_id text          -- added by migration-hosting.sql
 hosting_trial_ends_at timestamptz -- added by migration-hosting-billing.sql
+hosting_suspended_at timestamptz  -- added by migration-hosting-v2.sql; set when store paused (maintenance page deployed)
 created_at, updated_at
 ```
 
@@ -459,6 +465,16 @@ cancel_at_period_end boolean
 created_at, updated_at
 ```
 
+**`hosting_reminders`** (migration-hosting-v2.sql) — dedup for hosting reminder e-mails
+```
+id uuid PK
+project_id uuid FK → projects (cascade)
+kind text                       -- reminder_7d | reminder_1d | suspended
+ref_date date                   -- the expiry date the reminder refers to
+created_at
+UNIQUE(project_id, kind, ref_date)  -- new billing period = new ref_date → reminders fire again
+```
+
 **`deployments`** (migration-hosting.sql + migration-code-gen.sql)
 ```
 id uuid PK
@@ -493,16 +509,24 @@ payment_test_mode boolean DEFAULT true
 zasilkovna_api_key text
 zasilkovna_api_password text
 comgate_merchant_id text
-comgate_secret text
+comgate_secret text                      -- encrypted at rest (enc:v1:..., lib/crypto.ts)
 gopay_client_id text
-gopay_client_secret text
+gopay_client_secret text                 -- encrypted at rest
 gopay_go_id text
+paypal_client_id text                    -- added migration-paypal-credentials.sql
+paypal_client_secret text                -- encrypted at rest
 stripe_connect_account_id text
 stripe_connect_onboarded boolean
 stripe_connect_charges_enabled boolean
 dhl_api_key text
 dhl_api_secret text
 dhl_account_number text
+gls_username text                        -- added migration-gls.sql (MyGLS creds)
+gls_password text
+gls_client_number text
+gls_country text DEFAULT 'cz'            -- cz | sk | hu | ro | si | hr (picks MyGLS API host)
+byrd_api_key text                        -- added migration-byrd.sql
+byrd_api_secret text
 updated_at timestamptz
 ```
 
@@ -523,6 +547,9 @@ zasilkovna_branch_name text
 zasilkovna_branch_country text          -- added migration-packeta-international.sql
 tracking_code text
 tracking_url text
+fulfillment_provider text               -- added migration-byrd.sql, e.g. 'byrd'
+fulfillment_ref text                    -- provider shipment id (byrd_id)
+fulfillment_status text                 -- provider-native status
 customer_name, customer_email, customer_phone text
 shipping_address jsonb
 shipping_country text                   -- added migration-dhl.sql
@@ -539,10 +566,19 @@ created_at, updated_at
 id uuid PK
 project_id uuid FK → projects
 stripe_session_id text UNIQUE
-gross_amount_cents, platform_fee_cents, net_amount_cents int
+gross_amount_cents, platform_fee_cents, net_amount_cents int  -- platform fee removed 2026-07; fee column kept for legacy rows (new rows: fee=0, net=gross)
 currency text
 customer_email, customer_name text
 created_at
+```
+
+**`store_insights`** (migration-insights.sql)
+```
+id uuid PK
+project_id uuid UNIQUE FK → projects (one row per project, upserted on refresh)
+user_id text
+insights jsonb DEFAULT '[]'   -- InsightCard[] from the AI Store Analyzer
+created_at, updated_at
 ```
 
 **`store_payout_accounts`** (migration-managed-payments.sql)
@@ -665,7 +701,7 @@ RATE_LIMITS = { generate: 5, iterate: 60, section: 15 }  // per hour
 ```
 
 ### `lib/credit-packs.ts`
-CREDIT_PACKS array: 20 cr/$9.99, 45 cr/$24.99 (popular), 100 cr/$69.99. Prices in USD cents (`priceCents` field — renamed from `priceEurCents`). Interface: `{ id, credits, label, description, priceCents, priceDisplay, perCreditDisplay, popular? }`.
+CREDIT_PACKS array: 50 cr/$9.99, 100 cr/$24.99 (popular), 200 cr/$69.99. Prices in USD cents (`priceCents` field — renamed from `priceEurCents`). Interface: `{ id, credits, label, description, priceCents, priceDisplay, perCreditDisplay, popular? }`.
 
 ### `lib/tier.ts`
 - `getUserRecord(userId)` — fetches `users` table row, returns `UserRecord` with tier/limits
@@ -694,7 +730,10 @@ All calls use `VERCEL_TOKEN` and `VERCEL_TEAM_ID`.
 - `getDeploymentStatus(deploymentId)` — poll status
 - `getBuildError(deploymentId)` — fetch stderr from Vercel events
 - `attachDomain(vercelProjectId, domain)` — add domain to Vercel project
-- `HOSTING_ROOT_DOMAIN` = env `HOSTING_ROOT_DOMAIN` ?? 'quante.app'
+- `HOSTING_ROOT_DOMAIN` = env `HOSTING_ROOT_DOMAIN` ?? 'stores.quantecode.com'
+
+### `lib/hosting/maintenance-site.ts`
+`maintenanceSiteFiles(storeName)` — returns 3 files for a minimal white-label Next.js (pages router) app: `package.json`, `pages/index.js` (dark centered "store temporarily unavailable" page, Czech + English, no Quante branding), `pages/404.js` (re-exports index so all routes show it). Deployed to the store's existing Vercel project by the hosting cron when trial/subscription expires — keeps the domain attached, store data stays in DB (≥90-day retention).
 
 ### `lib/supabase/admin.ts`
 `supabaseAdmin` — service-role client (bypasses RLS). The only Supabase client used server-side.
@@ -712,15 +751,22 @@ All calls use `VERCEL_TOKEN` and `VERCEL_TEAM_ID`.
 Full Zod schema for `ShopManifest` — used by legacy manifest validation.
 
 ### `lib/payments/`
-- `comgate.ts` — Comgate Czech gateway (HTTP API)
-- `gopay.ts` — GoPay Czech gateway (OAuth + REST)
-- `paypal.ts` — PayPal REST API
+- `comgate.ts` — Comgate Czech gateway (HTTP API); webhook verified via HMAC-SHA256
+- `gopay.ts` — GoPay Czech gateway (OAuth + REST); webhook verified by pulling status from GoPay API
+- `paypal.ts` — PayPal REST API; `captureOrder` returns `{status, amountValue, currency, referenceId}`, validated (COMPLETED + amount ±0.01 + reference match) before marking paid; ORDER_ALREADY_CAPTURED handled idempotently
+- `project-providers.ts` — `getProjectPaymentCreds(projectId)` reads per-project creds from `project_secrets` (secrets decrypted via lib/crypto); `comgateForProject/gopayForProject/paypalForProject` build a provider from project creds or fall back to platform env vars
 - `types.ts` — `PaymentInitResult`, `PaymentStatus` shared types
+
+### `lib/crypto.ts`
+AES-256-GCM encryption for per-project payment secrets. Key = `SECRETS_ENCRYPTION_KEY` env (32 bytes, base64 or hex). Format `enc:v1:<iv>:<tag>:<ct>`; values without the prefix pass through as legacy plaintext. `encryptSecret` / `decryptSecret` / `isEncryptionConfigured`.
+
+### `lib/order-emails.ts`
+`sendPaymentSuccessEmails(order)` — after a payment webhook marks an order paid: sends `paymentConfirmedEmail` to the customer + `merchantNewOrderEmail` to the merchant, from-address via `getProjectFromEmail`. Used by Comgate/GoPay/PayPal notify routes (Stripe webhook has its own equivalent chain).
 
 ### `lib/email-templates.ts`
 - `paymentConfirmedEmail(...)` — customer order confirmation HTML email
 - `merchantNewOrderEmail(...)` — merchant new order notification
-- `sendEmail(to, subject, html, from?)` — sends via Resend API
+- `sendEmail(to, subject, html, from?)` — sends via Resend API; default from `objednavky@quantecode.com`
 
 ### `lib/zasilkovna.ts`
 Packeta/Zásilkovna API: create parcel, get label, list pickup branches.
@@ -728,8 +774,20 @@ Packeta/Zásilkovna API: create parcel, get label, list pickup branches.
 ### `lib/dhl.ts`
 DHL Express: create shipment, get tracking.
 
+### `lib/gls.ts`
+MyGLS API (`createGlsParcel`): JSON POST to `{host}/ParcelService.svc/json/PrintLabels`; auth = username + SHA-512 password hash as byte array + client number. API host chosen by `gls_country` (cz/sk/hu/ro/si/hr), test hosts via `testMode`. Returns parcel number, tracking URL (`gls-group.eu/.../parcel-tracking?match=`), label PDF base64 (A4 2×2). Pickup address defaults to the GLS client account address. Weight not sent — GLS charges by account contract.
+
+### `lib/fulfillment/provider.ts` + `lib/fulfillment/byrd.ts`
+Fulfillment (3PL warehouse) abstraction: `FulfillmentProvider` interface (`createShipment`, `getShipment`) with typed address/items/COD input. byrd implementation (developers.getbyrd.com): JWT login `POST /v2/login` (API key + secret, token cached per key ~6h — login is rate-limited 5/min), `POST /v3/shipments` (destination_address, items by SKU, `shop.order_number`, `cash_on_delivery`, `options.auto_release` off in testMode), `GET /v3/shipments/{id}` for status/tracking. `splitStreet()` splits a single "ulice" line into street name + number. Mandatory `User-Agent` header. `store_orders` gains `fulfillment_provider/fulfillment_ref/fulfillment_status` (migration-byrd.sql).
+
+**Unified "Create shipment" dropdown (Orders tab in Studio admin):** per order, the merchant picks Packeta / DHL / GLS / byrd fulfillment from a select (Packeta disabled without a pickup-branch id, byrd disabled without credentials; default preselect derived from `shipping_method`). Weight input shown for Packeta/DHL only. Shipped orders show tracking + a PDF label download (DHL/GLS). Orders sent to byrd show `byrd · status · ref` with a "Refresh tracking" button that polls the GET fulfillment route. The shipment routes no longer check `shipping_method`.
+
 ### `lib/namecheap.ts`
-Namecheap reseller API: domain search, registration.
+Namecheap reseller API: domain search, registration, DNS.
+- `checkDomainAvailability(domain)` — availability + marked-up USD price (`DOMAIN_MARKUP_MULTIPLIER`, rounded to .99)
+- `registerDomain(domain, years)` — registers with real WHOIS contact from `DOMAIN_REGISTRANT_*` env vars (all four roles), WhoisGuard on
+- `setDnsToVercel(domain)` — `namecheap.domains.dns.setHosts`: A `@` → 76.76.21.21, CNAME `www` → cname.vercel-dns.com. **Replaces ALL host records** — only for freshly registered domains. Called from the Stripe webhook after successful registration (auto-connect; the store is live on the new domain without any manual DNS).
+- Search route checks TLDs: `.com .cz .sk .eu .app .ai .io .shop .store` (unsupported reseller TLDs are silently filtered out).
 
 ### `lib/ares.ts`
 Czech ARES: lookup company by IČO (8-digit company ID).
@@ -838,7 +896,9 @@ Very large (~4,400 lines) 'use client' component. Key features:
 - **Tabs (mobile)**: `chat | preview | logs | sections | products | theme | publish`
 - **Tabs (desktop left panel)**: `chat | sections | products | theme | publish`
 - **Right panel**: `preview (iframe) | logs`
-- **Admin mode** toggle (separate admin view): `dashboard | products | orders | customers | settings`
+- **Admin mode** toggle (separate admin view): `dashboard | products | orders | customers | insights | settings`
+- **Products tab (code-gen stores)**: `currentManifest` is always null for code-gen stores, so the Products panel loads parsed products from `GET /api/projects/[id]/products` and saves via PUT (new code version, live after next deploy). Form supports images, price, compare-at, SKU, tags, availability. Each row has a "✦ Quante" button that jumps to chat with a prefilled "Edit product ..." prompt. When `editable: false` (product file isn't a plain literal), the panel shows a chat-editing fallback message.
+- **Insights tab**: AI Store Analyzer cards (finance/ux, severity good/suggestion/warning) from `/api/projects/[id]/insights`; refresh costs 1 credit (1h cooldown).
 
 **Props:**
 - `projectId`, `projectName`, `storeUrl: string | null` — canonical domain URL for preview iframe (e.g. `https://axiom.stores.quantecode.com`), computed server-side from `toStoreSlug(project.name) + HOSTING_ROOT_DOMAIN`
@@ -1173,7 +1233,7 @@ All defined in `.env.local.example`:
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe public key |
 | `STRIPE_AGENCY_PRICE_ID` | Stripe Price ID for Agency monthly subscription |
-| `PLATFORM_FEE_PERCENT` | Platform fee on store sales (default 5) |
+| `SECRETS_ENCRYPTION_KEY` | AES-256-GCM key (32 bytes, base64/hex) for encrypting per-project payment secrets |
 | `COMGATE_MERCHANT_ID` | Comgate gateway merchant ID |
 | `COMGATE_SECRET` | Comgate gateway secret |
 | `COMGATE_TEST_MODE` | `true` for test mode |
@@ -1189,8 +1249,11 @@ All defined in `.env.local.example`:
 | `NEXT_PUBLIC_APP_URL` | Public URL of this platform (e.g. `https://quante.vercel.app`) |
 | `VERCEL_TOKEN` | Vercel API token (must have project + deployment + domain scopes) |
 | `VERCEL_TEAM_ID` | Vercel team ID (for pro teams) |
-| `HOSTING_ROOT_DOMAIN` | Root domain for store subdomains (e.g. `quante.app`). Wildcard `*.quante.app` must be pointed at Vercel. |
-| `HOSTING_STRIPE_PRICE_ID` | Stripe Price ID for hosting subscription |
+| `HOSTING_ROOT_DOMAIN` | Root domain for store subdomains (default `stores.quantecode.com`). Wildcard `*.stores.quantecode.com` must be pointed at Vercel. |
+| `DOMAIN_REGISTRANT_FIRST_NAME` … `DOMAIN_REGISTRANT_PHONE` | Real WHOIS registrant contact for Namecheap registrations (FIRST_NAME, LAST_NAME, ADDRESS, CITY, STATE, ZIP, COUNTRY, PHONE, EMAIL). Registrars reject fake contacts on some TLDs. |
+| `STRIPE_HOSTING_PRICE_ID` | Stripe Price ID for annual hosting subscription ($99/year USD) |
+| `STRIPE_HOSTING_MONTHLY_PRICE_ID` | Stripe Price ID for monthly hosting subscription ($9.99/month USD) |
+| `CRON_SECRET` | Optional. Bearer secret for `/api/cron/hosting`; Vercel sends it automatically when set. |
 | `NAMECHEAP_API_USER` | Namecheap reseller API user |
 | `NAMECHEAP_API_KEY` | Namecheap API key |
 | `NAMECHEAP_CLIENT_IP` | Whitelisted IP for Namecheap API |
@@ -1221,13 +1284,13 @@ All defined in `.env.local.example`:
 - **Inventory**: `store_inventory` table, atomic stock decrement, low-stock view.
 - **Invoice generation**: PDF invoices via `/invoice/[orderId]`.
 - **Domain management**: Search (Namecheap), purchase (Stripe → Namecheap), attach to Vercel, DNS verification.
-- **Admin panel in Studio**: Orders (Stripe + store), customers, revenue chart, shipment creation, payout account, IBAN management.
+- **Admin panel in Studio**: Orders (Stripe + store), customers, revenue chart, shipment creation, payout account, IBAN management, inline product editing (`lib/store-products.ts` — JSON5 parse/serialize of `data/products.ts`, never executes AI code), AI Insights tab.
 - **Landing page** (`/`): Cinematic scroll with sticky sections, horizontal showcase, pricing preview. Hero browser-window mockup now shows a live iframe (Maison Sève store, lazy-mounted via IntersectionObserver). Uses SiteFooter.
 - **Announcement banner**: Dismissible 40px site-wide banner; persists dismiss state to localStorage (`quante_banner_v1_dismissed`); coordinates with nav via `--banner-h` CSS custom property.
 - **Structured footer** (`SiteFooter`): 4-column (Product / Company / Legal / Impressum), copyright, social row (hidden if empty). Identity from `lib/site-config.ts`.
 - **Marketing pages** (`(marketing)/` route group with shared nav + SiteFooter layout):
   - `/domains` — custom domain search, mock TLD results, how-it-works, SSL callout, FAQ, CTA
-  - `/changelog` — grouped by month, color-coded tags; seeded from `content/changelog.json`
+  - `/changelog` — grouped by month, color-coded tags; reads `changelog_entries` table (fallback `content/changelog.json`), entries managed from `/admin`
   - `/terms` — SaaS Terms of Service (14 sections; DRAFT — needs legal review)
   - `/privacy` — GDPR Privacy Policy with sub-processors table (DRAFT)
   - `/cookies` — Cookie Policy listing Clerk session + banner localStorage key (DRAFT)
@@ -1278,7 +1341,7 @@ All defined in `.env.local.example`:
 | Announcement banner | `components/AnnouncementBanner.tsx` |
 | Structured site footer | `components/SiteFooter.tsx` |
 | Marketing layout (nav + SiteFooter) | `app/(marketing)/layout.tsx` |
-| Changelog data | `content/changelog.json` |
+| Changelog data | `changelog_entries` table (migration-changelog.sql); fallback `content/changelog.json` |
 | New project flow | `app/(app)/new/page.tsx` |
 | Studio server page | `app/(app)/project/[id]/page.tsx` |
 | Studio client (LARGE) | `app/(app)/project/[id]/StudioClient.tsx` |

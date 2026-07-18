@@ -48,9 +48,8 @@ export async function POST(
     .maybeSingle()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-  if (order.shipping_method !== 'zasilkovna' && order.shipping_method !== 'packeta_international') {
-    return NextResponse.json({ error: 'Order shipping method is not Packeta/Zásilkovna' }, { status: 422 })
-  }
+  // No shipping_method check — the merchant picks the carrier in the unified dropdown.
+  // A pickup branch is still required, so only Packeta-widget orders qualify.
   if (!order.zasilkovna_branch_id) {
     return NextResponse.json({ error: 'No Zásilkovna branch selected on this order' }, { status: 422 })
   }
@@ -107,7 +106,7 @@ export async function POST(
           customerName: order.customer_name ?? 'zákazníku',
           storeName: manifest.brand.name,
           accentColor: manifest.design.palette.accent,
-          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quante.io',
+          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
           merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
           trackingCode: parcel.barcode,
           trackingUrl: parcel.trackingUrl,

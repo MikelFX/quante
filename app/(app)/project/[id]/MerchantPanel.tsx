@@ -58,6 +58,20 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   const [isSavingPayShip, setIsSavingPayShip] = useState(false)
   const [payShipMsg, setPayShipMsg] = useState('')
 
+  // Per-project payment gateway credentials
+  const [comgateMerchantId, setComgateMerchantId] = useState('')
+  const [comgateSecret, setComgateSecret] = useState('')
+  const [hasComgateSecret, setHasComgateSecret] = useState(false)
+  const [gopayGoId, setGopayGoId] = useState('')
+  const [gopayClientId, setGopayClientId] = useState('')
+  const [gopayClientSecret, setGopayClientSecret] = useState('')
+  const [hasGopaySecret, setHasGopaySecret] = useState(false)
+  const [paypalClientId, setPaypalClientId] = useState('')
+  const [paypalClientSecret, setPaypalClientSecret] = useState('')
+  const [hasPaypalSecret, setHasPaypalSecret] = useState(false)
+  const [isSavingGateways, setIsSavingGateways] = useState(false)
+  const [gatewaysMsg, setGatewaysMsg] = useState('')
+
   useEffect(() => {
     if (manifest?.merchant) setForm(manifest.merchant)
     if (manifest?.payments) {
@@ -87,7 +101,16 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   useEffect(() => {
     fetch(`/api/project/secrets?projectId=${projectId}`)
       .then((r) => r.json())
-      .then((d) => { if (d.resendFromEmail) setEmailFrom(d.resendFromEmail) })
+      .then((d) => {
+        if (d.resendFromEmail) setEmailFrom(d.resendFromEmail)
+        if (d.comgateMerchantId) setComgateMerchantId(d.comgateMerchantId)
+        setHasComgateSecret(!!d.hasComgateSecret)
+        if (d.gopayGoId) setGopayGoId(d.gopayGoId)
+        if (d.gopayClientId) setGopayClientId(d.gopayClientId)
+        setHasGopaySecret(!!d.hasGopaySecret)
+        if (d.paypalClientId) setPaypalClientId(d.paypalClientId)
+        setHasPaypalSecret(!!d.hasPaypalSecret)
+      })
       .catch(() => {})
   }, [projectId])
 
@@ -173,7 +196,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         body: JSON.stringify({ projectId, resend_from_email: emailFrom || null }),
       })
       if (!res.ok) { setEmailFromMsg('Failed to save'); return }
-      setEmailFromMsg(emailFrom ? 'Saved' : 'Reset to default (objednavky@quante.io)')
+      setEmailFromMsg(emailFrom ? 'Saved' : 'Reset to default (objednavky@quantecode.com)')
       setTimeout(() => setEmailFromMsg(''), 3000)
     } catch {
       setEmailFromMsg('Failed to save')
@@ -277,6 +300,43 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       setPayShipMsg('Failed to save')
     } finally {
       setIsSavingPayShip(false)
+    }
+  }
+
+  async function saveGatewayCredentials() {
+    setIsSavingGateways(true)
+    setGatewaysMsg('')
+    try {
+      const body: Record<string, string | null> = {
+        comgate_merchant_id: comgateMerchantId.trim() || null,
+        gopay_go_id: gopayGoId.trim() || null,
+        gopay_client_id: gopayClientId.trim() || null,
+        paypal_client_id: paypalClientId.trim() || null,
+      }
+      // Secrets are write-only — only send when the user typed a new value
+      if (comgateSecret.trim()) body.comgate_secret = comgateSecret.trim()
+      if (gopayClientSecret.trim()) body.gopay_client_secret = gopayClientSecret.trim()
+      if (paypalClientSecret.trim()) body.paypal_client_secret = paypalClientSecret.trim()
+
+      const res = await fetch('/api/project/secrets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, ...body }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setGatewaysMsg(d.error ?? 'Failed to save')
+        return
+      }
+      if (comgateSecret.trim()) { setHasComgateSecret(true); setComgateSecret('') }
+      if (gopayClientSecret.trim()) { setHasGopaySecret(true); setGopayClientSecret('') }
+      if (paypalClientSecret.trim()) { setHasPaypalSecret(true); setPaypalClientSecret('') }
+      setGatewaysMsg('Saved')
+      setTimeout(() => setGatewaysMsg(''), 3000)
+    } catch {
+      setGatewaysMsg('Failed to save')
+    } finally {
+      setIsSavingGateways(false)
     }
   }
 
@@ -449,7 +509,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Transactional emails</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          Customer emails are sent from <code style={{ fontSize: 9 }}>objednavky@quante.io</code> (default). For your own domain, verify it in Resend and enter the address below.
+          Customer emails are sent from <code style={{ fontSize: 9 }}>objednavky@quantecode.com</code> (default). For your own domain, verify it in Resend and enter the address below.
         </p>
         <div style={{ display: 'flex', gap: 4 }}>
           <input
@@ -523,7 +583,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
               Selected methods are automatically configured — no API keys required.
               Revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via IBAN transfer.
-              Custom API keys (Stripe, Comgate, GoPay) are set after export in <code style={{ fontSize: 9 }}>.env.local</code>.
+              Prefer receiving money directly? Enter your own gateway credentials in the section below.
             </p>
           </div>
         </div>
@@ -566,6 +626,46 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
           <input type="checkbox" id="pay_prevod" checked={payPrevod} onChange={(e) => setPayPrevod(e.target.checked)} style={{ margin: 0 }} />
           <label htmlFor="pay_prevod" style={{ fontSize: 11, cursor: 'pointer' }}>Bank transfer (QR code + payment instructions)</label>
         </div>
+      </div>
+
+      {/* Own gateway credentials */}
+      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Own gateway credentials (optional)</p>
+        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+          By default payments run through Quante&apos;s accounts and revenue lands in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab.
+          Enter your own credentials below to receive money directly on your gateway account instead. Secrets are stored encrypted and never shown again.
+        </p>
+
+        {/* Comgate */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>Comgate</p>
+          <input style={fieldStyle} value={comgateMerchantId} onChange={(e) => setComgateMerchantId(e.target.value)} placeholder="Merchant ID" />
+          <input style={fieldStyle} type="password" value={comgateSecret} onChange={(e) => setComgateSecret(e.target.value)} placeholder={hasComgateSecret ? 'Secret saved — enter new value to replace' : 'Secret'} autoComplete="new-password" />
+        </div>
+
+        {/* GoPay */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>GoPay</p>
+          <input style={fieldStyle} value={gopayGoId} onChange={(e) => setGopayGoId(e.target.value)} placeholder="GoID" />
+          <input style={fieldStyle} value={gopayClientId} onChange={(e) => setGopayClientId(e.target.value)} placeholder="Client ID" />
+          <input style={fieldStyle} type="password" value={gopayClientSecret} onChange={(e) => setGopayClientSecret(e.target.value)} placeholder={hasGopaySecret ? 'Client secret saved — enter new value to replace' : 'Client secret'} autoComplete="new-password" />
+        </div>
+
+        {/* PayPal */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>PayPal</p>
+          <input style={fieldStyle} value={paypalClientId} onChange={(e) => setPaypalClientId(e.target.value)} placeholder="Client ID" />
+          <input style={fieldStyle} type="password" value={paypalClientSecret} onChange={(e) => setPaypalClientSecret(e.target.value)} placeholder={hasPaypalSecret ? 'Client secret saved — enter new value to replace' : 'Client secret'} autoComplete="new-password" />
+        </div>
+
+        <button
+          onClick={saveGatewayCredentials}
+          disabled={isSavingGateways}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: isSavingGateways ? 0.6 : 1 }}
+        >
+          {isSavingGateways ? 'Saving…' : 'Save gateway credentials'}
+        </button>
+        {gatewaysMsg && <p style={{ fontSize: 10, color: gatewaysMsg === 'Saved' ? '#34d399' : '#f87171', margin: 0 }}>{gatewaysMsg}</p>}
       </div>
 
       {/* Shipping */}

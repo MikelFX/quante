@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${resendKey}` },
       body: JSON.stringify({
-        from: 'orders@quante.io',
+        from: 'orders@quantecode.com',
         to: ownerEmail,
         subject: `New order — ${order.currency} ${order.amount.toFixed(2)}`,
         html: `

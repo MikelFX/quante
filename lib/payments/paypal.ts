@@ -90,13 +90,41 @@ export class PayPalProvider implements PaymentProvider {
     return { transactionId, status }
   }
 
-  async captureOrder(transactionId: string): Promise<void> {
+  // Captures an approved order and returns the authoritative result so the
+  // caller can verify status + amount before marking anything as paid.
+  async captureOrder(transactionId: string): Promise<{ status: string; amountValue: number | null; currency: string | null; referenceId: string | null }> {
     const token = await this.getAccessToken()
     const res = await fetch(`${this.base}/v2/checkout/orders/${transactionId}/capture`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     })
-    if (!res.ok) throw new Error(`PayPal capture failed: ${res.status}`)
+    let data: Record<string, unknown> = {}
+    try { data = await res.json() } catch { /* non-JSON error body */ }
+
+    // ORDER_ALREADY_CAPTURED → fetch the order to get its real state (idempotent retry)
+    if (!res.ok) {
+      const issue = (data as { details?: Array<{ issue?: string }> }).details?.[0]?.issue
+      if (issue !== 'ORDER_ALREADY_CAPTURED') throw new Error(`PayPal capture failed: ${res.status}`)
+      const orderRes = await fetch(`${this.base}/v2/checkout/orders/${transactionId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!orderRes.ok) throw new Error(`PayPal get order failed: ${orderRes.status}`)
+      data = await orderRes.json()
+    }
+
+    const unit = (data.purchase_units as Array<{
+      reference_id?: string
+      amount?: { value?: string; currency_code?: string }
+      payments?: { captures?: Array<{ amount?: { value?: string; currency_code?: string } }> }
+    }> | undefined)?.[0]
+    const captureAmount = unit?.payments?.captures?.[0]?.amount ?? unit?.amount
+
+    return {
+      status: (data.status as string) ?? 'UNKNOWN',
+      amountValue: captureAmount?.value ? parseFloat(captureAmount.value) : null,
+      currency: captureAmount?.currency_code ?? null,
+      referenceId: unit?.reference_id ?? null,
+    }
   }
 }
 

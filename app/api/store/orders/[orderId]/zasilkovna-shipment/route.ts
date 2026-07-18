@@ -99,7 +99,7 @@ export async function POST(request: Request, { params }: Context) {
           customerName: order.customer_name ?? 'zákazníku',
           storeName: manifest.brand.name,
           accentColor: manifest.design.palette.accent,
-          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quante.io',
+          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
           merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
           trackingCode: parcel.barcode,
           trackingUrl: parcel.trackingUrl,

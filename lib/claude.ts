@@ -275,8 +275,9 @@ interface StoreProduct {
   images: string[]     // always empty array []
   slug: string         // kebab-case
   available: boolean   // always true
+  sku?: string         // omit unless the user supplies SKUs
   tags?: string[]
-  variants?: Array<{ id: string; name: string; price?: number; stock?: number }>
+  variants?: Array<{ id: string; name: string; price?: number; stock?: number; sku?: string }>
 }
 
 // StoreConfig — used in data/config.ts

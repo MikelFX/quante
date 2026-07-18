@@ -24,9 +24,10 @@ function scrubContent(_filePath: string, content: string): string {
   content = content.replace(/built with Quante[^\n]*/gi, '')
   content = content.replace(/\*[^*]*built with Quante[^*]*\*/gi, '')
 
-  // 2. Strip domain URLs (e.g. https://quante.vercel.app, my-store.quante.app)
-  content = content.replace(/https?:\/\/[a-z0-9.-]*quante\.[a-z.]+[^\s"')>]*/gi, '')
+  // 2. Strip domain URLs (e.g. https://quante.vercel.app, my-store.stores.quantecode.com)
+  content = content.replace(/https?:\/\/[a-z0-9.-]*quante(code)?\.[a-z.]+[^\s"')>]*/gi, '')
   content = content.replace(/[a-z0-9-]+\.quante\.(app|io)[^\s"')>]*/gi, '')
+  content = content.replace(/[a-z0-9.-]+\.quantecode\.com[^\s"')>]*/gi, '')
 
   // 3. Rename localStorage key at source
   content = content.replace(/quante-cart/gi, 'store-cart')

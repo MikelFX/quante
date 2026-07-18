@@ -105,8 +105,9 @@ function buildCodeGenScaffold(): GeneratedFile[] {
   images: string[]
   slug: string
   available: boolean
+  sku?: string
   tags?: string[]
-  variants?: Array<{ id: string; name: string; price?: number; stock?: number }>
+  variants?: Array<{ id: string; name: string; price?: number; stock?: number; sku?: string }>
   lowStockThreshold?: number
 }
 

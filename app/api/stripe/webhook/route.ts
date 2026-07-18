@@ -6,8 +6,10 @@ import { clerkClient } from '@clerk/nextjs/server'
 import type Stripe from 'stripe'
 import { paymentConfirmedEmail, merchantNewOrderEmail, sendEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
-import { registerDomain } from '@/lib/namecheap'
-import { attachDomain } from '@/lib/hosting/vercel'
+import { registerDomain, setDnsToVercel } from '@/lib/namecheap'
+import { attachDomain, createPreviewDeployment } from '@/lib/hosting/vercel'
+import { buildStoreFiles, toStoreSlug } from '@/lib/store-template/build'
+import type { CodeVersionFiles } from '@/types/store-code'
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -190,10 +192,70 @@ export async function POST(request: Request) {
           },
           { onConflict: 'stripe_subscription_id' }
         )
+
+      // Suspended store + active subscription again → redeploy the real store (free)
+      if (sub.status === 'active' || sub.status === 'trialing') {
+        await restoreSuspendedStore(projectId)
+      }
     }
   }
 
   return new Response('ok', { status: 200 })
+}
+
+// ─── Hosting restore: redeploy a suspended store after resubscribe ───────────
+// Store data is never deleted — the maintenance page is replaced by the latest
+// generated code version. Free (no credit debit); failures are non-fatal and the
+// user can always redeploy manually from the Studio.
+async function restoreSuspendedStore(projectId: string): Promise<void> {
+  try {
+    const { data: project } = await supabaseAdmin
+      .from('projects')
+      .select('id, name, user_id, vercel_project_id, hosting_suspended_at')
+      .eq('id', projectId)
+      .maybeSingle()
+
+    if (!project?.hosting_suspended_at || !project.vercel_project_id) return
+
+    const { data: version } = await supabaseAdmin
+      .from('code_versions')
+      .select('id, files, version_no')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!version) return
+
+    const files = buildStoreFiles(version.files as CodeVersionFiles)
+    const slug = toStoreSlug(project.name as string) || undefined
+    const result = await createPreviewDeployment(
+      project.vercel_project_id as string,
+      files.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding })),
+      slug,
+    )
+
+    await supabaseAdmin
+      .from('projects')
+      .update({ hosting_suspended_at: null, updated_at: new Date().toISOString() })
+      .eq('id', projectId)
+
+    await supabaseAdmin.from('deployments').insert({
+      project_id: projectId,
+      user_id: project.user_id,
+      vercel_project_id: project.vercel_project_id,
+      vercel_deployment_id: result.deploymentId,
+      status: 'building',
+      url: result.url,
+      domain: result.url.replace('https://', ''),
+      version: version.version_no,
+      code_version_id: version.id,
+    })
+
+    console.log(`[webhook] restored suspended store ${projectId} → ${result.url}`)
+  } catch (err) {
+    console.error(`[webhook] restoreSuspendedStore failed for ${projectId}:`, err)
+  }
 }
 
 // ─── Agency downgrade: archive projects over the limit ───────────────────────
@@ -261,7 +323,7 @@ async function sendCustomerConfirmation(projectId: string, session: Stripe.Check
     currency,
     storeName: manifest.brand.name,
     accentColor: manifest.design.palette.accent,
-    merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quante.io',
+    merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
     merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
     invoiceUrl,
   })
@@ -273,6 +335,7 @@ async function sendCustomerConfirmation(projectId: string, session: Stripe.Check
 
 async function recordStoreSale(projectId: string, session: Stripe.Checkout.Session) {
   const grossCents = session.amount_total ?? 0
+  // Platform fee was removed 2026-07 — kept for legacy sessions created before the change.
   const platformFeeCents = parseInt(session.metadata?.platform_fee_cents ?? '0', 10)
   const netCents = grossCents - platformFeeCents
   const orderId = session.metadata?.order_id
@@ -372,7 +435,7 @@ async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Sessi
     accentColor: manifest?.design.palette.accent ?? '#6f78e6',
   })
 
-  await sendEmail(ownerEmail, subject, html, 'orders@quante.io')
+  await sendEmail(ownerEmail, subject, html, 'orders@quantecode.com')
 }
 
 // ─── Domain purchase: register + attach to Vercel + save row ─────────────────
@@ -397,6 +460,15 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: st
     status = 'failed'
   }
 
+  // Auto-configure DNS at Namecheap (A @ → Vercel, CNAME www → cname.vercel-dns.com)
+  if (status === 'active') {
+    try {
+      await setDnsToVercel(domain)
+    } catch (err) {
+      console.error('[webhook] Namecheap DNS auto-config failed:', err)
+    }
+  }
+
   // Attach to Vercel if project linked
   let vercelProjectId: string | null = null
   if (projectId && status === 'active') {
@@ -406,6 +478,8 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: st
       if (project?.vercel_project_id) {
         await attachDomain(project.vercel_project_id, domain)
         vercelProjectId = project.vercel_project_id
+        // www variant is non-critical — Vercel redirects it to the apex
+        try { await attachDomain(project.vercel_project_id, `www.${domain}`) } catch { /* non-fatal */ }
       }
     } catch (err) {
       console.error('[webhook] Vercel attach failed:', err)
@@ -424,6 +498,7 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: st
     namecheap_order_id: namecheapOrderId,
     vercel_project_id: vercelProjectId,
     protection_enabled: includeProtection === 'true',
+    // set once Vercel confirms propagation (verify route); auto-config just points DNS
     dns_verified: false,
   })
 

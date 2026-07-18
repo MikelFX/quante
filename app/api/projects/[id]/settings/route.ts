@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { data: secrets } = await supabase
     .from('project_secrets')
-    .select('zasilkovna_api_key, zasilkovna_api_password, dhl_api_key, dhl_api_secret, dhl_account_number')
+    .select('zasilkovna_api_key, zasilkovna_api_password, dhl_api_key, dhl_api_secret, dhl_account_number, gls_username, gls_password, gls_client_number, gls_country, byrd_api_key, byrd_api_secret')
     .eq('project_id', projectId)
     .maybeSingle()
 
@@ -23,6 +23,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     hasDhlApiKey: !!(secrets?.dhl_api_key as string | null),
     hasDhlApiSecret: !!(secrets?.dhl_api_secret as string | null),
     hasDhlAccount: !!(secrets?.dhl_account_number as string | null),
+    hasGlsUsername: !!(secrets?.gls_username as string | null),
+    hasGlsPassword: !!(secrets?.gls_password as string | null),
+    hasGlsClientNumber: !!(secrets?.gls_client_number as string | null),
+    glsCountry: (secrets?.gls_country as string | null) ?? 'cz',
+    hasByrdApiKey: !!(secrets?.byrd_api_key as string | null),
+    hasByrdApiSecret: !!(secrets?.byrd_api_secret as string | null),
   })
 }
 
@@ -34,7 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Stripe/Comgate/GoPay keys are intentionally NOT accepted here.
   // Hosted stores always process payments through Quante's platform credentials.
   // Users configure their own keys only in self-hosted exports (via .env.local).
-  const { zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber } = await request.json()
+  const { zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber, glsUsername, glsPassword, glsClientNumber, glsCountry, byrdApiKey, byrdApiSecret } = await request.json()
 
   const supabase = await createClient()
   const { data: project } = await supabase
@@ -57,6 +63,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (dhlApiKey !== undefined) upsertPayload.dhl_api_key = dhlApiKey || null
   if (dhlApiSecret !== undefined) upsertPayload.dhl_api_secret = dhlApiSecret || null
   if (dhlAccountNumber !== undefined) upsertPayload.dhl_account_number = dhlAccountNumber || null
+  if (glsUsername !== undefined) upsertPayload.gls_username = glsUsername || null
+  if (glsPassword !== undefined) upsertPayload.gls_password = glsPassword || null
+  if (glsClientNumber !== undefined) upsertPayload.gls_client_number = glsClientNumber || null
+  if (glsCountry !== undefined) upsertPayload.gls_country = (typeof glsCountry === 'string' && glsCountry.trim()) ? glsCountry.trim().toLowerCase() : 'cz'
+  if (byrdApiKey !== undefined) upsertPayload.byrd_api_key = byrdApiKey || null
+  if (byrdApiSecret !== undefined) upsertPayload.byrd_api_secret = byrdApiSecret || null
 
   await supabaseAdmin.from('project_secrets').upsert(upsertPayload, { onConflict: 'project_id' })
 

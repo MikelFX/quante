@@ -13,10 +13,10 @@ const mono = 'var(--font-geist-mono)'
 const accent = '#6f78e6'
 
 const TLD_EXAMPLES = [
-  { tld: '.com',   price: '€12.99/yr', available: true  },
-  { tld: '.store', price: '€5.99/yr',  available: true  },
-  { tld: '.eu',    price: '€8.49/yr',  available: true  },
-  { tld: '.cz',    price: '€7.99/yr',  available: false },
+  { tld: '.com',   price: '$14.99/yr', available: true  },
+  { tld: '.store', price: '$7.99/yr',  available: true  },
+  { tld: '.eu',    price: '$9.99/yr',  available: true  },
+  { tld: '.io',    price: '$39.99/yr', available: false },
 ]
 
 const STEPS = [
@@ -44,7 +44,7 @@ const FAQS = [
   },
   {
     q: "Which TLDs are supported?",
-    a: `Quante supports the most common TLDs — .com, .store, .net, .org, .eu, .cz, .sk, .de, .shop, .io, and more. Availability depends on ${domainProvider.name}'s current reseller inventory. Exact availability is shown in the search results.`,
+    a: `Quante checks the most common TLDs — .com, .cz, .sk, .eu, .app, .ai, .io, .shop and .store. Availability depends on ${domainProvider.name}'s current reseller inventory. Exact availability and price is shown in the search results.`,
   },
   {
     q: "Is renewal automatic?",

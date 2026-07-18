@@ -1,18 +1,19 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { stripe, HOSTING_PRICE_ID, isStripeConfigured } from '@/lib/stripe'
+import { stripe, HOSTING_PRICE_ID, HOSTING_MONTHLY_PRICE_ID, isStripeConfigured } from '@/lib/stripe'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!isStripeConfigured() || !HOSTING_PRICE_ID) {
+  const { projectId, interval } = await request.json() as { projectId?: string; interval?: 'month' | 'year' }
+  if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
+
+  const priceId = interval === 'month' ? HOSTING_MONTHLY_PRICE_ID : HOSTING_PRICE_ID
+  if (!isStripeConfigured() || !priceId) {
     return NextResponse.json({ error: 'Hosting billing not configured.' }, { status: 503 })
   }
-
-  const { projectId } = await request.json()
-  if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
 
   const supabase = await createClient()
 
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
-    line_items: [{ price: HOSTING_PRICE_ID, quantity: 1 }],
+    line_items: [{ price: priceId, quantity: 1 }],
     metadata: { userId, projectId, type: 'hosting' },
     success_url: `${origin}/project/${projectId}?hosting=subscribed`,
     cancel_url: `${origin}/project/${projectId}`,

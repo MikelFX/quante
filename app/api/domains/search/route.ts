@@ -17,7 +17,7 @@ export async function GET(request: Request) {
 
   // Generate suggestions: check multiple TLDs if no TLD was provided
   const base = cleaned.includes('.') ? cleaned.split('.')[0] : cleaned
-  const tlds = ['.com', '.io', '.store', '.shop', '.co', '.net']
+  const tlds = ['.com', '.cz', '.sk', '.eu', '.app', '.ai', '.io', '.shop', '.store']
   const domains = cleaned.includes('.')
     ? [cleaned]
     : tlds.map((t) => `${base}${t}`)

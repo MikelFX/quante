@@ -1,11 +1,14 @@
 // Comgate payment notification webhook.
 // Called by Comgate when a payment is completed, cancelled, or refunded.
 // Docs: https://help.comgate.cz/docs/notifications
+//
+// HMAC is verified against the project's own Comgate secret (merchants use
+// their own gateway accounts), falling back to the platform COMGATE_SECRET.
 
 import { createHmac, timingSafeEqual } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { paymentConfirmedEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'
-import type { ShopManifest } from '@/types/manifest'
+import { getProjectPaymentCreds, comgateSecretForProject } from '@/lib/payments/project-providers'
+import { sendPaymentSuccessEmails, type PaidOrderRow } from '@/lib/order-emails'
 
 function verifyComgateHmac(params: URLSearchParams, secret: string): boolean {
   const received = params.get('hmac')
@@ -30,67 +33,49 @@ export async function POST(request: Request) {
   const body = await request.text()
   const params = new URLSearchParams(body)
 
-  // Verify Comgate HMAC signature to reject forged webhook calls
-  const secret = process.env.COMGATE_SECRET
-  if (!secret || !verifyComgateHmac(params, secret)) {
-    return new Response('Forbidden', { status: 403 })
-  }
-
   const transId = params.get('transId')
   const status = params.get('status')       // PAID, CANCELLED, REFUNDED
   const refId = params.get('refId')         // our orderId
-  const price = params.get('price')         // in haléře
-  const curr = params.get('curr') ?? 'CZK'
-  const email = params.get('email')
 
   if (!transId || !status || !refId) {
     return new Response('Missing params', { status: 400 })
   }
 
-  // Update order status in DB
+  // Resolve the project's Comgate secret BEFORE trusting anything in the payload.
+  const { data: pendingOrder } = await supabaseAdmin
+    .from('store_orders')
+    .select('project_id')
+    .eq('id', refId)
+    .maybeSingle()
+  if (!pendingOrder) return new Response('Unknown order', { status: 404 })
+
+  const creds = await getProjectPaymentCreds(pendingOrder.project_id)
+  const secret = comgateSecretForProject(creds)
+  if (!secret || !verifyComgateHmac(params, secret)) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   const newStatus = status === 'PAID' ? 'paid'
     : status === 'CANCELLED' ? 'cancelled'
     : status === 'REFUNDED' ? 'refunded'
     : 'pending'
 
+  // .neq guard makes repeated notifications idempotent — no duplicate emails.
   const { data: order } = await supabaseAdmin
     .from('store_orders')
     .update({
       payment_status: newStatus,
+      ...(newStatus === 'paid' ? { status: 'paid' } : {}),
       payment_ref: transId,
       updated_at: new Date().toISOString(),
     })
     .eq('id', refId)
-    .select('id, project_id, order_number, customer_name, customer_email, total_cents, currency, items')
+    .neq('payment_status', newStatus)
+    .select('id, project_id, order_number, customer_name, customer_email, customer_phone, total_cents, currency, items, payment_method, shipping_method, shipping_address')
     .maybeSingle()
 
   if (order && status === 'PAID') {
-    // Send customer payment confirmation
-    const { data: versionRow } = await supabaseAdmin
-      .from('manifest_versions')
-      .select('manifest')
-      .eq('project_id', order.project_id)
-      .order('version_no', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const manifest = versionRow?.manifest as ShopManifest | undefined
-    if (manifest && order.customer_email) {
-      const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
-      const { subject, html } = paymentConfirmedEmail({
-        orderNumber: order.order_number,
-        customerName: order.customer_name ?? 'zákazníku',
-        total: order.total_cents / 100,
-        currency: order.currency.toUpperCase(),
-        storeName: manifest.brand.name,
-        accentColor: manifest.design.palette.accent,
-        merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quante.io',
-        merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
-        invoiceUrl: `${QUANTE_URL}/invoice/${order.id}`,
-      })
-      const from = await getProjectFromEmail(order.project_id)
-      await sendEmail(order.customer_email, subject, html, from)
-    }
+    await sendPaymentSuccessEmails(order as PaidOrderRow)
   }
 
   return new Response('OK', { status: 200 })

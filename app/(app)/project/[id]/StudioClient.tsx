@@ -6,13 +6,14 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
 import type { ShopManifest, Section } from '@/types/manifest'
+import type { StoreProduct } from '@/types/store-code'
 import { MerchantPanel } from './MerchantPanel'
 import {
   MessageCircle, Layers, Package, Paintbrush, Rocket,
   Monitor, Tablet, Smartphone, RotateCcw, ExternalLink, ChevronDown,
   GripVertical, Eye, EyeOff, Trash2, Plus, X,
   LayoutDashboard, ShoppingBag, ClipboardList, Settings2, ArrowLeft, TrendingUp, Share2, Users,
-  Terminal, Wrench, CheckCircle, AlertCircle,
+  Terminal, Wrench, CheckCircle, AlertCircle, Sparkles, RefreshCw,
 } from 'lucide-react'
 import { RevenueChart } from '@/components/admin/RevenueChart'
 
@@ -61,6 +62,7 @@ interface HostingInfo {
   subscribed: boolean
   subscriptionEndsAt: string | null
   cancelAtPeriodEnd: boolean
+  suspendedAt: string | null
 }
 
 interface Props {
@@ -77,7 +79,14 @@ interface Props {
 type StudioTab = 'chat' | 'preview' | 'logs' | 'sections' | 'products' | 'theme' | 'publish'
 type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'publish'
 type RightPanelTab = 'preview' | 'logs'
-type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'settings'
+type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'insights' | 'settings'
+
+interface InsightCard {
+  category: 'finance' | 'ux'
+  severity: 'good' | 'suggestion' | 'warning'
+  title: string
+  body: string
+}
 
 interface StripeOrder {
   id: string; customerEmail: string; customerName: string
@@ -96,6 +105,7 @@ interface StoreOrder {
   shippingCountry: string | null
   shippingAddress: Record<string, string> | null
   trackingCode: string | null; trackingUrl: string | null
+  fulfillmentProvider: string | null; fulfillmentRef: string | null; fulfillmentStatus: string | null
   invoiceUrl: string | null; createdAt: string
 }
 
@@ -115,6 +125,7 @@ interface ProductDraft {
   tags: string
   images: string[]
   available: boolean
+  sku: string
 }
 
 function toSlug(s: string) {
@@ -122,7 +133,7 @@ function toSlug(s: string) {
 }
 
 function emptyProduct(): ProductDraft {
-  return { id: crypto.randomUUID(), name: '', description: '', price: '', compareAtPrice: '', slug: '', tags: '', images: [], available: true }
+  return { id: crypto.randomUUID(), name: '', description: '', price: '', compareAtPrice: '', slug: '', tags: '', images: [], available: true, sku: '' }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -349,7 +360,6 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [creatingShipment, setCreatingShipment] = useState<string | null>(null)
   const [shipmentResults, setShipmentResults] = useState<Record<string, { barcode?: string; error?: string }>>({})
   const [shipmentWeights, setShipmentWeights] = useState<Record<string, string>>({})
-  const [dhlWeights, setDhlWeights] = useState<Record<string, string>>({})
   const [isSavingSettings, setIsSavingSettings] = useState(false)
   // Zásilkovna settings
   const [zasilkovnaKey, setZasilkovnaKey] = useState('')
@@ -368,6 +378,30 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // DHL shipment results (tracking + label)
   const [dhlResults, setDhlResults] = useState<Record<string, { trackingNumber?: string; trackingUrl?: string; labelBase64?: string; error?: string }>>({})
   const [creatingDhlShipment, setCreatingDhlShipment] = useState<string | null>(null)
+  // GLS settings
+  const [glsUsername, setGlsUsername] = useState('')
+  const [glsPassword, setGlsPassword] = useState('')
+  const [glsClientNumber, setGlsClientNumber] = useState('')
+  const [glsCountry, setGlsCountry] = useState('cz')
+  const [hasGlsUsername, setHasGlsUsername] = useState(false)
+  const [hasGlsPassword, setHasGlsPassword] = useState(false)
+  const [hasGlsClientNumber, setHasGlsClientNumber] = useState(false)
+  const [isSavingGls, setIsSavingGls] = useState(false)
+  // GLS shipment results
+  const [glsResults, setGlsResults] = useState<Record<string, { parcelNumber?: string; trackingUrl?: string; labelBase64?: string; error?: string }>>({})
+  const [creatingGlsShipment, setCreatingGlsShipment] = useState<string | null>(null)
+  // byrd fulfillment settings
+  const [byrdApiKey, setByrdApiKey] = useState('')
+  const [byrdApiSecret, setByrdApiSecret] = useState('')
+  const [hasByrdApiKey, setHasByrdApiKey] = useState(false)
+  const [hasByrdApiSecret, setHasByrdApiSecret] = useState(false)
+  const [isSavingByrd, setIsSavingByrd] = useState(false)
+  // byrd fulfillment per-order results
+  const [byrdResults, setByrdResults] = useState<Record<string, { byrdId?: string; status?: string; trackingNumber?: string; trackingUrl?: string; error?: string }>>({})
+  const [sendingToByrd, setSendingToByrd] = useState<string | null>(null)
+  const [refreshingByrd, setRefreshingByrd] = useState<string | null>(null)
+  // Unified per-order carrier choice (Create shipment dropdown)
+  const [shipmentCarrier, setShipmentCarrier] = useState<Record<string, 'packeta' | 'dhl' | 'gls' | 'byrd'>>({})
   // Earnings + payout
   const [earnings, setEarnings] = useState<{
     available: number; netTotal: number; saleCount: number; currency: string
@@ -419,6 +453,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Image suggest (product photo finder)
   const [isSuggestingImages, setIsSuggestingImages] = useState(false)
   const [suggestedImages, setSuggestedImages] = useState<Array<{ url: string; thumb: string; alt: string; credit: string; creditUrl: string }> | null>(null)
+  // Code-gen store products (parsed from data/products.ts of the latest version)
+  const [codeProducts, setCodeProducts] = useState<StoreProduct[] | null>(null)
+  const [codeProductsEditable, setCodeProductsEditable] = useState(false)
+  const [codeCurrency, setCodeCurrency] = useState('CZK')
+  const [codeProductsLoaded, setCodeProductsLoaded] = useState(false)
+  const [isSavingProducts, setIsSavingProducts] = useState(false)
+  const [productsSavedNote, setProductsSavedNote] = useState(false)
+  // AI Store Analyzer (Insights admin tab)
+  const [insightCards, setInsightCards] = useState<InsightCard[] | null>(null)
+  const [insightsUpdatedAt, setInsightsUpdatedAt] = useState<string | null>(null)
+  const [insightsLoaded, setInsightsLoaded] = useState(false)
+  const [insightsRefreshing, setInsightsRefreshing] = useState(false)
+  const [insightsError, setInsightsError] = useState<string | null>(null)
 
   // Hosting trial helpers
   const trialDaysLeft = hostingInfo.trialEndsAt
@@ -426,10 +473,41 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     : null
   const trialExpired = hostingInfo.trialEndsAt !== null && trialDaysLeft === 0
   const showHostingBanner = hostingInfo.trialEndsAt !== null && !hostingInfo.subscribed
+    && (hostingInfo.suspendedAt !== null || trialExpired || (trialDaysLeft !== null && trialDaysLeft <= 7))
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Load products parsed from the generated code (code-gen stores have no manifest)
+  useEffect(() => {
+    const productsOpen = (adminMode && adminTab === 'products') || desktopTab === 'products' || activeTab === 'products'
+    if (!productsOpen || currentManifest || !hasGeneratedOnce || codeProductsLoaded) return
+    setCodeProductsLoaded(true)
+    fetch(`/api/projects/${projectId}/products`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d) { setCodeProducts([]); return }
+        setCodeProducts(d.products ?? [])
+        setCodeProductsEditable(!!d.editable)
+        setCodeCurrency(d.currency ?? 'CZK')
+      })
+      .catch(() => setCodeProducts([]))
+  }, [adminMode, adminTab, desktopTab, activeTab, currentManifest, hasGeneratedOnce, codeProductsLoaded, projectId])
+
+  // Load cached AI insights when the admin Insights tab opens
+  useEffect(() => {
+    if (!adminMode || adminTab !== 'insights' || insightsLoaded) return
+    setInsightsLoaded(true)
+    fetch(`/api/projects/${projectId}/insights`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        if (!d) return
+        setInsightCards(d.insights ?? null)
+        setInsightsUpdatedAt(d.updatedAt ?? null)
+      })
+      .catch(() => {})
+  }, [adminMode, adminTab, insightsLoaded, projectId])
 
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 900)
@@ -480,6 +558,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         if (d.hasDhlApiKey) setHasDhlApiKey(true)
         if (d.hasDhlApiSecret) setHasDhlApiSecret(true)
         if (d.hasDhlAccount) setHasDhlAccount(true)
+        if (d.hasGlsUsername) setHasGlsUsername(true)
+        if (d.hasGlsPassword) setHasGlsPassword(true)
+        if (d.hasGlsClientNumber) setHasGlsClientNumber(true)
+        if (typeof d.glsCountry === 'string') setGlsCountry(d.glsCountry)
+        if (d.hasByrdApiKey) setHasByrdApiKey(true)
+        if (d.hasByrdApiSecret) setHasByrdApiSecret(true)
       })
       .catch(() => {})
   }, [projectId])
@@ -1176,7 +1260,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         setIsDeploying(false)
         setDeployStatus('error')
         const msg = data.code === 'SUBSCRIPTION_REQUIRED'
-          ? `Trial ended — subscribe to keep hosting (€99/year). Click **Subscribe** below.`
+          ? `Trial ended — subscribe to keep hosting ($99/year or $9.99/month). Click **Subscribe** below.`
           : (data.error ?? 'Deployment failed.')
         setMessages((prev) => {
           const updated = [...prev]
@@ -1254,14 +1338,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleHostingSubscribe() {
+  async function handleHostingSubscribe(interval: 'month' | 'year' = 'year') {
     if (isSubscribing) return
     setIsSubscribing(true)
     try {
       const res = await fetch('/api/hosting/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, interval }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -1434,13 +1518,123 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     }
   }
 
-  function downloadDhlLabel(orderId: string, orderNumber: string, base64: string) {
+  function downloadLabelPdf(fileName: string, base64: string) {
     const byteArray = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
     const blob = new Blob([byteArray], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url; a.download = `DHL-${orderNumber}.pdf`; a.click()
+    a.href = url; a.download = fileName; a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function handleSaveGls() {
+    if (!glsUsername && !glsPassword && !glsClientNumber) return
+    setIsSavingGls(true)
+    try {
+      const body: Record<string, string> = { glsCountry }
+      if (glsUsername) body.glsUsername = glsUsername
+      if (glsPassword) body.glsPassword = glsPassword
+      if (glsClientNumber) body.glsClientNumber = glsClientNumber
+      const res = await fetch(`/api/projects/${projectId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) { alert('Failed to save.'); return }
+      if (glsUsername) setHasGlsUsername(true)
+      if (glsPassword) setHasGlsPassword(true)
+      if (glsClientNumber) setHasGlsClientNumber(true)
+      setGlsUsername(''); setGlsPassword(''); setGlsClientNumber('')
+    } catch {
+      alert('Something went wrong.')
+    } finally {
+      setIsSavingGls(false)
+    }
+  }
+
+  async function handleCreateGlsShipment(orderId: string) {
+    setCreatingGlsShipment(orderId)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/store-orders/${orderId}/gls-shipment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setGlsResults(p => ({ ...p, [orderId]: { error: data.error ?? 'GLS API error.' } }))
+      } else {
+        setGlsResults(p => ({ ...p, [orderId]: { parcelNumber: data.parcelNumber, trackingUrl: data.trackingUrl, labelBase64: data.labelBase64 } }))
+        handleLoadStoreOrders()
+      }
+    } catch {
+      setGlsResults(p => ({ ...p, [orderId]: { error: 'Network error.' } }))
+    } finally {
+      setCreatingGlsShipment(null)
+    }
+  }
+
+  async function handleSaveByrd() {
+    if (!byrdApiKey && !byrdApiSecret) return
+    setIsSavingByrd(true)
+    try {
+      const body: Record<string, string> = {}
+      if (byrdApiKey) body.byrdApiKey = byrdApiKey
+      if (byrdApiSecret) body.byrdApiSecret = byrdApiSecret
+      const res = await fetch(`/api/projects/${projectId}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) { alert('Failed to save.'); return }
+      if (byrdApiKey) setHasByrdApiKey(true)
+      if (byrdApiSecret) setHasByrdApiSecret(true)
+      setByrdApiKey(''); setByrdApiSecret('')
+    } catch {
+      alert('Something went wrong.')
+    } finally {
+      setIsSavingByrd(false)
+    }
+  }
+
+  async function handleSendToByrd(orderId: string) {
+    setSendingToByrd(orderId)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/store-orders/${orderId}/fulfillment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setByrdResults(p => ({ ...p, [orderId]: { error: data.error ?? 'byrd API error.' } }))
+      } else {
+        setByrdResults(p => ({ ...p, [orderId]: { byrdId: data.byrdId, status: data.status } }))
+        handleLoadStoreOrders()
+      }
+    } catch {
+      setByrdResults(p => ({ ...p, [orderId]: { error: 'Network error.' } }))
+    } finally {
+      setSendingToByrd(null)
+    }
+  }
+
+  async function handleRefreshByrd(orderId: string) {
+    setRefreshingByrd(orderId)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/store-orders/${orderId}/fulfillment`)
+      const data = await res.json()
+      if (!res.ok) {
+        setByrdResults(p => ({ ...p, [orderId]: { ...p[orderId], error: data.error ?? 'byrd API error.' } }))
+      } else {
+        setByrdResults(p => ({ ...p, [orderId]: { byrdId: data.byrdId, status: data.status, trackingNumber: data.trackingNumber ?? undefined, trackingUrl: data.trackingUrl ?? undefined } }))
+        if (data.orderShipped) handleLoadStoreOrders()
+      }
+    } catch {
+      setByrdResults(p => ({ ...p, [orderId]: { ...p[orderId], error: 'Network error.' } }))
+    } finally {
+      setRefreshingByrd(null)
+    }
   }
 
   async function handleAddDomain() {
@@ -1639,8 +1833,95 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     finally { setIsSuggestingImages(false) }
   }
 
+  // ── Code-gen product editing (data/products.ts in code_versions) ────────────
+  function draftToStoreProduct(d: ProductDraft): StoreProduct {
+    const p: StoreProduct = {
+      id: d.id,
+      name: d.name.trim(),
+      description: d.description,
+      price: parseFloat(d.price) || 0,
+      images: d.images,
+      slug: d.slug || toSlug(d.name),
+      available: d.available,
+    }
+    const compareAt = parseFloat(d.compareAtPrice)
+    if (Number.isFinite(compareAt) && compareAt > 0) p.compareAtPrice = compareAt
+    if (d.sku.trim()) p.sku = d.sku.trim()
+    const tags = d.tags.split(',').map(t => t.trim()).filter(Boolean)
+    if (tags.length) p.tags = tags
+    return p
+  }
+
+  async function saveCodeProducts(next: StoreProduct[]) {
+    setIsSavingProducts(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/products`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: next }),
+      })
+      const data = await res.json()
+      if (!res.ok) { alert(data.error ?? 'Failed to save products.'); return false }
+      setCodeProducts(data.products ?? next)
+      setProductsSavedNote(true)
+      setTimeout(() => setProductsSavedNote(false), 6000)
+      return true
+    } catch { alert('Failed to save products.'); return false }
+    finally { setIsSavingProducts(false) }
+  }
+
+  async function handleCodeProductSave() {
+    if (!productDraft) return
+    const list = codeProducts ?? []
+    const existing = list.find(p => p.id === productDraft.id)
+    const product = draftToStoreProduct(productDraft)
+    // Preserve fields the form doesn't expose
+    if (existing?.variants) product.variants = existing.variants
+    if (existing?.lowStockThreshold !== undefined) product.lowStockThreshold = existing.lowStockThreshold
+    const next = existing ? list.map(p => (p.id === product.id ? product : p)) : [...list, product]
+    const ok = await saveCodeProducts(next)
+    if (ok) setProductDraft(null)
+  }
+
+  async function handleCodeProductDelete(productId: string) {
+    if (!codeProducts || !confirm('Delete this product?')) return
+    await saveCodeProducts(codeProducts.filter(p => p.id !== productId))
+  }
+
+  async function handleCodeBulkDelete() {
+    if (!codeProducts || selectedProductIds.size === 0) return
+    const count = selectedProductIds.size
+    if (!confirm(`Delete ${count} product${count > 1 ? 's' : ''}?`)) return
+    const next = codeProducts.filter(p => !selectedProductIds.has(p.id))
+    setSelectedProductIds(new Set())
+    await saveCodeProducts(next)
+  }
+
+  function editProductWithQuante(name: string) {
+    setAdminMode(false)
+    setDesktopTab('chat')
+    setActiveTab('chat')
+    setInput(`Edit product "${name}": `)
+    setTimeout(() => textareaRef.current?.focus(), 100)
+  }
+
+  async function handleInsightsRefresh() {
+    setInsightsRefreshing(true)
+    setInsightsError(null)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/insights`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) { setInsightsError(data.error ?? 'Analysis failed.'); return }
+      setInsightCards(data.insights ?? [])
+      setInsightsUpdatedAt(data.updatedAt ?? null)
+      if (typeof data.balance === 'number') setBalance(data.balance)
+    } catch { setInsightsError('Analysis failed. Please try again.') }
+    finally { setInsightsRefreshing(false) }
+  }
+
   async function handleProductSave() {
-    if (!productDraft || !currentManifest) return
+    if (!productDraft) return
+    if (!currentManifest) { await handleCodeProductSave(); return }
     const updated: ShopManifest = {
       ...currentManifest,
       catalog: {
@@ -1912,15 +2193,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
           <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Generate a store first.</p>
         </div>
-      ) : !currentManifest ? (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-          <p style={{ fontSize: 14, color: 'var(--muted-foreground)' }}>Use the chat to add or edit products — e.g. &quot;add a new product&quot;.</p>
-        </div>
       ) : productDraft ? (
         // ── Product form ──
         <div style={{ padding: '12px 14px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <p style={{ fontSize: 13, fontWeight: 600 }}>{productDraft.images.length === 0 && !currentManifest.catalog.products.find(p => p.id === productDraft.id) ? 'New product' : 'Edit product'}</p>
+            <p style={{ fontSize: 13, fontWeight: 600 }}>{(currentManifest ? currentManifest.catalog.products.some(p => p.id === productDraft.id) : (codeProducts ?? []).some(p => p.id === productDraft.id)) ? 'Edit product' : 'New product'}</p>
             <button onClick={() => setProductDraft(null)} style={{ fontSize: 11, color: 'var(--muted-foreground)', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Cancel</button>
           </div>
 
@@ -1982,7 +2259,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {fldLabel('Name *')}
           <input style={inputSt} value={productDraft.name} onChange={e => setProductDraft(d => d ? { ...d, name: e.target.value, slug: toSlug(e.target.value) } : d)} />
           {fldLabel('Price')}
-          <input style={inputSt} type="number" min="0" step="0.01" value={productDraft.price} onChange={e => setProductDraft(d => d ? { ...d, price: e.target.value } : d)} placeholder={`${currentManifest.catalog.currency} 0.00`} />
+          <input style={inputSt} type="number" min="0" step="0.01" value={productDraft.price} onChange={e => setProductDraft(d => d ? { ...d, price: e.target.value } : d)} placeholder={`${currentManifest?.catalog.currency ?? codeCurrency} 0.00`} />
           {fldLabel('Compare-at price (original / sale)')}
           <input style={inputSt} type="number" min="0" step="0.01" value={productDraft.compareAtPrice} onChange={e => setProductDraft(d => d ? { ...d, compareAtPrice: e.target.value } : d)} placeholder="Leave empty if not on sale" />
           {fldLabel('Description')}
@@ -1991,20 +2268,29 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <input style={inputSt} value={productDraft.slug} onChange={e => setProductDraft(d => d ? { ...d, slug: toSlug(e.target.value) } : d)} />
           {fldLabel('Tags (comma-separated)')}
           <input style={inputSt} value={productDraft.tags} onChange={e => setProductDraft(d => d ? { ...d, tags: e.target.value } : d)} placeholder="skincare, serum, bestseller" />
+          {!currentManifest && (
+            <>
+              {fldLabel('SKU (optional)')}
+              <input style={inputSt} value={productDraft.sku} onChange={e => setProductDraft(d => d ? { ...d, sku: e.target.value } : d)} placeholder="e.g. TSHIRT-BLK-M" />
+            </>
+          )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
             <input type="checkbox" id="avail" checked={productDraft.available} onChange={e => setProductDraft(d => d ? { ...d, available: e.target.checked } : d)} />
             <label htmlFor="avail" style={{ fontSize: 12, color: 'var(--foreground)', cursor: 'pointer' }}>Available for purchase</label>
           </div>
           <button
             onClick={handleProductSave}
-            disabled={isSavingManifest || !productDraft.name.trim()}
-            style={{ marginTop: 14, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', cursor: isSavingManifest || !productDraft.name.trim() ? 'not-allowed' : 'pointer', background: 'var(--primary)', color: 'var(--primary-foreground)', opacity: isSavingManifest || !productDraft.name.trim() ? 0.4 : 1 }}
+            disabled={isSavingManifest || isSavingProducts || !productDraft.name.trim()}
+            style={{ marginTop: 14, width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 8, border: 'none', cursor: isSavingManifest || isSavingProducts || !productDraft.name.trim() ? 'not-allowed' : 'pointer', background: 'var(--primary)', color: 'var(--primary-foreground)', opacity: isSavingManifest || isSavingProducts || !productDraft.name.trim() ? 0.4 : 1 }}
           >
-            {isSavingManifest ? 'Saving…' : 'Save product'}
+            {isSavingManifest || isSavingProducts ? 'Saving…' : 'Save product'}
           </button>
+          {!currentManifest && (
+            <p style={{ fontSize: 10, color: '#5b5b64', marginTop: 8, textAlign: 'center' }}>Changes go live with your next deploy.</p>
+          )}
         </div>
-      ) : (
-        // ── Product list ──
+      ) : currentManifest ? (
+        // ── Product list (manifest) ──
         <>
           {/* Header */}
           <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -2075,7 +2361,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
                 {/* Edit */}
                 <button
-                  onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : '', slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available })}
+                  onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : '', slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available, sku: '' })}
                   style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer', flexShrink: 0 }}
                 >
                   Edit
@@ -2084,6 +2370,116 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 {/* Delete */}
                 <button
                   onClick={() => handleProductDelete(p.id)}
+                  title="Delete product"
+                  style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
+                  onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )
+          })}
+        </>
+      ) : codeProducts === null ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+          <p style={{ fontSize: 13, color: 'var(--muted-foreground)' }}>Loading products…</p>
+        </div>
+      ) : !codeProductsEditable ? (
+        <div style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
+          <p style={{ fontSize: 13, color: 'var(--muted-foreground)', lineHeight: 1.6 }}>
+            This store&apos;s product file can&apos;t be edited directly.<br />
+            Use the chat to add or edit products — e.g. &quot;change the price of X to 499&quot;.
+          </p>
+        </div>
+      ) : (
+        // ── Product list (code-gen store — edits create a new version) ──
+        <>
+          {/* Header */}
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>
+              {codeProducts.length} products · {codeCurrency}
+            </span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {selectedProductIds.size > 0 && (
+                <button
+                  onClick={handleCodeBulkDelete}
+                  disabled={isSavingProducts}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(224,86,79,.4)', background: 'rgba(224,86,79,.1)', color: '#e0564f', cursor: 'pointer', opacity: isSavingProducts ? 0.5 : 1 }}
+                >
+                  <Trash2 size={11} /> Delete {selectedProductIds.size}
+                </button>
+              )}
+              <button
+                onClick={() => setProductDraft(emptyProduct())}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(111,120,230,.4)', background: 'rgba(111,120,230,.1)', color: '#6f78e6', cursor: 'pointer' }}
+              >
+                <Plus size={11} /> Add product
+              </button>
+            </div>
+          </div>
+
+          {/* Saved note */}
+          {productsSavedNote && (
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.06)' }}>
+              <p style={{ fontSize: 11, color: '#3ecf8e', margin: 0 }}>✓ Saved — changes go live with your next deploy.</p>
+            </div>
+          )}
+
+          {/* List */}
+          {codeProducts.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 8 }}>
+              <Package size={28} style={{ color: '#5b5b64' }} />
+              <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center' }}>No products yet.</p>
+              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
+            </div>
+          ) : codeProducts.map(p => {
+            const isSelected = selectedProductIds.has(p.id)
+            return (
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(111,120,230,.05)' : 'transparent', transition: 'background 0.1s' }}>
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => setSelectedProductIds(prev => { const next = new Set(prev); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); return next })}
+                  style={{ width: 14, height: 14, accentColor: '#6f78e6', flexShrink: 0, cursor: 'pointer' }}
+                />
+                {p.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={p.images[0]} alt={p.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, flexShrink: 0, border: '1px solid rgba(255,255,255,.07)' }} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 7, background: 'rgba(255,255,255,.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,.07)' }}>
+                    <Package size={16} style={{ color: '#5b5b64' }} />
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
+                  <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 2 }}>
+                    {codeCurrency} {p.price}
+                    {p.compareAtPrice && p.compareAtPrice > p.price && (
+                      <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.5 }}>{p.compareAtPrice}</span>
+                    )}
+                    {p.compareAtPrice && p.compareAtPrice > p.price && (
+                      <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>SALE</span>
+                    )}
+                    {p.sku && <span style={{ marginLeft: 6, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64' }}>{p.sku}</span>}
+                    {p.available === false && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description ?? '', price: String(p.price), compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : '', slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available !== false, sku: p.sku ?? '' })}
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => editProductWithQuante(p.name)}
+                  title="Edit with Quante (AI chat)"
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.06)', color: '#a5b4fc', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  ✦ Quante
+                </button>
+                <button
+                  onClick={() => handleCodeProductDelete(p.id)}
                   title="Delete product"
                   style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
                   onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
@@ -2107,6 +2503,39 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     { id: 'theme',    icon: Paintbrush,    label: 'Theme'    },
     { id: 'publish',  icon: Rocket,        label: 'Publish'  },
   ]
+
+  // Slim countdown / suspension banner under the TopBar (trial ≤7 days, expired, or suspended)
+  const HostingBanner = showHostingBanner ? (
+    <div style={{
+      flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+      padding: '6px 12px', fontSize: 12, fontWeight: 500,
+      background: hostingInfo.suspendedAt || trialExpired ? 'rgba(224,86,79,.1)' : 'rgba(224,160,79,.08)',
+      borderBottom: `1px solid ${hostingInfo.suspendedAt || trialExpired ? 'rgba(224,86,79,.25)' : 'rgba(224,160,79,.2)'}`,
+      color: hostingInfo.suspendedAt || trialExpired ? '#e0564f' : '#e0a04f',
+    }}>
+      <span>
+        {hostingInfo.suspendedAt
+          ? 'Store paused — visitors see a maintenance page. Your data is safe.'
+          : trialExpired
+            ? 'Free hosting trial ended — subscribe to keep your store live.'
+            : `Free hosting trial: ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+      </span>
+      <button
+        onClick={() => handleHostingSubscribe('year')}
+        disabled={isSubscribing}
+        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
+      >
+        {isSubscribing ? '…' : '$99/year'}
+      </button>
+      <button
+        onClick={() => handleHostingSubscribe('month')}
+        disabled={isSubscribing}
+        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
+      >
+        {isSubscribing ? '…' : '$9.99/mo'}
+      </button>
+    </div>
+  ) : null
 
   const TopBar = (
     <header style={{
@@ -3036,7 +3465,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Deploy your store</p>
             <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
-              <strong style={{ color: '#f4f4f6' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.quante.app</span> subdomain (5 cr).<br />
+              <strong style={{ color: '#f4f4f6' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.stores.quantecode.com</span> subdomain (5 cr).<br />
               <strong style={{ color: '#f4f4f6' }}>Preview</strong> — unique URL for testing, doesn&apos;t affect live store (2 cr).
             </p>
             {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && (
@@ -3241,7 +3670,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6' }}>Active — €99/year</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6' }}>Hosting active</span>
               </div>
               {hostingInfo.subscriptionEndsAt && (
                 <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>
@@ -3254,15 +3683,29 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? '#e0564f' : '#e0a04f', flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? '#e0564f' : '#e0a04f' }}>
-                  {trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+                  {hostingInfo.suspendedAt
+                    ? 'Store paused — hosting expired'
+                    : trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
                 </span>
               </div>
+              {hostingInfo.suspendedAt && (
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+                  Visitors see a maintenance page. Your data is safe — subscribe and the store goes back online automatically.
+                </p>
+              )}
               <button
-                onClick={handleHostingSubscribe}
+                onClick={() => handleHostingSubscribe('year')}
                 disabled={isSubscribing}
                 style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
               >
-                {isSubscribing ? '…' : 'Subscribe · €99/year'}
+                {isSubscribing ? '…' : 'Subscribe · $99/year'}
+              </button>
+              <button
+                onClick={() => handleHostingSubscribe('month')}
+                disabled={isSubscribing}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSubscribing ? 0.6 : 1 }}
+              >
+                {isSubscribing ? '…' : 'Or $9.99/month'}
               </button>
             </>
           ) : (
@@ -3556,8 +3999,88 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     { id: 'orders',     label: 'Orders',     icon: ClipboardList   },
     { id: 'products',   label: 'Products',   icon: ShoppingBag     },
     { id: 'customers',  label: 'Customers',  icon: Users           },
+    { id: 'insights',   label: 'Insights',   icon: Sparkles        },
     { id: 'settings',   label: 'Settings',   icon: Settings2       },
   ]
+
+  const INSIGHT_SEVERITY: Record<InsightCard['severity'], { border: string; bg: string; color: string; label: string }> = {
+    good:       { border: 'rgba(62,207,142,.3)',  bg: 'rgba(62,207,142,.05)',  color: '#3ecf8e', label: 'Good'       },
+    suggestion: { border: 'rgba(111,120,230,.3)', bg: 'rgba(111,120,230,.05)', color: '#a5b4fc', label: 'Suggestion' },
+    warning:    { border: 'rgba(245,158,11,.3)',  bg: 'rgba(245,158,11,.05)',  color: '#f59e0b', label: 'Warning'    },
+  }
+
+  const AdminInsights = (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', maxWidth: 680 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sparkles size={16} style={{ color: '#a5b4fc' }} /> AI Insights
+        </h2>
+        <button
+          onClick={handleInsightsRefresh}
+          disabled={insightsRefreshing}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(111,120,230,.4)', background: 'rgba(111,120,230,.1)', color: insightsRefreshing ? '#8a8a93' : '#a5b4fc', cursor: insightsRefreshing ? 'wait' : 'pointer' }}
+        >
+          <RefreshCw size={11} style={insightsRefreshing ? { animation: 'spin 1s linear infinite' } : undefined} />
+          {insightsRefreshing ? 'Analyzing…' : '✦ Refresh · 1 credit'}
+        </button>
+      </div>
+      <p style={{ fontSize: 11, color: '#5b5b64', margin: '0 0 16px' }}>
+        {insightsUpdatedAt
+          ? `Last analyzed ${new Date(insightsUpdatedAt).toLocaleString()}`
+          : 'Quante analyzes your catalog, prices and sales, then suggests improvements.'}
+      </p>
+
+      {insightsError && (
+        <div style={{ borderRadius: 10, border: '1px solid rgba(224,86,79,.35)', background: 'rgba(224,86,79,.07)', padding: '10px 14px', marginBottom: 14 }}>
+          <p style={{ fontSize: 12, color: '#e0564f', margin: 0 }}>{insightsError}</p>
+        </div>
+      )}
+
+      {(!insightCards || insightCards.length === 0) && !insightsRefreshing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 10, borderRadius: 12, border: '1px dashed rgba(255,255,255,.09)' }}>
+          <Sparkles size={26} style={{ color: '#5b5b64' }} />
+          <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center', maxWidth: 380, lineHeight: 1.6, margin: 0 }}>
+            No analysis yet. Run your first one — Quante reviews product images, descriptions, pricing and sales data, and returns concrete recommendations.
+          </p>
+          <button
+            onClick={handleInsightsRefresh}
+            disabled={insightsRefreshing}
+            style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--primary)', color: 'var(--primary-foreground)', cursor: 'pointer', marginTop: 4 }}
+          >
+            Analyze my store · 1 credit
+          </button>
+        </div>
+      ) : insightCards && insightCards.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {(['finance', 'ux'] as const).map(cat => {
+            const cards = insightCards.filter(c => c.category === cat)
+            if (cards.length === 0) return null
+            return (
+              <div key={cat}>
+                <p style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', marginBottom: 8 }}>
+                  {cat === 'finance' ? 'Finance & pricing' : 'Store experience'}
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {cards.map((c, i) => {
+                    const sv = INSIGHT_SEVERITY[c.severity]
+                    return (
+                      <div key={i} style={{ borderRadius: 10, border: `1px solid ${sv.border}`, background: sv.bg, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: sv.color }}>{sv.label}</span>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>{c.title}</p>
+                        </div>
+                        <p style={{ fontSize: 12, color: '#b9b9c0', lineHeight: 1.55, margin: 0 }}>{c.body}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
 
   const AdminDashboard = (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 680 }}>
@@ -3646,19 +4169,24 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         <div>
           <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 6px' }}>Hosting</p>
           {hostingInfo.subscribed ? (
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--live)', margin: 0 }}>● Active — €99/year</p>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--live)', margin: 0 }}>● Hosting active</p>
           ) : hostingInfo.trialEndsAt ? (
             <p style={{ fontSize: 13, fontWeight: 500, color: trialExpired ? '#e0564f' : '#e0a04f', margin: 0 }}>
-              ● {trialExpired ? 'Trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+              ● {hostingInfo.suspendedAt ? 'Store paused' : trialExpired ? 'Trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
             </p>
           ) : (
             <p style={{ fontSize: 13, color: '#8a8a93', margin: 0 }}>Not deployed</p>
           )}
         </div>
         {!hostingInfo.subscribed && hostingInfo.trialEndsAt && (
-          <button onClick={handleHostingSubscribe} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1, flexShrink: 0 }}>
-            {isSubscribing ? '…' : 'Subscribe · €99/year'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+              {isSubscribing ? '…' : '$99/year'}
+            </button>
+            <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+              {isSubscribing ? '…' : '$9.99/mo'}
+            </button>
+          </div>
         )}
       </div>
 
@@ -3753,8 +4281,6 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {storeOrders.map((o) => {
                 const isZasilkovna = o.shippingMethod === 'zasilkovna'
                 const shipped = o.status === 'shipped'
-                const result = shipmentResults[o.id]
-                const creating = creatingShipment === o.id
                 const paid = o.paymentStatus === 'paid'
 
                 return (
@@ -3801,127 +4327,112 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       )}
                     </div>
 
-                    {/* Zásilkovna action */}
-                    {isZasilkovna && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
-                        {shipped || result?.barcode ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', fontWeight: 600 }}>
-                              {o.trackingCode ?? result?.barcode}
-                            </span>
-                            {(o.trackingUrl ?? undefined) && (
-                              <a href={o.trackingUrl ?? undefined} target="_blank" rel="noopener noreferrer"
-                                style={{ fontSize: 10, color: '#6f78e6', textDecoration: 'none' }}>
-                                Track →
-                              </a>
-                            )}
-                          </div>
-                        ) : result?.error ? (
-                          <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{result.error}</p>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <input
-                              type="number"
-                              min="0.1"
-                              step="0.1"
-                              placeholder="kg"
-                              value={shipmentWeights[o.id] ?? ''}
-                              onChange={e => setShipmentWeights(p => ({ ...p, [o.id]: e.target.value }))}
-                              style={{
-                                width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5,
-                                border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
-                                color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)',
-                              }}
-                              title="Shipment weight in kg (required for international carriers)"
-                            />
-                            <button
-                              onClick={() => handleCreateShipment(o.id, parseFloat(shipmentWeights[o.id] ?? '1') || 1)}
-                              disabled={creating || !paid}
-                              title={!paid ? 'Order must be paid first' : 'Create shipment in Packeta'}
-                              style={{
-                                fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
-                                border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
-                                color: '#a5b4fc', cursor: creating || !paid ? 'not-allowed' : 'pointer',
-                                opacity: !paid ? 0.5 : 1,
-                              }}
-                            >
-                              {creating ? 'Creating…' : '📦 Create shipment'}
-                            </button>
-                          </div>
-                        )}
-                        {o.invoiceUrl && (
-                          <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
-                            Invoice →
-                          </a>
-                        )}
-                      </div>
-                    )}
-                    {/* DHL action */}
-                    {o.shippingMethod === 'dhl' && (() => {
-                      const dhlResult = dhlResults[o.id]
-                      const shipped = o.status === 'shipped'
-                      const paid = o.paymentStatus === 'paid'
-                      const creatingDhl = creatingDhlShipment === o.id
-                      const destCountry = o.shippingCountry ?? o.shippingAddress?.zeme ?? '?'
+                    {/* Create shipment — unified carrier dropdown */}
+                    {(() => {
+                      const zRes = shipmentResults[o.id]
+                      const dRes = dhlResults[o.id]
+                      const gRes = glsResults[o.id]
+                      const bRes = byrdResults[o.id]
+                      const tracking = o.trackingCode ?? zRes?.barcode ?? dRes?.trackingNumber ?? gRes?.parcelNumber ?? bRes?.trackingNumber
+                      const trackUrl = o.trackingUrl ?? dRes?.trackingUrl ?? gRes?.trackingUrl ?? bRes?.trackingUrl ?? null
+                      const label = dRes?.labelBase64
+                        ? { prefix: 'DHL', base64: dRes.labelBase64 }
+                        : gRes?.labelBase64 ? { prefix: 'GLS', base64: gRes.labelBase64 } : null
+                      const shipErr = zRes?.error ?? dRes?.error ?? gRes?.error ?? bRes?.error
+                      const creatingAny = creatingShipment === o.id || creatingDhlShipment === o.id || creatingGlsShipment === o.id || sendingToByrd === o.id
+                      const byrdRef = o.fulfillmentRef ?? bRes?.byrdId ?? null
+                      const byrdStatus = bRes?.status ?? o.fulfillmentStatus ?? 'new'
+                      const defaultCarrier: 'packeta' | 'dhl' | 'gls' =
+                        (o.shippingMethod === 'zasilkovna' || o.shippingMethod === 'packeta_international') && o.zasilkovnaBranchId
+                          ? 'packeta'
+                          : o.shippingMethod === 'dhl' ? 'dhl' : 'gls'
+                      const carrier = shipmentCarrier[o.id] ?? defaultCarrier
                       return (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,193,7,.12)', color: '#fbbf24' }}>
-                              ✈️ DHL Express · {destCountry.toUpperCase()}
-                            </span>
-                          </div>
-                          {shipped || dhlResult?.trackingNumber ? (
+                          {shipped || tracking ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', fontWeight: 600 }}>
-                                {o.trackingCode ?? dhlResult?.trackingNumber}
+                                {tracking}
                               </span>
-                              {(o.trackingUrl || dhlResult?.trackingUrl) && (
-                                <a href={o.trackingUrl ?? dhlResult?.trackingUrl ?? ''} target="_blank" rel="noopener noreferrer"
+                              {trackUrl && (
+                                <a href={trackUrl} target="_blank" rel="noopener noreferrer"
                                   style={{ fontSize: 10, color: '#6f78e6', textDecoration: 'none' }}>
                                   Track →
                                 </a>
                               )}
-                              {dhlResult?.labelBase64 && (
+                              {label && (
                                 <button
-                                  onClick={() => downloadDhlLabel(o.id, o.orderNumber, dhlResult.labelBase64!)}
+                                  onClick={() => downloadLabelPdf(`${label.prefix}-${o.orderNumber}.pdf`, label.base64)}
                                   style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: 'pointer' }}
                                 >
                                   ⬇ PDF Label
                                 </button>
                               )}
                             </div>
-                          ) : dhlResult?.error ? (
-                            <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{dhlResult.error}</p>
-                          ) : (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <input
-                                type="number" min="0.1" step="0.1" placeholder="kg"
-                                value={dhlWeights[o.id] ?? ''}
-                                onChange={e => setDhlWeights(p => ({ ...p, [o.id]: e.target.value }))}
-                                title="Shipment weight in kg"
-                                style={{ width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
-                              />
+                          ) : byrdRef ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#a5b4fc' }}>
+                                byrd · {byrdStatus} · {byrdRef}
+                              </span>
                               <button
-                                onClick={() => handleCreateDhlShipment(o.id, { weight: parseFloat(dhlWeights[o.id] ?? '1') || 1 })}
-                                disabled={creatingDhl || !paid}
-                                title={!paid ? 'Order must be paid first' : 'Send via DHL Express'}
-                                style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: creatingDhl || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
+                                onClick={() => handleRefreshByrd(o.id)}
+                                disabled={refreshingByrd === o.id}
+                                title="Check byrd for the current status and tracking number"
+                                style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)', color: '#a5b4fc', cursor: refreshingByrd === o.id ? 'wait' : 'pointer' }}
                               >
-                                {creatingDhl ? 'Creating…' : '✈️ Send DHL'}
+                                {refreshingByrd === o.id ? 'Checking…' : '↻ Refresh tracking'}
                               </button>
+                              {shipErr && <span style={{ fontSize: 11, color: '#f87171' }}>{shipErr}</span>}
                             </div>
+                          ) : (
+                            <>
+                              {shipErr && <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{shipErr}</p>}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <select
+                                  value={carrier}
+                                  onChange={e => setShipmentCarrier(p => ({ ...p, [o.id]: e.target.value as 'packeta' | 'dhl' | 'gls' | 'byrd' }))}
+                                  style={{ fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: '#16161c', color: '#f4f4f6' }}
+                                >
+                                  <option value="packeta" disabled={!o.zasilkovnaBranchId}>📦 Packeta{!o.zasilkovnaBranchId ? ' (no pickup point)' : ''}</option>
+                                  <option value="dhl">✈️ DHL Express</option>
+                                  <option value="gls">🚚 GLS</option>
+                                  <option value="byrd" disabled={!hasByrdApiKey || !hasByrdApiSecret}>🏭 byrd fulfillment{!hasByrdApiKey || !hasByrdApiSecret ? ' (not configured)' : ''}</option>
+                                </select>
+                                {carrier !== 'gls' && carrier !== 'byrd' && (
+                                  <input
+                                    type="number" min="0.1" step="0.1" placeholder="kg"
+                                    value={shipmentWeights[o.id] ?? ''}
+                                    onChange={e => setShipmentWeights(p => ({ ...p, [o.id]: e.target.value }))}
+                                    title="Shipment weight in kg"
+                                    style={{ width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
+                                  />
+                                )}
+                                <button
+                                  onClick={() => {
+                                    const w = parseFloat(shipmentWeights[o.id] ?? '1') || 1
+                                    if (carrier === 'packeta') handleCreateShipment(o.id, w)
+                                    else if (carrier === 'dhl') handleCreateDhlShipment(o.id, { weight: w })
+                                    else if (carrier === 'byrd') handleSendToByrd(o.id)
+                                    else handleCreateGlsShipment(o.id)
+                                  }}
+                                  disabled={creatingAny || !paid}
+                                  title={!paid ? 'Order must be paid first' : 'Create shipment with the selected carrier'}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)', color: '#a5b4fc', cursor: creatingAny || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
+                                >
+                                  {creatingAny ? (carrier === 'byrd' ? 'Sending…' : 'Creating…') : shipErr ? '↻ Retry' : carrier === 'byrd' ? '🏭 Send to fulfillment' : '📦 Create shipment'}
+                                </button>
+                              </div>
+                            </>
+                          )}
+                          {o.invoiceUrl && (
+                            <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
+                              Invoice →
+                            </a>
                           )}
                         </div>
                       )
                     })()}
-
-                    {!isZasilkovna && o.shippingMethod !== 'dhl' && o.invoiceUrl && (
-                      <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
-                        Faktura →
-                      </a>
-                    )}
                   </div>
                 )
               })}
@@ -4219,6 +4730,110 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         </div>
       </div>
 
+      {/* GLS */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(0,102,204,.22)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(0,102,204,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>🚚</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>GLS — parcel delivery</p>
+            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+              Use your MyGLS account credentials from the{' '}
+              <a href="https://www.mygls.cz" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>MyGLS client zone</a>.
+            </p>
+          </div>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              Username (e-mail){hasGlsUsername && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            </label>
+            <input value={glsUsername} onChange={e => setGlsUsername(e.target.value)} placeholder={hasGlsUsername ? '••••••••••••' : 'name@company.com'} style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              Password{hasGlsPassword && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            </label>
+            <input type="password" value={glsPassword} onChange={e => setGlsPassword(e.target.value)} placeholder={hasGlsPassword ? '••••••••••••••••' : 'MyGLS password…'} style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              Client number{hasGlsClientNumber && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            </label>
+            <input value={glsClientNumber} onChange={e => setGlsClientNumber(e.target.value)} placeholder={hasGlsClientNumber ? '••••••••' : '100123456'} style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              Account country
+            </label>
+            <select
+              value={glsCountry}
+              onChange={e => setGlsCountry(e.target.value)}
+              style={{ ...inpSt, cursor: 'pointer' }}
+            >
+              <option value="cz">Czech Republic</option>
+              <option value="sk">Slovakia</option>
+              <option value="hu">Hungary</option>
+              <option value="ro">Romania</option>
+              <option value="si">Slovenia</option>
+              <option value="hr">Croatia</option>
+            </select>
+          </div>
+          <button
+            onClick={handleSaveGls}
+            disabled={isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber)}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber) ? 0.5 : 1 }}
+          >
+            {isSavingGls ? 'Saving…' : 'Save GLS credentials'}
+          </button>
+          {(hasGlsUsername && hasGlsPassword && hasGlsClientNumber) && (
+            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+              ✓ GLS configured — pick GLS in the &quot;Create shipment&quot; dropdown in Orders.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* byrd fulfillment */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.18)', overflow: 'hidden' }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(62,207,142,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16 }}>🏭</span>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>byrd — fulfillment warehouse</p>
+            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+              byrd stores your products and ships orders for you. Request API credentials at{' '}
+              <a href="https://developers.getbyrd.com" target="_blank" rel="noopener noreferrer" style={{ color: '#a5b4fc', textDecoration: 'none' }}>developers.getbyrd.com</a>.
+              Product SKUs must match the ones registered in your byrd account.
+            </p>
+          </div>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              API Key{hasByrdApiKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            </label>
+            <input value={byrdApiKey} onChange={e => setByrdApiKey(e.target.value)} placeholder={hasByrdApiKey ? '••••••••••••••••' : 'byrd API key…'} style={inpSt} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+              API Secret{hasByrdApiSecret && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            </label>
+            <input type="password" value={byrdApiSecret} onChange={e => setByrdApiSecret(e.target.value)} placeholder={hasByrdApiSecret ? '••••••••••••••••' : 'byrd API secret…'} style={inpSt} />
+          </div>
+          <button
+            onClick={handleSaveByrd}
+            disabled={isSavingByrd || (!byrdApiKey && !byrdApiSecret)}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#6f78e6', color: '#fff', opacity: isSavingByrd || (!byrdApiKey && !byrdApiSecret) ? 0.5 : 1 }}
+          >
+            {isSavingByrd ? 'Saving…' : 'Save byrd credentials'}
+          </button>
+          {(hasByrdApiKey && hasByrdApiSecret) && (
+            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+              ✓ byrd configured — pick byrd fulfillment in the &quot;Create shipment&quot; dropdown in Orders.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Custom domain */}
       <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
@@ -4277,6 +4892,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {TopBar}
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: ADMIN_ACCENT, opacity: 0.35 }} />
         </div>
+        {HostingBanner}
 
         {isDesktop ? (
           // Desktop: sidebar + content
@@ -4334,6 +4950,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {adminTab === 'orders'     && AdminOrders}
               {adminTab === 'products'   && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
               {adminTab === 'customers'  && AdminCustomers}
+              {adminTab === 'insights'   && AdminInsights}
               {adminTab === 'settings'   && AdminSettings}
             </div>
           </div>
@@ -4346,6 +4963,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {adminTab === 'orders'     && AdminOrders}
               {adminTab === 'products'   && <div style={{ flex: 1, overflowY: 'auto' }}>{ProductsPanel}</div>}
               {adminTab === 'customers'  && AdminCustomers}
+              {adminTab === 'insights'   && AdminInsights}
               {adminTab === 'settings'   && AdminSettings}
             </div>
             {/* Bottom tab bar */}
@@ -4403,6 +5021,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         background: '#08080a',
       }}>
         {TopBar}
+        {HostingBanner}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
 
           {/* ── Mode rail (icon strip) ──────────────────────────────── */}
@@ -4510,6 +5129,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       background: '#08080a',
     }}>
       {TopBar}
+      {HostingBanner}
 
       {/* Mobile mode tabs */}
       <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', overflowX: 'auto', scrollbarWidth: 'none', background: '#0d0d11' }}>

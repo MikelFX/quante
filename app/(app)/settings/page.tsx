@@ -134,7 +134,7 @@ export default async function SettingsPage() {
           </button>
         </div>
         <p style={{ fontSize: 11, color: '#5b5b64', padding: '0 18px 14px', margin: 0 }}>
-          To delete your account, contact <a href="mailto:support@quante.app" style={{ color: '#6f78e6', textDecoration: 'none' }}>support@quante.app</a>.
+          To delete your account, contact <a href="mailto:support@quantecode.com" style={{ color: '#6f78e6', textDecoration: 'none' }}>support@quantecode.com</a>.
         </p>
       </div>
 

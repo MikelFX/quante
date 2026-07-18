@@ -4,13 +4,10 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { createComgateProvider } from '@/lib/payments/comgate'
-import { createGopayProvider } from '@/lib/payments/gopay'
-import { createPayPalProvider } from '@/lib/payments/paypal'
+import { getProjectPaymentCreds, comgateForProject, gopayForProject, paypalForProject } from '@/lib/payments/project-providers'
 import { orderConfirmationEmail, merchantNewOrderEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
 
-const PLATFORM_FEE_PERCENT = parseFloat(process.env.PLATFORM_FEE_PERCENT ?? '5')
 const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
 
 interface CartItem {
@@ -36,7 +33,7 @@ interface CheckoutBody {
   customerEmail?: string
   customerName?: string
   customerPhone?: string
-  shippingAddress?: { ulice: string; mesto: string; psc: string }
+  shippingAddress?: { ulice: string; mesto: string; psc: string; zeme?: string }
 }
 
 export async function POST(request: Request) {
@@ -113,8 +110,6 @@ export async function POST(request: Request) {
   // ── Route by payment method ────────────────────────────────────────────────
 
   if (paymentMethod === 'stripe') {
-    const totalCents = Math.round(totalAmount * 100)
-    const platformFeeCents = Math.round(totalCents * PLATFORM_FEE_PERCENT / 100)
     try {
       const lineItems = [
         ...items.map((item) => ({
@@ -141,7 +136,7 @@ export async function POST(request: Request) {
         success_url: `${storeBase}/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${storeBase}/checkout`,
         customer_email: body.customerEmail,
-        metadata: { type: 'store_sale', project_id: projectId, order_id: orderId, platform_fee_cents: String(platformFeeCents) },
+        metadata: { type: 'store_sale', project_id: projectId, order_id: orderId },
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: session.id }).eq('id', orderId)
       return NextResponse.json({ url: session.url })
@@ -151,7 +146,8 @@ export async function POST(request: Request) {
   }
 
   if (paymentMethod === 'comgate') {
-    const provider = createComgateProvider()
+    const creds = await getProjectPaymentCreds(projectId)
+    const provider = comgateForProject(creds)
     if (!provider) return NextResponse.json({ error: 'Comgate is not configured' }, { status: 503 })
     try {
       const result = await provider.createPayment({
@@ -189,7 +185,8 @@ export async function POST(request: Request) {
   }
 
   if (paymentMethod === 'gopay') {
-    const provider = createGopayProvider()
+    const creds = await getProjectPaymentCreds(projectId)
+    const provider = gopayForProject(creds)
     if (!provider) return NextResponse.json({ error: 'GoPay is not configured' }, { status: 503 })
     try {
       const result = await provider.createPayment({
@@ -210,7 +207,8 @@ export async function POST(request: Request) {
   }
 
   if (paymentMethod === 'paypal') {
-    const provider = createPayPalProvider()
+    const creds = await getProjectPaymentCreds(projectId)
+    const provider = paypalForProject(creds)
     if (!provider) return NextResponse.json({ error: 'PayPal is not configured' }, { status: 503 })
     try {
       const result = await provider.createPayment({
@@ -224,7 +222,7 @@ export async function POST(request: Request) {
         notifyUrl: `${QUANTE_URL}/api/payments/paypal/notify`,
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
-      await sendOrderConfirmationEmail(body, orderNumber, totalAmount, itemsTotal, shippingCost, dobirkaFee, currency, manifest)
+      // Confirmation emails are sent from the notify webhook once payment is captured.
       return NextResponse.json({ url: result.redirectUrl })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'PayPal error' }, { status: 500 })
@@ -275,7 +273,7 @@ async function sendOrderConfirmationEmail(
     shippingAddress: body.shippingAddress,
     storeName: manifest.brand.name,
     accentColor: manifest.design.palette.accent,
-    merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quante.io',
+    merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
     merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
     bankovniUcet,
   })
@@ -311,5 +309,5 @@ async function sendMerchantOrderEmail(
     storeName: manifest.brand.name,
     accentColor: manifest.design.palette.accent,
   })
-  await sendEmail(merchantEmail, subject, html, from ?? 'objednavky@quante.io')
+  await sendEmail(merchantEmail, subject, html, from ?? 'objednavky@quantecode.com')
 }

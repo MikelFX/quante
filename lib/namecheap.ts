@@ -68,6 +68,22 @@ export async function checkDomainAvailability(domain: string): Promise<DomainChe
   return { domain, available, price, currency: 'USD' }
 }
 
+// Registrant contact data — set the DOMAIN_REGISTRANT_* env vars to real company data.
+// Namecheap rejects registrations with obviously fake contacts on some TLDs.
+function registrantContact(): Record<string, string> {
+  return {
+    FirstName: process.env.DOMAIN_REGISTRANT_FIRST_NAME ?? 'Quante',
+    LastName: process.env.DOMAIN_REGISTRANT_LAST_NAME ?? 'Domains',
+    Address1: process.env.DOMAIN_REGISTRANT_ADDRESS ?? '',
+    City: process.env.DOMAIN_REGISTRANT_CITY ?? '',
+    StateProvince: process.env.DOMAIN_REGISTRANT_STATE ?? '',
+    PostalCode: process.env.DOMAIN_REGISTRANT_ZIP ?? '',
+    Country: process.env.DOMAIN_REGISTRANT_COUNTRY ?? 'CZ',
+    Phone: process.env.DOMAIN_REGISTRANT_PHONE ?? '',
+    EmailAddress: process.env.DOMAIN_REGISTRANT_EMAIL ?? 'domains@quantecode.com',
+  }
+}
+
 export async function registerDomain(
   domain: string,
   years: number = 1,
@@ -76,48 +92,19 @@ export async function registerDomain(
   const sld = parts[0] ?? ''
   const tld = parts.slice(1).join('.')
 
-  const registrantEmail = process.env.DOMAIN_REGISTRANT_EMAIL ?? 'domains@quante.io'
+  const contact = registrantContact()
+  const contactParams: Record<string, string> = {}
+  for (const role of ['Registrant', 'Tech', 'Admin', 'AuxBilling']) {
+    for (const [field, value] of Object.entries(contact)) {
+      contactParams[`${role}${field}`] = value
+    }
+  }
 
   const xml = await callApi('namecheap.domains.create', {
     DomainName: sld,
     TLD: tld,
     Years: String(years),
-    AuxBillingFirstName: 'Domain',
-    AuxBillingLastName: 'Owner',
-    AuxBillingAddress1: '123 Main St',
-    AuxBillingCity: 'New York',
-    AuxBillingStateProvince: 'NY',
-    AuxBillingPostalCode: '10001',
-    AuxBillingCountry: 'US',
-    AuxBillingPhone: '+1.2125550100',
-    AuxBillingEmailAddress: registrantEmail,
-    RegistrantFirstName: 'Domain',
-    RegistrantLastName: 'Owner',
-    RegistrantAddress1: '123 Main St',
-    RegistrantCity: 'New York',
-    RegistrantStateProvince: 'NY',
-    RegistrantPostalCode: '10001',
-    RegistrantCountry: 'US',
-    RegistrantPhone: '+1.2125550100',
-    RegistrantEmailAddress: registrantEmail,
-    TechFirstName: 'Domain',
-    TechLastName: 'Owner',
-    TechAddress1: '123 Main St',
-    TechCity: 'New York',
-    TechStateProvince: 'NY',
-    TechPostalCode: '10001',
-    TechCountry: 'US',
-    TechPhone: '+1.2125550100',
-    TechEmailAddress: registrantEmail,
-    AdminFirstName: 'Domain',
-    AdminLastName: 'Owner',
-    AdminAddress1: '123 Main St',
-    AdminCity: 'New York',
-    AdminStateProvince: 'NY',
-    AdminPostalCode: '10001',
-    AdminCountry: 'US',
-    AdminPhone: '+1.2125550100',
-    AdminEmailAddress: registrantEmail,
+    ...contactParams,
     // Enable WhoisGuard privacy protection
     AddFreeWhoisguard: 'yes',
     WGEnabled: 'yes',
@@ -127,6 +114,31 @@ export async function registerDomain(
   const orderIdMatch = xml.match(/OrderID="(\d+)"/)
   const orderId = orderIdMatch?.[1] ?? crypto.randomUUID()
   return { orderId }
+}
+
+// Point a freshly registered domain at Vercel. Replaces ALL host records —
+// only call this on domains Quante just registered, never on user-managed DNS.
+export async function setDnsToVercel(domain: string): Promise<void> {
+  const parts = domain.split('.')
+  const sld = parts[0] ?? ''
+  const tld = parts.slice(1).join('.')
+
+  const xml = await callApi('namecheap.domains.dns.setHosts', {
+    SLD: sld,
+    TLD: tld,
+    HostName1: '@',
+    RecordType1: 'A',
+    Address1: '76.76.21.21',
+    TTL1: '1800',
+    HostName2: 'www',
+    RecordType2: 'CNAME',
+    Address2: 'cname.vercel-dns.com',
+    TTL2: '1800',
+  })
+  checkError(xml)
+  if (!/IsSuccess="true"/i.test(xml)) {
+    throw new Error('Namecheap setHosts did not report success')
+  }
 }
 
 export async function getDomainInfo(

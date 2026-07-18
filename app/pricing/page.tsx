@@ -88,7 +88,7 @@ const COSTS = [
   { action: 'Add a custom component', cost: '3', unit: 'credits' },
   { action: 'Download your store (ZIP)', cost: '5', unit: 'credits' },
   { action: 'Deploy to Quante hosting', cost: '5', unit: 'credits' },
-  { action: 'Quante Hosting Plan', cost: '€99', unit: '/year' },
+  { action: 'Quante Hosting Plan', cost: '$99', unit: '/year or $9.99/mo' },
   { action: 'Welcome bonus on signup', cost: '+25', unit: 'free' },
 ]
 
@@ -96,10 +96,11 @@ const FAQ = [
   { q: 'Do credits expire?', a: 'No. Credits never expire. Buy once and use them whenever you feel like it.' },
   { q: 'What if something goes wrong during generation?', a: "Credits are only taken on success. If a generation fails and we can't auto-fix it, nothing is charged." },
   { q: 'Can I export the same store more than once?', a: 'Yes — each export costs 5 credits. Useful when you want to grab the latest version after iterating.' },
-  { q: 'What does "Deploy to Quante hosting" mean?', a: 'One click in the Studio and your store goes live on a URL like my-store.quante.app — SSL, CDN and subdomain included, no server setup. Each deploy costs 5 credits. Your store stays live as long as your annual hosting plan is active.' },
+  { q: 'What does "Deploy to Quante hosting" mean?', a: 'One click in the Studio and your store goes live on a URL like my-store.stores.quantecode.com — SSL, CDN and subdomain included, no server setup. Each deploy costs 5 credits. Your store stays live as long as your hosting plan is active.' },
   { q: 'Can I self-host instead?', a: "Yes. Export the ZIP (5 credits) and deploy anywhere — Vercel's free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency. No hosting plan needed." },
-  { q: 'Is hosting a subscription?', a: 'Yes — €99/year, billed annually. This covers hosting, SSL, your quante.app subdomain, CDN, and unlimited deploys (each deploy costs 5 credits on top). Cancel anytime; your store stays live until the period ends.' },
-  { q: 'What does the €99/year cover?', a: 'Everything needed to keep your store online: managed hosting, automatic SSL renewal, a quante.app subdomain (or your own custom domain), global CDN, and 24/7 uptime monitoring. You only pay credits on top when you generate, iterate, or deploy.' },
+  { q: 'Is hosting a subscription?', a: 'Yes — $99/year (billed annually) or $9.99/month. This covers hosting, SSL, your quantecode.com subdomain, CDN, and unlimited deploys (each deploy costs 5 credits on top). Cancel anytime; your store stays live until the period ends.' },
+  { q: 'What does the hosting plan cover?', a: 'Everything needed to keep your store online: managed hosting, automatic SSL renewal, a quantecode.com subdomain (or your own custom domain), global CDN, and 24/7 uptime monitoring. You only pay credits on top when you generate, iterate, or deploy.' },
+  { q: 'What happens if my hosting expires?', a: 'Your store is paused and visitors see a maintenance page — nothing is ever deleted. Your products, orders and design are kept safe for at least 90 days. Resubscribe and your store goes back online automatically.' },
 ]
 
 export default function PricingPage() {
@@ -167,7 +168,7 @@ export default function PricingPage() {
 
             <div style={{ position: 'relative' }} className="headline-sheen">
               <LineReveal>Credits for AI.</LineReveal>
-              <LineReveal delay={0.12} blue>€99/year hosting.</LineReveal>
+              <LineReveal delay={0.12} blue>$99/year hosting.</LineReveal>
             </div>
 
             <motion.p
@@ -175,7 +176,7 @@ export default function PricingPage() {
               transition={{ duration: 0.8, delay: 0.4 }}
               style={{ fontSize: 16, lineHeight: 1.7, color: '#a4a4ad', maxWidth: 520, margin: '24px auto 0' }}
             >
-              Pay only for what you create. Hosting is one annual subscription — €99/year, everything included.
+              Pay only for what you create. Hosting is one simple subscription — $99/year or $9.99/month, everything included.
               Start with <span style={{ color: '#3ecf8e', fontWeight: 600 }}>25 free credits</span>. No card required.
             </motion.p>
 
@@ -189,7 +190,7 @@ export default function PricingPage() {
               }}
             >
               {[
-                { value: '€99', label: 'hosting / year' },
+                { value: '$99', label: 'hosting / year' },
                 { value: '25', label: 'free credits' },
                 { value: '∞', label: 'never expire' },
               ].map(s => (
@@ -373,8 +374,8 @@ export default function PricingPage() {
             borderRadius: 14, overflow: 'hidden',
           }}>
             {[
-              { label: 'Annual hosting plan', value: '€99 / year · billed annually', mono: true },
-              { label: 'URL format', value: 'my-store.quante.app', mono: true },
+              { label: 'Hosting plan', value: '$99 / year · or $9.99 / month', mono: true },
+              { label: 'URL format', value: 'my-store.stores.quantecode.com', mono: true },
               { label: 'Custom domain', value: 'Bring your own — CNAME verified automatically', mono: false },
               { label: 'SSL certificate', value: 'Included, auto-renewed', mono: false },
               { label: 'Cost per deploy', value: '5 credits · charged on success only', mono: true },
