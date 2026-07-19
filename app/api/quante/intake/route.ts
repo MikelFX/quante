@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // The client sends history starting from the first user message (opening is hardcoded client-side).
     const messages = history
       .filter((m: { role: string; content: string }) => m.content?.trim())
-      .slice(-12) // keep last 12 turns for context
+      .slice(-30) // keep last 30 turns so long intake conversations don't lose early details
 
     if (messages.length === 0 || messages[0]?.role !== 'user') {
       send({ type: 'error', message: 'Invalid history.' }); return
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
     const claudeStream = anthropic.messages.stream({
       model: INTAKE_MODEL,
-      max_tokens: 800,
+      max_tokens: 4000,
       system: [{ type: 'text', text: SYSTEM_PROMPT_INTAKE, cache_control: { type: 'ephemeral' } }],
       messages,
     })
