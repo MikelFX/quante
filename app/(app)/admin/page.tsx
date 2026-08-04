@@ -50,11 +50,13 @@ export default async function AdminPage() {
 
   const users = (agencyUsers ?? []) as AgencyUser[]
 
-  const { data: changelogRows } = await supabaseAdmin
+  const { data: changelogRows, error: changelogError } = await supabaseAdmin
     .from('changelog_entries')
     .select('id, date, title, description, tags')
     .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
     .limit(50)
+  if (changelogError) console.error('[admin] changelog fetch failed:', changelogError)
   const changelogEntries = (changelogRows ?? []) as ChangelogEntry[]
 
   const statusColor: Record<string, string> = {

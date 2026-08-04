@@ -1,11 +1,13 @@
 // Entries live in the changelog_entries table (managed from /admin).
-// Falls back to content/changelog.json if the table doesn't exist yet.
+// Falls back to content/changelog.json ONLY if the query succeeds but the table is empty.
+// If the query fails, we log loudly and (in dev) render a visible banner.
 
 import type { Metadata } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import fallbackEntries from '@/content/changelog.json'
+import { TAG_BG, TAG_FG, isChangelogTag } from '@/lib/changelog'
 
-export const revalidate = 300
+export const revalidate = 60
 
 export const metadata: Metadata = {
   title: 'Changelog — Quante',
@@ -13,17 +15,20 @@ export const metadata: Metadata = {
 }
 
 interface Entry {
+  id?: string
   date: string
   title: string
   description: string
   tags: string[]
+  slug?: string | null
 }
 
 const mono = 'var(--font-geist-mono)'
 
 function groupByMonth(items: Entry[]) {
   const groups: Record<string, Entry[]> = {}
-  for (const item of [...items].sort((a, b) => b.date.localeCompare(a.date))) {
+  const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date))
+  for (const item of sorted) {
     const [year, month] = item.date.split('-')
     const key = `${year}-${month}`
     if (!groups[key]) groups[key] = []
@@ -42,37 +47,48 @@ function formatDay(date: string) {
   return Number(day)
 }
 
-const TAG_COLORS: Record<string, string> = {
-  feature:     'rgba(52,211,153,.18)',
-  bugfix:      'rgba(248,113,113,.15)',
-  platform:    'rgba(111,120,230,.18)',
-  ai:          'rgba(99,102,241,.18)',
-  design:      'rgba(251,191,36,.15)',
-  domains:     'rgba(34,211,238,.15)',
-  reliability: 'rgba(52,211,153,.15)',
-}
-
-const TAG_TEXT: Record<string, string> = {
-  feature:     '#34d399',
-  bugfix:      '#f87171',
-  platform:    '#7a82e8',
-  ai:          '#a5b4fc',
-  design:      '#fbbf24',
-  domains:     '#22d3ee',
-  reliability: '#34d399',
-}
-
 export default async function ChangelogPage() {
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('changelog_entries')
-    .select('date, title, description, tags')
+    .select('id, date, title, description, tags, slug')
     .order('date', { ascending: false })
+    .order('created_at', { ascending: false })
 
-  const entries: Entry[] = data && data.length > 0 ? (data as Entry[]) : fallbackEntries
+  let entries: Entry[]
+  let queryFailed = false
+
+  if (error) {
+    console.error('[changelog] query failed:', error)
+    queryFailed = true
+    entries = fallbackEntries as Entry[]
+  } else if (!data || data.length === 0) {
+    entries = fallbackEntries as Entry[]
+  } else {
+    entries = data as Entry[]
+  }
+
   const groups = groupByMonth(entries)
+  const showDbWarning = queryFailed && process.env.NODE_ENV !== 'production'
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
+      {showDbWarning && (
+        <div style={{
+          background: 'rgba(248,113,113,.08)',
+          border: '1px solid rgba(248,113,113,.35)',
+          borderRadius: 10,
+          padding: '12px 16px',
+          marginBottom: 24,
+          color: '#f87171',
+          fontFamily: mono,
+          fontSize: 12,
+          lineHeight: 1.5,
+        }}>
+          Changelog DB unavailable — showing static fallback. Check server logs and
+          run <code>npx tsx scripts/check-changelog.ts</code>.
+        </div>
+      )}
+
       <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12 }}>
         Changelog
       </p>
@@ -91,13 +107,17 @@ export default async function ChangelogPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {items.map(entry => (
-              <div key={entry.date + entry.title} style={{
-                display: 'grid',
-                gridTemplateColumns: '48px 1fr',
-                gap: '0 20px',
-                alignItems: 'start',
-              }}>
-                {/* Day */}
+              <div
+                key={entry.id ?? entry.date + entry.title}
+                id={entry.slug ?? undefined}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '48px 1fr',
+                  gap: '0 20px',
+                  alignItems: 'start',
+                  scrollMarginTop: 80,
+                }}
+              >
                 <div style={{
                   fontFamily: mono, fontSize: 22, fontWeight: 700, color: '#383845',
                   textAlign: 'right', paddingTop: 2,
@@ -105,7 +125,6 @@ export default async function ChangelogPage() {
                   {formatDay(entry.date)}
                 </div>
 
-                {/* Entry */}
                 <div style={{
                   background: '#0d0d12',
                   border: '1px solid rgba(255,255,255,.08)',
@@ -113,16 +132,19 @@ export default async function ChangelogPage() {
                   padding: '18px 20px',
                 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                    {entry.tags.map(tag => (
-                      <span key={tag} style={{
-                        fontFamily: mono, fontSize: 10, letterSpacing: '.06em',
-                        background: TAG_COLORS[tag] ?? 'rgba(255,255,255,.08)',
-                        color: TAG_TEXT[tag] ?? '#8a8a93',
-                        padding: '2px 7px', borderRadius: 4,
-                      }}>
-                        {tag}
-                      </span>
-                    ))}
+                    {entry.tags.map(tag => {
+                      const known = isChangelogTag(tag)
+                      return (
+                        <span key={tag} style={{
+                          fontFamily: mono, fontSize: 10, letterSpacing: '.06em',
+                          background: known ? TAG_BG[tag] : 'rgba(255,255,255,.06)',
+                          color: known ? TAG_FG[tag] : '#8a8a93',
+                          padding: '2px 7px', borderRadius: 4,
+                        }}>
+                          {tag}
+                        </span>
+                      )
+                    })}
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 700, color: '#f4f4f6', marginBottom: 6, lineHeight: 1.3 }}>
                     {entry.title}
