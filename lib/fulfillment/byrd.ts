@@ -1,3 +1,10 @@
+// DEPRECATED (2026-08-07) — superseded by lib/fulfillment/providers/byrd/{client,mapper,index}.ts.
+// No longer imported anywhere (app/api/projects/[id]/store-orders/[orderId]/fulfillment/route.ts
+// now uses the registry at lib/fulfillment/registry.ts). Also had a real bug the rewrite fixes:
+// byrd wraps every response in {"data": {...}}, which this file's toShipment() never unwrapped —
+// data.byrd_id would have been undefined on every real API call. Left in place rather than
+// deleted — see lib/fulfillment/provider.ts's deprecation note for why. Do not add new code here.
+//
 // byrd fulfillment provider (https://developers.getbyrd.com)
 // Auth: POST /v2/login with API key + secret → JWT (default 7 days validity).
 // The login endpoint is rate-limited to 5 calls/min, so tokens are cached

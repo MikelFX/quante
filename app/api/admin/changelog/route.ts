@@ -19,7 +19,7 @@ async function requireAdmin() {
   return ADMIN_EMAILS.includes(email) ? userId : null
 }
 
-const SELECT = 'id, date, title, description, tags, slug, updated_at'
+const SELECT = 'id, date, title, description, tags, slug, updated_at, published, deployment_id'
 
 type ValidatedFields = {
   date: string
@@ -103,9 +103,18 @@ export async function PATCH(request: Request) {
   const v = validate(body, true)
   if ('error' in v) return NextResponse.json({ error: v.error }, { status: 400 })
 
+  // `published` is optional and only touched when explicitly sent — this is
+  // what the "Publish" button in ChangelogAdmin.tsx uses (V3 draft review
+  // flow): it PATCHes the entry's existing fields plus `published: true`,
+  // without needing its own separate endpoint or validation path.
+  const update: Record<string, unknown> = {
+    date: v.date, title: v.title, description: v.description, tags: v.tags, slug: v.slug,
+  }
+  if (typeof body.published === 'boolean') update.published = body.published
+
   const { data, error } = await supabaseAdmin
     .from('changelog_entries')
-    .update({ date: v.date, title: v.title, description: v.description, tags: v.tags, slug: v.slug })
+    .update(update)
     .eq('id', id)
     .select(SELECT)
     .single()

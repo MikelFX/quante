@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
 import type { ShopManifest, Section } from '@/types/manifest'
 import type { StoreProduct } from '@/types/store-code'
+import type { StoreHealthResult, HealthCheckItem } from '@/lib/store-health'
 import { MerchantPanel } from './MerchantPanel'
 import {
   MessageCircle, Layers, Package, Paintbrush, Rocket,
@@ -466,6 +467,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [insightsLoaded, setInsightsLoaded] = useState(false)
   const [insightsRefreshing, setInsightsRefreshing] = useState(false)
   const [insightsError, setInsightsError] = useState<string | null>(null)
+  // Store Health Score (Dashboard admin tab)
+  const [healthData, setHealthData] = useState<StoreHealthResult | null>(null)
+  const [healthLoaded, setHealthLoaded] = useState(false)
+  const [isGeneratingLegal, setIsGeneratingLegal] = useState(false)
+  const [healthActionError, setHealthActionError] = useState<string | null>(null)
 
   // Hosting trial helpers
   const trialDaysLeft = hostingInfo.trialEndsAt
@@ -508,6 +514,53 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       })
       .catch(() => {})
   }, [adminMode, adminTab, insightsLoaded, projectId])
+
+  // Load Store Health Score when the admin Dashboard tab opens — free, no credit cost
+  const loadHealth = useCallback(() => {
+    fetch(`/api/projects/${projectId}/health`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setHealthData(d) })
+      .catch(() => {})
+  }, [projectId])
+
+  useEffect(() => {
+    if (!adminMode || adminTab !== 'dashboard' || healthLoaded) return
+    setHealthLoaded(true)
+    loadHealth()
+  }, [adminMode, adminTab, healthLoaded, loadHealth])
+
+  // "Fix it" action for the legal-pages checklist item — calls the deterministic
+  // generator directly (no AI credit cost), then refreshes the score.
+  async function handleGenerateLegalPages() {
+    setIsGeneratingLegal(true)
+    setHealthActionError(null)
+    try {
+      const res = await fetch('/api/quante/legal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      if (res.ok) {
+        loadHealth()
+      } else {
+        const d = await res.json().catch(() => ({} as { error?: string }))
+        setHealthActionError(d.error ?? 'Nepodařilo se vygenerovat právní stránky.')
+      }
+    } catch {
+      setHealthActionError('Nepodařilo se vygenerovat právní stránky.')
+    } finally {
+      setIsGeneratingLegal(false)
+    }
+  }
+
+  function handleHealthAction(item: HealthCheckItem) {
+    if (item.id === 'legal_pages') { handleGenerateLegalPages(); return }
+    if (item.actionTarget === 'settings' || item.actionTarget === 'products') {
+      setAdminTab(item.actionTarget)
+    } else if (item.actionTarget === 'theme' || item.actionTarget === 'publish') {
+      setAdminMode(false)
+    }
+  }
 
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 900)
@@ -4121,6 +4174,76 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </button>
         </div>
       )}
+
+      {/* Store Health Score */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '16px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CheckCircle size={14} style={{ color: healthData?.readyToSell ? 'var(--live)' : '#8a8a93' }} />
+            Připraveno k prodeji
+          </h3>
+          {healthData && (
+            <span style={{
+              fontSize: 12, fontFamily: 'var(--font-geist-mono)', fontWeight: 700,
+              color: healthData.score === 100 ? 'var(--live)' : healthData.score >= 50 ? '#e0a04f' : '#e0564f',
+            }}>
+              {healthData.score}%
+            </span>
+          )}
+        </div>
+
+        {!healthData ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {[1, 2, 3].map(i => (
+              <div key={i} style={{ height: 28, borderRadius: 6, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,.06)', overflow: 'hidden', marginBottom: 14 }}>
+              <div style={{
+                height: '100%', width: `${healthData.score}%`, borderRadius: 3,
+                background: healthData.score === 100 ? 'var(--live)' : '#6f78e6',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+
+            {healthActionError && (
+              <p style={{ fontSize: 11, color: '#e0564f', margin: '0 0 10px' }}>{healthActionError}</p>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {healthData.items.map((item, i) => (
+                <div key={item.id} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0',
+                  borderBottom: i < healthData.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
+                }}>
+                  {item.done
+                    ? <CheckCircle size={15} style={{ color: 'var(--live)', flexShrink: 0, marginTop: 1 }} />
+                    : <AlertCircle size={15} style={{ color: '#5b5b64', flexShrink: 0, marginTop: 1 }} />}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: item.done ? '#f4f4f6' : '#b9b9c0', margin: 0 }}>{item.label}</p>
+                    <p style={{ fontSize: 11, color: '#5b5b64', margin: '2px 0 0', lineHeight: 1.4 }}>{item.detail}</p>
+                  </div>
+                  {!item.done && item.actionLabel && (
+                    <button
+                      onClick={() => handleHealthAction(item)}
+                      disabled={item.id === 'legal_pages' && isGeneratingLegal}
+                      style={{
+                        fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+                        border: '1px solid rgba(111,120,230,.35)', background: 'rgba(111,120,230,.08)',
+                        color: '#a5b4fc', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                      }}
+                    >
+                      {item.id === 'legal_pages' && isGeneratingLegal ? '…' : item.actionLabel}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>

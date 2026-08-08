@@ -8,7 +8,12 @@
     "start": "next start",
     "lint": "eslint",
     "test:whitelabel": "node --test __tests__/export-whitelabel.test.mjs",
-    "test:changelog": "node --test __tests__/changelog.test.mjs"
+    "test:changelog": "node --test __tests__/changelog.test.mjs",
+    "test:changelog-webhook": "node --test __tests__/changelog-webhook.test.mjs",
+    "test:fulfillment-byrd": "node --test __tests__/fulfillment-byrd.test.mjs",
+    "test:store-health": "node --test __tests__/store-health.test.mjs",
+    "test:partner-commission": "node --test __tests__/partner-commission.test.mjs",
+    "test:marketplace": "node --test __tests__/marketplace.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",

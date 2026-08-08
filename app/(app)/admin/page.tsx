@@ -52,7 +52,7 @@ export default async function AdminPage() {
 
   const { data: changelogRows, error: changelogError } = await supabaseAdmin
     .from('changelog_entries')
-    .select('id, date, title, description, tags')
+    .select('id, date, title, description, tags, published, deployment_id')
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(50)

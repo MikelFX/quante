@@ -5,6 +5,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { decryptSecret } from '@/lib/crypto'
 import { createPacketaParcel } from '@/lib/zasilkovna'
 import { shippingEmail, sendEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
@@ -63,9 +64,13 @@ export async function POST(
   }
 
   try {
+    // zasilkovna_api_password is AES-256-GCM encrypted at rest (see settings/route.ts) —
+    // zasilkovna_api_key itself stays plaintext, it's also pushed to the deployed store's
+    // public NEXT_PUBLIC_ZASILKOVNA_API_KEY env var. decryptSecret() transparently passes
+    // through legacy plaintext rows.
     const parcel = await createPacketaParcel({
       apiKey: secrets.zasilkovna_api_key as string,
-      apiPassword: secrets.zasilkovna_api_password as string,
+      apiPassword: decryptSecret(secrets.zasilkovna_api_password as string) as string,
       orderId,
       orderNumber: order.order_number,
       customerName: order.customer_name ?? 'Zákazník',

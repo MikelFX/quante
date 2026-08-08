@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_ITERATION } from '@/lib/claude'
-import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
+import { createPreviewDeployment, createVercelPreviewDeploy, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { isAgencyUser } from '@/lib/tier'
 import { CREDIT_COSTS, RATE_LIMITS, AGENCY_RATE_LIMIT_PER_MIN, AGENCY_TOKEN_CAP } from '@/lib/config'
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     // Ownership check
     const { data: project } = await supabase
-      .from('projects').select('id, name, vercel_project_id').eq('id', projectId).eq('user_id', userId).maybeSingle()
+      .from('projects').select('id, name, vercel_project_id, hosting_trial_ends_at').eq('id', projectId).eq('user_id', userId).maybeSingle()
     if (!project) { send({ type: 'error', message: 'Project not found.' }); return }
 
     let balance = 0
@@ -198,8 +198,21 @@ export async function POST(request: Request) {
       await updateProject
     }
 
-    // Auto-trigger preview deployment (free)
-    send({ type: 'status', text: 'Deploying preview…' })
+    // Auto-trigger preview deployment (free).
+    //
+    // Fix (2026-08-07): createPreviewDeployment() deploys with target: 'production' and
+    // attaches the store's public subdomain — correct once the store has actually gone
+    // live (Push to Live), so further chat edits keep the live store in sync. But before
+    // the first Push to Live, StudioClient still gates the preview behind the "Push to
+    // Live" screen (see showPushToLive in StudioClient.tsx, never touched by the iterate
+    // flow), so every iteration made while still drafting was silently doing a full
+    // *production* build + public subdomain attach for a store the merchant hadn't
+    // published yet. hosting_trial_ends_at is set exactly once, by /api/deploy, on the
+    // first successful real "Push to Live" — use it as the "has this store ever gone
+    // live" signal to pick the cheap non-production preview build pre-publish, and the
+    // real production deploy post-publish (unchanged behavior for already-live stores).
+    const isLive = !!project.hosting_trial_ends_at
+    send({ type: 'status', text: isLive ? 'Updating live store…' : 'Deploying preview…' })
 
     let deploymentId: string | null = null
     let previewUrl: string | null = null
@@ -213,11 +226,10 @@ export async function POST(request: Request) {
       }
 
       const allFiles = buildStoreFiles(mergedFiles)
-      const result = await createPreviewDeployment(
-        vercelProjectId,
-        allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
-        slug,
-      )
+      const filesPayload = allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' }))
+      const result = isLive
+        ? await createPreviewDeployment(vercelProjectId, filesPayload, slug)
+        : await createVercelPreviewDeploy(vercelProjectId, filesPayload)
       deploymentId = result.deploymentId
       previewUrl = result.url
 

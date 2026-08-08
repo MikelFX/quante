@@ -3,6 +3,19 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { setEnvVars } from '@/lib/hosting/vercel'
+import { encryptSecret, isEncryptionConfigured } from '@/lib/crypto'
+
+// Fix (2026-08-07): the shipping/fulfillment secret fields below (dhl_api_key/secret,
+// gls_password, byrd_api_key/secret, zasilkovna_api_password) used to be written here in
+// plaintext — lib/crypto.ts (AES-256-GCM) already existed and was already used for the
+// Comgate/GoPay/PayPal secrets in /api/project/secrets/route.ts, just never wired up here.
+// zasilkovna_api_key, dhl_account_number, gls_username/gls_client_number/gls_country are
+// left as plaintext identifiers, matching the existing convention (see ENCRYPTED_FIELDS
+// vs plain fields in /api/project/secrets/route.ts) — zasilkovna_api_key is additionally
+// pushed to the deployed store's public NEXT_PUBLIC_ZASILKOVNA_API_KEY env var below, so
+// encrypting it at rest would be no-op security theater.
+// decryptSecret() passes plaintext values through unchanged (see lib/crypto.ts), so this
+// is backward compatible with rows saved before this fix without any migration/backfill.
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -52,6 +65,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
+  // Any of the encrypted fields present in this request? Fail fast with a clear error
+  // instead of silently storing plaintext if the server key isn't configured.
+  const hasSecretToEncrypt = [zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, glsPassword, byrdApiKey, byrdApiSecret]
+    .some((v) => typeof v === 'string' && v.length > 0)
+  if (hasSecretToEncrypt && !isEncryptionConfigured()) {
+    return NextResponse.json({ error: 'Server misconfiguration: SECRETS_ENCRYPTION_KEY is not set.' }, { status: 500 })
+  }
+  const encOrNull = (v: unknown): string | null =>
+    (typeof v === 'string' && v.length > 0) ? encryptSecret(v) : null
+
   // Build upsert payload — only shipping API keys
   const upsertPayload: Record<string, unknown> = {
     project_id: projectId,
@@ -59,16 +82,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     updated_at: new Date().toISOString(),
   }
   if (zasilkovnaApiKey !== undefined) upsertPayload.zasilkovna_api_key = zasilkovnaApiKey || null
-  if (zasilkovnaApiPassword !== undefined) upsertPayload.zasilkovna_api_password = zasilkovnaApiPassword || null
-  if (dhlApiKey !== undefined) upsertPayload.dhl_api_key = dhlApiKey || null
-  if (dhlApiSecret !== undefined) upsertPayload.dhl_api_secret = dhlApiSecret || null
+  if (zasilkovnaApiPassword !== undefined) upsertPayload.zasilkovna_api_password = encOrNull(zasilkovnaApiPassword)
+  if (dhlApiKey !== undefined) upsertPayload.dhl_api_key = encOrNull(dhlApiKey)
+  if (dhlApiSecret !== undefined) upsertPayload.dhl_api_secret = encOrNull(dhlApiSecret)
   if (dhlAccountNumber !== undefined) upsertPayload.dhl_account_number = dhlAccountNumber || null
   if (glsUsername !== undefined) upsertPayload.gls_username = glsUsername || null
-  if (glsPassword !== undefined) upsertPayload.gls_password = glsPassword || null
+  if (glsPassword !== undefined) upsertPayload.gls_password = encOrNull(glsPassword)
   if (glsClientNumber !== undefined) upsertPayload.gls_client_number = glsClientNumber || null
   if (glsCountry !== undefined) upsertPayload.gls_country = (typeof glsCountry === 'string' && glsCountry.trim()) ? glsCountry.trim().toLowerCase() : 'cz'
-  if (byrdApiKey !== undefined) upsertPayload.byrd_api_key = byrdApiKey || null
-  if (byrdApiSecret !== undefined) upsertPayload.byrd_api_secret = byrdApiSecret || null
+  if (byrdApiKey !== undefined) upsertPayload.byrd_api_key = encOrNull(byrdApiKey)
+  if (byrdApiSecret !== undefined) upsertPayload.byrd_api_secret = encOrNull(byrdApiSecret)
 
   await supabaseAdmin.from('project_secrets').upsert(upsertPayload, { onConflict: 'project_id' })
 

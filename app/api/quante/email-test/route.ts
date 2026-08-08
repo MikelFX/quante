@@ -60,5 +60,12 @@ export async function POST(request: Request) {
   const ok = await sendEmail(to, `[TEST] ${subject}`, html, from)
 
   if (!ok) return NextResponse.json({ error: 'E-mail se nepodařilo odeslat. Zkontrolujte RESEND_API_KEY.' }, { status: 500 })
+
+  // Record the send for the Store Health Score checklist (lib/store-health.ts).
+  // project_secrets.email_test_sent_at — see supabase/migration-store-health.sql.
+  await supabaseAdmin
+    .from('project_secrets')
+    .upsert({ project_id: projectId, user_id: userId, email_test_sent_at: new Date().toISOString() }, { onConflict: 'project_id' })
+
   return NextResponse.json({ ok: true, sentTo: to })
 }

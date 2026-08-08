@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_FIX } from '@/lib/claude'
-import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
+import { createPreviewDeployment, createVercelPreviewDeploy, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { rateLimit } from '@/lib/rate-limit'
 import type { CodeVersionFiles } from '@/types/store-code'
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
   // Ownership check
   const { data: project } = await supabase
-    .from('projects').select('id, name, vercel_project_id').eq('id', projectId).eq('user_id', userId).maybeSingle()
+    .from('projects').select('id, name, vercel_project_id, hosting_trial_ends_at').eq('id', projectId).eq('user_id', userId).maybeSingle()
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   // Load current code version
@@ -132,7 +132,13 @@ export async function POST(request: Request) {
 
   await supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
-  // Auto-trigger preview deployment
+  // Auto-trigger preview deployment.
+  // Fix (2026-08-07): use the real production deploy (target + subdomain) only once the
+  // store has actually gone live at least once (hosting_trial_ends_at set by /api/deploy
+  // on first successful Push to Live) — matches the same fix applied to /api/quante/generate
+  // and /api/quante/iterate. Pre-publish auto-fix runs were silently doing full production
+  // builds + public subdomain attach for a store nobody had published yet.
+  const isLive = !!project.hosting_trial_ends_at
   let deploymentId: string | null = null
   let previewUrl: string | null = null
 
@@ -145,11 +151,10 @@ export async function POST(request: Request) {
     }
 
     const allFiles = buildStoreFiles(mergedFiles)
-    const result = await createPreviewDeployment(
-      vercelProjectId,
-      allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
-      slug,
-    )
+    const filesPayload = allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' }))
+    const result = isLive
+      ? await createPreviewDeployment(vercelProjectId, filesPayload, slug)
+      : await createVercelPreviewDeploy(vercelProjectId, filesPayload)
     deploymentId = result.deploymentId
     previewUrl = result.url
 

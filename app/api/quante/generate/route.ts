@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
-import { createPreviewDeployment, ensureVercelProject } from '@/lib/hosting/vercel'
+import { createVercelPreviewDeploy, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { getUserRecord } from '@/lib/tier'
 import type { StoreCodeOutput } from '@/types/store-code'
@@ -275,8 +275,27 @@ export async function POST(request: Request) {
     if (debitError) console.error('[generate] credit debit failed:', debitError)
     await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
-    // Auto-trigger preview deployment (free, no credit debit)
-    send({ type: 'status', text: 'Starting preview deployment…' })
+    // Validation-only deploy (free, no credit debit, NOT the real "go live" deploy).
+    //
+    // Fix (2026-08-07): this used to call createPreviewDeployment(), which despite its
+    // name deploys with target: 'production' AND attaches the store's public subdomain
+    // (see lib/hosting/vercel.ts). That meant every first-time generation silently did a
+    // full *production* Vercel build and made the subdomain publicly reachable — before
+    // the merchant ever clicked "Push to Live". StudioClient then always hides that
+    // deployment's result behind the "Push to Live" screen (see showPushToLive in
+    // StudioClient.tsx) and, when the user actually clicks it, /api/deploy runs a SECOND,
+    // completely redundant production build of the identical files — the only one that's
+    // properly wired up with QUANTE_API_KEY, the hosting trial timer, and the real credit
+    // debit. Net effect: two full production builds back-to-back for one generation.
+    //
+    // This step still needs to exist — its deploymentId feeds startLogStreaming() in
+    // StudioClient, which is how build errors are caught and the self-healing auto-fix
+    // loop (autoFixAttempts) gets triggered *before* the user ever sees a failure. So
+    // instead of removing it, it now uses createVercelPreviewDeploy() — a true Vercel
+    // preview build: no target: 'production', no domain attach, no public subdomain
+    // exposure. /api/deploy (Push to Live) is unchanged and remains the one and only
+    // production deployment + domain attach + credit debit.
+    send({ type: 'status', text: 'Validating build…' })
 
     let deploymentId: string | null = null
     let previewUrl: string | null = null
@@ -296,10 +315,9 @@ export async function POST(request: Request) {
       // Build scaffold + merge AI files
       const allFiles = buildStoreFiles(output.files)
 
-      const result = await createPreviewDeployment(
+      const result = await createVercelPreviewDeploy(
         vercelProjectId,
         allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
-        slug,
       )
       deploymentId = result.deploymentId
       previewUrl = result.url

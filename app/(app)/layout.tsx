@@ -3,14 +3,15 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
-import { LayoutGrid, Plus, CreditCard, Settings } from 'lucide-react'
+import { LayoutGrid, Plus, CreditCard, Settings, Store } from 'lucide-react'
 import { CreditPill } from '@/components/shell/CreditPill'
 
 const NAV = [
-  { href: '/dashboard', icon: LayoutGrid, label: 'Projects' },
-  { href: '/new',       icon: Plus,       label: 'New'      },
-  { href: '/billing',   icon: CreditCard, label: 'Billing'  },
-  { href: '/settings',  icon: Settings,   label: 'Settings' },
+  { href: '/dashboard',    icon: LayoutGrid, label: 'Projects'    },
+  { href: '/new',          icon: Plus,       label: 'New'         },
+  { href: '/marketplace',  icon: Store,      label: 'Marketplace' },
+  { href: '/billing',      icon: CreditCard, label: 'Billing'     },
+  { href: '/settings',     icon: Settings,   label: 'Settings'    },
 ]
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

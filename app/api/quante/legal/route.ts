@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import {
   generateObchodniPodminky,
@@ -9,11 +10,17 @@ import {
 import { ShopManifestSchema } from '@/lib/manifest-schema'
 import type { ShopManifest } from '@/types/manifest'
 
+// Fix (2026-08-07): this route used supabase.auth.getUser() against the service-role
+// client returned by createClient() (see lib/supabase/server.ts — Clerk handles auth,
+// createClient() is just an alias for supabaseAdmin with no session). That call always
+// resolved user: null, so this route unconditionally 401'd and legal-page generation was
+// silently broken for every project. Swapped to Clerk's auth(), matching every sibling
+// route (e.g. app/api/quante/email-test/route.ts, app/api/projects/[id]/settings/route.ts).
 export async function POST(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const supabase = await createClient()
   const { projectId } = await request.json()
   if (!projectId) return NextResponse.json({ error: 'Missing projectId' }, { status: 400 })
 
@@ -21,7 +28,7 @@ export async function POST(request: Request) {
     .from('projects')
     .select('id')
     .eq('id', projectId)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 

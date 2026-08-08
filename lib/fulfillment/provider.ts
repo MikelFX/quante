@@ -1,3 +1,10 @@
+// DEPRECATED (2026-08-07) — superseded by lib/fulfillment/types.ts + registry.ts +
+// providers/byrd/{client,mapper,index}.ts, per quante-fulfillment-byrd-spec.md. No longer
+// imported anywhere in the app. Left in place rather than deleted: file deletion in this
+// mounted project folder requires live user approval this session couldn't obtain — see
+// docs/update-log.md's git-state notes. Safe to delete once someone at the actual computer
+// confirms nothing external references it. Do not add new code here — see lib/fulfillment/types.ts.
+//
 // Fulfillment provider abstraction.
 // A fulfillment provider is a 3PL warehouse that stores the merchant's stock
 // and ships orders on their behalf (vs. carriers like Packeta/DHL/GLS where

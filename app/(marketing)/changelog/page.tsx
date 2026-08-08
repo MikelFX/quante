@@ -1,13 +1,26 @@
 // Entries live in the changelog_entries table (managed from /admin).
 // Falls back to content/changelog.json ONLY if the query succeeds but the table is empty.
 // If the query fails, we log loudly and (in dev) render a visible banner.
+//
+// V2 (2026-08-07): switched from `revalidate = 60` (ISR + on-demand revalidatePath
+// from the admin API) to `dynamic = 'force-dynamic'`. Rationale: on-demand
+// revalidation already made the 60s window mostly theoretical, but it still relied
+// on revalidatePath() firing correctly on every mutation path (and we already got
+// bitten once by a caching bug here — see docs/changelog-findings.md). This page's
+// traffic is low and the query is a single indexed select on a tiny table, so the
+// cost of hitting Supabase on every request is negligible. force-dynamic makes
+// "always fresh" a guarantee of the render path itself instead of a property that
+// depends on every mutation call site remembering to invalidate the right cache —
+// one less class of bug. For visitors who already have the tab open, see
+// <ChangelogLiveRefresh> below, which polls in the background.
 
 import type { Metadata } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import fallbackEntries from '@/content/changelog.json'
 import { TAG_BG, TAG_FG, isChangelogTag } from '@/lib/changelog'
+import { ChangelogLiveRefresh } from './ChangelogLiveRefresh'
 
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Changelog — Quante',
@@ -48,23 +61,40 @@ function formatDay(date: string) {
 }
 
 export default async function ChangelogPage() {
+  // .eq('published', true) — V3: excludes drafts auto-created by the Vercel
+  // deploy webhook (app/api/webhooks/vercel-deploy) until an admin approves
+  // them in /admin. Requires supabase/migration-changelog-v3.sql to have run;
+  // until then this errors (unknown column) and falls back to the static
+  // JSON below, same as any other query failure — see `source` tracking.
   const { data, error } = await supabaseAdmin
     .from('changelog_entries')
     .select('id, date, title, description, tags, slug')
+    .eq('published', true)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
 
   let entries: Entry[]
   let queryFailed = false
 
+  // `source` answers, unambiguously and observably, the question that used to be
+  // guesswork from the outside: is this page rendering real DB rows, or silently
+  // sitting on the static fallback? Surfaced below via a hidden marker (see
+  // data-changelog-source) rather than only a dev-only banner, so it's checkable
+  // in production too (view-source, or `curl | grep data-changelog-source`)
+  // without needing DB or Vercel log access.
+  let source: 'db' | 'fallback-error' | 'fallback-empty'
+
   if (error) {
     console.error('[changelog] query failed:', error)
     queryFailed = true
     entries = fallbackEntries as Entry[]
+    source = 'fallback-error'
   } else if (!data || data.length === 0) {
     entries = fallbackEntries as Entry[]
+    source = 'fallback-empty'
   } else {
     entries = data as Entry[]
+    source = 'db'
   }
 
   const groups = groupByMonth(entries)
@@ -72,6 +102,11 @@ export default async function ChangelogPage() {
 
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
+      {/* Silent, invisible to real users — lets us check DB-vs-fallback in prod
+          without a banner or Vercel log access. Not rendered for AT/SEO purposes
+          beyond a harmless data attribute; display:none removes it from a11y tree too. */}
+      <span data-changelog-source={source} style={{ display: 'none' }} aria-hidden="true" />
+      <ChangelogLiveRefresh />
       {showDbWarning && (
         <div style={{
           background: 'rgba(248,113,113,.08)',

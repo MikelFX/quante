@@ -5,6 +5,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { decryptSecret } from '@/lib/crypto'
 import { createDhlShipment } from '@/lib/dhl'
 import { shippingEmail, sendEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
@@ -94,9 +95,11 @@ export async function POST(
   }
 
   try {
+    // dhl_api_key/secret are AES-256-GCM encrypted at rest (see settings/route.ts);
+    // decryptSecret() also transparently passes through legacy plaintext rows.
     const result = await createDhlShipment({
-      apiKey: secrets.dhl_api_key as string,
-      apiSecret: secrets.dhl_api_secret as string,
+      apiKey: decryptSecret(secrets.dhl_api_key as string) as string,
+      apiSecret: decryptSecret(secrets.dhl_api_secret as string) as string,
       accountNumber: secrets.dhl_account_number as string,
       testMode: body.testMode ?? false,
 

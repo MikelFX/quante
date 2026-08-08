@@ -382,31 +382,43 @@ export async function GET(request: Request) {
       .update({ status: 'ready', url: finalUrl, updated_at: new Date().toISOString() })
       .eq('id', row.id)
 
-    // Start 30-day trial on the project if this is the first successful deploy
-    await supabaseAdmin
-      .from('projects')
-      .update({ hosting_trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() })
-      .eq('id', row.project_id)
-      .is('hosting_trial_ends_at', null)
+    // Bug fix (2026-08-07): this status endpoint is polled generically for ANY deployment
+    // row (see the shared `fetch('/api/deploy?id=...')` fallback poll in StudioClient's
+    // EventSource.onerror, used by the free auto-validation deploys from generate/iterate/
+    // fix, and by the 2-credit manual "Preview deploy"). Only a real "Push to Live"
+    // production deploy — the one that went through the POST branch above with
+    // type !== 'preview' — sets `domain`. Free/preview deployment rows always have
+    // domain = null. Trial-start and the 5-credit debit must only fire for the real
+    // production deploy; gating on `domain` prevents silently starting the 30-day trial
+    // clock or charging credits when a free validation/preview build happens to finish
+    // while this same status route is being polled for it.
+    if (domain) {
+      // Start 30-day trial on the project if this is the first successful deploy
+      await supabaseAdmin
+        .from('projects')
+        .update({ hosting_trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() })
+        .eq('id', row.project_id)
+        .is('hosting_trial_ends_at', null)
 
-    // Debit credits (after row update — user only charged on confirmed success)
-    const { data: ledger } = await supabaseAdmin
-      .from('credit_ledger')
-      .select('balance_after')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+      // Debit credits (after row update — user only charged on confirmed success)
+      const { data: ledger } = await supabaseAdmin
+        .from('credit_ledger')
+        .select('balance_after')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
 
-    const balance = ledger?.balance_after ?? 0
-    if (balance >= DEPLOY_COST) {
-      await supabaseAdmin.from('credit_ledger').insert({
-        user_id: userId,
-        delta: -DEPLOY_COST,
-        reason: 'deploy',
-        ref_id: row.id,
-        balance_after: balance - DEPLOY_COST,
-      })
+      const balance = ledger?.balance_after ?? 0
+      if (balance >= DEPLOY_COST) {
+        await supabaseAdmin.from('credit_ledger').insert({
+          user_id: userId,
+          delta: -DEPLOY_COST,
+          reason: 'deploy',
+          ref_id: row.id,
+          balance_after: balance - DEPLOY_COST,
+        })
+      }
     }
 
     return NextResponse.json({ status: 'ready', url: finalUrl, domain })

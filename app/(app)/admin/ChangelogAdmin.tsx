@@ -10,6 +10,13 @@ export interface ChangelogEntry {
   title: string
   description: string
   tags: string[]
+  // V3: entries auto-created by app/api/webhooks/vercel-deploy start as
+  // published=false drafts; deployment_id is set only on those (never on
+  // entries typed by hand here). Both are undefined until
+  // supabase/migration-changelog-v3.sql has been run — treat missing as
+  // "published" so existing rows/UI don't regress before that migration runs.
+  published?: boolean
+  deployment_id?: string | null
 }
 
 const mono = 'var(--font-geist-mono)'
@@ -76,6 +83,37 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
       return
     }
     resetForm()
+    router.refresh()
+  }
+
+  // V3: publish a draft entry (auto-created by the Vercel deploy webhook) as-is.
+  // Reuses the PATCH endpoint's existing full-entry validation — sends the
+  // entry's current fields back unchanged plus published: true, rather than
+  // adding a separate lightweight endpoint. Admin can also just click Edit
+  // first to rewrite the AI draft, then Update (which does NOT flip
+  // published — only this button, or an explicit save from the edit form
+  // with published already true, does).
+  async function handlePublish(entry: ChangelogEntry) {
+    setBusy(true)
+    setError(null)
+    const res = await fetch('/api/admin/changelog', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: entry.id,
+        date: entry.date,
+        title: entry.title,
+        description: entry.description,
+        tags: entry.tags,
+        published: true,
+      }),
+    })
+    setBusy(false)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error ?? `Publish failed (${res.status})`)
+      return
+    }
     router.refresh()
   }
 
@@ -168,16 +206,30 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
         )}
         {entries.map((entry) => {
           const isEditing = editingId === entry.id
+          // `published` is undefined for rows read before migration-changelog-v3.sql
+          // ran (column doesn't exist in the select yet) — treat as published so
+          // nothing looks like a phantom draft pre-migration.
+          const isDraft = entry.published === false
           return (
             <div key={entry.id} style={{
-              display: 'grid', gridTemplateColumns: '90px 1fr auto auto', gap: 10, alignItems: 'start',
-              border: `1px solid ${isEditing ? 'rgba(224,160,79,.35)' : 'rgba(255,255,255,.06)'}`,
-              background: isEditing ? 'rgba(224,160,79,.04)' : 'transparent',
+              display: 'grid', gridTemplateColumns: '90px 1fr auto', gap: 10, alignItems: 'start',
+              border: `1px solid ${isDraft ? 'rgba(224,160,79,.4)' : isEditing ? 'rgba(224,160,79,.35)' : 'rgba(255,255,255,.06)'}`,
+              background: isDraft ? 'rgba(224,160,79,.05)' : isEditing ? 'rgba(224,160,79,.04)' : 'transparent',
               borderRadius: 10, padding: '12px 16px',
             }}>
               <span style={{ fontFamily: mono, fontSize: 11.5, color: '#5b5b64', paddingTop: 2 }}>{entry.date}</span>
               <div>
-                <p style={{ fontSize: 13.5, fontWeight: 600, color: '#f4f4f6', margin: '0 0 3px' }}>{entry.title}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                  <p style={{ fontSize: 13.5, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>{entry.title}</p>
+                  {isDraft && (
+                    <span style={{
+                      fontFamily: mono, fontSize: 9.5, letterSpacing: '.08em', textTransform: 'uppercase',
+                      color: '#e0a04f', border: '1px solid rgba(224,160,79,.4)', borderRadius: 4, padding: '1px 6px',
+                    }}>
+                      Draft{entry.deployment_id ? ' · auto' : ''}
+                    </span>
+                  )}
+                </div>
                 <p style={{ fontSize: 12.5, color: '#8a8a93', lineHeight: 1.55, margin: 0 }}>{entry.description}</p>
                 {entry.tags.length > 0 && (
                   <p style={{ fontFamily: mono, fontSize: 10.5, color: '#5b5b64', margin: '6px 0 0' }}>
@@ -185,18 +237,29 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
                   </p>
                 )}
               </div>
-              <button onClick={() => startEdit(entry)} style={{
-                background: 'none', border: '1px solid rgba(255,255,255,.12)', color: '#8a8a93',
-                borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono, cursor: 'pointer',
-              }}>
-                Edit
-              </button>
-              <button onClick={() => handleDelete(entry.id)} style={{
-                background: 'none', border: '1px solid rgba(248,113,113,.25)', color: '#f87171',
-                borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono, cursor: 'pointer',
-              }}>
-                Delete
-              </button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {isDraft && (
+                  <button onClick={() => handlePublish(entry)} disabled={busy} style={{
+                    background: 'rgba(224,160,79,.12)', border: '1px solid rgba(224,160,79,.4)', color: '#e0a04f',
+                    borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono,
+                    cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
+                  }}>
+                    Publish
+                  </button>
+                )}
+                <button onClick={() => startEdit(entry)} style={{
+                  background: 'none', border: '1px solid rgba(255,255,255,.12)', color: '#8a8a93',
+                  borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono, cursor: 'pointer',
+                }}>
+                  Edit
+                </button>
+                <button onClick={() => handleDelete(entry.id)} style={{
+                  background: 'none', border: '1px solid rgba(248,113,113,.25)', color: '#f87171',
+                  borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono, cursor: 'pointer',
+                }}>
+                  Delete
+                </button>
+              </div>
             </div>
           )
         })}

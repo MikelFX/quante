@@ -6,6 +6,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { decryptSecret } from '@/lib/crypto'
 import { createGlsParcel } from '@/lib/gls'
 import { shippingEmail, sendEmail } from '@/lib/email-templates'
 import type { ShopManifest } from '@/types/manifest'
@@ -76,9 +77,11 @@ export async function POST(
   }
 
   try {
+    // gls_password is AES-256-GCM encrypted at rest (see settings/route.ts);
+    // decryptSecret() also transparently passes through legacy plaintext rows.
     const result = await createGlsParcel({
       username: secrets.gls_username as string,
-      password: secrets.gls_password as string,
+      password: decryptSecret(secrets.gls_password as string) as string,
       clientNumber: secrets.gls_client_number as string,
       accountCountry: (secrets.gls_country as string | null) ?? 'cz',
       testMode: body.testMode ?? false,

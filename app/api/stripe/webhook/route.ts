@@ -10,6 +10,7 @@ import { registerDomain, setDnsToVercel } from '@/lib/namecheap'
 import { attachDomain, createPreviewDeployment } from '@/lib/hosting/vercel'
 import { buildStoreFiles, toStoreSlug } from '@/lib/store-template/build'
 import type { CodeVersionFiles } from '@/types/store-code'
+import { getActivePartnerForProject, recordCommission } from '@/lib/partner-commission'
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -196,6 +197,33 @@ export async function POST(request: Request) {
       // Suspended store + active subscription again → redeploy the real store (free)
       if (sub.status === 'active' || sub.status === 'trialing') {
         await restoreSuspendedStore(projectId)
+      }
+
+      // Partner commission — calculation + bookkeeping only, never a payout (see
+      // lib/partner-commission.ts's header comment). Wrapped defensively: a failure here
+      // must never affect the real hosting-subscription webhook path above.
+      if (sub.status === 'active' && periodEnd) {
+        try {
+          const partner = await getActivePartnerForProject(projectId)
+          if (partner) {
+            const priceItem = sub.items?.data?.[0]?.price
+            const amountCents = priceItem?.unit_amount ?? 0
+            const currency = priceItem?.currency ?? 'usd'
+            if (amountCents > 0) {
+              await recordCommission({
+                partnerId: partner.partnerId,
+                projectId,
+                amountCents,
+                commissionRateBps: partner.commissionRateBps,
+                currency,
+                reason: 'hosting_subscription_renewal',
+                refId: `${sub.id}:${periodEnd}`,
+              })
+            }
+          }
+        } catch (err) {
+          console.error(`[webhook] partner commission calc failed for project ${projectId}:`, err)
+        }
       }
     }
   }
