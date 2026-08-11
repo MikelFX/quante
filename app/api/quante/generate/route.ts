@@ -1,22 +1,23 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { anthropic, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
+import { anthropic, MODELS, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createVercelPreviewDeploy, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { getUserRecord } from '@/lib/tier'
 import type { StoreCodeOutput } from '@/types/store-code'
 
 // 300s = Hobby/Pro hard cap. Raise to 600 (Enterprise) once plan is upgraded,
-// then also raise SOFT_TIMEOUT_MS to 500_000 for Fable 5's adaptive-thinking latency.
+// then also raise SOFT_TIMEOUT_MS for slower thinking-mode primaries.
 export const maxDuration = 300
 
-const PRIMARY_MODEL = 'claude-fable-5'
-const FALLBACK_MODEL = 'claude-sonnet-5'
+const PRIMARY_MODEL = MODELS.generation
+const FALLBACK_MODEL = MODELS.fallback
 const GENERATE_COST = 10
 const GENERATE_RATE_LIMIT = 5
-// Fable 5 advertises 128k max output tokens. Unverifiable until the model ships in the SDK —
-// if the API rejects this value, drop back to 64000 (current Claude 4 ceiling).
+// Sized for the previously-planned 128k-output primary. Opus 4.7 may reject
+// this — if the API 400s on max_tokens, drop back to 64000 (current Claude 4
+// ceiling) or whatever the target primary actually supports.
 const MAX_TOKENS = 128000
 // Abort Claude at 240s — leaves 60s for DB + deploy before Vercel's hard 300s limit.
 // Raise to 500_000 once maxDuration is increased to 600 on Enterprise.
@@ -124,30 +125,30 @@ export async function POST(request: Request) {
 
     send({ type: 'status', text: 'Designing your store…' })
 
-    // --- Primary: claude-fable-5 ---
-    // Falls back to claude-sonnet-5 on refusal or hard API error (rate limit, access denied, network).
+    // --- Primary generation ---
+    // Falls back to MODELS.fallback on refusal or hard API error (rate limit, access denied, network).
     // Our own soft-timeout AbortError is NOT treated as a fallback trigger — it goes to partial-file
     // recovery below, the same as before, because by 240s there's no budget left for a second call.
     let rawOutput = ''
     let modelUsed = PRIMARY_MODEL
     let needFallback = false
     let fallbackReason = ''
-    let fableStreamCompleted = false
+    let primaryStreamCompleted = false
 
-    const fableStream = anthropic.messages.stream({
+    const primaryStream = anthropic.messages.stream({
       model: PRIMARY_MODEL, max_tokens: MAX_TOKENS,
       system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: brief.trim() }],
     })
 
     const softAbort = setTimeout(() => {
-      console.warn('[generate] soft timeout — aborting Fable 5 stream for partial recovery')
-      fableStream.abort()
+      console.warn('[generate] soft timeout — aborting primary stream for partial recovery')
+      primaryStream.abort()
     }, SOFT_TIMEOUT_MS)
 
     let lastPing = Date.now()
     try {
-      for await (const event of fableStream) {
+      for await (const event of primaryStream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           rawOutput += event.delta.text
           send({ type: 'chunk', text: event.delta.text })
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
           lastPing = Date.now()
         }
       }
-      fableStreamCompleted = true
+      primaryStreamCompleted = true
     } catch (err) {
       // AbortError = our own soft-timeout → attempt partial file recovery with collected output.
       // Anything else = hard API failure (rate limit, suspended access, network) → fall back.
@@ -171,9 +172,9 @@ export async function POST(request: Request) {
       clearTimeout(softAbort)
     }
 
-    if (fableStreamCompleted) {
+    if (primaryStreamCompleted) {
       try {
-        const finalMsg = await fableStream.finalMessage()
+        const finalMsg = await primaryStream.finalMessage()
         if ((finalMsg.stop_reason as string) === 'refusal') {
           needFallback = true
           fallbackReason = 'refusal'
@@ -184,27 +185,27 @@ export async function POST(request: Request) {
       }
     }
 
-    // --- Fallback: claude-sonnet-5 ---
+    // --- Fallback ---
     if (needFallback) {
       console.warn(`[generate] model=${PRIMARY_MODEL} failed (${fallbackReason}) — retrying with ${FALLBACK_MODEL}`)
       rawOutput = ''
       modelUsed = FALLBACK_MODEL
       send({ type: 'status', text: 'Retrying with fallback model…' })
 
-      const sonnetStream = anthropic.messages.stream({
+      const fallbackStream = anthropic.messages.stream({
         model: FALLBACK_MODEL, max_tokens: MAX_TOKENS,
         system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: brief.trim() }],
       })
 
       const softAbortFallback = setTimeout(() => {
-        console.warn('[generate] soft timeout — aborting Sonnet 5 stream (fallback) for partial recovery')
-        sonnetStream.abort()
+        console.warn('[generate] soft timeout — aborting fallback stream for partial recovery')
+        fallbackStream.abort()
       }, SOFT_TIMEOUT_MS)
 
       lastPing = Date.now()
       try {
-        for await (const event of sonnetStream) {
+        for await (const event of fallbackStream) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             rawOutput += event.delta.text
             send({ type: 'chunk', text: event.delta.text })

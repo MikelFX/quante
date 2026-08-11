@@ -5,9 +5,23 @@ export const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 })
 
-export const GENERATION_MODEL = 'claude-sonnet-4-6'
-export const ITERATION_MODEL = 'claude-sonnet-4-6'
-export const INTAKE_MODEL = 'claude-haiku-4-5-20251001'
+// Single source of truth for every model ID this app uses.
+// Primary generation can be overridden per-environment via GENERATION_MODEL;
+// everything else is pinned in code because we don't want silent drift on the
+// cheap/fast tiers.
+export const MODELS = {
+  generation: process.env.GENERATION_MODEL ?? 'claude-opus-4-7',
+  fallback:   'claude-sonnet-5',
+  iteration:  'claude-sonnet-4-6',
+  intake:     'claude-haiku-4-5-20251001',
+  fix:        'claude-sonnet-4-6',
+} as const
+
+// Back-compat aliases — existing import sites (iterate, intake, section, fix,
+// custom-component, vision, image-suggest, insights, changelog webhook) keep
+// working unchanged.
+export const ITERATION_MODEL = MODELS.iteration
+export const INTAKE_MODEL = MODELS.intake
 
 export const SYSTEM_PROMPT_INTAKE = `You are Quante — an expert e-commerce designer conducting a brief intake interview. Your goal is to gather enough context to generate an outstanding online store for the user.
 
