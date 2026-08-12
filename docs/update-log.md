@@ -306,6 +306,49 @@ Starting a *new* generation while an old resume banner is showing clears the sta
 
 ---
 
+## 2026-08-12 — Generation timeout ceiling push, StudioClient sync to 202+polling, deploy
+
+**Root cause fixed:** dvě samostatné věci, obojí následek Level 3 rewrite z předchozího dne (`2026-08-11`) plus konzervativní časové rezervy z původního psaní kódu.
+
+1. **Timeouty na velkých generacích byly zbytečně blízko.** `SOFT_TIMEOUT_MS = 240_000` v `app/api/quante/generate/route.ts` byl nastavený s 60s rezervou před 300s hard cap Vercel Pro — víc, než je reálně potřeba. Po Level 3 rewrite `after()` běží uvnitř stejného 300s budgetu jako HTTP handler, ale po `parseCodeOutput` už neteče nic dlouhého: pár Supabase writes (project + code_version + credit_ledger insert + updates) + kickoff Vercel preview deploy (fire-and-forget, nečeká se na build). Reálně to zabere jednotky sekund, ne 60. Claude Opus 4.7 s `max_tokens: 128000` a extended thinking naopak občas potřebuje víc než 240 s reálného stream času — takže se stávalo, že soft abort spadl doprostřed generace zdravého store a padlo to na "missing core files" partial-recovery erroru, přestože Claude by to za dalších 20 s dopsal.
+
+2. **`StudioClient.tsx` byl rozbitý proti novému route.** Level 3 předělal `/api/quante/generate` z NDJSON streamu na `202 { jobId }` + `GET /api/quante/generate/status` polling. `/new/page.tsx` byl toho dne zmigrován, ale `StudioClient.tsx:1071` (`handleSend()` větev `!hasGeneratedOnce`) pořád volal starou `consumeStream()` NDJSON funkci. Efekt: **první generace triggerovaná z chatu ve Studiu vždycky hodila "Stream ended unexpectedly."**, přestože background job na serveru doběhl a store se uložil — uživatel to jenom nikdy neuviděl. Level 3 tenhle problém explicitně přiznal jako `Decision point surfaced, not yet acted on` a nechal ho jako otevřené rozhodnutí, protože `StudioClient.tsx` je nejrizikovější soubor v repu (40+ state hooků, ~1200 řádků).
+
+**Staré vs. nové hodnoty:**
+
+| Konstanta / soubor | Před | Po | Proč |
+|---|---|---|---|
+| `SOFT_TIMEOUT_MS` (`app/api/quante/generate/route.ts`) | `240_000` | `270_000` | 30 s rezerva na save/deploy kickoff je bohatě dost — reálně to zabere jednotky sekund. Zbylých 30 s dostane Opus 4.7 128k-output do budgetu, kde už partial recovery skoro nikdy nespadne. |
+| `MAX_TOKENS` (tamtéž) | `128_000` | `128_000` (beze změny) | Model ceiling `claude-opus-4-7` — nesnižovat, není proč, a snížení by zbytečně řezalo výstupy velkých store manifestů. |
+| `maxDuration` (tamtéž) | `300` | `300` (beze změny) | Vercel Pro hard cap. Komentář narovnán z původního `Enterprise=600` na skutečnou aktuální hodnotu `Enterprise=800`. |
+| `checkForStuck` threshold (`lib/generation-poll.ts:76 JOB_STUCK_THRESHOLD_MS`) | `400_000` | `400_000` (beze změny) | 100 s rezerva nad 300s hard cap — pořád OK. Pokud se přejde na Enterprise, zvednout na ~900_000. |
+
+**Změněno — `app/(app)/project/[id]/StudioClient.tsx`:**
+- Přidány importy `decidePollAction`, `phaseToStatusText`, `isJobStuck`, `JobStatusPayload`, `GenerationPhase` z `@/lib/generation-poll` — stejné helpery, které od Levelu 3 používá `/new/page.tsx` (a testy v `__tests__/generation-poll.test.mjs`), takže obě generation-triggering místa v aplikaci teď sdílí přesně jednu poll-decision logiku a nemůžou se rozejít v tom, co daná job-status odpověď znamená.
+- Nová funkce `consumeGenerationJob(brief, onDone, onError?)` vedle existující `consumeStream()`. Interně: `POST /api/quante/generate` → očekává `202 { jobId }` → poll `GET /api/quante/generate/status?jobId=…` na 2.5s cadenci → na každém tiku aktualizuje chat status text (přes `phaseToStatusText` když `phase` přechází, s ochranou nepřepsat reálný obsah zprávy) + krmí `setStreamingText(rawOutputTail.slice(-400))` (mirror starých `chunk` eventů — malý code terminal ve Studiu se hýbe) → na `decidePollAction() → navigate` volá `onDone(summary, deploymentId, previewUrl, codeVersionId)` → na `error` a `isJobStuck` volá `onError`. Iteration flow (`/api/quante/iterate`, dvě zbývající volání `consumeStream()` v `handleSend()` a `handleSectionRegenerate()`) je záměrně nezměněno — `/api/quante/iterate` stále streamuje NDJSON a nic ho nenutí přejít, dokud pro to nebude důvod.
+- `handleSend()` větev `!hasGeneratedOnce` přepnuta z `consumeStream('/api/quante/generate', …)` na `consumeGenerationJob(text, …)`. `onDone` callback (nastavení `hasGeneratedOnce`, `refreshBalance`, `fetchVersions`, `setPreviewUrl`, `setShowPushToLive(true)`, `startLogStreaming(deploymentId)`) beze změny — stejný kontrakt, jen jiný způsob, jak se k datům dostanou.
+
+**Verification:** `npx tsc --noEmit` clean (0 errors), 44/44 generation testů green (`test:generation-checkpoint` 12 + `test:generation-resume` 17 + `test:generation-poll` 15). Nespuštěl jsem full test suite — dotčené soubory jsou pokryté právě těmi třemi generation testy, ostatní suity (`fulfillment-byrd`, `store-health`, `partner-commission`, `marketplace`) se ničeho z tohoto commitu nedotýkají.
+
+**Vercel plán — zjištění a doporučení:** Nejasné. Vercel CLI **není nainstalované** (hlásí session-start hook), takže `vercel project inspect` neproběhlo. `.vercel/project.json` obsahuje jen `projectId: prj_pjq5nbk9EoTsT4Gn01YgqoMGboFJ` + `orgId: team_lM68BLWyMMMA7WhaXEojyRQ1`, plán ne. Nepřímé indicie ukazují silně na **Pro nebo Hobby**: `maxDuration = 300` a všechny existující komentáře v kódu ("Hobby/Pro hard cap", "Raise to 600 once Enterprise") jsou psané pod strop 300 s. Kdyby to byl Enterprise, defaulty by dávno byly zvednuté. **Ověření z UI:** Vercel Dashboard → Team `team_lM68BLWyMMMA7WhaXEojyRQ1` → Settings → Billing.
+
+**Doporučení k Enterprise upgrade — argument PRO, ne teď hned:**
+- Opus 4.7 s 128k output a extended thinking je pomalý; 270 s je dobrá improve, ale při větších store manifestech (30+ produktů, custom sekce) se to stále dotkne stropu a spadne to na partial recovery.
+- Enterprise `maxDuration=800` by dovolil `SOFT_TIMEOUT_MS ≈ 700_000` (~11,6 min čistý Claude budget) — v podstatě zmizí celá kategorie "generation timeoutovala a byla refundnutá".
+- Ušetří credit refundy za neúplné generace a vylepší dojem z produktu na free-tier uživatelích, kteří ztrátu 10 kreditů berou nejcitlivěji.
+
+**Doporučení k Enterprise upgrade — argument PROTI, proto neupgradováno:**
+- Enterprise typicky entry $5-15k USD/měsíc — má smysl teprve při reálném objemu (100+ aktivních generací denně), ne dřív.
+- Level 3 checkpointing + `/new/page.tsx` resume banner + toto sjednocení `StudioClient.tsx` už dnes řeší většinu partial-fail scénářů elegantně: uživatel při reloadu vidí živý spinner s aktuální fází a při dokončení se auto-naviguje. Ekonomický přínos Enterprise se dnes rozmělní.
+
+**Co se muselo změnit, kdyby se upgradovalo (uloženo pro budoucnost):** `maxDuration = 800` a `SOFT_TIMEOUT_MS = 700_000` v `route.ts`, zvednout `JOB_STUCK_THRESHOLD_MS` v `lib/generation-poll.ts:76` z `400_000` na ~`900_000` (aby stuck-check nekřičel předčasně), a upravit komentář o Vercel plánu v prvních řádcích `route.ts`.
+
+**Deploy proveden:** commit `7dfb2ee` na `main`, `git push` odešel, Vercel git integration projektu `quante` (`prj_pjq5nbk9EoTsT4Gn01YgqoMGboFJ`) auto-buildne production. **Migrace `supabase/migration-generation-jobs.sql` je stále NESPUŠTĚNÁ** — dokud neproběhne v Supabase SQL editoru, `/api/quante/generate` na produkci hodí "Job not found" nebo insert error na první generaci; deploy sám o sobě to neopraví. Toto je jediná manuální akce, kterou musí operator udělat, aby po deploy vše fungovalo end-to-end.
+
+**Files:** modified — `app/api/quante/generate/route.ts` (SOFT_TIMEOUT_MS 240k → 270k, komentář `maxDuration`), `app/(app)/project/[id]/StudioClient.tsx` (import bloku z `lib/generation-poll`, nová `consumeGenerationJob()` funkce, `handleSend()` větev `!hasGeneratedOnce` přepnuta). No new files.
+
+---
+
 # NÁPADY / BUDOUCÍ UPDATY — zatím jen návrh, žádný kód
 
 **Toto NENÍ dokončená práce.** Vše níže je jen zápis nápadů z brainstormingu (2026-08-08) pro případnou budoucí realizaci — nic z toho nebylo implementováno, otestováno ani jakkoliv promítnuto do kódu v tomto repu. Žádná z položek nemá odpovídající soubor, migraci ani API. Slouží čistě jako poznámka do budoucna, aby se nápady neztratily.

@@ -261,7 +261,8 @@
 | Route | Method | Cost | maxDuration | Description |
 |---|---|---|---|---|
 | `/api/quante/intake` | POST | Free | 60s | Conversational intake: streams `text_chunk` events; on enough info emits `{ type: 'ready', brief }`. Uses `claude-haiku-4-5-20251001`. Input: `{ history: [{role,content}] }`. |
-| `/api/quante/generate` | POST | 10 cr | 300s | Full store generation: calls Claude with `SYSTEM_PROMPT_CODE_GENERATION` using `claude-sonnet-4-6` (`MAX_TOKENS=40000`). Soft abort at 240s — aborts Claude stream and attempts partial file recovery (requires 4 core files). Sends keepalive `ping` events every 15s. Parses `<file path="...">...</file>` blocks. Creates project in DB, saves to `code_versions`, auto-triggers preview deployment. Streams NDJSON: `status`, `chunk`, `ping`, `done`. Input: `{ brief, projectName?, projectId? }`. |
+| `/api/quante/generate` | POST | 10 cr | 300s | Full store generation: calls Claude with `SYSTEM_PROMPT_CODE_GENERATION` using `claude-opus-4-7` (`MAX_TOKENS=128000`). **Level 3 architecture (2026-08-11):** POST does auth/credits/rate-limit checks, inserts a `generation_jobs` row, schedules `runGeneration()` via `Next.js after()`, and returns `202 { jobId, projectId }` immediately — the actual generation runs decoupled from the client's HTTP connection. Soft abort at 270s inside `runGeneration` — aborts Claude stream and attempts partial file recovery (requires 4 core files). Raw output + parsed files checkpointed to `generation_jobs` every 4s. Client polls `GET /api/quante/generate/status?jobId=...` for progress. Parses `<file path="...">...</file>` blocks. Creates project in DB, saves to `code_versions`, auto-triggers preview deployment. Input: `{ brief, projectName?, projectId? }`. |
+| `/api/quante/generate/status` | GET | Free | — | Level 3 polling channel. `?jobId=<uuid>` — RLS-scoped read of `generation_jobs`. Returns `{ status, phase, files, rawOutputTail (last 3000 chars), summary, error, projectId, deploymentId, previewUrl, codeVersionId }`. |
 | `/api/quante/iterate` | POST | 1 cr (agency: free) | 300s | Update existing store: loads current `code_versions` files, sends to Claude (`claude-sonnet-4-6`) with instruction. Parses `<reply>` + `<file>` blocks. Merges changed files with current, saves new version, auto-triggers preview deploy. Input: `{ projectId, instruction }`. |
 | `/api/quante/fix` | POST | 2 cr (agency: free) | 120s | Auto-fix a build error: send failing file + error to Claude, get fixed file back, save new version, re-deploy. Input: `{ projectId, errorMessage, filePath }`. |
 | `/api/quante/section` | POST | 2 cr | — | Regenerate a single manifest section. Input: `{ projectId, sectionIndex, instruction }`. |
@@ -1073,9 +1074,12 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
    └── POST /api/quante/generate
        ├── check credits (>= 10)
        ├── check rate limit (5 per hour)
-       ├── call claude-sonnet-4-6 with SYSTEM_PROMPT_CODE_GENERATION (MAX_TOKENS=40000)
-       │   streams chunk events + keepalive ping every 15s to client (live terminal display)
-       │   soft abort at 240s — Claude stream killed, partial recovery attempted
+       ├── (Level 3, 2026-08-11) POST returns 202 { jobId, projectId } immediately;
+       │   runGeneration() is scheduled via after() and runs decoupled from the client fetch
+       ├── call claude-opus-4-7 with SYSTEM_PROMPT_CODE_GENERATION (MAX_TOKENS=128000)
+       │   raw_output + parsed files checkpointed to generation_jobs every 4s
+       │   client polls GET /api/quante/generate/status?jobId=... for phase + rawOutputTail
+       │   soft abort at 270s — Claude stream killed, partial recovery attempted
        ├── parse <file path="...">...</file> blocks
        ├── create projects row in DB
        ├── insert into code_versions (files jsonb)
@@ -1242,7 +1246,7 @@ Calls Vercel add-domain API. Returns `{ verified: boolean, dnsInstructions? }`. 
 ## 12. Known Bugs / Gotchas
 
 ### maxDuration Limits (Vercel)
-- `/api/quante/generate`: `maxDuration = 300`. Uses `claude-sonnet-4-6` at `MAX_TOKENS=40000` — typical generation is 60-120s, well within the 300s limit. A **soft abort** fires at 240s: the Claude stream is killed and the route attempts to use whatever files were generated so far (requires the 4 core files: `data/products.ts`, `data/config.ts`, `styles/store.css`, `components/store/HomePage.tsx`). Keepalive `ping` events sent every 15s prevent idle-connection drops. Client-side: 250s warning, 290s auto-check dashboard for a recently created project + auto-redirect.
+- `/api/quante/generate`: `maxDuration = 300` (Vercel Pro hard cap; Enterprise allows up to 800 but the project is not on Enterprise as of 2026-08-12). Uses `claude-opus-4-7` at `MAX_TOKENS=128000` (model ceiling). A **soft abort** fires at 270s: the Claude stream is killed and the route attempts to use whatever files were generated so far (requires the 4 core files: `data/products.ts`, `data/config.ts`, `styles/store.css`, `components/store/HomePage.tsx`). Since Level 3 (2026-08-11), the entire generation runs inside `Next.js after()` — the HTTP handler returns 202 immediately and the client polls `/api/quante/generate/status` for progress; there is no long-lived stream that could idle-drop, so the old 15s keepalive ping is gone. The client-side `isJobStuck` circuit breaker in `lib/generation-poll.ts` treats a job still `running` past 400s as terminal.
 - `/api/quante/iterate`: `maxDuration = 300`. With large stores (many files), sending all files as context can be slow.
 - `/api/deploy/logs`: `maxDuration = 300`. Build logs stream for the duration of the Vercel build (~2-3 min typically).
 
@@ -1266,7 +1270,7 @@ The project has TWO generation approaches:
 Export route (`/api/export`) checks `code_versions` first, falls back to `manifest_versions`.
 
 ### Token Limits
-`AGENCY_TOKEN_CAP = 64_000` for agency users. Free users also use 64,000 in iterate. Generation uses 64,000. These are `max_tokens` values — the actual response may be shorter. If output is truncated (no closing `</file>` tag), parsing fails and returns error.
+`AGENCY_TOKEN_CAP = 64_000` for agency users. Free users also use 64,000 in iterate. **Generation uses 128,000** (`MAX_TOKENS` in `app/api/quante/generate/route.ts`, set to the `claude-opus-4-7` output ceiling). These are `max_tokens` values — the actual response may be shorter. If output is truncated (no closing `</file>` tag), parsing fails and returns error, but Level 3 checkpointing preserves partially-parsed files so a resumed poll can still see what got through.
 
 ### Deploy Credits Timing
 Deploy credits (5) are debited AFTER the deployment is confirmed ready (in `GET /api/deploy?id=...`). If the user never polls (closes browser), the deploy still happens on Vercel but credits are not debited. This is intentional (user-friendly) but means a free deployment is possible if the poll never happens.
@@ -1424,7 +1428,7 @@ The `/changelog` page originally shipped with a caching bug (`revalidate = 300` 
 
 ### In Progress / Known Issues
 - **Preview iframe**: For code-gen stores, the preview is the `storeUrl` domain URL (e.g. `https://axiom.stores.quantecode.com`) loaded in an iframe. The legacy `/preview/[id]/...` routes inside the platform exist for legacy manifest-based stores but code-gen stores bypass them. The iframe content equals what's live at the domain — not a separate "staging" view.
-- **maxDuration on Vercel**: 300s routes are at the Vercel max for Pro plans. Long briefs with claude-opus-4-7 can approach this. No graceful timeout/resume mechanism — user sees timeout error message.
+- **maxDuration on Vercel**: 300s routes are at the Vercel max for Pro plans. Long briefs with claude-opus-4-7 can approach this. Since Level 3 (2026-08-11), graceful resume DOES exist for `/api/quante/generate`: background job via `after()`, checkpoints every 4s to `generation_jobs`, client polls `/api/quante/generate/status`, and `/new/page.tsx` shows a resume banner on reload if a `pending-generation` localStorage marker survives. `StudioClient.tsx` was synced to the same 202+polling contract on 2026-08-12 (previously broke first-time chat generations with "Stream ended unexpectedly."). Iteration and other routes still use their original NDJSON streams.
 - **RLS inconsistency**: Some older migration policies use `auth.uid()::text` instead of `(auth.jwt() ->> 'sub')`. This works because Supabase maps the JWT sub claim to uid, but if the JWT structure changes it could break. All server code uses service-role client anyway.
 - **Admin panel feature flag**: `adminPanel?: boolean` exists in ShopManifest but the admin panel in the Studio is always available (not gated by the flag in the current UI).
 - **Auto-deploy on first generate is wasted**: The generate API creates a Vercel deployment (auto-deploy), but StudioClient now shows "Push to Live" instead of tracking it. A second production deploy is triggered when the user clicks "Push to Live". The first deploy runs silently and is effectively unused.
