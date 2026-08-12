@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
 
 type Stage = 'chat' | 'ready' | 'generating'
 
@@ -12,6 +13,68 @@ interface Message {
 }
 
 const OPENING = "Hey! I'm Quante. Tell me about your store — what are you selling, and who are your customers?"
+
+// ── Level 2 reconnect: "a generation was running, then the page reloaded" ─────────────
+// See docs/update-log.md. A marker is written to localStorage the moment handleGenerate()
+// starts, updated with the generation_jobs id as soon as the POST /api/quante/generate
+// response arrives (Level 3 — the jobId is now returned synchronously in the 202 response
+// body, not streamed as a separate event), and removed on every terminal outcome reached
+// *within the same page load* (success redirect, explicit error, or the polling loop's own
+// stuck-job fallback). If none of those run — reload, browser/tab closed, device died — the
+// marker survives, and the mount-time check below is what notices it next time this page
+// loads. UPDATE (Level 3): when the marker has a jobId, the mount check now polls
+// /api/quante/generate/status directly instead of only guessing from /api/projects'
+// creation-time — precise and immediate, since generation runs independently of the client
+// via Next.js after() and the job row is the actual source of truth.
+const PENDING_KEY = 'quante:pending-generation'
+// Comfortably above the 300s hard server cap (maxDuration) plus the client's own 290s
+// give-up timer — a marker older than this is almost certainly abandoned, not worth
+// prompting about, and is discarded silently rather than shown.
+const PENDING_MAX_AGE_MS = 10 * 60_000
+
+interface PendingGeneration {
+  startedAt: number
+  brief: string
+  projectName: string
+  jobId: string | null
+}
+
+function savePending(data: PendingGeneration) {
+  try { window.localStorage.setItem(PENDING_KEY, JSON.stringify(data)) } catch {}
+}
+
+function loadPending(): PendingGeneration | null {
+  try {
+    const raw = window.localStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (typeof parsed?.startedAt !== 'number' || typeof parsed?.brief !== 'string') return null
+    return parsed as PendingGeneration
+  } catch {
+    return null
+  }
+}
+
+function clearPending() {
+  try { window.localStorage.removeItem(PENDING_KEY) } catch {}
+}
+
+// Builds the /project/[id] redirect target used both by a fresh handleGenerate() completion
+// and by the resume banner's "Open finished store" button — same query-param contract
+// StudioClient.tsx's URL-bootstrap effect expects (did/vid/pu, see StudioClient.tsx).
+function buildProjectUrl(
+  projectId: string,
+  deploymentId: string | null,
+  codeVersionId: string | null,
+  previewUrl: string | null
+): string {
+  const params = new URLSearchParams()
+  if (deploymentId) params.set('did', deploymentId)
+  if (codeVersionId) params.set('vid', codeVersionId)
+  if (previewUrl) params.set('pu', previewUrl)
+  const qs = params.toString()
+  return `/project/${projectId}${qs ? `?${qs}` : ''}`
+}
 
 const STAGES = [
   { label: 'Analyzing brief', duration: 3000 },
@@ -35,9 +98,122 @@ export default function NewProjectPage() {
   const [codeChunks, setCodeChunks] = useState('')
   const [stageIndex, setStageIndex] = useState(0)
 
+  // Level 2 — reconnect banner state. `resumePending` is the localStorage marker found on
+  // mount (null once dismissed/resolved); `resumeFoundProjectId` is set once the mount-time
+  // (or manual re-)check finds a matching project; `resumeChecking` drives the button's
+  // loading state so a slow /api/projects call doesn't look like a dead click.
+  const [resumePending, setResumePending] = useState<PendingGeneration | null>(null)
+  const [resumeFoundProjectId, setResumeFoundProjectId] = useState<string | null>(null)
+  const [resumeChecked, setResumeChecked] = useState(false)
+  const [resumeChecking, setResumeChecking] = useState(false)
+  // Level 3 — when the marker carries a jobId, the banner polls /api/quante/generate/status
+  // directly instead of only guessing from /api/projects' creation timestamps. `resumeStatusText`
+  // mirrors the live phase (same text handleGenerate's own polling loop shows); `resumeError`
+  // is a terminal failure/stuck-job message, distinct from "still checking".
+  const [resumeStatusText, setResumeStatusText] = useState<string | null>(null)
+  const [resumeError, setResumeError] = useState<string | null>(null)
+  const [resumeDeploymentId, setResumeDeploymentId] = useState<string | null>(null)
+  const [resumeVersionId, setResumeVersionId] = useState<string | null>(null)
+  const [resumePreviewUrl, setResumePreviewUrl] = useState<string | null>(null)
+
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Runs once on mount — deliberately independent of `stage` (a reload always starts back
+  // at 'chat', regardless of what stage the user was in when the page went away).
+  const checkForResumableProject = useCallback(async (pending: PendingGeneration) => {
+    setResumeChecking(true)
+    try {
+      const r = await fetch('/api/projects')
+      if (r.ok) {
+        const data = await r.json()
+        const projects: Array<{ id: string; created_at: string }> = data.projects ?? data ?? []
+        // Precise on purpose: a project must have been created AFTER this specific
+        // generation started (small clock-skew buffer), not just "recently" — we know the
+        // exact start time from the marker, so there's no need for the coarser "last 6
+        // minutes" window the give-up-timer fallback elsewhere in this file uses.
+        const cutoff = pending.startedAt - 10_000
+        const match = projects
+          .filter(p => new Date(p.created_at).getTime() > cutoff)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+        if (match) {
+          setResumeFoundProjectId(match.id)
+        }
+      }
+    } catch {
+      // Leave resumeFoundProjectId null — banner falls back to "still checking / try again".
+    } finally {
+      setResumeChecking(false)
+      setResumeChecked(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    const pending = loadPending()
+    if (!pending) return
+    if (Date.now() - pending.startedAt > PENDING_MAX_AGE_MS) {
+      clearPending()
+      return
+    }
+    // Deliberately deferred to an effect rather than a useState lazy initializer: this page
+    // is server-rendered once before hydration, `window.localStorage` doesn't exist there,
+    // and a lazy initializer runs during that SSR pass too — reading it there would make the
+    // client's first hydration render disagree with the server-rendered HTML (the banner
+    // would pop in mismatched) instead of appearing cleanly right after mount, as it does here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResumePending(pending)
+    // Level 3 — a marker with a jobId gets precise, live status via the polling effect below
+    // instead of this coarser heuristic; only fall back to it when no jobId was captured
+    // (e.g. the device died between calling handleGenerate() and the POST response arriving).
+    if (!pending.jobId) checkForResumableProject(pending)
+  }, [checkForResumableProject])
+
+  // Level 3 — live-polls /api/quante/generate/status for a resumed job. Runs whenever there's
+  // a pending marker with a jobId and no terminal outcome yet (found project / hard error).
+  // Mirrors handleGenerate()'s own poll loop below, just driven by the marker instead of a
+  // fresh POST response.
+  useEffect(() => {
+    if (!resumePending?.jobId || resumeFoundProjectId || resumeError) return
+    const pending = resumePending
+    const jobId = pending.jobId
+    const createdAtMs = pending.startedAt
+    let cancelled = false
+
+    async function poll() {
+      try {
+        const r = await fetch(`/api/quante/generate/status?jobId=${jobId}`)
+        if (!r.ok) {
+          if (r.status === 404 && !cancelled) {
+            // Job row itself is gone (very old marker, DB reset, etc.) — fall back to the
+            // time-window heuristic rather than surfacing a scary error for something stale.
+            checkForResumableProject(pending)
+          }
+          return
+        }
+        const payload: JobStatusPayload = await r.json()
+        if (cancelled) return
+        setResumeStatusText(phaseToStatusText(payload.phase))
+        const decision = decidePollAction(payload)
+        if (decision.action === 'navigate') {
+          setResumeFoundProjectId(decision.projectId)
+          setResumeDeploymentId(decision.deploymentId)
+          setResumeVersionId(decision.codeVersionId)
+          setResumePreviewUrl(payload.previewUrl)
+        } else if (decision.action === 'error') {
+          setResumeError(decision.message)
+        } else if (isJobStuck(createdAtMs, Date.now())) {
+          setResumeError('This generation seems to have stalled. Check your dashboard, or start a new one.')
+        }
+      } catch {
+        // Network hiccup — the next tick will retry; no need to surface this as an error.
+      }
+    }
+
+    poll()
+    const interval = setInterval(poll, 3000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [resumePending, resumeFoundProjectId, resumeError, checkForResumableProject])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -146,6 +322,16 @@ export default function NewProjectPage() {
     }
   }, [input, thinking, stage, messages])
 
+  // Level 3 — POST starts the job and returns a jobId almost immediately (generation itself
+  // runs server-side via Next.js after(), decoupled from this fetch entirely — see
+  // app/api/quante/generate/route.ts and docs/update-log.md). Everything below is polling
+  // /api/quante/generate/status until it reports completed/failed, using the exact same
+  // decidePollAction()/phaseToStatusText()/isJobStuck() pure logic the resume banner's own
+  // polling effect (above) uses — so this function and a fresh-reload resume can never
+  // disagree about what a given status payload means. Unlike the old NDJSON-streaming
+  // version, there's no "warn at 250s / give up at 290s" special-casing: if this tab closes
+  // mid-poll, the localStorage marker + jobId are all a later reload needs to pick the same
+  // poll back up (that's the resume banner's job now, not this function's).
   async function handleGenerate() {
     if (!brief.trim()) return
     setStage('generating')
@@ -153,103 +339,80 @@ export default function NewProjectPage() {
     setError('')
     setCodeChunks('')
 
-    let redirected = false
+    // A fresh generation is starting now, so any stale resume banner from a previous reload
+    // no longer applies (whatever it pointed at is moot either way).
+    setResumePending(null)
+    setResumeFoundProjectId(null)
+    setResumeChecked(false)
+    setResumeStatusText(null)
+    setResumeError(null)
+    setResumeDeploymentId(null)
+    setResumeVersionId(null)
+    setResumePreviewUrl(null)
 
-    // After 250s warn the user; after 290s give up and check dashboard automatically
-    const warnTimer = setTimeout(() => {
-      if (!redirected) setStatusText('Almost there — finalizing your store…')
-    }, 250_000)
-    const giveUpTimer = setTimeout(async () => {
-      if (redirected) return
-      setStatusText('Checking if your store was saved…')
-      try {
-        const r = await fetch('/api/projects')
-        if (r.ok) {
-          const data = await r.json()
-          const projects: Array<{ id: string; created_at: string }> = data.projects ?? data ?? []
-          // Find a project created in the last 6 minutes
-          const cutoff = Date.now() - 6 * 60_000
-          const recent = projects
-            .filter(p => new Date(p.created_at).getTime() > cutoff)
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-          if (recent) {
-            redirected = true
-            router.push(`/project/${recent.id}`)
-            return
-          }
-        }
-      } catch {}
-      setError('Generation timed out. Check your dashboard — your store may have been saved there.')
-      setStage('ready')
-    }, 290_000)
+    const pendingStartedAt = Date.now()
+    const trimmedBrief = brief.trim()
+    const trimmedName = projectName.trim()
+    savePending({ startedAt: pendingStartedAt, brief: trimmedBrief, projectName: trimmedName, jobId: null })
 
+    let jobId: string
     try {
       const res = await fetch('/api/quante/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief: brief.trim(), projectName: projectName.trim() || undefined }),
+        body: JSON.stringify({ brief: trimmedBrief, projectName: trimmedName || undefined }),
       })
-      if (!res.body) throw new Error('No stream')
-
-      const reader = res.body.getReader()
-      const dec = new TextDecoder()
-      let buf = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buf += dec.decode(value, { stream: true })
-        const lines = buf.split('\n')
-        buf = lines.pop() ?? ''
-        for (const line of lines) {
-          if (!line.trim()) continue
-          try {
-            const evt = JSON.parse(line)
-            if (evt.type === 'status') setStatusText(evt.text)
-            else if (evt.type === 'chunk') {
-              setCodeChunks(prev => (prev + evt.text).slice(-3000))
-            }
-            else if (evt.type === 'ping') { /* keepalive — ignore */ }
-            else if (evt.type === 'error') {
-              clearTimeout(warnTimer); clearTimeout(giveUpTimer)
-              setError(evt.message); setStage('ready'); return
-            }
-            else if (evt.type === 'done' && evt.projectId) {
-              redirected = true
-              clearTimeout(warnTimer); clearTimeout(giveUpTimer)
-              router.push(`/project/${evt.projectId}?did=${evt.deploymentId}${evt.versionId ? `&vid=${evt.versionId}` : ''}`); return
-            }
-          } catch { /* malformed line — skip */ }
-        }
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data?.jobId) {
+        clearPending()
+        setError(data?.error || 'Could not start generation. Please try again.')
+        setStage('ready')
+        return
       }
+      jobId = data.jobId
+      // Now the marker can carry the real jobId — from here on, a reload resumes via direct
+      // status polling instead of the coarser /api/projects time-window fallback.
+      savePending({ startedAt: pendingStartedAt, brief: trimmedBrief, projectName: trimmedName, jobId })
     } catch {
-      // network error or Vercel hard limit — let giveUpTimer handle recovery
-    } finally {
-      clearTimeout(warnTimer)
-      // giveUpTimer clears itself after redirect or error
+      clearPending()
+      setError('Could not reach the server. Please check your connection and try again.')
+      setStage('ready')
+      return
     }
 
-    // Stream ended cleanly without a done event — run the same recovery check
-    if (!redirected) {
-      clearTimeout(giveUpTimer)
-      setStatusText('Checking if your store was saved…')
+    while (true) {
+      await new Promise(resolve => setTimeout(resolve, 2500))
+
+      let payload: JobStatusPayload
       try {
-        const r = await fetch('/api/projects')
-        if (r.ok) {
-          const data = await r.json()
-          const projects: Array<{ id: string; created_at: string }> = data.projects ?? data ?? []
-          const cutoff = Date.now() - 6 * 60_000
-          const recent = projects
-            .filter(p => new Date(p.created_at).getTime() > cutoff)
-            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-          if (recent) {
-            router.push(`/project/${recent.id}`)
-            return
-          }
-        }
-      } catch {}
-      setError('Generation failed. Your store may still appear in the dashboard — check there, or try again.')
-      setStage('ready')
+        const r = await fetch(`/api/quante/generate/status?jobId=${jobId}`)
+        if (!r.ok) continue // transient (5xx, brief auth hiccup, etc.) — retry next tick
+        payload = await r.json()
+      } catch {
+        continue // network hiccup — retry next tick
+      }
+
+      setStatusText(phaseToStatusText(payload.phase))
+      if (payload.rawOutputTail) setCodeChunks(payload.rawOutputTail)
+
+      const decision = decidePollAction(payload)
+      if (decision.action === 'navigate') {
+        clearPending()
+        router.push(buildProjectUrl(decision.projectId, decision.deploymentId, decision.codeVersionId, payload.previewUrl))
+        return
+      }
+      if (decision.action === 'error') {
+        clearPending()
+        setError(decision.message)
+        setStage('ready')
+        return
+      }
+      if (isJobStuck(pendingStartedAt, Date.now())) {
+        clearPending()
+        setError('Generation timed out. Check your dashboard — your store may have been saved there.')
+        setStage('ready')
+        return
+      }
     }
   }
 
@@ -360,6 +523,104 @@ export default function NewProjectPage() {
       }}>
         New project
       </p>
+
+      {/* Resume banner: shown when a generation marker survived a reload/crash. Level 3 —
+          when the marker has a jobId, status comes live from the polling effect above
+          (resumeStatusText/resumeError) instead of the older /api/projects heuristic, which
+          now only runs as a fallback for markers without one. */}
+      {resumePending && (() => {
+        const isLive = !!resumePending.jobId && !resumeFoundProjectId && !resumeError
+        return (
+        <div style={{
+          marginBottom: 24, padding: '14px 16px', borderRadius: 12,
+          border: `1px solid ${resumeError ? 'rgba(248,113,113,.3)' : 'rgba(111,120,230,.28)'}`,
+          background: resumeError ? 'rgba(248,113,113,.05)' : 'rgba(111,120,230,.06)',
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+            {isLive ? (
+              <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.9s linear infinite', flexShrink: 0, marginTop: 2 }} />
+            ) : (
+              <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${resumeError ? '#f87171' : '#6f78e6'}`, flexShrink: 0, marginTop: 2 }} />
+            )}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>
+                {resumeFoundProjectId
+                  ? 'A generation from before your last reload finished.'
+                  : resumeError
+                    ? resumeError
+                    : isLive
+                      ? (resumeStatusText || 'A generation is still running — checking status…')
+                      : 'A generation was still running when this page last closed or reloaded.'}
+              </p>
+              <p style={{
+                margin: '4px 0 0', fontSize: 12, color: '#8a8a93', lineHeight: 1.5,
+                overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
+                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              }}>
+                “{resumePending.brief}”
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => {
+                clearPending()
+                setResumePending(null)
+                setResumeFoundProjectId(null)
+                setResumeError(null)
+                setResumeStatusText(null)
+                setResumeDeploymentId(null)
+                setResumeVersionId(null)
+                setResumePreviewUrl(null)
+              }}
+              style={{
+                fontSize: 12, color: '#8a8a93', background: 'none', border: 'none',
+                cursor: 'pointer', padding: '7px 10px',
+              }}
+            >
+              Discard, start fresh
+            </button>
+            {resumeFoundProjectId ? (
+              <button
+                type="button"
+                onClick={() => {
+                  clearPending()
+                  router.push(buildProjectUrl(resumeFoundProjectId, resumeDeploymentId, resumeVersionId, resumePreviewUrl))
+                }}
+                style={{
+                  fontSize: 12, fontWeight: 600, color: '#fff', background: '#6f78e6',
+                  border: 'none', borderRadius: 7, cursor: 'pointer', padding: '7px 14px',
+                }}
+              >
+                Open finished store →
+              </button>
+            ) : resumePending.jobId ? (
+              // Live-polling state (isLive) or a terminal error — either way, status updates
+              // on its own; there's nothing useful for a manual button to do here besides
+              // discard (above), unlike the no-jobId fallback branch below.
+              <span style={{ fontSize: 12, color: '#5b5b64', padding: '7px 4px' }}>
+                {resumeError ? 'You can discard this and start a new one.' : 'Checking automatically…'}
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => checkForResumableProject(resumePending)}
+                disabled={resumeChecking}
+                style={{
+                  fontSize: 12, fontWeight: 600, color: '#e0e0e8',
+                  background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
+                  borderRadius: 7, cursor: resumeChecking ? 'default' : 'pointer', padding: '7px 14px',
+                }}
+              >
+                {resumeChecking ? 'Checking…' : resumeChecked ? 'Not found yet — check again' : 'Check status'}
+              </button>
+            )}
+          </div>
+        </div>
+        )
+      })()}
 
       {/* Messages */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>

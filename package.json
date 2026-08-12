@@ -13,7 +13,10 @@
     "test:fulfillment-byrd": "node --test __tests__/fulfillment-byrd.test.mjs",
     "test:store-health": "node --test __tests__/store-health.test.mjs",
     "test:partner-commission": "node --test __tests__/partner-commission.test.mjs",
-    "test:marketplace": "node --test __tests__/marketplace.test.mjs"
+    "test:marketplace": "node --test __tests__/marketplace.test.mjs",
+    "test:generation-checkpoint": "node --test __tests__/generation-checkpoint.test.mjs",
+    "test:generation-resume": "node --test __tests__/generation-resume.test.mjs",
+    "test:generation-poll": "node --test __tests__/generation-poll.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",

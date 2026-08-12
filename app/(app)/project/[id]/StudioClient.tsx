@@ -17,6 +17,13 @@ import {
   Terminal, Wrench, CheckCircle, AlertCircle, Sparkles, RefreshCw,
 } from 'lucide-react'
 import { RevenueChart } from '@/components/admin/RevenueChart'
+import {
+  decidePollAction,
+  phaseToStatusText,
+  isJobStuck,
+  type JobStatusPayload,
+  type GenerationPhase,
+} from '@/lib/generation-poll'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -999,6 +1006,106 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     throw new Error('Stream ended unexpectedly. Please try again.')
   }
 
+  // Level 3 — /api/quante/generate now returns 202 { jobId } immediately and runs the
+  // actual generation via Next.js after(), decoupled from this fetch. We poll
+  // /api/quante/generate/status until terminal, translating phase → status text and
+  // rawOutputTail → streaming preview, so the chat UI behaves the same as it did under
+  // the old NDJSON stream. See app/(app)/new/page.tsx handleGenerate() — same shape.
+  async function consumeGenerationJob(
+    brief: string,
+    onDone: (reply?: string, deploymentId?: string, previewUrl?: string, versionId?: string) => void,
+    onError?: (msg: string) => void
+  ) {
+    const response = await fetch('/api/quante/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ brief, projectId }),
+    })
+    const data = await response.json().catch(() => null)
+    if (!response.ok || !data?.jobId) {
+      const msg = data?.error ?? 'Could not start generation. Please try again.'
+      setStreamingText('')
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { role: 'assistant', content: msg, type: 'error' }
+        return updated
+      })
+      onError?.(msg)
+      return
+    }
+
+    const jobId: string = data.jobId
+    const startedAt = Date.now()
+    let lastPhase: GenerationPhase | undefined = undefined
+
+    while (true) {
+      await new Promise(r => setTimeout(r, 2500))
+
+      let payload: JobStatusPayload
+      try {
+        const r = await fetch(`/api/quante/generate/status?jobId=${jobId}`)
+        if (!r.ok) continue // transient — retry next tick
+        payload = await r.json()
+      } catch {
+        continue // network hiccup — retry next tick
+      }
+
+      // Update chat status text on phase transitions — only if the last assistant message
+      // is still a status placeholder, so we don't clobber real content.
+      if (payload.phase !== lastPhase) {
+        lastPhase = payload.phase
+        const statusText = phaseToStatusText(payload.phase)
+        setMessages((prev) => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last?.role === 'assistant' && (last.type === 'status' || last.content === '…')) {
+            updated[updated.length - 1] = { role: 'assistant', content: statusText, type: 'status' }
+          }
+          return updated
+        })
+      }
+
+      // Mirror the old 'chunk' events — feed the tail of the raw output to the streaming
+      // preview so the little code terminal keeps moving while Claude writes.
+      if (payload.rawOutputTail) {
+        setStreamingText(payload.rawOutputTail.slice(-400))
+      }
+
+      const decision = decidePollAction(payload)
+      if (decision.action === 'navigate') {
+        setStreamingText('')
+        onDone(
+          payload.summary ?? undefined,
+          decision.deploymentId ?? undefined,
+          payload.previewUrl ?? undefined,
+          decision.codeVersionId ?? undefined,
+        )
+        return
+      }
+      if (decision.action === 'error') {
+        setStreamingText('')
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: decision.message, type: 'error' }
+          return updated
+        })
+        onError?.(decision.message)
+        return
+      }
+      if (isJobStuck(startedAt, Date.now())) {
+        const msg = 'Generation timed out. Check your dashboard — your store may have been saved there.'
+        setStreamingText('')
+        setMessages((prev) => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { role: 'assistant', content: msg, type: 'error' }
+          return updated
+        })
+        onError?.(msg)
+        return
+      }
+    }
+  }
+
   async function handleFix() {
     if (!buildError || isFixing) return
     setIsFixing(true)
@@ -1066,9 +1173,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     refundRequestedRef.current = false
 
     if (!hasGeneratedOnce) {
-      // Generation flow — first time
+      // Generation flow — first time. Uses the 202+polling path (consumeGenerationJob) instead
+      // of consumeStream, because /api/quante/generate no longer streams NDJSON — the actual
+      // generation runs decoupled from this fetch via Next.js after().
       try {
-        await consumeStream('/api/quante/generate', { brief: text, projectId }, (reply, deploymentId, newPreviewUrl, versionId) => {
+        await consumeGenerationJob(text, (reply, deploymentId, newPreviewUrl, versionId) => {
           setMessages((prev) => {
             const updated = [...prev]
             updated[updated.length - 1] = {

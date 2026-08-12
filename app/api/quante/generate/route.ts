@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto'
+import { after, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -5,10 +7,13 @@ import { anthropic, MODELS, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createVercelPreviewDeploy, ensureVercelProject } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { getUserRecord } from '@/lib/tier'
+import { extractFileBlocks } from '@/lib/generation-checkpoint'
 import type { StoreCodeOutput } from '@/types/store-code'
+import type { GenerationPhase } from '@/lib/generation-poll'
 
-// 300s = Hobby/Pro hard cap. Raise to 600 (Enterprise) once plan is upgraded,
-// then also raise SOFT_TIMEOUT_MS for slower thinking-mode primaries.
+// 300s = Hobby/Pro hard cap. Raise to 800 (Enterprise, current platform max) once
+// plan is upgraded, then also raise SOFT_TIMEOUT_MS for slower thinking-mode primaries.
+// `after()`'s callback runs within this SAME budget — it does not grant extra time beyond it.
 export const maxDuration = 300
 
 const PRIMARY_MODEL = MODELS.generation
@@ -19,30 +24,19 @@ const GENERATE_RATE_LIMIT = 5
 // this — if the API 400s on max_tokens, drop back to 64000 (current Claude 4
 // ceiling) or whatever the target primary actually supports.
 const MAX_TOKENS = 128000
-// Abort Claude at 240s — leaves 60s for DB + deploy before Vercel's hard 300s limit.
-// Raise to 500_000 once maxDuration is increased to 600 on Enterprise.
-const SOFT_TIMEOUT_MS = 240_000
-
-function makeStream(fn: (send: (event: object) => void) => Promise<void>): Response {
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream({
-    async start(controller) {
-      function send(event: object) {
-        try { controller.enqueue(encoder.encode(JSON.stringify(event) + '\n')) } catch {}
-      }
-      try {
-        await fn(send)
-      } catch (err) {
-        send({ type: 'error', message: err instanceof Error ? err.message : 'Generation failed.' })
-      } finally {
-        controller.close()
-      }
-    },
-  })
-  return new Response(stream, {
-    headers: { 'Content-Type': 'application/x-ndjson', 'Cache-Control': 'no-cache' },
-  })
-}
+// Abort Claude at 270s — leaves 30s for the after()-scheduled save/cleanup (parseCodeOutput,
+// code_versions insert, credit debit, preview deploy kickoff) to finish before Vercel's hard
+// 300s maxDuration cap kills the function instance mid-write. This is deliberately pushed to
+// the safe ceiling on Pro (300s cap) rather than the previous 240s — the extra 30s inside
+// Claude's stream is a meaningful buffer for the primary 128k-output opus 4.7 run.
+// Raise to ~500_000-700_000 once maxDuration is increased to 800 on Enterprise.
+const SOFT_TIMEOUT_MS = 270_000
+// Level 3: how often the in-flight raw output is checkpointed to generation_jobs while
+// Claude is streaming. Shorter than Level 1's original 15s — that cadence was tied to an
+// NDJSON keepalive ping (avoiding proxy idle timeouts on an open connection); there is no
+// open connection anymore, so this interval is purely about how "live" the polling client's
+// progress view feels. 4s is frequent enough to feel responsive without hammering Supabase.
+const CHECKPOINT_INTERVAL_MS = 4_000
 
 const CORE_FILES = [
   'data/products.ts',
@@ -52,13 +46,10 @@ const CORE_FILES = [
 ]
 
 function parseCodeOutput(raw: string): StoreCodeOutput {
-  const files: Record<string, string> = {}
-
-  const fileRegex = /<file path="([^"]+)">([\s\S]*?)<\/file>/g
-  let match
-  while ((match = fileRegex.exec(raw)) !== null) {
-    files[match[1].trim()] = match[2].replace(/^\n/, '').replace(/\n$/, '')
-  }
+  // extractFileBlocks() is shared with the in-flight checkpoint (see
+  // lib/generation-checkpoint.ts) so "what counts as a complete file" never drifts
+  // between the two call sites.
+  const files = extractFileBlocks(raw)
 
   if (Object.keys(files).length === 0) {
     throw new Error('Generation produced no files. Please try again with a shorter brief.')
@@ -75,55 +66,67 @@ function parseCodeOutput(raw: string): StoreCodeOutput {
   return { files, summary }
 }
 
-export async function POST(request: Request) {
-  return makeStream(async (send) => {
-    const { brief, projectName, projectId: existingProjectId } = await request.json()
+interface RunParams {
+  jobId: string
+  userId: string
+  brief: string
+  projectName: string | undefined
+  existingProjectId: string | undefined
+  balance: number
+}
 
-    if (!brief?.trim()) { send({ type: 'error', message: 'Brief is required.' }); return }
+// ── Architecture note (Level 3 — see docs/update-log.md) ──────────────────────────────
+// Everything below used to run inline in the POST handler, streaming NDJSON progress back
+// over the same HTTP response the client's fetch() was reading. That tied the entire
+// generation's lifetime to the client's connection staying open — nothing in the code
+// enforced it, but nothing decoupled it either, and the real-world behavior depended on
+// how the platform handles a dropped client mid-response (see the diagnosis earlier in
+// this conversation). `after()` removes the ambiguity outright: the POST handler responds
+// immediately once the generation_jobs row exists, and this function runs afterward, in
+// the same function instance, but explicitly NOT gated on anyone still listening. A device
+// dying, a tab closing, a network drop — none of it stops this from running to completion
+// (bounded by `maxDuration`, same as before). The client's only connection to this work
+// now is polling GET /api/quante/generate/status?jobId=..., which reads exactly the state
+// this function is writing here — there is no other channel.
+async function runGeneration(params: RunParams): Promise<void> {
+  const { jobId, userId, brief, projectName, existingProjectId, balance } = params
 
-    const { userId } = await auth()
-    if (!userId) { send({ type: 'error', message: 'Unauthorized.' }); return }
-
-    const supabase = await createClient()
-
-    // Credits check
-    const { data: ledger } = await supabase
-      .from('credit_ledger').select('balance_after')
-      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-
-    const balance = ledger?.balance_after ?? 0
-    if (balance < GENERATE_COST) {
-      send({ type: 'error', message: `Insufficient credits. Need ${GENERATE_COST}, have ${balance}.` })
-      return
+  async function setPhase(phase: GenerationPhase) {
+    try {
+      await supabaseAdmin.from('generation_jobs').update({ phase }).eq('id', jobId)
+    } catch (err) {
+      console.error('[generate:bg] setPhase write failed (non-fatal):', err)
     }
+  }
 
-    // Rate limit
-    const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
-    const { count: recentCount } = await supabase
-      .from('credit_ledger').select('*', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('reason', 'generate').gte('created_at', oneHourAgo)
-
-    if ((recentCount ?? 0) >= GENERATE_RATE_LIMIT) {
-      send({ type: 'error', message: `Rate limit reached — max ${GENERATE_RATE_LIMIT} generations per hour.` })
-      return
+  async function failJob(message: string) {
+    try {
+      await supabaseAdmin.from('generation_jobs').update({ status: 'failed', error: message }).eq('id', jobId)
+    } catch (err) {
+      console.error('[generate:bg] failJob write failed:', err)
     }
+  }
 
-    // Project limit check — fail fast before calling Claude (only when creating a new project)
-    if (!existingProjectId) {
-      const record = await getUserRecord(userId)
-      const { count: activeCount } = await supabase
-        .from('projects').select('*', { count: 'exact', head: true })
-        .eq('user_id', userId).neq('status', 'archived')
-      if ((activeCount ?? 0) >= record.project_limit) {
-        send({
-          type: 'error',
-          message: `Active project limit reached (${activeCount ?? 0}/${record.project_limit}). Delete a project first, or upgrade to Agency for up to 20 stores.`,
+  let lastCheckpointedRawLength = 0
+  async function checkpoint(currentRawOutput: string, currentModel: string) {
+    if (currentRawOutput.length === lastCheckpointedRawLength) return
+    lastCheckpointedRawLength = currentRawOutput.length
+    try {
+      await supabaseAdmin
+        .from('generation_jobs')
+        .update({
+          raw_output: currentRawOutput,
+          files: extractFileBlocks(currentRawOutput),
+          model_used: currentModel,
         })
-        return
-      }
+        .eq('id', jobId)
+    } catch (err) {
+      console.error('[generate:bg] checkpoint write failed (non-fatal):', err)
     }
+  }
 
-    send({ type: 'status', text: 'Designing your store…' })
+  try {
+    await setPhase('designing')
 
     // --- Primary generation ---
     // Falls back to MODELS.fallback on refusal or hard API error (rate limit, access denied, network).
@@ -138,31 +141,27 @@ export async function POST(request: Request) {
     const primaryStream = anthropic.messages.stream({
       model: PRIMARY_MODEL, max_tokens: MAX_TOKENS,
       system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: brief.trim() }],
+      messages: [{ role: 'user', content: brief }],
     })
 
     const softAbort = setTimeout(() => {
-      console.warn('[generate] soft timeout — aborting primary stream for partial recovery')
+      console.warn('[generate:bg] soft timeout — aborting primary stream for partial recovery')
       primaryStream.abort()
     }, SOFT_TIMEOUT_MS)
 
-    let lastPing = Date.now()
+    let lastCheckpointAt = Date.now()
     try {
       for await (const event of primaryStream) {
         if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
           rawOutput += event.delta.text
-          send({ type: 'chunk', text: event.delta.text })
         }
-        // Keepalive ping every 15s — prevents proxy/browser idle-connection timeouts
-        if (Date.now() - lastPing > 15_000) {
-          send({ type: 'ping' })
-          lastPing = Date.now()
+        if (Date.now() - lastCheckpointAt > CHECKPOINT_INTERVAL_MS) {
+          lastCheckpointAt = Date.now()
+          await checkpoint(rawOutput, modelUsed)
         }
       }
       primaryStreamCompleted = true
     } catch (err) {
-      // AbortError = our own soft-timeout → attempt partial file recovery with collected output.
-      // Anything else = hard API failure (rate limit, suspended access, network) → fall back.
       const isOurAbort = err instanceof Error && err.name === 'AbortError'
       if (!isOurAbort) {
         needFallback = true
@@ -187,32 +186,31 @@ export async function POST(request: Request) {
 
     // --- Fallback ---
     if (needFallback) {
-      console.warn(`[generate] model=${PRIMARY_MODEL} failed (${fallbackReason}) — retrying with ${FALLBACK_MODEL}`)
+      console.warn(`[generate:bg] model=${PRIMARY_MODEL} failed (${fallbackReason}) — retrying with ${FALLBACK_MODEL}`)
       rawOutput = ''
       modelUsed = FALLBACK_MODEL
-      send({ type: 'status', text: 'Retrying with fallback model…' })
+      await setPhase('retrying_fallback')
 
       const fallbackStream = anthropic.messages.stream({
         model: FALLBACK_MODEL, max_tokens: MAX_TOKENS,
         system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: brief.trim() }],
+        messages: [{ role: 'user', content: brief }],
       })
 
       const softAbortFallback = setTimeout(() => {
-        console.warn('[generate] soft timeout — aborting fallback stream for partial recovery')
+        console.warn('[generate:bg] soft timeout — aborting fallback stream for partial recovery')
         fallbackStream.abort()
       }, SOFT_TIMEOUT_MS)
 
-      lastPing = Date.now()
+      lastCheckpointAt = Date.now()
       try {
         for await (const event of fallbackStream) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             rawOutput += event.delta.text
-            send({ type: 'chunk', text: event.delta.text })
           }
-          if (Date.now() - lastPing > 15_000) {
-            send({ type: 'ping' })
-            lastPing = Date.now()
+          if (Date.now() - lastCheckpointAt > CHECKPOINT_INTERVAL_MS) {
+            lastCheckpointAt = Date.now()
+            await checkpoint(rawOutput, modelUsed)
           }
         }
       } catch {
@@ -222,25 +220,23 @@ export async function POST(request: Request) {
       }
     }
 
-    console.warn(`[generate] model_used=${modelUsed} project=${existingProjectId ?? '(new)'}`)
+    console.warn(`[generate:bg] model_used=${modelUsed} project=${existingProjectId ?? '(new)'} job=${jobId}`)
 
-    send({ type: 'status', text: 'Parsing generated files…' })
+    await setPhase('parsing')
 
     // Parse the output — succeeds even with partial output as long as all 4 core files are present
     let output: StoreCodeOutput
     try {
       output = parseCodeOutput(rawOutput)
     } catch (err) {
-      send({ type: 'error', message: err instanceof Error ? err.message : 'Could not parse generated files. Please try again.' })
-      return
+      throw new Error(err instanceof Error ? err.message : 'Could not parse generated files. Please try again.')
     }
 
-    send({ type: 'status', text: 'Saving…' })
+    await setPhase('saving')
 
     // Create or use project
     let projectId = existingProjectId
     if (!projectId) {
-      // Try to derive a name from config if available
       let storeName = projectName ?? 'My Store'
       try {
         const configFile = output.files['data/config.ts'] ?? ''
@@ -248,15 +244,23 @@ export async function POST(request: Request) {
         if (nameMatch) storeName = nameMatch[1]
       } catch {}
 
-      const { data: project, error: projError } = await supabase
+      const { data: project, error: projError } = await supabaseAdmin
         .from('projects').insert({ user_id: userId, name: storeName, status: 'draft' })
         .select().single()
-      if (projError || !project) { send({ type: 'error', message: 'Failed to create project.' }); return }
+      if (projError || !project) throw new Error('Failed to create project.')
       projectId = project.id
+      // Surface the newly created project id on the job as soon as we have it — a client
+      // polling status can navigate to it even if something later (deploy, credit debit)
+      // has trouble, rather than waiting for every last step to succeed first.
+      try {
+        await supabaseAdmin.from('generation_jobs').update({ project_id: projectId }).eq('id', jobId)
+      } catch (err) {
+        console.error('[generate:bg] project_id checkpoint write failed (non-fatal):', err)
+      }
     }
 
     // Save code version
-    const { data: version, error: versionError } = await supabase
+    const { data: version, error: versionError } = await supabaseAdmin
       .from('code_versions').insert({
         project_id: projectId,
         user_id: userId,
@@ -266,15 +270,38 @@ export async function POST(request: Request) {
       })
       .select().single()
 
-    if (versionError || !version) { send({ type: 'error', message: 'Failed to save generated files.' }); return }
+    if (versionError || !version) throw new Error('Failed to save generated files.')
+
+    // Work is durably saved as of this point (code_versions row exists). Record that on
+    // the job immediately — credit debit and preview deploy below can still fail
+    // independently without losing the generated code, and status only flips to
+    // 'completed' once this whole function returns (see the outer try/catch), but
+    // code_version_id/files/summary being populated here means a client that times out
+    // waiting can still find its way to the project even before the final status flip.
+    try {
+      await supabaseAdmin
+        .from('generation_jobs')
+        .update({ code_version_id: version.id, files: output.files, summary: output.summary, model_used: modelUsed })
+        .eq('id', jobId)
+    } catch (err) {
+      console.error('[generate:bg] code_version checkpoint write failed (non-fatal):', err)
+    }
 
     // Debit credits — refunded via /api/credits/refund if the auto-fix loop gives up
-    const { error: debitError } = await supabase.from('credit_ledger').insert({
+    const { error: debitError } = await supabaseAdmin.from('credit_ledger').insert({
       user_id: userId, delta: -GENERATE_COST, reason: 'generate',
       ref_id: version.id, balance_after: balance - GENERATE_COST,
     })
-    if (debitError) console.error('[generate] credit debit failed:', debitError)
-    await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
+    if (debitError) {
+      console.error('[generate:bg] credit debit failed:', debitError)
+    } else {
+      try {
+        await supabaseAdmin.from('generation_jobs').update({ credits_debited: true }).eq('id', jobId)
+      } catch (err) {
+        console.error('[generate:bg] markCreditsDebited write failed (non-fatal):', err)
+      }
+    }
+    await supabaseAdmin.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
 
     // Validation-only deploy (free, no credit debit, NOT the real "go live" deploy).
     //
@@ -296,13 +323,12 @@ export async function POST(request: Request) {
     // preview build: no target: 'production', no domain attach, no public subdomain
     // exposure. /api/deploy (Push to Live) is unchanged and remains the one and only
     // production deployment + domain attach + credit debit.
-    send({ type: 'status', text: 'Validating build…' })
+    await setPhase('validating_build')
 
     let deploymentId: string | null = null
     let previewUrl: string | null = null
 
     try {
-      // Load project to get vercel_project_id
       const { data: projectRow } = await supabaseAdmin
         .from('projects').select('name, vercel_project_id').eq('id', projectId).single()
 
@@ -313,7 +339,6 @@ export async function POST(request: Request) {
         await supabaseAdmin.from('projects').update({ vercel_project_id: vercelProjectId }).eq('id', projectId)
       }
 
-      // Build scaffold + merge AI files
       const allFiles = buildStoreFiles(output.files)
 
       const result = await createVercelPreviewDeploy(
@@ -323,7 +348,6 @@ export async function POST(request: Request) {
       deploymentId = result.deploymentId
       previewUrl = result.url
 
-      // Save preview deployment row
       await supabaseAdmin.from('deployments').insert({
         project_id: projectId,
         user_id: userId,
@@ -337,9 +361,108 @@ export async function POST(request: Request) {
         code_version_id: version.id,
       })
     } catch (err) {
-      console.error('[generate] preview deployment failed (non-fatal):', err)
+      console.error('[generate:bg] preview deployment failed (non-fatal):', err)
     }
 
-    send({ type: 'done', projectId, versionId: version.id, deploymentId, previewUrl, summary: output.summary })
-  })
+    await supabaseAdmin
+      .from('generation_jobs')
+      .update({
+        status: 'completed',
+        phase: null,
+        deployment_id: deploymentId,
+        preview_url: previewUrl,
+      })
+      .eq('id', jobId)
+  } catch (err) {
+    console.error('[generate:bg] job failed:', err)
+    await failJob(err instanceof Error ? err.message : 'Generation failed unexpectedly.')
+  }
+}
+
+export async function POST(request: Request) {
+  const { brief, projectName, projectId: existingProjectId } = await request.json()
+
+  if (!brief?.trim()) {
+    return NextResponse.json({ error: 'Brief is required.' }, { status: 400 })
+  }
+
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 })
+  }
+
+  const supabase = await createClient()
+
+  // Credits check
+  const { data: ledger } = await supabase
+    .from('credit_ledger').select('balance_after')
+    .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
+
+  const balance = ledger?.balance_after ?? 0
+  if (balance < GENERATE_COST) {
+    return NextResponse.json({ error: `Insufficient credits. Need ${GENERATE_COST}, have ${balance}.` }, { status: 402 })
+  }
+
+  // Rate limit
+  const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
+  const { count: recentCount } = await supabase
+    .from('credit_ledger').select('*', { count: 'exact', head: true })
+    .eq('user_id', userId).eq('reason', 'generate').gte('created_at', oneHourAgo)
+
+  if ((recentCount ?? 0) >= GENERATE_RATE_LIMIT) {
+    return NextResponse.json(
+      { error: `Rate limit reached — max ${GENERATE_RATE_LIMIT} generations per hour.` },
+      { status: 429 },
+    )
+  }
+
+  // Project limit check — fail fast before calling Claude (only when creating a new project)
+  if (!existingProjectId) {
+    const record = await getUserRecord(userId)
+    const { count: activeCount } = await supabase
+      .from('projects').select('*', { count: 'exact', head: true })
+      .eq('user_id', userId).neq('status', 'archived')
+    if ((activeCount ?? 0) >= record.project_limit) {
+      return NextResponse.json({
+        error: `Active project limit reached (${activeCount ?? 0}/${record.project_limit}). Delete a project first, or upgrade to Agency for up to 20 stores.`,
+      }, { status: 403 })
+    }
+  }
+
+  // The generation_jobs row is what the client polls — unlike Level 1 (where a failed
+  // insert here just meant "no checkpointing this run, generation proceeds anyway"), this
+  // is now load-bearing: with no job row, there is nothing for the client to poll, so a
+  // failed insert here must fail the whole request rather than silently degrading.
+  const { data: job, error: jobError } = await supabase
+    .from('generation_jobs')
+    .insert({
+      id: randomUUID(),
+      user_id: userId,
+      project_id: existingProjectId ?? null,
+      brief: brief.trim(),
+      status: 'running',
+      phase: 'designing',
+    })
+    .select('id')
+    .single()
+
+  if (jobError || !job) {
+    console.error('[generate] generation_jobs insert failed:', jobError)
+    return NextResponse.json({ error: 'Could not start generation. Please try again.' }, { status: 500 })
+  }
+
+  // Scheduled to run after this response is sent — explicitly decoupled from the client's
+  // HTTP connection (see the long comment on runGeneration above). Uses supabaseAdmin
+  // (service role) throughout rather than the request-scoped `supabase` client above,
+  // since everything past this point runs outside the normal request lifecycle.
+  after(() => runGeneration({
+    jobId: job.id,
+    userId,
+    brief: brief.trim(),
+    projectName: projectName?.trim() || undefined,
+    existingProjectId: existingProjectId ?? undefined,
+    balance,
+  }))
+
+  return NextResponse.json({ jobId: job.id, projectId: existingProjectId ?? null }, { status: 202 })
 }
