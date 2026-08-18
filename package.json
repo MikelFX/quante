@@ -16,7 +16,8 @@
     "test:marketplace": "node --test __tests__/marketplace.test.mjs",
     "test:generation-checkpoint": "node --test __tests__/generation-checkpoint.test.mjs",
     "test:generation-resume": "node --test __tests__/generation-resume.test.mjs",
-    "test:generation-poll": "node --test __tests__/generation-poll.test.mjs"
+    "test:generation-poll": "node --test __tests__/generation-poll.test.mjs",
+    "test:domain-registrant": "node --test __tests__/domain-registrant.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",

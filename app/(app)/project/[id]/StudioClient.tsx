@@ -17,6 +17,8 @@ import {
   Terminal, Wrench, CheckCircle, AlertCircle, Sparkles, RefreshCw,
 } from 'lucide-react'
 import { RevenueChart } from '@/components/admin/RevenueChart'
+import DomainRegistrantForm from '@/components/public/DomainRegistrantForm'
+import type { DomainRegistrant } from '@/lib/domain-registrant'
 import {
   decidePollAction,
   phaseToStatusText,
@@ -433,6 +435,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [domainConnecting, setDomainConnecting] = useState(false)
   const [domainConnectResult, setDomainConnectResult] = useState<{ instructions: string; dnsValue: string } | null>(null)
   const [domainPurchasing, setDomainPurchasing] = useState(false)
+  // Registrant contact must be collected before we charge anything — this
+  // holds the domain/price the user clicked "Buy" on, which opens the
+  // registrant form modal. Null = modal closed.
+  const [pendingBuyDomain, setPendingBuyDomain] = useState<{ domain: string; price: number } | null>(null)
   const [liveDeployment, setLiveDeployment] = useState<{
     vercelDeploymentId: string | null; status: string; url: string | null
     domain: string | null; customDomain: string | null; customDomainVerified: boolean
@@ -1833,17 +1839,37 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     setDomainSearching(false)
   }
 
-  async function handleDomainBuy(domain: string, price: number) {
+  function handleDomainBuy(domain: string, price: number) {
+    // Registrant data (WHOIS record) is required before we can charge for
+    // this — open the contact form instead of hitting checkout directly.
+    setPendingBuyDomain({ domain, price })
+  }
+
+  async function handleConfirmDomainPurchase(registrant: DomainRegistrant) {
+    if (!pendingBuyDomain) return
     setDomainPurchasing(true)
     try {
       const res = await fetch('/api/domains/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ domain, projectId, price, includeProtection: true }),
+        body: JSON.stringify({
+          domain: pendingBuyDomain.domain,
+          projectId,
+          price: pendingBuyDomain.price,
+          includeProtection: true,
+          registrant,
+        }),
       })
       const data = await res.json()
-      if (data.url) window.open(data.url, '_blank')
-    } catch {}
+      if (data.url) {
+        window.open(data.url, '_blank')
+        setPendingBuyDomain(null)
+      } else {
+        alert(data.error ?? 'Could not start checkout. Please try again.')
+      }
+    } catch {
+      alert('Something went wrong. Please try again.')
+    }
     setDomainPurchasing(false)
   }
 
@@ -3375,6 +3401,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   )
 
   const PublishPanel = (
+    <>
     <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── 0. Domain section ────────────────────────────────────────────────── */}
@@ -3878,6 +3905,44 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
+
+    {/* Registrant contact modal — gates every domain purchase behind real
+        WHOIS data. Backdrop click cancels rather than dismissing silently,
+        since we haven't charged anything yet at this point. */}
+    {pendingBuyDomain && (
+      <>
+        <div
+          onClick={() => !domainPurchasing && setPendingBuyDomain(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,.6)', backdropFilter: 'blur(3px)' }}
+        />
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 101,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem', pointerEvents: 'none',
+        }}>
+          <div style={{
+            pointerEvents: 'all',
+            width: '100%', maxWidth: 460,
+            background: '#0d0d11',
+            border: '1px solid rgba(255,255,255,.1)',
+            borderRadius: 14,
+            boxShadow: '0 24px 80px rgba(0,0,0,.8)',
+            padding: '18px',
+            maxHeight: '85vh', overflowY: 'auto',
+          }}>
+            <DomainRegistrantForm
+              domain={pendingBuyDomain.domain}
+              price={pendingBuyDomain.price}
+              submitting={domainPurchasing}
+              theme="dark"
+              onCancel={() => setPendingBuyDomain(null)}
+              onSubmit={handleConfirmDomainPurchase}
+            />
+          </div>
+        </div>
+      </>
+    )}
+    </>
   )
 
 

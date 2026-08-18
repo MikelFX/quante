@@ -1,23 +1,29 @@
 'use client'
 
-// Integration note: the "Search" button below calls POST /api/domains/search.
-// That route exists but requires real Namecheap Reseller API credentials in env:
-//   NAMECHEAP_API_USER, NAMECHEAP_API_KEY, NAMECHEAP_CLIENT_IP
-// Until those are set, the search returns mock availability data.
-// Do NOT expose live pricing without confirming current Namecheap reseller rates.
+// Real domain search + purchase, backed by /api/domains/search and
+// /api/domains/purchase (both call the live Namecheap Reseller API — see
+// lib/namecheap.ts). This used to render a hardcoded example table with a
+// non-functional "Buy" button; both are now wired to the real endpoints.
+//
+// Both API routes require a signed-in user (Clerk `auth()`). Anonymous
+// visitors can still read the page, but searching/buying prompts them to
+// sign up first rather than silently failing on a 401.
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { domainProvider } from '@/lib/site-config'
+import DomainRegistrantForm from '@/components/public/DomainRegistrantForm'
+import type { DomainRegistrant } from '@/lib/domain-registrant'
 
 const mono = 'var(--font-geist-mono)'
-const accent = '#6f78e6'
+const accent = 'var(--qp-accent)'
 
-const TLD_EXAMPLES = [
-  { tld: '.com',   price: '$14.99/yr', available: true  },
-  { tld: '.store', price: '$7.99/yr',  available: true  },
-  { tld: '.eu',    price: '$9.99/yr',  available: true  },
-  { tld: '.io',    price: '$39.99/yr', available: false },
-]
+interface SearchResult {
+  domain: string
+  available: boolean
+  price: number
+  currency: string
+}
 
 const STEPS = [
   {
@@ -40,7 +46,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "Can I use a domain I already own at another registrar?",
-    a: "Yes. Go to Studio → Settings → Custom Domain, enter your domain, and follow the CNAME instructions. You'll point your existing DNS records to Quante and we'll handle the SSL. No transfer needed.",
+    a: "Yes. Go to Studio → Publish → Custom Domain, enter your domain, and follow the CNAME instructions. You'll point your existing DNS records to Quante and we'll handle the SSL. No transfer needed.",
   },
   {
     q: "Which TLDs are supported?",
@@ -52,27 +58,92 @@ const FAQS = [
   },
   {
     q: "Is pricing transparent? Is there a markup?",
-    a: `Prices shown are inclusive of all fees — there's no hidden markup layered on top. Quante passes through ${domainProvider.name} reseller rates directly. Pricing may vary slightly by TLD and availability period.`,
+    a: `Prices shown are inclusive of all fees — there's no hidden markup layered on top of what's shown at checkout. Quante passes through ${domainProvider.name} reseller rates with a small service margin built into the displayed price. Pricing may vary slightly by TLD and availability period.`,
   },
   {
     q: "What happens to my domain if I cancel my Quante subscription?",
     a: "Your domain registration is yours to keep. If you cancel, you can transfer the domain to any registrar using the EPP/auth code provided in your account settings. Your domain won't be deleted.",
   },
+  {
+    q: "Why do you need my name and address to buy a domain?",
+    a: "Domain registration creates a legal WHOIS record — you, not Quante, are the registrant. We ask for this before checkout so the registration can actually complete (registrars reject incomplete contact data), and WhoisGuard privacy protection is included free so your details aren't publicly listed.",
+  },
 ]
 
 export default function DomainsPage() {
   const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [results, setResults] = useState<SearchResult[]>([])
+  const [needsAuth, setNeedsAuth] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
-  function handleSearch(e: React.FormEvent) {
+  const [pendingBuy, setPendingBuy] = useState<{ domain: string; price: number } | null>(null)
+  const [purchasing, setPurchasing] = useState(false)
+  const [purchaseError, setPurchaseError] = useState<string | null>(null)
+
+  async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
-    if (query.trim()) setSearched(true)
+    if (!query.trim() || searching) return
+    setSearching(true)
+    setSearched(true)
+    setNeedsAuth(false)
+    setSearchError(null)
+    setResults([])
+    try {
+      const res = await fetch(`/api/domains/search?q=${encodeURIComponent(query.trim())}`)
+      if (res.status === 401) {
+        setNeedsAuth(true)
+        return
+      }
+      const data = await res.json()
+      if (!res.ok) {
+        setSearchError(data.error ?? 'Domain search failed. Please try again.')
+        return
+      }
+      setResults(data.results ?? [])
+    } catch {
+      setSearchError('Domain search failed. Please try again.')
+    } finally {
+      setSearching(false)
+    }
   }
 
-  const baseName = query.trim().replace(/\.[^.]+$/, '').toLowerCase().replace(/[^a-z0-9-]/g, '')
+  async function handleConfirmPurchase(registrant: DomainRegistrant) {
+    if (!pendingBuy) return
+    setPurchasing(true)
+    setPurchaseError(null)
+    try {
+      const res = await fetch('/api/domains/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          domain: pendingBuy.domain,
+          price: pendingBuy.price,
+          includeProtection: true,
+          registrant,
+        }),
+      })
+      const data = await res.json()
+      if (res.status === 401) {
+        setNeedsAuth(true)
+        setPendingBuy(null)
+        return
+      }
+      if (!res.ok) {
+        setPurchaseError(data.error ?? 'Could not start checkout. Please try again.')
+        return
+      }
+      if (data.url) window.location.href = data.url
+    } catch {
+      setPurchaseError('Something went wrong. Please try again.')
+    } finally {
+      setPurchasing(false)
+    }
+  }
 
   return (
-    <div style={{ background: '#070709', color: '#f4f4f6', overflowX: 'clip' }}>
+    <div style={{ overflowX: 'clip' }}>
 
       {/* Hero */}
       <section style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(5rem,10vw,9rem) 1.5rem clamp(4rem,7vw,7rem)' }}>
@@ -81,13 +152,13 @@ export default function DomainsPage() {
           <span style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(52,211,153,.14),transparent 66%)', bottom: -120, right: -60 }} />
         </div>
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
-          <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 16 }}>
+          <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 16 }}>
             Custom domains
           </p>
           <h1 style={{ fontSize: 'clamp(32px,6vw,56px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1.07, marginBottom: 18 }}>
             Your store deserves<br />its own address.
           </h1>
-          <p style={{ fontSize: 16, color: '#8a8a93', lineHeight: 1.65, maxWidth: 520, margin: '0 auto 40px' }}>
+          <p style={{ fontSize: 16, color: 'var(--qp-sub)', lineHeight: 1.65, maxWidth: 520, margin: '0 auto 40px' }}>
             Search, buy, and connect a custom domain without ever leaving Quante.
             We handle DNS and SSL automatically — powered by {domainProvider.name}.
           </p>
@@ -102,68 +173,86 @@ export default function DomainsPage() {
               style={{
                 flex: 1, minWidth: 200,
                 height: 44, padding: '0 16px',
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.12)',
-                borderRadius: 8, color: '#f4f4f6', fontSize: 14,
+                background: 'var(--qp-line-soft)',
+                border: '1px solid var(--qp-line)',
+                borderRadius: 8, color: 'var(--qp-ink)', fontSize: 14,
                 outline: 'none',
               }}
             />
-            <button type="submit" style={{
+            <button type="submit" disabled={searching || !query.trim()} style={{
               height: 44, padding: '0 22px',
               background: accent, color: '#fff',
               border: 'none', borderRadius: 8,
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              fontSize: 14, fontWeight: 600, cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
+              opacity: searching || !query.trim() ? 0.6 : 1,
               boxShadow: '0 0 28px rgba(111,120,230,.35)',
             }}>
-              Search
+              {searching ? 'Searching…' : 'Search'}
             </button>
           </form>
         </div>
       </section>
 
-      {/* Search results (static demo) */}
-      {searched && baseName && (
+      {/* Search results */}
+      {searched && (
         <section style={{ padding: '0 1.5rem 4rem', maxWidth: 600, margin: '0 auto' }}>
-          <p style={{ fontFamily: mono, fontSize: 11, color: '#5b5b64', letterSpacing: '.06em', marginBottom: 16, textTransform: 'uppercase' }}>
-            Illustrative availability — live results require API credentials
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {TLD_EXAMPLES.map(({ tld, price, available }) => (
-              <div key={tld} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '14px 18px', background: '#0d0d12',
-                border: `1px solid ${available ? 'rgba(52,211,153,.2)' : 'rgba(255,255,255,.07)'}`,
-                borderRadius: 10,
+          {needsAuth ? (
+            <div className="qp-glass" style={{ padding: '20px', textAlign: 'center' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--qp-ink)', marginBottom: 8 }}>
+                Sign in to search and buy domains
+              </p>
+              <p style={{ fontSize: 13, color: 'var(--qp-sub)', marginBottom: 16 }}>
+                Domain registration is tied to your Quante account so we can attach it to a store and keep it renewed.
+              </p>
+              <Link href="/signup" style={{
+                display: 'inline-block', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: '#fff',
+                background: accent, padding: '0.6rem 1.4rem', borderRadius: 99,
               }}>
-                <div>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: available ? '#f4f4f6' : '#5b5b64' }}>
-                    {baseName}{tld}
-                  </span>
-                  <span style={{ marginLeft: 10, fontFamily: mono, fontSize: 10, letterSpacing: '.06em', color: available ? '#34d399' : '#5b5b64' }}>
-                    {available ? 'available' : 'taken'}
-                  </span>
-                </div>
-                {available && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span style={{ fontFamily: mono, fontSize: 13, color: '#8a8a93' }}>{price}</span>
-                    <button style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 6, background: accent, color: '#fff', border: 'none', cursor: 'pointer' }}>
-                      Buy
-                    </button>
+                Sign up free →
+              </Link>
+            </div>
+          ) : searchError ? (
+            <p style={{ fontSize: 13, color: '#D6534A', textAlign: 'center' }}>{searchError}</p>
+          ) : !searching && results.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--qp-sub)', textAlign: 'center' }}>No results — try a different name.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {results.map((r) => (
+                <div key={r.domain} className="qp-glass" style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '14px 18px',
+                  borderColor: r.available ? 'rgba(34,178,125,.28)' : undefined,
+                }}>
+                  <div>
+                    <span style={{ fontSize: 15, fontWeight: 600, color: r.available ? 'var(--qp-ink)' : 'var(--qp-mut)' }}>
+                      {r.domain}
+                    </span>
+                    <span style={{ marginLeft: 10, fontFamily: mono, fontSize: 10, letterSpacing: '.06em', color: r.available ? 'var(--qp-mint)' : 'var(--qp-mut)' }}>
+                      {r.available ? 'available' : 'taken'}
+                    </span>
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
-          <p style={{ fontSize: 11.5, color: '#3c3c4c', marginTop: 12, textAlign: 'center' }}>
-            Prices shown are illustrative. Connect your store to see live availability and pricing.
-          </p>
+                  {r.available && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <span style={{ fontFamily: mono, fontSize: 13, color: 'var(--qp-sub)' }}>${r.price.toFixed(2)}/yr</span>
+                      <button
+                        onClick={() => setPendingBuy({ domain: r.domain, price: r.price })}
+                        style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 6, background: accent, color: '#fff', border: 'none', cursor: 'pointer' }}
+                      >
+                        Buy
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
       {/* How it works */}
-      <section style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
+      <section style={{ borderTop: '1px solid var(--qp-line-soft)', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
         <div style={{ maxWidth: 900, margin: '0 auto' }}>
-          <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12, textAlign: 'center' }}>
+          <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12, textAlign: 'center' }}>
             How it works
           </p>
           <h2 style={{ fontSize: 'clamp(24px,4vw,38px)', fontWeight: 700, letterSpacing: '-.03em', textAlign: 'center', marginBottom: 52 }}>
@@ -171,17 +260,17 @@ export default function DomainsPage() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 20 }}>
             {STEPS.map(step => (
-              <div key={step.n} style={{ background: 'rgba(12,12,16,.6)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 14, padding: '24px 20px' }}>
+              <div key={step.n} className="qp-glass" style={{ padding: '24px 20px' }}>
                 <span style={{ fontFamily: mono, fontSize: 11, color: accent, display: 'block', marginBottom: 14 }}>{step.n}</span>
-                <p style={{ fontSize: 15, fontWeight: 700, color: '#f4f4f6', marginBottom: 8 }}>{step.title}</p>
-                <p style={{ fontSize: 13.5, color: '#8a8a93', lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
+                <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--qp-ink)', marginBottom: 8 }}>{step.title}</p>
+                <p style={{ fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.6, margin: 0 }}>{step.desc}</p>
               </div>
             ))}
           </div>
           <div style={{ marginTop: 32, background: 'rgba(52,211,153,.06)', border: '1px solid rgba(52,211,153,.18)', borderRadius: 12, padding: '16px 22px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 18 }}>🔒</span>
-            <p style={{ fontSize: 13.5, color: '#8a8a93', lineHeight: 1.55, margin: 0 }}>
-              <span style={{ color: '#34d399', fontWeight: 600 }}>SSL included automatically.</span>{' '}
+            <p style={{ fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.55, margin: 0 }}>
+              <span style={{ color: 'var(--qp-mint)', fontWeight: 600 }}>SSL included automatically.</span>{' '}
               Every domain connected through Quante gets a free TLS certificate, renewed automatically.
             </p>
           </div>
@@ -189,16 +278,16 @@ export default function DomainsPage() {
       </section>
 
       {/* FAQ */}
-      <section style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
+      <section style={{ borderTop: '1px solid var(--qp-line-soft)', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
           <h2 style={{ fontSize: 'clamp(22px,3.5vw,34px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 36 }}>
             Frequently asked questions
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {FAQS.map(faq => (
-              <div key={faq.q} style={{ borderBottom: '1px solid rgba(255,255,255,.06)', paddingBottom: 24 }}>
-                <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', marginBottom: 8 }}>{faq.q}</p>
-                <p style={{ fontSize: 13.5, color: '#8a8a93', lineHeight: 1.65, margin: 0 }}>{faq.a}</p>
+              <div key={faq.q} style={{ borderBottom: '1px solid var(--qp-line-soft)', paddingBottom: 24 }}>
+                <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--qp-ink)', marginBottom: 8 }}>{faq.q}</p>
+                <p style={{ fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.65, margin: 0 }}>{faq.a}</p>
               </div>
             ))}
           </div>
@@ -206,7 +295,7 @@ export default function DomainsPage() {
       </section>
 
       {/* CTA */}
-      <section style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: 'clamp(4rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ borderTop: '1px solid var(--qp-line-soft)', padding: 'clamp(4rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
           <span style={{ position: 'absolute', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(79,91,213,.25),transparent 66%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
         </div>
@@ -214,12 +303,51 @@ export default function DomainsPage() {
           <h2 style={{ fontSize: 'clamp(22px,4vw,36px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 14 }}>
             Ready to build your store?
           </h2>
-          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 28 }}>25 free credits. No credit card required.</p>
-          <a href="/signup" style={{ display: 'inline-block', fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#070709', background: '#f4f4f6', padding: '0.75rem 2rem', borderRadius: 8 }}>
+          <p style={{ fontSize: 15, color: 'var(--qp-sub)', marginBottom: 28 }}>25 free credits. No credit card required.</p>
+          <a href="/signup" style={{
+            display: 'inline-block', fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
+            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            padding: '0.75rem 2rem', borderRadius: 99,
+          }}>
             Try it free →
           </a>
         </div>
       </section>
+
+      {/* Registrant contact modal */}
+      {pendingBuy && (
+        <>
+          <div
+            onClick={() => !purchasing && setPendingBuy(null)}
+            style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(4px)' }}
+          />
+          <div style={{
+            position: 'fixed', inset: 0, zIndex: 201,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem', pointerEvents: 'none',
+          }}>
+            <div style={{
+              pointerEvents: 'all', width: '100%', maxWidth: 480,
+              background: 'var(--qp-surface,#fff)', border: '1px solid var(--qp-line)',
+              borderRadius: 14, boxShadow: '0 24px 80px rgba(0,0,0,.25)',
+              padding: '20px', maxHeight: '85vh', overflowY: 'auto',
+            }}>
+              <DomainRegistrantForm
+                domain={pendingBuy.domain}
+                price={pendingBuy.price}
+                submitting={purchasing}
+                theme="light"
+                onCancel={() => setPendingBuy(null)}
+                onSubmit={handleConfirmPurchase}
+              />
+              {purchaseError && (
+                <p style={{ fontSize: 12, color: '#D6534A', marginTop: 10 }}>{purchaseError}</p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
     </div>
   )

@@ -68,31 +68,54 @@ export async function checkDomainAvailability(domain: string): Promise<DomainChe
   return { domain, available, price, currency: 'USD' }
 }
 
-// Registrant contact data — set the DOMAIN_REGISTRANT_* env vars to real company data.
-// Namecheap rejects registrations with obviously fake contacts on some TLDs.
-function registrantContact(): Record<string, string> {
+// ─── Registrant contact ───────────────────────────────────────────────────
+// The registrant is the actual customer buying the domain — WHOIS records are
+// a legal record of ownership, and registrars (Namecheap included) reject
+// registrations with incomplete or obviously fake contact data on most TLDs.
+// This used to fall back to fixed company data read from env vars; that's
+// gone now — every real registration requires the customer's own data,
+// collected in the purchase form and validated before the Stripe charge.
+//
+// Types + validateRegistrant() live in lib/domain-registrant.ts (no
+// Namecheap API calls or secrets there) so the same validation logic can run
+// client-side, in the API route, and here — without ever importing this
+// server-only module into client code.
+import { type DomainRegistrant, validateRegistrant } from '@/lib/domain-registrant'
+export type { DomainRegistrant }
+export { validateRegistrant }
+
+function toNamecheapContactFields(registrant: DomainRegistrant): Record<string, string> {
   return {
-    FirstName: process.env.DOMAIN_REGISTRANT_FIRST_NAME ?? 'Quante',
-    LastName: process.env.DOMAIN_REGISTRANT_LAST_NAME ?? 'Domains',
-    Address1: process.env.DOMAIN_REGISTRANT_ADDRESS ?? '',
-    City: process.env.DOMAIN_REGISTRANT_CITY ?? '',
-    StateProvince: process.env.DOMAIN_REGISTRANT_STATE ?? '',
-    PostalCode: process.env.DOMAIN_REGISTRANT_ZIP ?? '',
-    Country: process.env.DOMAIN_REGISTRANT_COUNTRY ?? 'CZ',
-    Phone: process.env.DOMAIN_REGISTRANT_PHONE ?? '',
-    EmailAddress: process.env.DOMAIN_REGISTRANT_EMAIL ?? 'domains@quantecode.com',
+    FirstName: registrant.firstName.trim(),
+    LastName: registrant.lastName.trim(),
+    Address1: registrant.address1.trim(),
+    City: registrant.city.trim(),
+    StateProvince: registrant.stateProvince.trim() || registrant.city.trim(),
+    PostalCode: registrant.postalCode.trim(),
+    Country: registrant.country.trim().toUpperCase(),
+    Phone: registrant.phone.trim(),
+    EmailAddress: registrant.email.trim(),
   }
 }
 
 export async function registerDomain(
   domain: string,
+  registrant: DomainRegistrant,
   years: number = 1,
 ): Promise<{ orderId: string }> {
+  const validationError = validateRegistrant(registrant, domain)
+  if (validationError) {
+    // Defense in depth — the API route validates too, but registerDomain()
+    // must never silently register a domain with bad/missing WHOIS data
+    // even if some future caller forgets to validate first.
+    throw new Error(`Invalid registrant data: ${validationError}`)
+  }
+
   const parts = domain.split('.')
   const sld = parts[0] ?? ''
   const tld = parts.slice(1).join('.')
 
-  const contact = registrantContact()
+  const contact = toNamecheapContactFields(registrant)
   const contactParams: Record<string, string> = {}
   for (const role of ['Registrant', 'Tech', 'Admin', 'AuxBilling']) {
     for (const [field, value] of Object.entries(contact)) {

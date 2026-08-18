@@ -469,7 +469,7 @@ async function notifyStoreSale(projectId: string, session: Stripe.Checkout.Sessi
 // ─── Domain purchase: register + attach to Vercel + save row ─────────────────
 
 async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: string) {
-  const { domain, projectId, includeProtection } = session.metadata ?? {}
+  const { domain, projectId, includeProtection, pendingPurchaseId } = session.metadata ?? {}
   if (!domain) return
 
   // Check idempotency
@@ -477,15 +477,47 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: st
     .from('user_domains').select('id').eq('domain', domain).maybeSingle()
   if (existing) return
 
+  // Load the registrant contact collected (and validated) in /api/domains/purchase
+  // before the Stripe charge. Without this row we have no valid WHOIS data —
+  // treat that as a hard failure below rather than falling back to anything
+  // fake, same as registerDomain() itself would refuse to do.
+  const { data: pending } = pendingPurchaseId
+    ? await supabaseAdmin
+        .from('pending_domain_purchases')
+        .select('*')
+        .eq('id', pendingPurchaseId)
+        .maybeSingle()
+    : { data: null }
+
   let namecheapOrderId: string | null = null
   let status = 'active'
 
-  try {
-    const result = await registerDomain(domain, 1)
-    namecheapOrderId = result.orderId
-  } catch (err) {
-    console.error('[webhook] Namecheap registration failed:', err)
+  if (!pending) {
+    console.error('[webhook] No pending_domain_purchases row for', pendingPurchaseId, '— cannot register without registrant data.')
     status = 'failed'
+  } else {
+    try {
+      const result = await registerDomain(domain, {
+        firstName: pending.registrant_first_name,
+        lastName: pending.registrant_last_name,
+        address1: pending.registrant_address1,
+        city: pending.registrant_city,
+        stateProvince: pending.registrant_state_province ?? '',
+        postalCode: pending.registrant_postal_code,
+        country: pending.registrant_country,
+        phone: pending.registrant_phone,
+        email: pending.registrant_email,
+      }, 1)
+      namecheapOrderId = result.orderId
+    } catch (err) {
+      console.error('[webhook] Namecheap registration failed:', err)
+      status = 'failed'
+    }
+
+    await supabaseAdmin
+      .from('pending_domain_purchases')
+      .update({ status: 'consumed' })
+      .eq('id', pending.id)
   }
 
   // Auto-configure DNS at Namecheap (A @ → Vercel, CNAME www → cname.vercel-dns.com)
@@ -514,6 +546,44 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: st
     }
   }
 
+  // If registration failed, the customer paid for a domain they didn't get —
+  // refund automatically rather than leaving them out both the domain AND
+  // the money. This is the actual priority fix here; logging the failure and
+  // moving on (the old behavior) is not an acceptable failure mode once real
+  // money is involved.
+  let refundReason: string | null = null
+  let stripePaymentIntentId: string | null = null
+  if (status === 'failed') {
+    const paymentIntentId = typeof session.payment_intent === 'string'
+      ? session.payment_intent
+      : session.payment_intent?.id ?? null
+    stripePaymentIntentId = paymentIntentId
+    if (paymentIntentId) {
+      try {
+        await stripe.refunds.create({
+          payment_intent: paymentIntentId,
+          reason: 'requested_by_customer',
+          metadata: { type: 'domain_registration_failed', domain, userId },
+        })
+        status = 'failed_refunded'
+        refundReason = pending
+          ? 'Domain registration failed after payment — refunded automatically.'
+          : 'No registrant data found for this purchase — refunded automatically.'
+        console.error(`[webhook] Refunded domain purchase for ${domain} (payment_intent ${paymentIntentId}) after registration failure.`)
+      } catch (refundErr) {
+        // Worst case: registration failed AND the refund call itself failed.
+        // Do not swallow this — it needs a human to look at the Stripe
+        // dashboard and issue the refund manually. Loud logging is the best
+        // we can do from inside a webhook handler.
+        refundReason = 'Domain registration failed and automatic refund ALSO failed — needs manual refund.'
+        console.error(`[webhook] REFUND FAILED for ${domain} (payment_intent ${paymentIntentId}):`, refundErr)
+      }
+    } else {
+      refundReason = 'Domain registration failed and no payment_intent was found on the session — needs manual refund.'
+      console.error(`[webhook] No payment_intent on session ${session.id} for failed domain purchase ${domain} — cannot auto-refund.`)
+    }
+  }
+
   const expiresAt = new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
 
   await supabaseAdmin.from('user_domains').insert({
@@ -528,6 +598,8 @@ async function handleDomainPurchase(session: Stripe.Checkout.Session, userId: st
     protection_enabled: includeProtection === 'true',
     // set once Vercel confirms propagation (verify route); auto-config just points DNS
     dns_verified: false,
+    stripe_payment_intent_id: stripePaymentIntentId,
+    refund_reason: refundReason,
   })
 
   // If protection requested, create a recurring Stripe subscription
