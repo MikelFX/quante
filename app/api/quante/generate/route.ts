@@ -4,7 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, MODELS, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
-import { createVercelPreviewDeploy, ensureVercelProject } from '@/lib/hosting/vercel'
+import { createVercelPreviewDeploy, ensureVercelProject, summarizeDeploymentFailure } from '@/lib/hosting/vercel'
 import { buildStoreFiles } from '@/lib/store-template/build'
 import { getUserRecord } from '@/lib/tier'
 import { extractFileBlocks } from '@/lib/generation-checkpoint'
@@ -327,6 +327,11 @@ async function runGeneration(params: RunParams): Promise<void> {
 
     let deploymentId: string | null = null
     let previewUrl: string | null = null
+    // Structured summary of a deploy failure, if any — persisted to generation_jobs.deploy_error
+    // so the polling client (and future post-mortems via the dashboard) can see exactly why
+    // Vercel refused. Previously this catch just logged '(non-fatal)' and returned, which is
+    // how the 2026-08-18 stall bug still slipped through even after that day's cosmetic fix.
+    let deployError: string | null = null
 
     try {
       const { data: projectRow } = await supabaseAdmin
@@ -344,6 +349,7 @@ async function runGeneration(params: RunParams): Promise<void> {
       const result = await createVercelPreviewDeploy(
         vercelProjectId,
         allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
+        slug,
       )
       deploymentId = result.deploymentId
       previewUrl = result.url
@@ -361,18 +367,45 @@ async function runGeneration(params: RunParams): Promise<void> {
         code_version_id: version.id,
       })
     } catch (err) {
-      console.error('[generate:bg] preview deployment failed (non-fatal):', err)
+      // Log FULL detail (status, response body, SDK message) — not just err.message — so a
+      // silent Vercel 4xx/5xx that used to just say "(non-fatal)" is diagnosable from the
+      // server logs alone. summarizeDeploymentFailure() pulls the useful fields off Vercel
+      // SDK errors, fetch failures, and our own assertDeploymentResult throw.
+      const summary = summarizeDeploymentFailure(err)
+      console.error('[generate:bg] preview deployment failed:', {
+        ...summary,
+        stack: err instanceof Error ? err.stack : undefined,
+      })
+      const parts = [summary.message]
+      if (summary.status !== undefined) parts.push(`status=${summary.status}`)
+      if (summary.body !== undefined) {
+        try { parts.push(`body=${JSON.stringify(summary.body).slice(0, 400)}`) } catch { /* ignore */ }
+      }
+      deployError = parts.join(' | ').slice(0, 1000)
     }
 
-    await supabaseAdmin
+    // Note the job status: 'completed' even when the deploy failed, because the generated
+    // code IS saved (code_versions row exists) and the user can still iterate on it — the
+    // deploy is an orthogonal step that can retry. deploy_error carries the reason so the
+    // client can distinguish "success, subdomain live" from "success, but no preview yet".
+    // Defensive update: if the deploy_error column doesn't exist yet (migration not run),
+    // fall back to writing without it so the completion signal still lands.
+    const jobUpdate: Record<string, unknown> = {
+      status: 'completed',
+      phase: null,
+      deployment_id: deploymentId,
+      preview_url: previewUrl,
+      deploy_error: deployError,
+    }
+    const { error: jobUpdateError } = await supabaseAdmin
       .from('generation_jobs')
-      .update({
-        status: 'completed',
-        phase: null,
-        deployment_id: deploymentId,
-        preview_url: previewUrl,
-      })
+      .update(jobUpdate)
       .eq('id', jobId)
+    if (jobUpdateError) {
+      console.error('[generate:bg] generation_jobs completion update failed, retrying without deploy_error:', jobUpdateError)
+      delete jobUpdate.deploy_error
+      await supabaseAdmin.from('generation_jobs').update(jobUpdate).eq('id', jobId)
+    }
   } catch (err) {
     console.error('[generate:bg] job failed:', err)
     await failJob(err instanceof Error ? err.message : 'Generation failed unexpectedly.')

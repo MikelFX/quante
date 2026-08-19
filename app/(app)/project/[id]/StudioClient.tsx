@@ -350,6 +350,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [deployDomain, setDeployDomain] = useState<string | null>(null)
   const deployPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const previewBuildPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Top-level watchdog on the "Building…" preview flow. Started when startLogStreaming
+  // fires, cleared on any terminal event (ready / error / user retry). If it fires with
+  // neither having happened, we surface a retryable error to the user instead of leaving
+  // the checklist spinner up forever (root-cause fix for the 2026-08-18 stall bug).
+  const logStreamWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [logStreamStage, setLogStreamStage] = useState<'idle' | 'pushed' | 'building' | 'ready' | 'error' | 'timeout'>('idle')
   const [isSubscribing, setIsSubscribing] = useState(false)
   // Admin mode
   const [adminMode, setAdminMode] = useState(false)
@@ -772,9 +778,36 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       clearInterval(previewBuildPollRef.current)
       previewBuildPollRef.current = null
     }
+    if (logStreamWatchdogRef.current) {
+      clearTimeout(logStreamWatchdogRef.current)
+      logStreamWatchdogRef.current = null
+    }
     setDeployLogs([])
     setBuildError(null)
     setRightPanel('logs')
+    setLogStreamStage('pushed')
+
+    // Watchdog: if 6 minutes pass with no terminal ready/error/build_error event, force
+    // the UI out of the spinner state so the user isn't stuck staring at "Building…"
+    // forever (root-cause fix for the 2026-08-18 stall). Vercel builds usually complete
+    // in 1–3 minutes; 6 gives generous headroom without abandoning slow-but-alive builds.
+    logStreamWatchdogRef.current = setTimeout(() => {
+      logStreamWatchdogRef.current = null
+      if (logEventSourceRef.current) {
+        logEventSourceRef.current.close()
+        logEventSourceRef.current = null
+      }
+      if (previewBuildPollRef.current) {
+        clearInterval(previewBuildPollRef.current)
+        previewBuildPollRef.current = null
+      }
+      setLogStreamStage('timeout')
+      setBuildError({
+        filePath: 'store',
+        line: 0,
+        message: 'Preview build has not returned in 6 minutes. Vercel may have never registered this deployment. Regenerate or push to live to retry.',
+      })
+    }, 6 * 60 * 1000)
 
     let receivedAnyLog = false
 
@@ -787,12 +820,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
         if (data.type === 'build_error' && data.filePath) {
           setBuildError({ filePath: data.filePath, line: data.line ?? 0, message: data.message ?? data.text })
+          setLogStreamStage('error')
+          if (logStreamWatchdogRef.current) { clearTimeout(logStreamWatchdogRef.current); logStreamWatchdogRef.current = null }
           return
         }
 
         if (data.type === 'stream_end' || data.type === 'ready' || data.type === 'error') {
           es.close()
           logEventSourceRef.current = null
+          if (logStreamWatchdogRef.current) { clearTimeout(logStreamWatchdogRef.current); logStreamWatchdogRef.current = null }
+          if (data.state === 'ready' || data.type === 'ready') {
+            setLogStreamStage('ready')
+          } else if (data.state === 'error' || data.type === 'error') {
+            setLogStreamStage('error')
+          }
           if (data.state === 'ready' || data.type === 'ready') {
             // Always point the iframe at the canonical domain URL (not a raw vercel.app URL)
             if (storeUrl) {
@@ -830,6 +871,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
         if (data.text) {
           receivedAnyLog = true
+          setLogStreamStage((prev) => (prev === 'pushed' ? 'building' : prev))
           setDeployLogs((prev) => [...prev.slice(-500), { type: data.type, text: data.text, created: data.created }])
           logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
         }
@@ -845,6 +887,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         .then((d: { status?: string; url?: string; errorMessage?: string }) => {
           if (d.status === 'ready') {
             if (previewBuildPollRef.current) { clearInterval(previewBuildPollRef.current); previewBuildPollRef.current = null }
+            if (logStreamWatchdogRef.current) { clearTimeout(logStreamWatchdogRef.current); logStreamWatchdogRef.current = null }
+            setLogStreamStage('ready')
             const safeUrl = d.url && !d.url.includes('://null') ? resolveUrl(d.url) : (storeUrl ?? null)
             if (safeUrl) setPreviewUrl(safeUrl)
             setPreviewReady(true)
@@ -854,6 +898,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             }
           } else if (d.status === 'error' || d.status === 'canceled') {
             if (previewBuildPollRef.current) { clearInterval(previewBuildPollRef.current); previewBuildPollRef.current = null }
+            if (logStreamWatchdogRef.current) { clearTimeout(logStreamWatchdogRef.current); logStreamWatchdogRef.current = null }
+            setLogStreamStage('error')
             const msg = (d.errorMessage ?? 'Build failed — check Vercel logs.').slice(0, 800)
             const fileMatch = msg.match(/(?:\.\/)?([^:>\n\s'"]+\.(?:ts|tsx|js|jsx)):(\d+)/)
             setBuildError({
@@ -878,6 +924,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         if (Date.now() - pollStart > 5 * 60 * 1000) {
           clearInterval(previewBuildPollRef.current!)
           previewBuildPollRef.current = null
+          if (logStreamWatchdogRef.current) { clearTimeout(logStreamWatchdogRef.current); logStreamWatchdogRef.current = null }
+          setLogStreamStage('timeout')
+          setBuildError({
+            filePath: 'store',
+            line: 0,
+            message: 'Build is taking longer than expected (>5 min). Vercel may have never registered this deployment. Try regenerating or pushing again.',
+          })
           setMessages(prev => [...prev, {
             role: 'assistant',
             content: 'Build is taking longer than expected (>5 min). Check the Vercel dashboard, or try generating again.',
@@ -894,6 +947,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   useEffect(() => () => {
     logEventSourceRef.current?.close()
     if (previewBuildPollRef.current) clearInterval(previewBuildPollRef.current)
+    if (logStreamWatchdogRef.current) clearTimeout(logStreamWatchdogRef.current)
   }, [])
 
   // Auto-fix loop: trigger handleFix automatically when a build error is detected
@@ -943,14 +997,50 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     return () => { cancelled = true }
   }, [buildError, isFixing, autoFixAttempts]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl + versionId)
+  // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl + versionId).
+  //
+  // Fix (2026-08-18): this effect used to only wire up the preview URL and start log
+  // streaming — it never set hasGeneratedOnce/showPushToLive. Meanwhile handleSend()'s
+  // post-generation branch DOES set both. Net effect: users arriving via the /new
+  // redirect always sank into the `!previewReady` render branch (checklist spinner)
+  // instead of seeing the "Push to Live" card, and if the preview build never
+  // announced ready they were stuck forever. Mirror handleSend() here so the two
+  // entry points behave identically.
+  //
+  // Fix (2026-08-19): also handle the `de` (deploy error) param — set when generation
+  // succeeded but the follow-up preview deploy call was rejected by Vercel. Without an
+  // explicit signal, this path used to arrive with no `did`, no `pu`, no log stream —
+  // and the 6-min watchdog never even started because startLogStreaming() was skipped.
+  // The user was left with an empty preview panel and no explanation. Now the failure
+  // is surfaced immediately as `logStreamStage='error'` + a `buildError`, so the same
+  // "Rebuild preview" retry UI the SSE-error branch already renders kicks in on mount.
   useEffect(() => {
     const did = searchParams.get('did')
     const pu = searchParams.get('pu')
     const vid = searchParams.get('vid')
-    if (pu) setPreviewUrl(decodeURIComponent(pu))
+    const de = searchParams.get('de')
+    if (pu) {
+      setPreviewUrl(decodeURIComponent(pu))
+      setHasGeneratedOnce(true)
+      setShowPushToLive(true)
+      setPreviewReady(false)
+    }
     if (vid) lastPaidVersionIdRef.current = vid
-    if (did) startLogStreaming(did)
+    if (did) {
+      startLogStreaming(did)
+    } else if (de) {
+      // No deployment was ever created — go straight to the terminal "error" state so
+      // the checklist stops spinning and the "Rebuild preview" button appears.
+      setHasGeneratedOnce(true)
+      setShowPushToLive(true)
+      setPreviewReady(false)
+      setLogStreamStage('error')
+      setBuildError({
+        filePath: 'deploy',
+        line: 0,
+        message: `Preview deploy failed: ${decodeURIComponent(de)}`,
+      })
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function consumeStream(
@@ -4148,25 +4238,59 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             </div>
           </div>
         ) : !previewReady ? (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {([
-                { label: 'Store generated', done: true },
-                { label: 'Pushed to Vercel', done: true },
-                { label: 'Building…', done: false },
-              ] as { label: string; done: boolean }[]).map(({ label, done }) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {done ? (
-                    <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34c759', fontSize: 13, flexShrink: 0 }}>✓</span>
-                  ) : (
-                    <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
-                  )}
-                  <p style={{ fontSize: 12, color: done ? '#5b5b64' : '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{label}</p>
+          (() => {
+            // Real state, not hardcoded (fix 2026-08-18): drive each checklist step
+            // from actual client state so the UI can't lie about progress the way it
+            // used to when Vercel silently rejected the deployment.
+            const stage = logStreamStage
+            const isTimeout = stage === 'timeout' || stage === 'error'
+            const steps = [
+              { label: 'Store generated', done: hasGeneratedOnce, active: false },
+              { label: 'Pushed to Vercel', done: stage === 'building' || stage === 'ready', active: stage === 'pushed' },
+              { label: isTimeout ? 'Build failed' : 'Building…', done: stage === 'ready', active: stage === 'building', failed: isTimeout },
+            ] as { label: string; done: boolean; active: boolean; failed?: boolean }[]
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, padding: '0 24px', textAlign: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {steps.map(({ label, done, active, failed }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {failed ? (
+                        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff5c5c', fontSize: 13, flexShrink: 0 }}>×</span>
+                      ) : done ? (
+                        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34c759', fontSize: 13, flexShrink: 0 }}>✓</span>
+                      ) : active ? (
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', flexShrink: 0 }} />
+                      )}
+                      <p style={{ fontSize: 12, color: failed ? '#ff8080' : done ? '#5b5b64' : active ? '#f4f4f6' : '#3a3a44', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>Usually takes 1–2 minutes</p>
-          </div>
+                {isTimeout ? (
+                  <>
+                    <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, maxWidth: 320, lineHeight: 1.5 }}>
+                      {stage === 'timeout'
+                        ? 'The preview build never returned. This usually means Vercel didn’t register the deployment.'
+                        : 'The preview build failed. Chat with Quante to fix, or try again.'}
+                    </p>
+                    <button
+                      onClick={() => triggerRedeploy()}
+                      style={{
+                        marginTop: 4, fontSize: 12, fontWeight: 600, padding: '7px 16px',
+                        borderRadius: 7, border: '1px solid rgba(111,120,230,.3)',
+                        background: 'rgba(111,120,230,.08)', color: '#6f78e6', cursor: 'pointer',
+                      }}
+                    >
+                      ⟳ Rebuild preview
+                    </button>
+                  </>
+                ) : (
+                  <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>Usually takes 1–2 minutes</p>
+                )}
+              </div>
+            )
+          })()
         ) : previewDevice === 'desktop' ? (
           <iframe
             src={previewUrl}

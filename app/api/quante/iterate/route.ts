@@ -229,7 +229,7 @@ export async function POST(request: Request) {
       const filesPayload = allFiles.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' }))
       const result = isLive
         ? await createPreviewDeployment(vercelProjectId, filesPayload, slug)
-        : await createVercelPreviewDeploy(vercelProjectId, filesPayload)
+        : await createVercelPreviewDeploy(vercelProjectId, filesPayload, slug)
       deploymentId = result.deploymentId
       previewUrl = result.url
 

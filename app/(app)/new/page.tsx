@@ -62,16 +62,24 @@ function clearPending() {
 // Builds the /project/[id] redirect target used both by a fresh handleGenerate() completion
 // and by the resume banner's "Open finished store" button — same query-param contract
 // StudioClient.tsx's URL-bootstrap effect expects (did/vid/pu, see StudioClient.tsx).
+//
+// `deployError` (`de` query param): set when the follow-up preview deploy failed even
+// though the generation itself succeeded. Without this, StudioClient would fall into
+// the same "no did → no SSE → no watchdog → spinner forever" trap the earlier fix was
+// meant to close. With it, Studio can render the "build failed" state immediately on
+// mount instead of waiting for a stream that will never open.
 function buildProjectUrl(
   projectId: string,
   deploymentId: string | null,
   codeVersionId: string | null,
-  previewUrl: string | null
+  previewUrl: string | null,
+  deployError: string | null = null
 ): string {
   const params = new URLSearchParams()
   if (deploymentId) params.set('did', deploymentId)
   if (codeVersionId) params.set('vid', codeVersionId)
   if (previewUrl) params.set('pu', previewUrl)
+  if (deployError) params.set('de', deployError.slice(0, 500))
   const qs = params.toString()
   return `/project/${projectId}${qs ? `?${qs}` : ''}`
 }
@@ -115,6 +123,7 @@ export default function NewProjectPage() {
   const [resumeDeploymentId, setResumeDeploymentId] = useState<string | null>(null)
   const [resumeVersionId, setResumeVersionId] = useState<string | null>(null)
   const [resumePreviewUrl, setResumePreviewUrl] = useState<string | null>(null)
+  const [resumeDeployError, setResumeDeployError] = useState<string | null>(null)
 
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -200,6 +209,7 @@ export default function NewProjectPage() {
           setResumeDeploymentId(decision.deploymentId)
           setResumeVersionId(decision.codeVersionId)
           setResumePreviewUrl(payload.previewUrl)
+          setResumeDeployError(decision.deployError)
         } else if (decision.action === 'error') {
           setResumeError(decision.message)
         } else if (isJobStuck(createdAtMs, Date.now())) {
@@ -349,6 +359,7 @@ export default function NewProjectPage() {
     setResumeDeploymentId(null)
     setResumeVersionId(null)
     setResumePreviewUrl(null)
+    setResumeDeployError(null)
 
     const pendingStartedAt = Date.now()
     const trimmedBrief = brief.trim()
@@ -398,7 +409,7 @@ export default function NewProjectPage() {
       const decision = decidePollAction(payload)
       if (decision.action === 'navigate') {
         clearPending()
-        router.push(buildProjectUrl(decision.projectId, decision.deploymentId, decision.codeVersionId, payload.previewUrl))
+        router.push(buildProjectUrl(decision.projectId, decision.deploymentId, decision.codeVersionId, payload.previewUrl, decision.deployError))
         return
       }
       if (decision.action === 'error') {
@@ -587,7 +598,7 @@ export default function NewProjectPage() {
                 type="button"
                 onClick={() => {
                   clearPending()
-                  router.push(buildProjectUrl(resumeFoundProjectId, resumeDeploymentId, resumeVersionId, resumePreviewUrl))
+                  router.push(buildProjectUrl(resumeFoundProjectId, resumeDeploymentId, resumeVersionId, resumePreviewUrl, resumeDeployError))
                 }}
                 style={{
                   fontSize: 12, fontWeight: 600, color: '#fff', background: '#6f78e6',

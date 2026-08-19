@@ -28,14 +28,48 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient()
-  const { data: job, error } = await supabase
-    .from('generation_jobs')
-    .select('status, phase, raw_output, files, summary, error, project_id, deployment_id, preview_url, code_version_id')
-    .eq('id', jobId)
-    .maybeSingle()
+  // Two-step select: try with deploy_error first, fall back if the column doesn't exist
+  // (migration not yet applied on this environment). Same defensive pattern as the writer
+  // in /api/quante/generate/route.ts's generation_jobs completion update.
+  const baseColumns = 'status, phase, raw_output, files, summary, error, project_id, deployment_id, preview_url, code_version_id'
+  interface JobRow {
+    status: JobStatusPayload['status']
+    phase: JobStatusPayload['phase']
+    raw_output: string | null
+    files: Record<string, string> | null
+    summary: string | null
+    error: string | null
+    project_id: string | null
+    deployment_id: string | null
+    preview_url: string | null
+    code_version_id: string | null
+    deploy_error?: string | null
+  }
+  let job: JobRow | null = null
+  let queryError: unknown = null
 
-  if (error) {
-    console.error('[generate/status] query failed:', error)
+  {
+    const res = await supabase
+      .from('generation_jobs')
+      .select(`${baseColumns}, deploy_error`)
+      .eq('id', jobId)
+      .maybeSingle()
+    job = (res.data as unknown as JobRow | null) ?? null
+    queryError = res.error
+  }
+  if (queryError) {
+    console.warn('[generate/status] deploy_error column missing, retrying without:', queryError)
+    const res = await supabase
+      .from('generation_jobs')
+      .select(baseColumns)
+      .eq('id', jobId)
+      .maybeSingle()
+    job = (res.data as unknown as JobRow | null) ?? null
+    queryError = res.error
+  }
+
+  if (queryError) {
+    console.error('[generate/status] query failed:', queryError)
     return NextResponse.json({ error: 'Could not load generation status.' }, { status: 500 })
   }
   if (!job) {
@@ -53,6 +87,7 @@ export async function GET(request: Request) {
     deploymentId: job.deployment_id,
     previewUrl: job.preview_url,
     codeVersionId: job.code_version_id,
+    deployError: job.deploy_error ?? null,
   }
 
   return NextResponse.json(payload)

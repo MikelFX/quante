@@ -71,25 +71,107 @@ export async function setEnvVars(
 
 // ─── Deployments ──────────────────────────────────────────────────────────────
 
+// Vercel's `name` field in the deployment request body populates the deployment URL
+// slug. It expects a URL-safe project name (lowercase alphanumeric + hyphens) —
+// passing a `prj_xxxx` project ID here works only because `project` overrides it,
+// but if the SDK ever tightens validation, or a codepath forgets to set `project`,
+// the request silently 400s with no deployment row created (0 rows in Vercel
+// dashboard — the bug we chased on 2026-08-18). Normalize defensively.
+function toDeploymentName(candidate: string | undefined, fallback: string): string {
+  const raw = (candidate ?? fallback ?? 'store').toLowerCase()
+  const cleaned = raw.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '')
+  return cleaned.slice(0, 52) || 'store'
+}
+
+// Guardrail: the SDK's return type promises { id: string; url: string }, but we've seen
+// silent failures where the request was rejected upstream and something odd came back.
+// Validate before returning so a bad response surfaces immediately instead of stashing an
+// empty deploymentId in the DB and leaving the client polling forever.
+//
+// Also always dumps the raw response one-liner *before* validation — the 2026-08-18 fix
+// only logged on the throw path, which masked cases where Vercel returns a technically-valid
+// but subtly-shaped response (different casing, extra wrapper) that assertDeploymentResult
+// still accepts but downstream chokes on. Keep this permanent; it's a single JSON.stringify.
+function assertDeploymentResult(
+  result: unknown,
+  context: string,
+): { id: string; url: string } {
+  const asRecord = (result ?? {}) as { id?: unknown; url?: unknown; error?: unknown }
+  const rawPreview = JSON.stringify(asRecord).slice(0, 600)
+  console.log(`[vercel] ${context}: raw response`, rawPreview)
+  const id = typeof asRecord.id === 'string' && asRecord.id.length > 0 ? asRecord.id : null
+  const url = typeof asRecord.url === 'string' && asRecord.url.length > 0 ? asRecord.url : null
+  if (!id || !url) {
+    console.error(`[vercel] ${context}: invalid createDeployment response (missing id/url):`, rawPreview)
+    throw new Error(`Vercel returned an incomplete deployment response (${context}): ${rawPreview}`)
+  }
+  return { id, url }
+}
+
+// Best-effort: pull the useful bits off any thrown error (SDK VercelError, fetch failure,
+// zod validation). Keeps us from logging huge unhelpful stacks while still capturing what
+// Vercel actually said. Runs *before* we rethrow so the caller's own error handler still fires.
+// summarizeDeploymentFailure is exported so callers that need to persist the failure
+// somewhere durable (e.g. generation_jobs.deploy_error) get the same shape as the log line.
+export interface DeploymentFailureSummary {
+  message: string
+  status?: number | string
+  statusText?: string
+  body?: unknown
+}
+
+export function summarizeDeploymentFailure(err: unknown): DeploymentFailureSummary {
+  const asRecord = (err ?? {}) as {
+    message?: unknown
+    statusCode?: unknown
+    body?: unknown
+    rawResponse?: { status?: number; statusText?: string }
+    data$?: unknown
+    response?: { status?: number; statusText?: string }
+  }
+  return {
+    message: typeof asRecord.message === 'string' ? asRecord.message : String(err),
+    status:
+      (typeof asRecord.statusCode === 'number' || typeof asRecord.statusCode === 'string')
+        ? asRecord.statusCode
+        : asRecord.rawResponse?.status ?? asRecord.response?.status,
+    statusText: asRecord.rawResponse?.statusText ?? asRecord.response?.statusText,
+    body: asRecord.body ?? asRecord.data$,
+  }
+}
+
+function logDeploymentFailure(context: string, err: unknown, extra?: Record<string, unknown>): void {
+  const summary = summarizeDeploymentFailure(err)
+  console.error(`[vercel] ${context} failed:`, { ...summary, ...(extra ?? {}) })
+}
+
 export async function createDeployment(
   vercelProjectId: string,
   files: GeneratedFile[],
-  options: { target: 'production' },
+  options: { target: 'production'; projectSlug?: string },
 ): Promise<{ deploymentId: string; url: string }> {
-  const result = await vercel.deployments.createDeployment({
-    teamId: TEAM_ID,
-    requestBody: {
-      name: vercelProjectId,
-      project: vercelProjectId,
-      target: options.target,
-      files: files.map((f) => ({
-        file: f.path,
-        data: f.content,
-        encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
-      })),
-    },
-  })
-  return { deploymentId: result.id, url: result.url }
+  const deploymentName = toDeploymentName(options.projectSlug, vercelProjectId)
+  try {
+    const result = await vercel.deployments.createDeployment({
+      teamId: TEAM_ID,
+      requestBody: {
+        name: deploymentName,
+        project: vercelProjectId,
+        target: options.target,
+        files: files.map((f) => ({
+          file: f.path,
+          data: f.content,
+          encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+        })),
+      },
+    })
+    const { id, url } = assertDeploymentResult(result, 'createDeployment')
+    console.log('[vercel] createDeployment ok:', { id, url, project: vercelProjectId, name: deploymentName, target: options.target, files: files.length })
+    return { deploymentId: id, url }
+  } catch (err) {
+    logDeploymentFailure('createDeployment', err, { project: vercelProjectId, name: deploymentName, files: files.length })
+    throw err
+  }
 }
 
 // Auto-deploy (used by generate/iterate/fix/redeploy): production target so the store
@@ -100,21 +182,30 @@ export async function createPreviewDeployment(
   files: Array<{ path: string; data: string; encoding?: string }>,
   storeSlug?: string,
 ): Promise<{ deploymentId: string; url: string }> {
-  const result = await vercel.deployments.createDeployment({
-    teamId: TEAM_ID,
-    requestBody: {
-      name: vercelProjectId,
-      project: vercelProjectId,
-      target: 'production',
-      files: files.map((f) => ({
-        file: f.path,
-        data: f.data,
-        encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
-      })),
-    },
-  })
+  const deploymentName = toDeploymentName(storeSlug, vercelProjectId)
+  let result
+  try {
+    result = await vercel.deployments.createDeployment({
+      teamId: TEAM_ID,
+      requestBody: {
+        name: deploymentName,
+        project: vercelProjectId,
+        target: 'production',
+        files: files.map((f) => ({
+          file: f.path,
+          data: f.data,
+          encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+        })),
+      },
+    })
+  } catch (err) {
+    logDeploymentFailure('createPreviewDeployment', err, { project: vercelProjectId, name: deploymentName, files: files.length })
+    throw err
+  }
 
-  const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
+  const { id, url } = assertDeploymentResult(result, 'createPreviewDeployment')
+  const rawUrl = url.startsWith('https://') ? url : `https://${url}`
+  console.log('[vercel] createPreviewDeployment ok:', { id, url: rawUrl, project: vercelProjectId, name: deploymentName, storeSlug })
 
   // Attach subdomain and always use it as the canonical URL once the domain is on the project.
   // verified=false just means DNS isn't confirmed yet — Vercel will start routing as soon as it propagates.
@@ -129,32 +220,44 @@ export async function createPreviewDeployment(
       }
       // Domain is almost certainly already attached from a prior deploy — use domain URL regardless
     }
-    return { deploymentId: result.id, url: `https://${storeDomain}` }
+    return { deploymentId: id, url: `https://${storeDomain}` }
   }
 
-  return { deploymentId: result.id, url: rawUrl }
+  return { deploymentId: id, url: rawUrl }
 }
 
 // True Vercel preview (no target): unique URL per deploy, no subdomain.
-// Used for manual "Preview deploy" (2 credits) from the Studio.
+// Used for manual "Preview deploy" (2 credits) from the Studio and for
+// the free auto-validation deploy after generate/iterate/fix.
 export async function createVercelPreviewDeploy(
   vercelProjectId: string,
   files: Array<{ path: string; data: string; encoding?: string }>,
+  projectSlug?: string,
 ): Promise<{ deploymentId: string; url: string }> {
-  const result = await vercel.deployments.createDeployment({
-    teamId: TEAM_ID,
-    requestBody: {
-      name: vercelProjectId,
-      project: vercelProjectId,
-      files: files.map((f) => ({
-        file: f.path,
-        data: f.data,
-        encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
-      })),
-    },
-  })
-  const rawUrl = result.url.startsWith('https://') ? result.url : `https://${result.url}`
-  return { deploymentId: result.id, url: rawUrl }
+  const deploymentName = toDeploymentName(projectSlug, vercelProjectId)
+  let result
+  try {
+    result = await vercel.deployments.createDeployment({
+      teamId: TEAM_ID,
+      requestBody: {
+        name: deploymentName,
+        project: vercelProjectId,
+        files: files.map((f) => ({
+          file: f.path,
+          data: f.data,
+          encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+        })),
+      },
+    })
+  } catch (err) {
+    logDeploymentFailure('createVercelPreviewDeploy', err, { project: vercelProjectId, name: deploymentName, files: files.length })
+    throw err
+  }
+
+  const { id, url } = assertDeploymentResult(result, 'createVercelPreviewDeploy')
+  const rawUrl = url.startsWith('https://') ? url : `https://${url}`
+  console.log('[vercel] createVercelPreviewDeploy ok:', { id, url: rawUrl, project: vercelProjectId, name: deploymentName })
+  return { deploymentId: id, url: rawUrl }
 }
 
 export async function streamDeploymentLogs(

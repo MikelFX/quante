@@ -25,11 +25,23 @@ export interface JobStatusPayload {
   deploymentId: string | null
   previewUrl: string | null
   codeVersionId: string | null
+  // Distinct from `error`: `error` means generation itself failed (no code was saved).
+  // `deployError` means generation succeeded (code IS saved) but the follow-up preview
+  // deploy call was rejected by Vercel. The two failure modes need different UI — the
+  // former dumps the user back to /new; the latter navigates them to the Studio with
+  // an "unable to deploy" banner so they can iterate/retry without losing the code.
+  deployError: string | null
 }
 
 export type PollDecision =
   | { action: 'continue' }
-  | { action: 'navigate'; projectId: string; deploymentId: string | null; codeVersionId: string | null }
+  | {
+      action: 'navigate'
+      projectId: string
+      deploymentId: string | null
+      codeVersionId: string | null
+      deployError: string | null
+    }
   | { action: 'error'; message: string }
 
 /**
@@ -47,6 +59,7 @@ export function decidePollAction(payload: JobStatusPayload): PollDecision {
       projectId: payload.projectId,
       deploymentId: payload.deploymentId,
       codeVersionId: payload.codeVersionId,
+      deployError: payload.deployError,
     }
   }
   if (payload.status === 'failed') {

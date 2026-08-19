@@ -349,6 +349,50 @@ Starting a *new* generation while an old resume banner is showing clears the sta
 
 ---
 
+## 2026-08-18 — Real domain purchase: registrant data, refund-on-failure, /domains page, Studio fix
+
+**Context:** the domain-search/purchase feature first appeared back in the 2026-06-24–06-29 entry above, and by this session had grown a real, working-looking surface — `lib/namecheap.ts` (Namecheap Reseller API client: check availability, register, DNS auto-config), a Stripe Checkout purchase flow, and a webhook handler that registers the domain after payment. A user screenshot of the live "Hosting & domains" landing section triggered a closer look, which surfaced that none of it was actually safe to use for a real purchase:
+
+1. `registerDomain()` sent a single **fixed WHOIS registrant** read from `DOMAIN_REGISTRANT_*` env vars — and in production `.env.local`, the address/city/state/zip/phone fields were empty. Real registrars reject registrations with incomplete WHOIS contact data on most TLDs, so a real purchase would very likely charge the customer via Stripe (charged immediately, `mode: 'payment'`) and then silently fail to register the domain.
+2. **No refund path existed** for that failure — `handleDomainPurchase()` caught the registration error, logged it, set `status: 'failed'`, and moved on. The customer would be out the money with no domain and no automatic refund.
+3. The public `/domains` marketing page rendered a **hardcoded example table** (`TLD_EXAMPLES`) with a "Buy" button that had no `onClick` handler at all — looked live, did nothing.
+4. **Found mid-session, not previously known:** the Studio's Publish panel (`StudioClient.tsx`) already had a fully wired, *live* "Buy a domain" search+buy UI calling `/api/domains/purchase` directly with no registrant form whatsoever — the same silent-failure risk as #1/#2, just reachable from inside the app instead of the marketing site.
+
+User approved fixing all of this for real (not deferring to roadmap), with an explicit safety-first sequencing: registrant data design approved before implementation, sandbox-only testing (never against live Namecheap/Stripe), refund-on-failure as the first implementation priority, then `/domains` wiring, then confirm the Studio flow.
+
+**Schema/type layer — `lib/domain-registrant.ts` (new)**: `DomainRegistrant` type + `validateRegistrant(registrant, domain)` — required-field checks, Namecheap's `+CC.NNNNNNNNNN` phone format, and a `.eu` → EU/EEA-country-only eligibility gate (real EU regulation: `.eu` registrants must be an EU/EEA citizen, resident, or organisation). Kept dependency-free (no Namecheap API calls, no secrets) specifically so it's safe to import from both server code and a `'use client'` form component — `lib/namecheap.ts` stays `// Server-only`, and now imports its types/validation from here instead of duplicating them.
+
+**`lib/namecheap.ts`:** `registerDomain(domain, registrant, years)` now *requires* a `DomainRegistrant` argument (parameter order changed so the required arg precedes the defaulted `years` — TS doesn't allow the reverse) and re-validates it internally before ever calling the Namecheap API, even though callers are also expected to validate first — defense in depth. The old `registrantContact()` env-var fallback is gone entirely; there is no path left that registers a domain with fixed/fake company data.
+
+**New migration — `supabase/migration-domain-registrant.sql` (file only, NOT run):** `pending_domain_purchases` (registrant PII collected + validated in the purchase route *before* the Stripe charge, referenced by id in the Checkout session's metadata rather than stuffing PII directly into Stripe metadata — cleaner, no Stripe-side size limits, doesn't linger in the Stripe dashboard); `user_domains` gains `stripe_payment_intent_id` + `refund_reason` for the new refund path (new status value `failed_refunded` alongside the existing `pending/active/failed/expired`).
+
+**`app/api/domains/purchase/route.ts`:** now accepts a `registrant` object in the request body, validates it server-side via `validateRegistrant()` *before* creating the Stripe Checkout session (so nobody is ever charged for a purchase already known to be invalid), stores it in `pending_domain_purchases`, and passes that row's id through as `pendingPurchaseId` in the session metadata.
+
+**`app/api/stripe/webhook/route.ts` (`handleDomainPurchase`):** loads the registrant contact back from `pending_domain_purchases` via `pendingPurchaseId`, passes it into `registerDomain()`. **Refund-on-failure (the explicit first priority):** if registration fails after payment succeeded — or the pending-purchase row is missing entirely, an edge case treated as a hard failure rather than falling back to anything fake — the webhook now calls `stripe.refunds.create()` against the session's `payment_intent` automatically, sets `status: 'failed_refunded'`, and records why in `refund_reason`. If the refund call itself also fails, that's logged loudly (`console.error`, unmissable) rather than silently swallowed, since it now needs a human to issue the refund manually from the Stripe dashboard — the one failure mode that genuinely can't be self-healed from inside a webhook handler.
+
+**New shared component — `components/public/DomainRegistrantForm.tsx`:** the registrant contact form (first/last name, address, city, state/postal code, country dropdown, phone, email), light/dark themed via a prop, client-side validation mirroring `validateRegistrant()` for instant feedback (server-side stays the real gate). Used by both consumers below.
+
+**`app/(marketing)/domains/page.tsx`:** `TLD_EXAMPLES` replaced with a real `fetch('/api/domains/search?q=...')`; "Buy" now opens `DomainRegistrantForm` in a modal, then posts to `/api/domains/purchase` with the collected registrant and redirects to Stripe Checkout on success. A 401 from either endpoint (anonymous visitor) shows a "Sign up to search and buy domains" prompt instead of failing silently.
+
+**`app/(app)/project/[id]/StudioClient.tsx`:** the pre-existing live "Buy" button (`handleDomainBuy`) no longer calls `/api/domains/purchase` directly — it now opens the same `DomainRegistrantForm` (dark theme) in a modal first, and only the confirm step (`handleConfirmDomainPurchase`) hits the purchase endpoint. This closes the exact same charged-but-unregistered risk described in point 4 above, reusing the marketing-site form rather than building separate Studio-only UI.
+
+**`components/public/PublicNav.tsx`:** a `/domains` link was added to the nav array **on disk, but this file was deliberately excluded from the git commit** — it imports `LiquidGlassDefs.tsx`, part of a much larger, separate, still-uncommitted marketing-site redesign (light/glass theme, see the 2026-07 and later entries' surrounding git-status notes) that predates and is unrelated to this work. Including it would have pulled that whole redesign's dependency chain into a commit meant to be scoped strictly to domain purchases. The nav link still exists on disk and will ship the next time that redesign is deployed via `vercel --prod` (which deploys the local directory as-is, independent of git history) — see the git-state note below for why a git-triggered deploy and a CLI deploy currently diverge in this repo.
+
+**Verification:** `tsc --noEmit` clean across the whole project. `eslint` clean on every new/changed file in this scope (`lib/namecheap.ts`, `lib/domain-registrant.ts`, both API routes, `domains/page.tsx`, `DomainRegistrantForm.tsx`) — `StudioClient.tsx` has several pre-existing, unrelated lint findings elsewhere in that file (documented in earlier entries), none touched by or introduced by this change. New `__tests__/domain-registrant.test.mjs` (`npm run test:domain-registrant`), 10/10 passing — required-field gaps, whitespace-only fields, phone format (valid/invalid), country-code format, `.eu` EU/EEA eligibility (both directions, case-insensitivity), and non-`.eu` TLDs correctly skipping that check.
+
+**NOT done — explicitly, and known to still be outstanding:**
+- **No sandbox/test-mode run.** This sandbox has no Namecheap sandbox account and no Stripe test-mode keys, so the actual purchase → registration → refund flow has only been reviewed and unit-tested (the pure validation logic), never executed end-to-end. Recommended before relying on it: a `.com` happy path, a `.eu` purchase with a non-EU address (should be rejected pre-charge), and an artificially-forced registration failure (to confirm the refund actually fires).
+- **`migration-domain-registrant.sql` has not been run against production** — without it, the first real purchase attempt will fail on the missing `pending_domain_purchases` table / `user_domains` columns.
+- Production `.env.local` was not touched — `NAMECHEAP_SANDBOX` stays `false`, real credentials untouched.
+
+**Git stav — nestandardní, zaznamenáno přesně:** práce byla commitnutá jako `803074b` ("feat: real domain purchase — registrant data, refund-on-failure, /domains page"), scoped přesně na soubory vyjmenované výše (žádné z rozpracovaných, dlouhodobě necommitnutých redesign souborů zmíněných jinde v tomto dokumentu). **Push na `origin/main` ale zatím nedorazil** — `git fetch origin main` opakovaně potvrzuje `origin/main` pořád na `79df206` (stejný commit jako před touto session), `803074b` existuje jen lokálně (`git merge-base --is-ancestor 803074b origin/main` → NO). Uživatelův vlastní pokus o `git push origin main` ze svého stroje zatím evidentně taky nedorazil na GitHub — řeší se to teď společně, mimo tenhle dokument. **Žádný production deploy tedy neproběhl a nemohl proběhnout** — bez commitu na `origin/main` nemá git-triggered Vercel build co nasadit, a `vercel --prod` z disku by nasadilo i celý ten starší necommitnutý redesign navrch (viz `PublicNav.tsx` poznámka výše), což zatím nebylo schváleno k nasazení.
+
+**Files:** new — `lib/domain-registrant.ts`, `components/public/DomainRegistrantForm.tsx`, `supabase/migration-domain-registrant.sql`, `__tests__/domain-registrant.test.mjs`. Modified — `lib/namecheap.ts`, `app/api/domains/purchase/route.ts`, `app/api/stripe/webhook/route.ts`, `app/(marketing)/domains/page.tsx`, `app/(app)/project/[id]/StudioClient.tsx`, `package.json` (`test:domain-registrant` script). On disk but NOT in this commit — `components/public/PublicNav.tsx` (see note above).
+
+**To activate, in this order:** (1) resolve the `git push` failure and confirm `803074b` actually lands on `origin/main`; (2) run `supabase/migration-domain-registrant.sql` against production; (3) confirm/trigger a Vercel deploy and verify it actually built (Settings → Git connection + Production Branch, Deployments tab) rather than assuming push = deploy; (4) do at least the sandbox smoke tests listed above before treating a real customer purchase as safe.
+
+---
+
 # NÁPADY / BUDOUCÍ UPDATY — zatím jen návrh, žádný kód
 
 **Toto NENÍ dokončená práce.** Vše níže je jen zápis nápadů z brainstormingu (2026-08-08) pro případnou budoucí realizaci — nic z toho nebylo implementováno, otestováno ani jakkoliv promítnuto do kódu v tomto repu. Žádná z položek nemá odpovídající soubor, migraci ani API. Slouží čistě jako poznámka do budoucna, aby se nápady neztratily.
@@ -366,3 +410,68 @@ Starting a *new* generation while an old resume banner is showing clears the sta
 6. **UI pro partner program a marketplace** — dnes (viz Feature 2 a Feature 3 výše) existuje jen API a databázová vrstva, chybí obrazovky pro: registraci partnera, přehled partnerských provizí, publikování marketplace nabídky, a admin frontu pro schvalování partnerů/nabídek (dnes jen voláním API).
 
 7. **Skutečné platby pro partner program a marketplace** — Stripe Connect napojení na reálné výplaty partnerům a prodejcům na marketplace, a Stripe Checkout pro skutečné vybírání platby při nákupu na marketplace. Bez tohoto kroku Partner program a Marketplace zůstávají jen výpočetní/evidenční infrastruktura (viz Features 2 a 3 výše — žádné skutečné peníze se dnes nikam nepřevádí).
+
+---
+
+## 2026-08-18 — Fix: "Building…" preview stall (deployment never reaches Vercel)
+
+**Bug (reproducible 2/2 test generations).** After AI store generation and "Push to Vercel", the Studio hung forever on the "Building…" checklist step, no matter how long you waited. In the Vercel dashboard, the two affected projects (`bramble-page`, `kolo-coffee`) both showed a live *project* row but a completely empty *Deployments* list — 0 successful, 0 failed, 0 canceled. So the failure was upstream of the Vercel build: the deployment record was never actually created (or the request was rejected somewhere silent enough that nothing was logged on either side), and neither our server nor our client had any code path that would notice.
+
+**Root causes (three, all needed to reproduce).**
+
+1. **`lib/hosting/vercel.ts` — deploy calls with no defensive validation and a suspicious request body.** `createDeployment` / `createPreviewDeployment` / `createVercelPreviewDeploy` all sent `name: vercelProjectId` alongside `project: vercelProjectId` — passing the raw `prj_xxxx` project ID into a field that Vercel documents as "project name used in the deployment URL" (i.e. it expects a URL-safe slug). Response was consumed as `result.id` / `result.url` with no shape check. If Vercel ever silently rejected or reshaped the response, we happily persisted an empty `deploymentId` into `deployments` and left the client polling a nonexistent record.
+
+2. **`app/api/deploy/logs/route.ts` — SSE polling loop crashed the whole stream on a single 404.** When the SSE `streamDeploymentLogs()` call threw (which it does for a 404 — expected when Vercel never registered the deployment), the fallback poll on lines ~130–150 called `getDeploymentStatus(deploymentId)` with no try/catch. The 404 exception unwound out of the `start(controller)` ReadableStream executor without ever hitting `controller.close()` or sending a final SSE frame. From the client's perspective the stream stayed "open" but silent: `EventSource.onerror` doesn't fire on a stalled-but-alive connection, so the client watched an empty pipe forever.
+
+3. **`StudioClient.tsx` — bootstrap effect, hardcoded checklist, no client-side watchdog.** The `/new`-redirect bootstrap effect (~line 946) only set `previewUrl` and started log streaming — it never touched `showPushToLive` / `hasGeneratedOnce`, unlike the chat `handleSend()` flow which does. Every `/new` user therefore fell into the `!previewReady` render branch, which showed a checklist with `done` values hardcoded to `[true, true, false]` — cheerful ✓ marks for stages that hadn't necessarily happened, and a spinner on "Building…" with nothing to ever un-spin it. And there was no client-level timeout: the only escape hatches were `EventSource.onerror` (which the silent stream never triggers) and the fallback poll inside `onerror` (which therefore also never runs).
+
+**Fixes.**
+
+- `lib/hosting/vercel.ts` — added `toDeploymentName()` normalizer (lowercase, `[^a-z0-9-]` → `-`, capped at 52 chars, prefers an explicit slug over the `prj_` ID), `assertDeploymentResult()` that validates `id` + `url` are non-empty strings before returning, and `logDeploymentFailure()` that logs status/body from thrown SDK errors instead of dropping them. All three deploy functions now accept an optional `projectSlug` and log success (id/url/name/target/file count) so the next time this happens we can see exactly what Vercel returned.
+- `app/api/deploy/route.ts`, `app/api/quante/generate/route.ts`, `app/api/quante/iterate/route.ts`, `app/api/quante/fix/route.ts` — pass the derived `slug` into the deploy call so `name` is a real deployment slug, not a `prj_` ID.
+- `app/api/deploy/logs/route.ts` — wrapped the `getDeploymentStatus()` and `getBuildError()` calls inside the polling fallback in their own try/catch. Consecutive 404s (Vercel is briefly eventually-consistent right after `createDeployment`) are tolerated for 2 attempts; the 3rd triggers an explicit `build_error` + `stream_end` SSE frame with a helpful message ("Vercel never registered this deployment"). The 5-minute overall timeout now also sends `stream_end` before closing, so the client always gets a terminal event.
+- `app/(app)/project/[id]/StudioClient.tsx`:
+  - Added `logStreamStage` state (`idle | pushed | building | ready | error | timeout`) driven by the actual events on the SSE stream.
+  - Added a 6-minute top-level watchdog (`logStreamWatchdogRef`) that fires if no terminal event arrives. On fire it closes the ES, clears the poll, sets `buildError` with a retry-suggesting message, and flips `logStreamStage` to `timeout`.
+  - Bootstrap effect (`/new` redirect) now mirrors the `handleSend()` post-generation branch — sets `hasGeneratedOnce`, `showPushToLive`, `previewReady=false` — so both entry points end up in the same UI state.
+  - Replaced the hardcoded checklist `[true, true, false]` with values derived from `hasGeneratedOnce` + `logStreamStage`. On timeout/error the third step flips to "Build failed" (red ×) and a "Rebuild preview" retry button appears instead of the eternal spinner.
+
+**Verification.** `npx tsc --noEmit` clean. Manual runtime verification (fresh generation → deploy → observe checklist advances stage-by-stage; then a simulated 404 by using a fake deployment ID → observe explicit `build_error` + retry button within 30s instead of eternal spinner) is the next step before this ships, per the "test on sandbox, not prod with real credits" guardrail in the fix brief.
+
+**Files touched:** `lib/hosting/vercel.ts`, `app/api/deploy/route.ts`, `app/api/deploy/logs/route.ts`, `app/api/quante/generate/route.ts`, `app/api/quante/iterate/route.ts`, `app/api/quante/fix/route.ts`, `app/(app)/project/[id]/StudioClient.tsx`.
+
+---
+
+## 2026-08-19 — Fix: preview deploy failure was still silently swallowed
+
+**Follow-up to 2026-08-18.** After the previous day's watchdog/checklist work, a third verification run ("Ember & Oak", following "Kolo Coffee" and "Bramble & Page") reproduced the same "spinner forever" symptom. The Vercel Deployments dashboard again showed 0 rows for the newly-created project even with all 7 status filters on. So the cosmetic layer had improved — the checklist read real state, and a client-side timeout existed — but the actual root cause was still hidden.
+
+**Actual root cause.** `app/api/quante/generate/route.ts` (~lines 331–365) wrapped `createVercelPreviewDeploy()` in a `try/catch` that logged `'preview deployment failed (non-fatal):'` and returned. `deploymentId` and `previewUrl` stayed `null`, but the job row was still marked `status: 'completed'`. Downstream:
+
+- `app/(app)/new/page.tsx`'s `buildProjectUrl()` only appended `did=` when `deploymentId` was truthy, so a failed deploy meant no `did` parameter reached the redirect URL at all.
+- `StudioClient.tsx`'s bootstrap effect only called `startLogStreaming(did)` when `did` was present. No SSE opened, therefore the 6-minute watchdog from the 2026-08-18 fix — which lives inside `startLogStreaming` — never armed. The checklist stayed on the "Building…" step with nothing that could ever advance it.
+- `previewUrl` in the Studio was set optimistically from the `storeUrl` prop, not from actual deployment success, so the URL bar could look plausible while nothing had ever been deployed.
+
+**Fixes.**
+
+- `lib/hosting/vercel.ts` — extracted a new `summarizeDeploymentFailure(err)` helper (public export) that pulls `.message`, `.statusCode`/`.rawResponse.status`, and `.body`/`.data$` off any thrown Vercel SDK error, fetch failure, or `assertDeploymentResult` throw. `logDeploymentFailure` now delegates to it. Also moved the raw response `JSON.stringify` from `assertDeploymentResult`'s throw branch to *before* validation — so cases where Vercel returns a technically-valid but subtly-shaped response are still visible in server logs, not just outright failures.
+- `app/api/quante/generate/route.ts` — the previously-silent catch now:
+  1. Logs full `summarizeDeploymentFailure()` output plus the error stack (not just `err.message`).
+  2. Persists the failure summary (`message | status=N | body=...`, truncated to 1000 chars) to a new `generation_jobs.deploy_error` column, so a post-mortem doesn't require Vercel Functions log access — the failure reason is queryable directly from Supabase.
+  3. Falls back to a completion update without `deploy_error` if the column doesn't exist yet (migration not yet applied) so the job still completes cleanly.
+- `supabase/migration-generation-jobs-deploy-error.sql` — new file, `ALTER TABLE generation_jobs ADD COLUMN IF NOT EXISTS deploy_error text`. Idempotent and additive; skipping it degrades cleanly (see fallback above).
+- `lib/generation-poll.ts` — added `deployError: string | null` to `JobStatusPayload`, and to the `navigate` variant of `PollDecision`, so the client can thread the failure reason all the way from the DB into the redirect URL.
+- `app/api/quante/generate/status/route.ts` — selects `deploy_error` (retries without it on schema error), returns it as `payload.deployError`.
+- `app/(app)/new/page.tsx` — `buildProjectUrl()` gained an optional `deployError` argument that sets a new `de=<msg>` query param when present. Both the freshly-completed-poll path and the resume-banner "Open finished store" button pass it through. Added `resumeDeployError` state to hold the value between the poll finishing and the button click.
+- `app/(app)/project/[id]/StudioClient.tsx` — bootstrap effect now handles the `de` param: when present without a `did`, immediately sets `logStreamStage='error'` and `buildError` with the failure message, which triggers the same "Rebuild preview" retry UI the SSE-error path already renders. No spinner-forever state is reachable via this route anymore.
+
+**Verification.** `npx tsc --noEmit` clean across all changed files. `eslint` on the touched files reports only pre-existing warnings (unused imports, `set-state-in-effect` findings on lines untouched by this fix). Test-store generation was NOT re-run against production Vercel from this sandbox — the actual Vercel error string, and confirmation that a live subdomain now spins up end-to-end, is still pending until the maintainer runs one more test generation with these changes deployed. This is the piece the fix brief called out: previous rounds have made the *client* survive the failure better, but this round is the first one where the *server logs and the DB row* will contain the concrete reason Vercel refused, so the next test run should finally answer "why". If the reason turns out to be one of the suspects the brief listed (token scope, `name`/`project` shape, missing required field, plan tier), fixing it is a one-line change from there.
+
+**Files touched:** `lib/hosting/vercel.ts`, `app/api/quante/generate/route.ts`, `app/api/quante/generate/status/route.ts`, `lib/generation-poll.ts`, `app/(app)/new/page.tsx`, `app/(app)/project/[id]/StudioClient.tsx`. New: `supabase/migration-generation-jobs-deploy-error.sql`.
+
+**Activation checklist:**
+1. Run `supabase/migration-generation-jobs-deploy-error.sql` against production Supabase — optional but recommended (without it, the writer falls back cleanly, so the client just never sees the specific failure reason; SSR log inspection remains the fallback).
+2. Deploy the app change (Vercel).
+3. Generate a fresh test store. Two possible outcomes:
+   - Deploy succeeds → the earlier bug is dead, verified. Ship.
+   - Deploy still fails → Studio now shows the reason inline instead of hanging. Fix the specific cause (visible in the URL's `de=` param, in `generation_jobs.deploy_error`, and in Vercel Functions logs under `[generate:bg] preview deployment failed`).

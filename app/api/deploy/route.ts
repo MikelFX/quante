@@ -85,6 +85,7 @@ export async function POST(request: Request) {
       const r = await createVercelPreviewDeploy(
         vercelProjectId,
         files.map((f) => ({ path: f.path, data: f.content, encoding: f.encoding ?? 'utf-8' })),
+        slug,
       )
       deploymentId = r.deploymentId
       previewUrl = r.url
@@ -257,7 +258,7 @@ export async function POST(request: Request) {
   let deploymentId: string
   let vercelUrl: string
   try {
-    const result = await createDeployment(vercelProjectId, files, { target: 'production' })
+    const result = await createDeployment(vercelProjectId, files, { target: 'production', projectSlug: slug })
     deploymentId = result.deploymentId
     vercelUrl = result.url
   } catch (err) {

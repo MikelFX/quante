@@ -126,11 +126,41 @@ export async function GET(request: Request) {
           const MAX_POLLS = 30
           const POLL_INTERVAL = 10_000
           let resolved = false
+          let consecutive404s = 0
 
           for (let i = 0; i < MAX_POLLS; i++) {
             await new Promise(r => setTimeout(r, POLL_INTERVAL))
 
-            const status = await getDeploymentStatus(deploymentId)
+            let status
+            try {
+              status = await getDeploymentStatus(deploymentId)
+            } catch (pollErr) {
+              // Root cause of the eternal "Building…" bug (2026-08-18): without this
+              // try/catch, a 404 from Vercel (deployment record never actually created,
+              // or purged) would bubble out of start(), leaving the SSE stream neither
+              // closed nor terminated. The client saw silence forever. Now we tolerate
+              // a couple of 404s (Vercel is briefly eventually-consistent right after
+              // createDeployment), then surface an explicit error to the client and
+              // close the stream cleanly so the retry UI can appear.
+              const msg = String((pollErr as { message?: unknown })?.message ?? pollErr)
+              const is404 = msg.includes('404') || msg.toLowerCase().includes('not found')
+              if (is404) consecutive404s += 1
+              console.warn(`[deploy/logs] getDeploymentStatus poll failed (attempt ${i + 1}/${MAX_POLLS}, 404s=${consecutive404s}):`, msg)
+
+              if (is404 && consecutive404s >= 3) {
+                sendEvent({
+                  type: 'build_error',
+                  filePath: 'store',
+                  line: 0,
+                  message: 'Vercel never registered this deployment. This usually means the file upload was rejected upstream. Try redeploying.',
+                })
+                sendEvent({ type: 'stream_end', state: 'error' })
+                terminalEventEmitted = true
+                resolved = true
+                break
+              }
+              continue
+            }
 
             if (status.state === 'ready') {
               sendEvent({ type: 'stream_end', state: 'ready' })
@@ -140,7 +170,10 @@ export async function GET(request: Request) {
             }
 
             if (status.state === 'error') {
-              const errorText = await getBuildError(deploymentId)
+              let errorText = 'Build failed — check Vercel dashboard for details.'
+              try { errorText = await getBuildError(deploymentId) } catch (buildErr) {
+                console.warn('[deploy/logs] getBuildError failed:', buildErr)
+              }
               sendEvent({ type: 'build_error', message: errorText })
               sendEvent({ type: 'stream_end', state: 'error' })
               terminalEventEmitted = true
@@ -151,6 +184,8 @@ export async function GET(request: Request) {
 
           if (!resolved) {
             sendEvent({ type: 'stream_error', message: 'Build timed out after 5 minutes.' })
+            sendEvent({ type: 'stream_end', state: 'error' })
+            terminalEventEmitted = true
           }
         }
 
