@@ -1,8 +1,6 @@
 // Server-only. Never import this module in client code.
-import { Vercel } from '@vercel/sdk'
 import type { GeneratedFile } from '@/lib/store-template/build'
 
-const vercel = new Vercel({ bearerToken: process.env.VERCEL_TOKEN! })
 const TEAM_ID = process.env.VERCEL_TEAM_ID!
 export const HOSTING_ROOT_DOMAIN = process.env.HOSTING_ROOT_DOMAIN ?? 'stores.quantecode.com'
 
@@ -13,36 +11,111 @@ export interface DeploymentStatus {
   url?: string
 }
 
+// ─── Raw Vercel REST client (2026-08-19 fix) ───────────────────────────────────
+//
+// Why this exists instead of @vercel/sdk: the SDK (^1.21.9) parses every response
+// through a generated Zod schema before returning it. On 2026-08-19 we found that
+// `vercel.projects.getProjects()` / `createProject()` were throwing "Response
+// validation failed | status=200 | body={...valid Project object...}" — Vercel's
+// API was returning a perfectly good 200 with a real project (confirmed: the
+// project always existed in the Vercel dashboard), but the SDK's bundled schema
+// doesn't recognize some field Vercel now returns (the truncated error body cut
+// off inside `deploymentExpiration`, strongly suggesting a new/renamed field
+// there). Because that throw happened *before* any deployment was ever created,
+// every single test store in this debugging session got a real Vercel project
+// and zero Vercel deployments — the Studio's "Preparing deployment" step then
+// hung forever with nothing to poll.
+//
+// Fix: talk to api.vercel.com directly, exactly like streamDeploymentLogs() and
+// getBuildError() already did further down this file. We only read the 2-3
+// fields we actually use from each response, so there is no schema to drift out
+// of sync with Vercel's API in the first place.
+async function vercelApiFetch<T>(
+  path: string,
+  options: { method?: string; body?: unknown; query?: Record<string, string | undefined> } = {},
+): Promise<T> {
+  const token = process.env.VERCEL_TOKEN
+
+  const params = new URLSearchParams()
+  if (TEAM_ID) params.set('teamId', TEAM_ID)
+  for (const [key, value] of Object.entries(options.query ?? {})) {
+    if (value !== undefined) params.set(key, value)
+  }
+  const qs = params.toString()
+  const url = `https://api.vercel.com${path}${qs ? `?${qs}` : ''}`
+
+  const res = await fetch(url, {
+    method: options.method ?? 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  })
+
+  const text = await res.text()
+  let json: unknown
+  if (text) {
+    try {
+      json = JSON.parse(text)
+    } catch {
+      json = text
+    }
+  }
+
+  if (!res.ok) {
+    const errBody = json as { error?: { message?: string; code?: string } } | undefined
+    const message = errBody?.error?.message ?? res.statusText ?? `Vercel API request failed`
+    // Deliberately embed the status code in the message text (not just the .statusCode
+    // field) — callers upstream (e.g. createPreviewDeployment's attachDomain catch) do
+    // string-matching like `String(err).includes('409')` to detect "already attached"
+    // conflicts, and that check must keep working after this rewrite.
+    const err = new Error(`Vercel API ${res.status} ${path}: ${message}`) as Error & {
+      statusCode?: number
+      body?: unknown
+      rawResponse?: { status: number; statusText: string }
+    }
+    err.statusCode = res.status
+    err.body = json
+    err.rawResponse = { status: res.status, statusText: res.statusText }
+    throw err
+  }
+
+  return json as T
+}
+
 // ─── Project ──────────────────────────────────────────────────────────────────
+
+function extractProjectsList(res: unknown): Array<{ id: string; name: string }> {
+  if (Array.isArray(res)) return res as Array<{ id: string; name: string }>
+  if (res && typeof res === 'object' && 'projects' in res) {
+    return (res as { projects?: Array<{ id: string; name: string }> }).projects ?? []
+  }
+  return []
+}
 
 export async function ensureVercelProject(
   projectSlug: string,
 ): Promise<{ vercelProjectId: string }> {
-  const res = await vercel.projects.getProjects({
-    search: projectSlug,
-    teamId: TEAM_ID,
-    limit: '1',
+  const res = await vercelApiFetch<unknown>('/v10/projects', {
+    query: { search: projectSlug, limit: '1' },
   })
 
-  // SDK returns a union — defensively handle all variants
-  const rawProjects: Array<{ id: string; name: string }> = Array.isArray(res)
-    ? (res as Array<{ id: string; name: string }>)
-    : 'projects' in (res as object)
-      ? ((res as { projects: Array<{ id: string; name: string }> }).projects ?? [])
-      : []
-
+  const rawProjects = extractProjectsList(res)
   const existing = rawProjects.find((p) => p.name === projectSlug)
   if (existing) return { vercelProjectId: existing.id }
 
-  const created = await vercel.projects.createProject({
-    teamId: TEAM_ID,
-    requestBody: { name: projectSlug, framework: 'nextjs' },
+  const created = await vercelApiFetch<{ id: string }>('/v11/projects', {
+    method: 'POST',
+    body: { name: projectSlug, framework: 'nextjs' },
   })
   return { vercelProjectId: created.id }
 }
 
 export async function removeProject(vercelProjectId: string): Promise<void> {
-  await vercel.projects.deleteProject({ idOrName: vercelProjectId, teamId: TEAM_ID })
+  await vercelApiFetch(`/v9/projects/${encodeURIComponent(vercelProjectId)}`, {
+    method: 'DELETE',
+  })
 }
 
 // ─── Env vars ─────────────────────────────────────────────────────────────────
@@ -61,11 +134,10 @@ export async function setEnvVars(
     target: ['production' as const],
   }))
 
-  await vercel.projects.createProjectEnv({
-    idOrName: vercelProjectId,
-    teamId: TEAM_ID,
-    upsert: 'true',
-    requestBody: envs,
+  await vercelApiFetch(`/v10/projects/${encodeURIComponent(vercelProjectId)}/env`, {
+    method: 'POST',
+    query: { upsert: 'true' },
+    body: envs,
   })
 }
 
@@ -83,8 +155,8 @@ function toDeploymentName(candidate: string | undefined, fallback: string): stri
   return cleaned.slice(0, 52) || 'store'
 }
 
-// Guardrail: the SDK's return type promises { id: string; url: string }, but we've seen
-// silent failures where the request was rejected upstream and something odd came back.
+// Guardrail: we expect { id: string; url: string } back, but we've seen silent
+// failures where the request was rejected upstream and something odd came back.
 // Validate before returning so a bad response surfaces immediately instead of stashing an
 // empty deploymentId in the DB and leaving the client polling forever.
 //
@@ -108,8 +180,8 @@ function assertDeploymentResult(
   return { id, url }
 }
 
-// Best-effort: pull the useful bits off any thrown error (SDK VercelError, fetch failure,
-// zod validation). Keeps us from logging huge unhelpful stacks while still capturing what
+// Best-effort: pull the useful bits off any thrown error (vercelApiFetch's Error,
+// fetch failure). Keeps us from logging huge unhelpful stacks while still capturing what
 // Vercel actually said. Runs *before* we rethrow so the caller's own error handler still fires.
 // summarizeDeploymentFailure is exported so callers that need to persist the failure
 // somewhere durable (e.g. generation_jobs.deploy_error) get the same shape as the log line.
@@ -152,16 +224,16 @@ export async function createDeployment(
 ): Promise<{ deploymentId: string; url: string }> {
   const deploymentName = toDeploymentName(options.projectSlug, vercelProjectId)
   try {
-    const result = await vercel.deployments.createDeployment({
-      teamId: TEAM_ID,
-      requestBody: {
+    const result = await vercelApiFetch<unknown>('/v13/deployments', {
+      method: 'POST',
+      body: {
         name: deploymentName,
         project: vercelProjectId,
         target: options.target,
         files: files.map((f) => ({
           file: f.path,
           data: f.content,
-          encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+          encoding: f.encoding ?? 'utf-8',
         })),
       },
     })
@@ -183,18 +255,18 @@ export async function createPreviewDeployment(
   storeSlug?: string,
 ): Promise<{ deploymentId: string; url: string }> {
   const deploymentName = toDeploymentName(storeSlug, vercelProjectId)
-  let result
+  let result: unknown
   try {
-    result = await vercel.deployments.createDeployment({
-      teamId: TEAM_ID,
-      requestBody: {
+    result = await vercelApiFetch<unknown>('/v13/deployments', {
+      method: 'POST',
+      body: {
         name: deploymentName,
         project: vercelProjectId,
         target: 'production',
         files: files.map((f) => ({
           file: f.path,
           data: f.data,
-          encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+          encoding: f.encoding ?? 'utf-8',
         })),
       },
     })
@@ -235,17 +307,17 @@ export async function createVercelPreviewDeploy(
   projectSlug?: string,
 ): Promise<{ deploymentId: string; url: string }> {
   const deploymentName = toDeploymentName(projectSlug, vercelProjectId)
-  let result
+  let result: unknown
   try {
-    result = await vercel.deployments.createDeployment({
-      teamId: TEAM_ID,
-      requestBody: {
+    result = await vercelApiFetch<unknown>('/v13/deployments', {
+      method: 'POST',
+      body: {
         name: deploymentName,
         project: vercelProjectId,
         files: files.map((f) => ({
           file: f.path,
           data: f.data,
-          encoding: (f.encoding ?? 'utf-8') as 'utf-8' | 'base64',
+          encoding: f.encoding ?? 'utf-8',
         })),
       },
     })
@@ -326,10 +398,9 @@ export async function streamDeploymentLogs(
 }
 
 export async function getDeploymentStatus(deploymentId: string): Promise<DeploymentStatus> {
-  const result = await vercel.deployments.getDeployment({
-    idOrUrl: deploymentId,
-    teamId: TEAM_ID,
-  })
+  const result = await vercelApiFetch<{ readyState?: string; url?: string }>(
+    `/v13/deployments/${encodeURIComponent(deploymentId)}`,
+  )
   return {
     state: mapReadyState(result.readyState),
     url: result.url ? `https://${result.url}` : undefined,
@@ -365,10 +436,12 @@ export async function attachDomain(
   vercelProjectId: string,
   domain: string,
 ): Promise<{ verified: boolean; dnsInstructions?: string }> {
-  const result = await vercel.projects.addProjectDomain({
-    idOrName: vercelProjectId,
-    teamId: TEAM_ID,
-    requestBody: { name: domain },
+  const result = await vercelApiFetch<{
+    verified?: boolean
+    verification?: Array<{ type?: string; domain?: string; value?: string }>
+  }>(`/v10/projects/${encodeURIComponent(vercelProjectId)}/domains`, {
+    method: 'POST',
+    body: { name: domain },
   })
 
   if (result.verified) return { verified: true }
