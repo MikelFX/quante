@@ -495,3 +495,19 @@ Response validation failed | status=200 | body={"accountId":"team_...","creator"
 **Still needed before this is actually live:** push `4ce1502` to `origin/main` (or run `vercel --prod` from a machine with deploy credentials) from the maintainer's own machine, then generate one more test store. If the `de=` error is gone and the Vercel dashboard shows a real row under Deployments for the new project, this bug is closed for good.
 
 **Files touched:** `lib/hosting/vercel.ts` (commit `4ce1502`, local only, not pushed).
+
+---
+
+## 2026-08-20 (later) — Confirmed: bug closed. Push landed, seventh test store deployed for real
+
+`4ce1502` and `1eaaca1` were pushed to `origin/main`. Vercel's Deployments tab for the main `quante` project shows the resulting production build (`1eaaca1`, Ready, 50s) — confirming the fix was actually live before the next test.
+
+A seventh test store, "Nordwool" (Scandinavian merino knitwear), was generated end-to-end to verify. Result: the first fully clean run in this entire debugging arc.
+
+- Redirect URL carried a real `did=dpl_H5s8hHSfCWwpjr4sF3HjogdvGc74` — no `de=` param at all, for the first time ever.
+- The Studio's build-logs panel streamed an actual live Vercel build in real time (`Running build in Washington, D.C., USA (East) – iad1` → `vercel build` → `Compiled successfully in 3.8s` → `Build Completed in /vercel/output [24s]` → `Deployment completed`) — previously this panel either stayed empty or errored out immediately.
+- Vercel's dashboard for the new `nordwool` project shows a real row: `H5s8hHSfC`, **Ready**, Production, 30s build, method `vercel deploy` — every prior test project (Bramble & Page, Kolo Coffee, Ember & Oak, Grove & Salt, Kiln & Clay) had zero rows here.
+- The preview URL (`nordwool-1545grnv3-mikelfxs-projects.vercel.app`) rendered a complete, real storefront.
+- Clicking "Push to Live" (5 cr) attached the custom subdomain; `nordwool.stores.quantecode.com` resolved over HTTPS with the full store a few seconds later (the in-Studio iframe briefly showed a connection error mid-DNS-propagation, which cleared on its own — expected, not a regression).
+
+**Status: closed.** The `@vercel/sdk` response-validation bug that silently killed every deployment since this arc began is fixed, deployed, and verified live on a real subdomain.
