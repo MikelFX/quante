@@ -475,3 +475,23 @@ User approved fixing all of this for real (not deferring to roadmap), with an ex
 3. Generate a fresh test store. Two possible outcomes:
    - Deploy succeeds → the earlier bug is dead, verified. Ship.
    - Deploy still fails → Studio now shows the reason inline instead of hanging. Fix the specific cause (visible in the URL's `de=` param, in `generation_jobs.deploy_error`, and in Vercel Functions logs under `[generate:bg] preview deployment failed`).
+
+---
+
+## 2026-08-20 — Fix: `@vercel/sdk` response validation was the actual root cause
+
+**Follow-up to 2026-08-19, and the answer to the "why" that entry left pending.** The migration above was applied and a fifth test store ("Grove & Salt") was generated. Its `de=` URL param finally carried a real Vercel error string instead of nothing:
+
+```
+Response validation failed | status=200 | body={"accountId":"team_...","creator":{...},...,"deploymentExpiration":{"expirationDays":30,...,"ex[truncated]
+```
+
+**Root cause.** `@vercel/sdk` (^1.21.9) parses every HTTP response through a bundled Zod schema before handing it back to the caller. `ensureVercelProject()` (`lib/hosting/vercel.ts`, then ~lines 18–42) called `vercel.projects.getProjects()` / `.createProject()` through this SDK. Vercel's live API was returning a perfectly good `200` with a real, fully-formed project object — confirmed independently, because the project always existed in the Vercel dashboard afterward — but the SDK's bundled schema doesn't recognize some field Vercel now returns (the truncated body cuts off inside `deploymentExpiration`, which strongly suggests a new or renamed field there: schema drift between the SDK's pinned version and Vercel's current API shape). The SDK throws on mismatch rather than returning the data, and it throws *before* any deployment is ever requested. That's why every test store in this whole debugging arc (Bramble & Page, Kolo Coffee, Ember & Oak, Grove & Salt) got a real Vercel *project* and zero *deployments*: the very first Vercel call in the pipeline was failing, silently as far as Vercel itself was concerned, on the client side only.
+
+**Fix.** Rewrote `lib/hosting/vercel.ts` to talk to `api.vercel.com` directly via a new `vercelApiFetch()` helper, mirroring the raw-fetch pattern `streamDeploymentLogs()` and `getBuildError()` already used elsewhere in the same file. Only the 2–3 fields actually consumed (`id`, `name`, `url`, `readyState`) are read from each response, so there is no bundled schema left to drift out of sync with Vercel's API. Applied to every function in the file that previously called the SDK, not just `ensureVercelProject()`: `removeProject`, `setEnvVars`, `createDeployment`, `createPreviewDeployment`, `createVercelPreviewDeploy`, `getDeploymentStatus`, `attachDomain`. The `@vercel/sdk` import is gone from the file entirely (`grep -rn "@vercel/sdk" lib/ app/` returns no remaining call sites, only this changelog comment). All the surrounding 2026-08-18/19 logic — `toDeploymentName()`, `assertDeploymentResult()`, `summarizeDeploymentFailure()`, `logDeploymentFailure()` — is unchanged; it now runs against plain `fetch` responses instead of SDK results.
+
+**Verification.** `npx tsc --noEmit` clean. A sixth test store ("Kiln & Clay") was generated afterward to confirm live — but the `de=` param it produced was structurally identical to the pre-fix Grove & Salt error (same shape, same truncation point, different `createdAt`/timestamps so it was a fresh call, not a cached one). That's expected, not a sign the fix is wrong: **this fix was made directly in the local working copy and committed locally only (commit `4ce1502`) — it was never pushed to `origin/main` and no Vercel deploy ran**, so production was still serving the pre-fix compiled code when Kiln & Clay was generated. `git status` confirms `main` is 1 commit ahead of `origin/main`, unpushed, matching the explicit "don't push, no GitHub credentials in this sandbox" instruction this fix was done under.
+
+**Still needed before this is actually live:** push `4ce1502` to `origin/main` (or run `vercel --prod` from a machine with deploy credentials) from the maintainer's own machine, then generate one more test store. If the `de=` error is gone and the Vercel dashboard shows a real row under Deployments for the new project, this bug is closed for good.
+
+**Files touched:** `lib/hosting/vercel.ts` (commit `4ce1502`, local only, not pushed).
