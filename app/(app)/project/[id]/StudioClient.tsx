@@ -580,7 +580,16 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     if (item.actionTarget === 'settings' || item.actionTarget === 'products') {
       setAdminTab(item.actionTarget)
     } else if (item.actionTarget === 'theme' || item.actionTarget === 'publish') {
+      // Was: setAdminMode(false) alone, which just exits Admin into whatever Builder
+      // tab happened to be active last — not necessarily the one the checklist item
+      // is actually about. Now also selects the matching Builder side panel directly
+      // (StudioTab/DesktopTab already have 'theme' and 'publish' variants for exactly
+      // this). Desktop and mobile layouts are driven by separate tab state
+      // (desktopTab vs. activeTab — see the `{desktopTab === 'publish' && ...}`
+      // render branches below), so both need setting.
       setAdminMode(false)
+      setActiveTab(item.actionTarget)
+      setDesktopTab(item.actionTarget)
     }
   }
 

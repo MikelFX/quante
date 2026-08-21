@@ -112,7 +112,11 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
         ? `${m!.obchodni_nazev} · IČO ${m!.ico}`
         : 'Doplňte název firmy, IČO a sídlo v nastavení obchodu.',
       actionLabel: 'Doplnit údaje',
-      actionTarget: 'settings',
+      // 2026-08-21: was 'settings' — the invoicing/business-details form actually
+      // lives in the Builder's Publish panel (payout/business section), not Admin
+      // Settings (which only has shipping-carrier credentials). Clicking through
+      // used to land on a page with no matching fields at all.
+      actionTarget: 'publish',
     },
     {
       id: 'legal_pages',
@@ -132,7 +136,9 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
         ? 'Alespoň jedna platební metoda je aktivní.'
         : 'Zapněte platbu převodem, dobírkou nebo platební bránu v nastavení.',
       actionLabel: 'Nastavit platby',
-      actionTarget: 'settings',
+      // 2026-08-21: was 'settings' — same fix as 'merchant' above. Payout/IBAN
+      // setup is in the Publish panel, not Admin Settings.
+      actionTarget: 'publish',
     },
     {
       id: 'shipping',
