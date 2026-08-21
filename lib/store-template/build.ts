@@ -321,6 +321,30 @@ export function CartDrawer({ open, onClose }: Props) {
 }
 `)
 
+  // ── app/not-found.tsx ──────────────────────────────────────────────────────
+  // Added 2026-08-21: nothing in the scaffold ever provided a 404 page, so every
+  // deployed store fell back to Next.js's own generic unstyled default (plain black
+  // text on white) instead of matching the store's design tokens. Not locked — the
+  // AI can restyle it further if asked, but it always exists as a sensible default.
+  add('app/not-found.tsx', `import Link from 'next/link'
+import { config } from '@/data/config'
+
+export default function NotFound() {
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', padding: '6rem 1.25rem', textAlign: 'center' }}>
+      <p style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 700, color: 'var(--color-accent)', margin: 0, lineHeight: 1 }}>404</p>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 700, marginTop: '1rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>Page not found</h1>
+      <p style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>
+        The page you&apos;re looking for doesn&apos;t exist or may have moved.
+      </p>
+      <Link href="/" style={{ display: 'inline-block', background: 'var(--color-accent)', color: 'var(--color-accent-text)', borderRadius: 8, padding: '0.65rem 1.5rem', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+        Back to {config.brand.name}
+      </Link>
+    </div>
+  )
+}
+`)
+
   // ── app/cart/page.tsx ─────────────────────────────────────────────────────
   // Doubles as the checkout page — cart contents + contact details + "Proceed to
   // payment" in one screen. Deterministic/scaffold, not left to the AI, because a
@@ -527,6 +551,79 @@ export async function POST(request: Request) {
 }
 `)
 
+  // ── components/legal/LegalPageView.tsx + app/{terms,privacy,cookies,contact}/page.tsx
+  // (LOCKED) — Added 2026-08-21 alongside app/api/store/legal (platform side): the
+  // Publish panel's "Generate legal pages" button used to write into manifest_versions,
+  // which the live code-gen storefront never reads — legal pages could never actually
+  // appear on a deployed store, so footer links to them 404'd regardless of whether
+  // merchant data was filled in. These 4 routes always exist in the scaffold; in hosted
+  // mode they fetch live content generated from the merchant's saved business info
+  // (same QUANTE_PROJECT_ID pattern as app/api/checkout/route.ts), so the pages update
+  // automatically without a redeploy whenever the merchant edits their business data.
+  add('components/legal/LegalPageView.tsx', `import { config } from '@/data/config'
+
+interface LegalSection { heading?: string; body: string[] }
+interface LegalPageData { title: string; sections: LegalSection[] }
+
+async function getLegalContent(page: string): Promise<LegalPageData | null> {
+  const projectId = process.env.QUANTE_PROJECT_ID
+  if (!projectId) return null
+  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quantecode.com'
+  try {
+    const res = await fetch(\`\${quanteUrl}/api/store/legal?projectId=\${projectId}&page=\${page}\`, { cache: 'no-store' })
+    if (!res.ok) return null
+    return await res.json()
+  } catch {
+    return null
+  }
+}
+
+export default async function LegalPageView({ page, fallbackTitle }: { page: string; fallbackTitle: string }) {
+  const data = await getLegalContent(page)
+
+  if (!data) {
+    return (
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 1.25rem' }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 700, marginBottom: '1rem' }}>{fallbackTitle}</h1>
+        <p style={{ fontSize: 15, color: 'var(--color-muted)', lineHeight: 1.7 }}>
+          This page hasn&apos;t been set up yet. The store owner can add business details and generate legal pages from the Publish panel.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 1.25rem' }}>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 700, marginBottom: '2rem' }}>{data.title}</h1>
+      {data.sections.map((s, i) => (
+        <section key={i} style={{ marginBottom: '1.75rem' }}>
+          {s.heading && (
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: 18, fontWeight: 700, marginBottom: '0.6rem', color: 'var(--color-text)' }}>{s.heading}</h2>
+          )}
+          {s.body.map((para, j) => (
+            <p key={j} style={{ fontSize: 15, color: 'var(--color-muted)', lineHeight: 1.7, marginBottom: '0.6rem' }}>{para}</p>
+          ))}
+        </section>
+      ))}
+      <p style={{ fontSize: 12, color: 'var(--color-muted)', opacity: 0.6, marginTop: '2.5rem' }}>{config.brand.name}</p>
+    </div>
+  )
+}
+`)
+
+  add('app/terms/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
+export default function Page() { return <LegalPageView page="terms" fallbackTitle="Terms of Service" /> }
+`)
+  add('app/privacy/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
+export default function Page() { return <LegalPageView page="privacy" fallbackTitle="Privacy Policy" /> }
+`)
+  add('app/cookies/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
+export default function Page() { return <LegalPageView page="cookies" fallbackTitle="Cookie Policy" /> }
+`)
+  add('app/contact/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
+export default function Page() { return <LegalPageView page="contact" fallbackTitle="Contact" /> }
+`)
+
   // ── components/layout/Navbar.tsx ─────────────────────────────────────────
   add('components/layout/Navbar.tsx', `'use client'
 import { useState } from 'react'
@@ -607,7 +704,12 @@ export function Navbar() {
 
   // ── components/layout/Footer.tsx ─────────────────────────────────────────
   add('components/layout/Footer.tsx', `import Link from 'next/link'
+import { ExternalLink } from 'lucide-react'
 import { config } from '@/data/config'
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
 
 export function Footer() {
   return (
@@ -634,20 +736,80 @@ export function Footer() {
         <div style={{ borderTop: config.footer.columns.length > 0 ? '1px solid var(--color-border)' : 'none', paddingTop: config.footer.columns.length > 0 ? '1.5rem' : 0, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'var(--color-muted)' }}>
             © {new Date().getFullYear()} {config.brand.name}
-            {config.footer.legal ? ' — ' + config.footer.legal : ''}
+            {config.footer.legal && !config.footer.legal.includes('©') ? ' — ' + config.footer.legal : ''}
           </span>
           {config.footer.socials && config.footer.socials.length > 0 && (
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 14 }}>
               {config.footer.socials.map((s) => (
-                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: 'var(--color-muted)', textDecoration: 'none' }}>
-                  {s.platform}
+                <a key={s.url} href={s.url} target="_blank" rel="noopener noreferrer" aria-label={capitalize(s.platform)} title={capitalize(s.platform)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--color-muted)', textDecoration: 'none' }}>
+                  <ExternalLink size={13} />
                 </a>
               ))}
             </div>
           )}
         </div>
+        {/* Always-present legal links — independent of AI-authored footer columns,
+            so these routes (which always exist in the scaffold) are never dead links. */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 12 }}>
+          <Link href="/terms" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Terms of Service</Link>
+          <Link href="/privacy" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Privacy Policy</Link>
+          <Link href="/cookies" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Cookies</Link>
+          <Link href="/contact" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Contact</Link>
+        </div>
       </div>
     </footer>
+  )
+}
+`)
+
+  // ── components/layout/CookieConsent.tsx (LOCKED) ─────────────────────────
+  // Added 2026-08-21: lib/store-health.ts's checklist has always checked for a file
+  // ending in "CookieConsent.tsx" in code_versions, but buildCodeGenScaffold() never
+  // actually emitted one — every code-gen store failed this checklist item forever,
+  // and the old detail text ("regenerate the store") wasn't even the right fix. Same
+  // gap pattern as the checkout and legal-pages issues: deterministic core behavior
+  // that got dropped during the manifest→code-gen pivot and never rebuilt.
+  add('components/layout/CookieConsent.tsx', `'use client'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+
+const STORAGE_KEY = 'cookie-consent'
+
+export function CookieConsent() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(STORAGE_KEY)) setVisible(true)
+    } catch {
+      // localStorage unavailable (e.g. blocked) — skip the banner rather than error
+    }
+  }, [])
+
+  function accept() {
+    try { localStorage.setItem(STORAGE_KEY, 'accepted') } catch {}
+    setVisible(false)
+  }
+
+  if (!visible) return null
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+      background: 'var(--color-surface)', borderTop: '1px solid var(--color-border)',
+      padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between',
+    }}>
+      <p style={{ fontSize: 13, color: 'var(--color-text)', margin: 0, maxWidth: 640 }}>
+        We use cookies to make this store work and, with your consent, to understand how it&apos;s used.{' '}
+        <Link href="/cookies" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>Learn more</Link>
+      </p>
+      <button
+        onClick={accept}
+        style={{ background: 'var(--color-accent)', color: 'var(--color-accent-text)', border: 'none', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+      >
+        Accept
+      </button>
+    </div>
   )
 }
 `)
@@ -658,6 +820,7 @@ import type { ReactNode } from 'react'
 import { CartProvider } from '@/lib/store/cart'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
+import { CookieConsent } from '@/components/layout/CookieConsent'
 import { config } from '@/data/config'
 import '../styles/store.css'
 
@@ -674,6 +837,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Navbar />
           <main style={{ flex: 1 }}>{children}</main>
           <Footer />
+          <CookieConsent />
         </CartProvider>
       </body>
     </html>
@@ -846,6 +1010,11 @@ export function buildStoreFiles(
     const LOCKED = new Set([
       'app/layout.tsx', 'components/layout/Navbar.tsx', 'components/layout/Footer.tsx', 'components/layout/CartDrawer.tsx',
       'app/cart/page.tsx', 'app/success/page.tsx', 'app/api/checkout/route.ts',
+      // Legal pages (2026-08-21) — always live-fetched from saved business info via
+      // app/api/store/legal, same rationale as checkout: correctness over AI freedom.
+      'components/legal/LegalPageView.tsx',
+      'app/terms/page.tsx', 'app/privacy/page.tsx', 'app/cookies/page.tsx', 'app/contact/page.tsx',
+      'components/layout/CookieConsent.tsx',
     ])
 
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))

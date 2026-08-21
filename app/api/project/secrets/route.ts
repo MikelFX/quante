@@ -2,6 +2,13 @@
 // Payment gateway secrets (Comgate/GoPay/PayPal) are AES-256-GCM encrypted
 // at rest via lib/crypto.ts. All other fields are ignored to prevent
 // privilege escalation. GET never returns secret values — only has-flags.
+//
+// merchant_json/payments_json/shipping_json (added 2026-08-21, see
+// supabase/migration-business-info.sql) hold the Publish panel's business
+// details / payment methods / shipping methods for code-gen mode stores.
+// Not secret data (no API keys), so stored as plain jsonb, not encrypted —
+// they live here rather than on the legacy manifest_versions table because
+// code-gen stores never have a ShopManifest row to attach them to.
 
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
@@ -17,6 +24,9 @@ const PLAIN_FIELDS = [
   'gopay_client_id',
   'gopay_go_id',
   'paypal_client_id',
+  'merchant_json',
+  'payments_json',
+  'shipping_json',
 ] as const
 
 const ENCRYPTED_FIELDS = [
@@ -94,7 +104,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabaseAdmin
     .from('project_secrets')
-    .select('resend_from_email, payment_test_mode, zasilkovna_api_key, comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id, paypal_client_id, paypal_client_secret')
+    .select('resend_from_email, payment_test_mode, zasilkovna_api_key, comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id, paypal_client_id, paypal_client_secret, merchant_json, payments_json, shipping_json')
     .eq('project_id', projectId)
     .maybeSingle()
 
@@ -109,5 +119,8 @@ export async function GET(request: Request) {
     hasGopaySecret: !!data?.gopay_client_secret,
     paypalClientId: (data?.paypal_client_id as string | null) ?? null,
     hasPaypalSecret: !!data?.paypal_client_secret,
+    merchant: (data?.merchant_json as Record<string, unknown> | null) ?? null,
+    payments: (data?.payments_json as Record<string, unknown> | null) ?? null,
+    shipping: (data?.shipping_json as Record<string, unknown> | null) ?? null,
   })
 }

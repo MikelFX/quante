@@ -2,34 +2,41 @@
 
 import { useState, useEffect } from 'react'
 import { validateIco } from '@/lib/ico-validator'
-import type { ShopManifest, Merchant, ShippingMethod } from '@/types/manifest'
+import {
+  EMPTY_BUSINESS_INFO,
+  EMPTY_PAYMENTS_INFO,
+  EMPTY_SHIPPING_INFO,
+  type BusinessInfo,
+  type PaymentsInfo,
+  type ShippingInfo,
+} from '@/types/business'
 
 interface Props {
   projectId: string
-  manifest: ShopManifest | null
-  onManifestUpdate: (manifest: ShopManifest) => void
   onBalanceRefresh: () => void
 }
 
-const EMPTY_MERCHANT: Merchant = {
-  obchodni_nazev: '',
-  ico: '',
-  dic: '',
-  platce_dph: false,
-  sidlo: { ulice: '', mesto: '', psc: '', zeme: 'CZ' },
-  kontakt: { email: '', telefon: '' },
-  bankovni_ucet: '',
-  zodpovedna_osoba: '',
-}
-
-export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalanceRefresh }: Props) {
-  const [form, setForm] = useState<Merchant>(manifest?.merchant ?? EMPTY_MERCHANT)
+// 2026-08-21: This panel used to read/write app/(app)/project/[id]/StudioClient.tsx's
+// `currentManifest`, which is a permanent `null` stub left over from the code-gen
+// architecture pivot ("Legacy compatibility stubs — keep panels from crashing during
+// transition"). That made every Save button here a silent no-op for every code-gen
+// store: `if (!manifest) return` fired on every click, no error shown. Even wiring a
+// live manifest_versions fetch wouldn't have fixed it — ShopManifestSchema requires
+// brand/design/catalog/pages/nav/footer/seo, none of which exist for a pure code-gen
+// project, so a partial save would fail validation anyway.
+//
+// Fix: business/payments/shipping now live on project_secrets (merchant_json /
+// payments_json / shipping_json — see supabase/migration-business-info.sql), read and
+// written via the existing /api/project/secrets route, entirely independent of the
+// legacy ShopManifest. This panel owns its own fetch + state instead of depending on a
+// prop from the parent.
+export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
+  const [loaded, setLoaded] = useState(false)
+  const [form, setForm] = useState<BusinessInfo>(EMPTY_BUSINESS_INFO)
   const [icoError, setIcoError] = useState('')
   const [aresLoading, setAresLoading] = useState(false)
   const [aresMsg, setAresMsg] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const [isGeneratingLegal, setIsGeneratingLegal] = useState(false)
-  const [legalMsg, setLegalMsg] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
   const [emailFrom, setEmailFrom] = useState('')
   const [isSavingEmail, setIsSavingEmail] = useState(false)
@@ -40,11 +47,12 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   // Payment methods
   const [payComgate, setPayComgate] = useState(false)
   const [payGopay, setPayGopay] = useState(false)
-  const [payDobirka, setPayDobirka] = useState(false)
-  const [payDobirkaFee, setPayDobirkaFee] = useState(49)
-  const [payPrevod, setPayPrevod] = useState(true)
+  const [payCod, setPayCod] = useState(false)
+  const [payCodFee, setPayCodFee] = useState(0)
+  const [payBankTransfer, setPayBankTransfer] = useState(true)
 
-  // Shipping
+  // Shipping — CZ/SK carrier presets (most common case today) plus a generic
+  // flat-rate fallback for every other market (Wave 1.5).
   const [shipZasilkovna, setShipZasilkovna] = useState(false)
   const [shipZasilkovnaPrice, setShipZasilkovnaPrice] = useState(79)
   const [shipPpl, setShipPpl] = useState(false)
@@ -53,6 +61,8 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   const [shipDpdPrice, setShipDpdPrice] = useState(149)
   const [shipBalikovna, setShipBalikovna] = useState(false)
   const [shipBalikovnaPrice, setShipBalikovnaPrice] = useState(89)
+  const [shipCustomLabel, setShipCustomLabel] = useState('')
+  const [shipCustomPrice, setShipCustomPrice] = useState(0)
   const [shipOsobni, setShipOsobni] = useState(false)
   const [freeShippingFrom, setFreeShippingFrom] = useState(0)
   const [isSavingPayShip, setIsSavingPayShip] = useState(false)
@@ -73,32 +83,6 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   const [gatewaysMsg, setGatewaysMsg] = useState('')
 
   useEffect(() => {
-    if (manifest?.merchant) setForm(manifest.merchant)
-    if (manifest?.payments) {
-      const p = manifest.payments
-      setPayComgate(p.providers.includes('comgate'))
-      setPayGopay(p.providers.includes('gopay'))
-      setPayDobirka(p.dobirka?.enabled ?? false)
-      setPayDobirkaFee(p.dobirka?.priplatek_czk ?? 49)
-      setPayPrevod(p.prevod?.enabled ?? true)
-    }
-    if (manifest?.shipping) {
-      const s = manifest.shipping
-      const z = s.methods.find((m) => m.type === 'zasilkovna')
-      if (z) { setShipZasilkovna(true); setShipZasilkovnaPrice(z.cena_czk) }
-      const ppl = s.methods.find((m) => m.type === 'ppl')
-      if (ppl) { setShipPpl(true); setShipPplPrice(ppl.cena_czk) }
-      const dpd = s.methods.find((m) => m.type === 'dpd')
-      if (dpd) { setShipDpd(true); setShipDpdPrice(dpd.cena_czk) }
-      const bal = s.methods.find((m) => m.type === 'balikovna')
-      if (bal) { setShipBalikovna(true); setShipBalikovnaPrice(bal.cena_czk) }
-      const osob = s.methods.find((m) => m.type === 'osobni_odber')
-      if (osob) setShipOsobni(true)
-      setFreeShippingFrom(s.doprava_zdarma_od_czk ?? 0)
-    }
-  }, [manifest])
-
-  useEffect(() => {
     fetch(`/api/project/secrets?projectId=${projectId}`)
       .then((r) => r.json())
       .then((d) => {
@@ -110,24 +94,47 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         setHasGopaySecret(!!d.hasGopaySecret)
         if (d.paypalClientId) setPaypalClientId(d.paypalClientId)
         setHasPaypalSecret(!!d.hasPaypalSecret)
+
+        const m = d.merchant as BusinessInfo | null
+        if (m) setForm({ ...EMPTY_BUSINESS_INFO, ...m })
+
+        const p = d.payments as PaymentsInfo | null
+        if (p) {
+          setPayComgate(p.providers?.includes('comgate') ?? false)
+          setPayGopay(p.providers?.includes('gopay') ?? false)
+          setPayCod(p.cod?.enabled ?? false)
+          setPayCodFee(p.cod?.fee ?? 0)
+          setPayBankTransfer(p.bankTransfer?.enabled ?? true)
+        }
+
+        const s = d.shipping as ShippingInfo | null
+        if (s) {
+          const z = s.methods?.find((x) => x.id === 'zasilkovna')
+          if (z) { setShipZasilkovna(true); setShipZasilkovnaPrice(z.price) }
+          const ppl = s.methods?.find((x) => x.id === 'ppl')
+          if (ppl) { setShipPpl(true); setShipPplPrice(ppl.price) }
+          const dpd = s.methods?.find((x) => x.id === 'dpd')
+          if (dpd) { setShipDpd(true); setShipDpdPrice(dpd.price) }
+          const bal = s.methods?.find((x) => x.id === 'balikovna')
+          if (bal) { setShipBalikovna(true); setShipBalikovnaPrice(bal.price) }
+          const custom = s.methods?.find((x) => x.id === 'custom')
+          if (custom) { setShipCustomLabel(custom.label); setShipCustomPrice(custom.price) }
+          setShipOsobni(s.pickupEnabled ?? false)
+          setFreeShippingFrom(s.freeShippingFrom ?? 0)
+        }
       })
       .catch(() => {})
+      .finally(() => setLoaded(true))
   }, [projectId])
 
-  function setField<K extends keyof Merchant>(key: K, val: Merchant[K]) {
+  function setField<K extends keyof BusinessInfo>(key: K, val: BusinessInfo[K]) {
     setForm((prev) => ({ ...prev, [key]: val }))
   }
 
-  function setKontakt(key: 'email' | 'telefon', val: string) {
-    setForm((prev) => ({ ...prev, kontakt: { ...prev.kontakt, [key]: val } }))
-  }
-
-  function setSidlo(key: keyof Merchant['sidlo'], val: string) {
-    setForm((prev) => ({ ...prev, sidlo: { ...prev.sidlo, [key]: val } }))
-  }
+  const isCz = form.country === 'CZ' || form.country === ''
 
   async function lookupAres() {
-    const ico = form.ico.replace(/\s/g, '')
+    const ico = form.taxId.replace(/\s/g, '')
     if (!validateIco(ico)) { setIcoError('Invalid IČO (check digit mismatch)'); return }
     setIcoError('')
     setAresLoading(true)
@@ -138,14 +145,12 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       const data = await res.json()
       setForm((prev) => ({
         ...prev,
-        obchodni_nazev: data.obchodni_nazev || prev.obchodni_nazev,
-        dic: data.dic || prev.dic,
-        sidlo: {
-          ulice: data.sidlo.ulice || prev.sidlo.ulice,
-          mesto: data.sidlo.mesto || prev.sidlo.mesto,
-          psc: data.sidlo.psc || prev.sidlo.psc,
-          zeme: 'CZ',
-        },
+        name: data.obchodni_nazev || prev.name,
+        vatId: data.dic || prev.vatId,
+        street: data.sidlo?.ulice || prev.street,
+        city: data.sidlo?.mesto || prev.city,
+        postalCode: data.sidlo?.psc || prev.postalCode,
+        country: 'CZ',
       }))
       setAresMsg('Data loaded from ARES')
     } catch {
@@ -156,27 +161,26 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   }
 
   function icoBlur() {
-    const ico = form.ico.replace(/\s/g, '')
+    if (!isCz) { setIcoError(''); return }
+    const ico = form.taxId.replace(/\s/g, '')
     if (ico && !validateIco(ico)) setIcoError('Invalid IČO (check digit mismatch)')
     else setIcoError('')
   }
 
   async function saveMerchant() {
-    if (!manifest) return
-    const ico = form.ico.replace(/\s/g, '')
-    if (!validateIco(ico)) { setIcoError('Invalid IČO'); return }
+    if (isCz) {
+      const ico = form.taxId.replace(/\s/g, '')
+      if (ico && !validateIco(ico)) { setIcoError('Invalid IČO'); return }
+    }
     setIsSaving(true)
     setSaveMsg('')
     try {
-      const updatedManifest: ShopManifest = { ...manifest, merchant: { ...form, ico } }
-      const res = await fetch('/api/manifest/save', {
-        method: 'POST',
+      const res = await fetch('/api/project/secrets', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, manifest: updatedManifest }),
+        body: JSON.stringify({ projectId, merchant_json: form }),
       })
       if (!res.ok) { setSaveMsg('Failed to save'); return }
-      const { manifest: saved } = await res.json()
-      onManifestUpdate(saved)
       setSaveMsg('Saved')
       setTimeout(() => setSaveMsg(''), 2500)
     } catch {
@@ -224,28 +228,6 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
     }
   }
 
-  async function generateLegalPages() {
-    if (!manifest?.merchant) { setLegalMsg('Save business data first'); return }
-    setIsGeneratingLegal(true)
-    setLegalMsg('')
-    try {
-      const res = await fetch('/api/quante/legal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
-      })
-      if (!res.ok) { setLegalMsg((await res.json()).error ?? 'Error'); return }
-      const { manifest: updated } = await res.json()
-      onManifestUpdate(updated)
-      onBalanceRefresh()
-      setLegalMsg('Legal pages generated and added to the store')
-    } catch {
-      setLegalMsg('Generation failed')
-    } finally {
-      setIsGeneratingLegal(false)
-    }
-  }
-
   const fieldStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.4rem 0.6rem',
@@ -259,7 +241,6 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
   }
 
   async function savePaymentsShipping() {
-    if (!manifest) return
     setIsSavingPayShip(true)
     setPayShipMsg('')
     try {
@@ -267,33 +248,29 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         ...(payComgate ? (['comgate'] as const) : []),
         ...(payGopay ? (['gopay'] as const) : []),
       ]
-      const methods: ShippingMethod[] = [
-        ...(shipZasilkovna ? [{ type: 'zasilkovna' as const, cena_czk: shipZasilkovnaPrice }] : []),
-        ...(shipPpl ? [{ type: 'ppl' as const, cena_czk: shipPplPrice }] : []),
-        ...(shipDpd ? [{ type: 'dpd' as const, cena_czk: shipDpdPrice }] : []),
-        ...(shipBalikovna ? [{ type: 'balikovna' as const, cena_czk: shipBalikovnaPrice }] : []),
-        ...(shipOsobni ? [{ type: 'osobni_odber' as const, cena_czk: 0 }] : []),
-      ]
-      const updatedManifest: ShopManifest = {
-        ...manifest,
-        payments: {
-          providers,
-          ...(payDobirka ? { dobirka: { enabled: true, priplatek_czk: payDobirkaFee } } : {}),
-          ...(payPrevod ? { prevod: { enabled: true, qr: true } } : {}),
-        },
-        shipping: {
-          methods,
-          ...(freeShippingFrom > 0 ? { doprava_zdarma_od_czk: freeShippingFrom } : {}),
-        },
+      const payments: PaymentsInfo = {
+        providers,
+        cod: { enabled: payCod, fee: payCodFee },
+        bankTransfer: { enabled: payBankTransfer, qr: true },
       }
-      const res = await fetch('/api/manifest/save', {
-        method: 'POST',
+      const methods: ShippingInfo['methods'] = [
+        ...(shipZasilkovna ? [{ id: 'zasilkovna', label: 'Zásilkovna / Packeta', price: shipZasilkovnaPrice }] : []),
+        ...(shipPpl ? [{ id: 'ppl', label: 'PPL — home delivery', price: shipPplPrice }] : []),
+        ...(shipDpd ? [{ id: 'dpd', label: 'DPD — home delivery', price: shipDpdPrice }] : []),
+        ...(shipBalikovna ? [{ id: 'balikovna', label: 'Balíkovna', price: shipBalikovnaPrice }] : []),
+        ...(shipCustomLabel.trim() ? [{ id: 'custom', label: shipCustomLabel.trim(), price: shipCustomPrice }] : []),
+      ]
+      const shipping: ShippingInfo = {
+        methods,
+        pickupEnabled: shipOsobni,
+        freeShippingFrom,
+      }
+      const res = await fetch('/api/project/secrets', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, manifest: updatedManifest }),
+        body: JSON.stringify({ projectId, payments_json: payments, shipping_json: shipping }),
       })
       if (!res.ok) { setPayShipMsg('Failed to save'); return }
-      const { manifest: saved } = await res.json()
-      onManifestUpdate(saved)
       setPayShipMsg('Saved')
       setTimeout(() => setPayShipMsg(''), 2500)
     } catch {
@@ -359,6 +336,14 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
     borderBottom: '1px solid var(--border)',
   }
 
+  if (!loaded) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem' }}>
+        <p style={{ fontSize: 12, color: 'var(--muted-foreground)' }}>Loading…</p>
+      </div>
+    )
+  }
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
@@ -366,50 +351,68 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         Without them the store cannot be published to a live domain.
       </p>
 
-      {/* IČO + ARES */}
+      {/* Country + identification */}
       <div>
         <p style={sectionHeadStyle}>Identification</p>
+        <div style={{ marginBottom: 8 }}>
+          <label style={labelStyle}>Country *</label>
+          <select
+            style={fieldStyle}
+            value={form.country}
+            onChange={(e) => setField('country', e.target.value)}
+          >
+            <option value="">Select country…</option>
+            <option value="CZ">Czech Republic</option>
+            <option value="SK">Slovakia</option>
+            <option value="US">United States</option>
+            <option value="GB">United Kingdom</option>
+            <option value="DE">Germany</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
           <div>
-            <label style={labelStyle}>IČO *</label>
+            <label style={labelStyle}>{isCz ? 'IČO *' : 'Company / registration number *'}</label>
             <div style={{ display: 'flex', gap: 4 }}>
               <input
                 style={{ ...fieldStyle, flex: 1 }}
-                value={form.ico}
-                onChange={(e) => { setField('ico', e.target.value.replace(/\D/g, '').slice(0, 8)); setIcoError('') }}
+                value={form.taxId}
+                onChange={(e) => { setField('taxId', isCz ? e.target.value.replace(/\D/g, '').slice(0, 8) : e.target.value); setIcoError('') }}
                 onBlur={icoBlur}
-                placeholder="12345678"
-                maxLength={8}
+                placeholder={isCz ? '12345678' : 'e.g. company number / EIN'}
+                maxLength={isCz ? 8 : undefined}
               />
-              <button
-                onClick={lookupAres}
-                disabled={aresLoading || form.ico.length < 8}
-                style={{
-                  padding: '0 8px',
-                  background: 'rgba(111,120,230,0.15)',
-                  border: '1px solid rgba(111,120,230,0.3)',
-                  borderRadius: 6,
-                  color: '#6f78e6',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  opacity: form.ico.length < 8 ? 0.5 : 1,
-                }}
-              >
-                {aresLoading ? '…' : 'ARES'}
-              </button>
+              {isCz && (
+                <button
+                  onClick={lookupAres}
+                  disabled={aresLoading || form.taxId.length < 8}
+                  style={{
+                    padding: '0 8px',
+                    background: 'rgba(111,120,230,0.15)',
+                    border: '1px solid rgba(111,120,230,0.3)',
+                    borderRadius: 6,
+                    color: '#6f78e6',
+                    fontSize: 10,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    opacity: form.taxId.length < 8 ? 0.5 : 1,
+                  }}
+                >
+                  {aresLoading ? '…' : 'ARES lookup'}
+                </button>
+              )}
             </div>
             {icoError && <p style={{ fontSize: 10, color: '#f87171', marginTop: 3 }}>{icoError}</p>}
             {aresMsg && <p style={{ fontSize: 10, color: aresMsg.includes('Error') || aresMsg.includes('not found') ? '#f87171' : '#34d399', marginTop: 3 }}>{aresMsg}</p>}
           </div>
           <div>
-            <label style={labelStyle}>DIČ</label>
+            <label style={labelStyle}>VAT number</label>
             <input
               style={fieldStyle}
-              value={form.dic ?? ''}
-              onChange={(e) => setField('dic', e.target.value)}
-              placeholder="CZ12345678"
+              value={form.vatId ?? ''}
+              onChange={(e) => setField('vatId', e.target.value)}
+              placeholder={isCz ? 'CZ12345678' : 'e.g. EU VAT / sales tax ID'}
             />
           </div>
         </div>
@@ -417,67 +420,67 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
           <label style={labelStyle}>Business name *</label>
           <input
             style={fieldStyle}
-            value={form.obchodni_nazev}
-            onChange={(e) => setField('obchodni_nazev', e.target.value)}
-            placeholder="My Company s.r.o."
+            value={form.name}
+            onChange={(e) => setField('name', e.target.value)}
+            placeholder="Your Company Ltd."
           />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
             type="checkbox"
-            id="platce_dph"
-            checked={form.platce_dph}
-            onChange={(e) => setField('platce_dph', e.target.checked)}
+            id="vat_registered"
+            checked={form.vatRegistered}
+            onChange={(e) => setField('vatRegistered', e.target.checked)}
             style={{ margin: 0 }}
           />
-          <label htmlFor="platce_dph" style={{ fontSize: 11, color: 'var(--foreground)', cursor: 'pointer' }}>
+          <label htmlFor="vat_registered" style={{ fontSize: 11, color: 'var(--foreground)', cursor: 'pointer' }}>
             VAT registered
           </label>
         </div>
       </div>
 
-      {/* Sídlo */}
+      {/* Address */}
       <div>
         <p style={sectionHeadStyle}>Registered address</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
             <label style={labelStyle}>Street and number *</label>
-            <input style={fieldStyle} value={form.sidlo.ulice} onChange={(e) => setSidlo('ulice', e.target.value)} placeholder="Example Street 1" />
+            <input style={fieldStyle} value={form.street} onChange={(e) => setField('street', e.target.value)} placeholder="Example Street 1" />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px', gap: 6 }}>
             <div>
               <label style={labelStyle}>City *</label>
-              <input style={fieldStyle} value={form.sidlo.mesto} onChange={(e) => setSidlo('mesto', e.target.value)} placeholder="Prague" />
+              <input style={fieldStyle} value={form.city} onChange={(e) => setField('city', e.target.value)} placeholder="City" />
             </div>
             <div>
-              <label style={labelStyle}>ZIP *</label>
-              <input style={fieldStyle} value={form.sidlo.psc} onChange={(e) => setSidlo('psc', e.target.value)} placeholder="11000" maxLength={6} />
+              <label style={labelStyle}>ZIP / postal code *</label>
+              <input style={fieldStyle} value={form.postalCode} onChange={(e) => setField('postalCode', e.target.value)} placeholder="00000" maxLength={10} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Kontakt */}
+      {/* Contact */}
       <div>
         <p style={sectionHeadStyle}>Contact details</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div>
             <label style={labelStyle}>E-mail *</label>
-            <input style={fieldStyle} type="email" value={form.kontakt.email} onChange={(e) => setKontakt('email', e.target.value)} placeholder="info@mujshop.cz" />
+            <input style={fieldStyle} type="email" value={form.email} onChange={(e) => setField('email', e.target.value)} placeholder="info@yourshop.com" />
           </div>
           <div>
             <label style={labelStyle}>Phone *</label>
-            <input style={fieldStyle} type="tel" value={form.kontakt.telefon} onChange={(e) => setKontakt('telefon', e.target.value)} placeholder="+420 777 123 456" />
+            <input style={fieldStyle} type="tel" value={form.phone} onChange={(e) => setField('phone', e.target.value)} placeholder="+1 555 123 4567" />
           </div>
         </div>
       </div>
 
-      {/* Bankovní účet */}
+      {/* Bank account */}
       <div>
         <p style={sectionHeadStyle}>Banking</p>
         <div>
           <label style={labelStyle}>Bank account (for bank transfer)</label>
-          <input style={fieldStyle} value={form.bankovni_ucet ?? ''} onChange={(e) => setField('bankovni_ucet', e.target.value)} placeholder="123456789/0800" />
+          <input style={fieldStyle} value={form.bankAccount ?? ''} onChange={(e) => setField('bankAccount', e.target.value)} placeholder="IBAN or account number" />
         </div>
       </div>
 
@@ -485,7 +488,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <button
           onClick={saveMerchant}
-          disabled={isSaving || !form.ico || !form.obchodni_nazev}
+          disabled={isSaving || !form.taxId || !form.name}
           style={{
             padding: '0.5rem 0.75rem',
             background: '#6f78e6',
@@ -495,7 +498,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',
-            opacity: isSaving || !form.ico || !form.obchodni_nazev ? 0.6 : 1,
+            opacity: isSaving || !form.taxId || !form.name ? 0.6 : 1,
           }}
         >
           {isSaving ? 'Saving…' : 'Save business data'}
@@ -530,42 +533,33 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
         {emailFromMsg && <p style={{ fontSize: 10, color: emailFromMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{emailFromMsg}</p>}
         <button
           onClick={sendTestEmail}
-          disabled={isSendingTest || !manifest?.merchant?.kontakt?.email}
-          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--foreground)', opacity: isSendingTest || !manifest?.merchant?.kontakt?.email ? 0.5 : 1 }}
+          disabled={isSendingTest || !form.email}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--foreground)', opacity: isSendingTest || !form.email ? 0.5 : 1 }}
         >
           {isSendingTest ? 'Sending…' : 'Send test email →'}
         </button>
         {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{testEmailMsg}</p>}
       </div>
 
-      {/* Legal pages */}
+      {/* Legal pages — always live at /terms, /privacy, /cookies, /contact; content is
+          generated automatically from the business data above, no separate step needed. */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Legal pages</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          Generates 4 required pages (Terms of Service, GDPR, Cookies, Contact) from your business data and adds them to the store. Templates are deterministic — regenerate after changing data.
+          {form.name
+            ? 'Terms of Service, Privacy Policy, Cookies and Contact pages are live on your store and generated from the business data above — no separate step needed. Save changes above to update them.'
+            : 'Save your business data above to fill in the Terms of Service, Privacy Policy, Cookies and Contact pages on your store.'}
         </p>
-        <button
-          onClick={generateLegalPages}
-          disabled={isGeneratingLegal || !manifest?.merchant}
-          style={{
-            padding: '0.5rem 0.75rem',
-            background: manifest?.merchant ? 'rgba(52,211,153,0.1)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${manifest?.merchant ? 'rgba(52,211,153,0.3)' : 'var(--border)'}`,
-            borderRadius: 6,
-            color: manifest?.merchant ? '#34d399' : 'var(--muted-foreground)',
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: manifest?.merchant ? 'pointer' : 'not-allowed',
-            opacity: isGeneratingLegal ? 0.6 : 1,
-          }}
-        >
-          {isGeneratingLegal ? 'Generating…' : 'Generate legal pages'}
-        </button>
-        {legalMsg && (
-          <p style={{ fontSize: 10, color: legalMsg.includes('failed') || legalMsg.includes('first') ? '#f87171' : '#34d399', margin: 0 }}>
-            {legalMsg}
-          </p>
-        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[
+            { label: 'Terms', href: '/terms' },
+            { label: 'Privacy', href: '/privacy' },
+            { label: 'Cookies', href: '/cookies' },
+            { label: 'Contact', href: '/contact' },
+          ].map((p) => (
+            <span key={p.href} style={{ fontSize: 10, padding: '3px 8px', borderRadius: 5, border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>{p.label}</span>
+          ))}
+        </div>
         <p style={{ fontSize: 9, color: 'var(--muted-foreground)', margin: 0, fontStyle: 'italic', lineHeight: 1.5 }}>
           Templates are a starting point — the operator is ultimately responsible. We recommend a legal review.
         </p>
@@ -582,7 +576,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', margin: '0 0 2px' }}>Payments managed by Quante</p>
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
               Selected methods are automatically configured — no API keys required.
-              Revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via IBAN transfer.
+              Revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via bank transfer.
               Prefer receiving money directly? Enter your own gateway credentials in the section below.
             </p>
           </div>
@@ -595,36 +589,40 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
           <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
-          <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (card, Apple Pay, bank buttons)</label>
-          {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
-        </div>
+        {isCz && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+              <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
+              <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (card, Apple Pay, bank buttons)</label>
+              {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
+            </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
-          <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (card, Google Pay, bank transfer)</label>
-          {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+              <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
+              <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (card, Google Pay, bank transfer)</label>
+              {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
+            </div>
+          </>
+        )}
 
-        {/* Dobírka */}
+        {/* Cash on delivery */}
         <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payDobirka ? 6 : 0 }}>
-            <input type="checkbox" id="pay_dobirka" checked={payDobirka} onChange={(e) => setPayDobirka(e.target.checked)} style={{ margin: 0 }} />
-            <label htmlFor="pay_dobirka" style={{ fontSize: 11, cursor: 'pointer' }}>Cash on delivery</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payCod ? 6 : 0 }}>
+            <input type="checkbox" id="pay_cod" checked={payCod} onChange={(e) => setPayCod(e.target.checked)} style={{ margin: 0 }} />
+            <label htmlFor="pay_cod" style={{ fontSize: 11, cursor: 'pointer' }}>Cash on delivery</label>
           </div>
-          {payDobirka && (
+          {payCod && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Surcharge (CZK):</label>
-              <input style={{ ...fieldStyle, width: 80 }} type="number" min={0} value={payDobirkaFee} onChange={(e) => setPayDobirkaFee(Number(e.target.value))} />
+              <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Surcharge:</label>
+              <input style={{ ...fieldStyle, width: 80 }} type="number" min={0} value={payCodFee} onChange={(e) => setPayCodFee(Number(e.target.value))} />
             </div>
           )}
         </div>
 
-        {/* Bankovní převod */}
+        {/* Bank transfer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
-          <input type="checkbox" id="pay_prevod" checked={payPrevod} onChange={(e) => setPayPrevod(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="pay_prevod" style={{ fontSize: 11, cursor: 'pointer' }}>Bank transfer (QR code + payment instructions)</label>
+          <input type="checkbox" id="pay_transfer" checked={payBankTransfer} onChange={(e) => setPayBankTransfer(e.target.checked)} style={{ margin: 0 }} />
+          <label htmlFor="pay_transfer" style={{ fontSize: 11, cursor: 'pointer' }}>Bank transfer (QR code + payment instructions)</label>
         </div>
       </div>
 
@@ -636,20 +634,24 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
           Enter your own credentials below to receive money directly on your gateway account instead. Secrets are stored encrypted and never shown again.
         </p>
 
-        {/* Comgate */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>Comgate</p>
-          <input style={fieldStyle} value={comgateMerchantId} onChange={(e) => setComgateMerchantId(e.target.value)} placeholder="Merchant ID" />
-          <input style={fieldStyle} type="password" value={comgateSecret} onChange={(e) => setComgateSecret(e.target.value)} placeholder={hasComgateSecret ? 'Secret saved — enter new value to replace' : 'Secret'} autoComplete="new-password" />
-        </div>
+        {isCz && (
+          <>
+            {/* Comgate */}
+            <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>Comgate</p>
+              <input style={fieldStyle} value={comgateMerchantId} onChange={(e) => setComgateMerchantId(e.target.value)} placeholder="Merchant ID" />
+              <input style={fieldStyle} type="password" value={comgateSecret} onChange={(e) => setComgateSecret(e.target.value)} placeholder={hasComgateSecret ? 'Secret saved — enter new value to replace' : 'Secret'} autoComplete="new-password" />
+            </div>
 
-        {/* GoPay */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>GoPay</p>
-          <input style={fieldStyle} value={gopayGoId} onChange={(e) => setGopayGoId(e.target.value)} placeholder="GoID" />
-          <input style={fieldStyle} value={gopayClientId} onChange={(e) => setGopayClientId(e.target.value)} placeholder="Client ID" />
-          <input style={fieldStyle} type="password" value={gopayClientSecret} onChange={(e) => setGopayClientSecret(e.target.value)} placeholder={hasGopaySecret ? 'Client secret saved — enter new value to replace' : 'Client secret'} autoComplete="new-password" />
-        </div>
+            {/* GoPay */}
+            <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>GoPay</p>
+              <input style={fieldStyle} value={gopayGoId} onChange={(e) => setGopayGoId(e.target.value)} placeholder="GoID" />
+              <input style={fieldStyle} value={gopayClientId} onChange={(e) => setGopayClientId(e.target.value)} placeholder="Client ID" />
+              <input style={fieldStyle} type="password" value={gopayClientSecret} onChange={(e) => setGopayClientSecret(e.target.value)} placeholder={hasGopaySecret ? 'Client secret saved — enter new value to replace' : 'Client secret'} autoComplete="new-password" />
+            </div>
+          </>
+        )}
 
         {/* PayPal */}
         <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -671,6 +673,11 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       {/* Shipping */}
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Shipping</p>
+        {!isCz && (
+          <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
+            The carriers below are common in Czechia/Slovakia. Use &quot;Custom carrier&quot; for any other market.
+          </p>
+        )}
         {[
           { id: 'zasilkovna', label: 'Zásilkovna / Packeta', enabled: shipZasilkovna, setEnabled: setShipZasilkovna, price: shipZasilkovnaPrice, setPrice: setShipZasilkovnaPrice },
           { id: 'ppl', label: 'PPL — home delivery', enabled: shipPpl, setEnabled: setShipPpl, price: shipPplPrice, setPrice: setShipPplPrice },
@@ -681,19 +688,24 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             <input type="checkbox" id={`ship_${m.id}`} checked={m.enabled} onChange={(e) => m.setEnabled(e.target.checked)} style={{ margin: 0 }} />
             <label htmlFor={`ship_${m.id}`} style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>{m.label}</label>
             {m.enabled && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <input style={{ ...fieldStyle, width: 70, textAlign: 'right' }} type="number" min={0} value={m.price} onChange={(e) => m.setPrice(Number(e.target.value))} />
-                <span style={{ fontSize: 10, color: 'var(--muted-foreground)' }}>Kč</span>
-              </div>
+              <input style={{ ...fieldStyle, width: 70, textAlign: 'right' }} type="number" min={0} value={m.price} onChange={(e) => m.setPrice(Number(e.target.value))} />
             )}
           </div>
         ))}
+        {/* Generic flat-rate carrier — the fallback for any market */}
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>Custom carrier / flat-rate shipping</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input style={{ ...fieldStyle, flex: 1 }} value={shipCustomLabel} onChange={(e) => setShipCustomLabel(e.target.value)} placeholder="e.g. Standard shipping" />
+            <input style={{ ...fieldStyle, width: 80, textAlign: 'right' }} type="number" min={0} value={shipCustomPrice} onChange={(e) => setShipCustomPrice(Number(e.target.value))} />
+          </div>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
           <input type="checkbox" id="ship_osobni" checked={shipOsobni} onChange={(e) => setShipOsobni(e.target.checked)} style={{ margin: 0 }} />
-          <label htmlFor="ship_osobni" style={{ fontSize: 11, cursor: 'pointer' }}>Pickup in person (free)</label>
+          <label htmlFor="ship_osobni" style={{ fontSize: 11, cursor: 'pointer' }}>Local pickup (free)</label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Free shipping from (CZK):</label>
+          <label style={{ fontSize: 10, color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>Free shipping from:</label>
           <input style={{ ...fieldStyle, width: 90 }} type="number" min={0} value={freeShippingFrom} onChange={(e) => setFreeShippingFrom(Number(e.target.value))} placeholder="0 = off" />
         </div>
       </div>
@@ -702,7 +714,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <button
           onClick={savePaymentsShipping}
-          disabled={isSavingPayShip || !manifest}
+          disabled={isSavingPayShip}
           style={{
             padding: '0.5rem 0.75rem',
             background: '#6f78e6',
@@ -712,7 +724,7 @@ export function MerchantPanel({ projectId, manifest, onManifestUpdate, onBalance
             fontSize: 12,
             fontWeight: 600,
             cursor: 'pointer',
-            opacity: isSavingPayShip || !manifest ? 0.6 : 1,
+            opacity: isSavingPayShip ? 0.6 : 1,
           }}
         >
           {isSavingPayShip ? 'Saving…' : 'Save payments & shipping'}

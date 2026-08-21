@@ -32,6 +32,23 @@ export async function POST(request: Request) {
     .single()
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
+  // Code-gen mode (2026-08-21): app/terms, app/privacy, app/cookies, app/contact are
+  // always present in the scaffold (see lib/store-template/build.ts) and fetch live
+  // content from app/api/store/legal, generated on the fly from the business info
+  // saved on project_secrets (MerchantPanel.tsx). There's nothing to "generate" or
+  // write here — the pages already exist and update automatically. This route now
+  // only needs to run its legacy manifest-mode logic below for projects that predate
+  // the code-gen pivot and are still on the old ShopManifest/customPages model.
+  const { data: codeVersion } = await supabase
+    .from('code_versions')
+    .select('id')
+    .eq('project_id', projectId)
+    .limit(1)
+    .maybeSingle()
+  if (codeVersion) {
+    return NextResponse.json({ ok: true, mode: 'code-gen', message: 'Legal pages are live at /terms, /privacy, /cookies, /contact and update automatically from your saved business data.' })
+  }
+
   const { data: versionRow } = await supabase
     .from('manifest_versions')
     .select('manifest, version_no')

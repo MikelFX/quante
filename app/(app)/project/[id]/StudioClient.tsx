@@ -3925,30 +3925,30 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               onClick={() => handleExport(false)}
-              disabled={!currentManifest || isExporting}
+              disabled={!hasGeneratedOnce || isExporting}
               style={{
                 flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
                 border: '1px solid rgba(255,255,255,.09)', background: 'transparent',
-                color: currentManifest && !isExporting ? '#f4f4f6' : '#5b5b64',
-                cursor: currentManifest && !isExporting ? 'pointer' : 'not-allowed',
+                color: hasGeneratedOnce && !isExporting ? '#f4f4f6' : '#5b5b64',
+                cursor: hasGeneratedOnce && !isExporting ? 'pointer' : 'not-allowed',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => { if (currentManifest && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.06)' }}
+              onMouseEnter={e => { if (hasGeneratedOnce && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.06)' }}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
             >
               {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
             </button>
             <button
               onClick={() => handleExport(true)}
-              disabled={!currentManifest || isExportingAdmin}
+              disabled={!hasGeneratedOnce || isExportingAdmin}
               style={{
                 flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
                 border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.07)',
-                color: currentManifest && !isExportingAdmin ? '#6f78e6' : '#5b5b64',
-                cursor: currentManifest && !isExportingAdmin ? 'pointer' : 'not-allowed',
+                color: hasGeneratedOnce && !isExportingAdmin ? '#6f78e6' : '#5b5b64',
+                cursor: hasGeneratedOnce && !isExportingAdmin ? 'pointer' : 'not-allowed',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => { if (currentManifest && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(111,120,230,.13)' }}
+              onMouseEnter={e => { if (hasGeneratedOnce && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(111,120,230,.13)' }}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(111,120,230,.07)'}
             >
               {isExportingAdmin ? '…' : '↓ ZIP + Admin'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
@@ -5589,8 +5589,6 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
                     <MerchantPanel
                       projectId={projectId}
-                      manifest={currentManifest}
-                      onManifestUpdate={(m) => { setCurrentManifest(m); setIframeKey((k) => k + 1) }}
                       onBalanceRefresh={refreshBalance}
                     />
                   </div>
@@ -5673,6 +5671,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {activeTab === 'publish'  && (
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {PublishPanel}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
+              <MerchantPanel
+                projectId={projectId}
+                onBalanceRefresh={refreshBalance}
+              />
+            </div>
           </div>
         )}
       </div>

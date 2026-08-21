@@ -8,8 +8,14 @@
 // Consumed by app/api/projects/[id]/health/route.ts. Kept dependency-free (no supabase
 // client, no Next.js imports) so it can be unit-tested in isolation — see
 // __tests__/store-health.test.mjs.
+//
+// 2026-08-21: merchant/payments/shipping/legal-pages inputs switched from the legacy
+// ShopManifest (manifest_versions — never populated for code-gen mode stores, so these
+// checks could never pass) to project_secrets (merchant_json/payments_json/
+// shipping_json) and code_versions file presence, matching how the data is actually
+// stored/read now. See MerchantPanel.tsx and app/api/quante/legal/route.ts.
 
-import type { ShopManifest } from '@/types/manifest'
+import type { BusinessInfo, PaymentsInfo, ShippingInfo } from '@/types/business'
 import type { StoreProduct } from '@/types/store-code'
 
 export type HealthActionTarget = 'legal' | 'settings' | 'products' | 'theme' | 'publish'
@@ -33,7 +39,10 @@ export interface StoreHealthResult {
 }
 
 export interface StoreHealthInput {
-  manifest: ShopManifest | null
+  merchant: BusinessInfo | null
+  payments: PaymentsInfo | null
+  shipping: ShippingInfo | null
+  legalPagesPresent: number // 0-4, how many of the 4 required legal page files exist in code_versions
   products: StoreProduct[] | null
   hasCookieConsent: boolean
   deployment: {
@@ -45,53 +54,49 @@ export interface StoreHealthInput {
   emailTestSentAt: string | null
 }
 
-// Loose IČO check — 8 digits. (Full mod-11 checksum validation is deliberately not
-// enforced here: some legitimate edge-case IČOs and all foreign VAT-equivalent ids would
-// otherwise be flagged as invalid. Matches the spec's "IČO validní" at a practical level.)
-function isValidIco(ico: string | undefined): boolean {
-  return !!ico && /^\d{8}$/.test(ico.trim())
+// Loose company-id check — non-empty is enough for non-CZ markets; CZ gets the real
+// 8-digit IČO check since ARES lookup is only offered there.
+function isValidTaxId(merchant: BusinessInfo): boolean {
+  if (!merchant.taxId?.trim()) return false
+  if (merchant.country === 'CZ') return /^\d{8}$/.test(merchant.taxId.trim())
+  return true
 }
 
-const LEGAL_SLUGS = ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt']
-
 export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
-  const { manifest, products, hasCookieConsent, deployment, emailTestSentAt } = input
-  const m = manifest?.merchant
+  const { merchant, payments, shipping, legalPagesPresent, products, hasCookieConsent, deployment, emailTestSentAt } = input
 
   // 1. Merchant data
   const merchantComplete = !!(
-    m &&
-    m.obchodni_nazev?.trim() &&
-    isValidIco(m.ico) &&
-    m.sidlo?.ulice?.trim() &&
-    m.sidlo?.mesto?.trim() &&
-    m.sidlo?.psc?.trim() &&
-    m.kontakt?.email?.trim()
+    merchant &&
+    merchant.name?.trim() &&
+    isValidTaxId(merchant) &&
+    merchant.street?.trim() &&
+    merchant.city?.trim() &&
+    merchant.postalCode?.trim() &&
+    merchant.email?.trim()
   )
 
-  // 2. Legal pages (4 required, generated via /api/quante/legal)
-  const customPageSlugs = new Set((manifest?.customPages ?? []).map((p) => p.slug))
-  const legalPagesDone = LEGAL_SLUGS.every((slug) => customPageSlugs.has(slug))
-  const legalPagesPresent = LEGAL_SLUGS.filter((slug) => customPageSlugs.has(slug)).length
+  // 2. Legal pages (4 required, generated via /api/quante/legal — app/terms,
+  // app/privacy, app/cookies, app/contact page files in code_versions)
+  const legalPagesDone = legalPagesPresent >= 4
 
   // 3. Payment method active
-  const payments = manifest?.payments
   const paymentActive = !!(
     payments &&
     ((payments.providers?.length ?? 0) > 0 ||
-      payments.dobirka?.enabled ||
-      payments.prevod?.enabled)
+      payments.cod?.enabled ||
+      payments.bankTransfer?.enabled)
   )
 
   // 4. Shipping method with price
-  const shippingMethods = manifest?.shipping?.methods ?? []
-  const shippingDone = shippingMethods.length > 0 && shippingMethods.every((sm) => typeof sm.cena_czk === 'number' && sm.cena_czk >= 0)
+  const shippingMethods = shipping?.methods ?? []
+  const shippingDone = shippingMethods.length > 0 && shippingMethods.every((sm) => typeof sm.price === 'number' && sm.price >= 0)
 
   // 5. Transactional email tested
   const emailTested = !!emailTestSentAt
 
   // 6. At least one product with photo, price and availability
-  const productList = products ?? manifest?.catalog.products ?? []
+  const productList = products ?? []
   const sellableProduct = productList.find(
     (p) => p.images?.length > 0 && typeof p.price === 'number' && p.price > 0 && p.available
   )
@@ -109,13 +114,9 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
       label: 'Fakturační údaje',
       done: merchantComplete,
       detail: merchantComplete
-        ? `${m!.obchodni_nazev} · IČO ${m!.ico}`
-        : 'Doplňte název firmy, IČO a sídlo v nastavení obchodu.',
+        ? `${merchant!.name} · ${merchant!.taxId}`
+        : 'Doplňte název firmy, IČO/registrační číslo a sídlo v Publish panelu.',
       actionLabel: 'Doplnit údaje',
-      // 2026-08-21: was 'settings' — the invoicing/business-details form actually
-      // lives in the Builder's Publish panel (payout/business section), not Admin
-      // Settings (which only has shipping-carrier credentials). Clicking through
-      // used to land on a page with no matching fields at all.
       actionTarget: 'publish',
     },
     {
@@ -123,8 +124,8 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
       label: 'Právní stránky (4×)',
       done: legalPagesDone,
       detail: legalPagesDone
-        ? 'Obchodní podmínky, GDPR, cookies a kontakt vygenerovány.'
-        : `${legalPagesPresent}/4 stránek hotovo — vygenerujte zbývající v chatu ("Vytvoř právní stránky").`,
+        ? 'Obchodní podmínky, zásady ochrany osobních údajů, cookies a kontakt vygenerovány.'
+        : `${legalPagesPresent}/4 stránek hotovo — vygenerujte je v Publish panelu ("Generate legal pages").`,
       actionLabel: 'Vygenerovat stránky',
       actionTarget: 'legal',
     },
@@ -134,10 +135,8 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
       done: paymentActive,
       detail: paymentActive
         ? 'Alespoň jedna platební metoda je aktivní.'
-        : 'Zapněte platbu převodem, dobírkou nebo platební bránu v nastavení.',
+        : 'Zapněte platbu převodem, dobírkou nebo platební bránu v Publish panelu.',
       actionLabel: 'Nastavit platby',
-      // 2026-08-21: was 'settings' — same fix as 'merchant' above. Payout/IBAN
-      // setup is in the Publish panel, not Admin Settings.
       actionTarget: 'publish',
     },
     {
@@ -146,9 +145,9 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
       done: shippingDone,
       detail: shippingDone
         ? `${shippingMethods.length} dopravní metod${shippingMethods.length === 1 ? 'a' : 'y'} nastaveno.`
-        : 'Přidejte alespoň jednu dopravní metodu s cenou.',
+        : 'Přidejte alespoň jednu dopravní metodu s cenou v Publish panelu.',
       actionLabel: 'Nastavit dopravu',
-      actionTarget: 'settings',
+      actionTarget: 'publish',
     },
     {
       id: 'email_test',
@@ -158,7 +157,7 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
         ? `Testovací e-mail odeslán ${new Date(emailTestSentAt as string).toLocaleDateString('cs-CZ')}.`
         : 'Odešlete testovací potvrzení objednávky na svou adresu.',
       actionLabel: 'Odeslat test',
-      actionTarget: 'settings',
+      actionTarget: 'publish',
     },
     {
       id: 'product',
@@ -176,7 +175,7 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
       done: cookieBarDone,
       detail: cookieBarDone
         ? 'Cookie lišta je součástí obchodu.'
-        : 'Cookie lišta chybí — vygenerujte obchod znovu.',
+        : 'Cookie lišta chybí v tomto obchodě.',
       actionLabel: 'Otevřít Builder',
       actionTarget: 'theme',
     },

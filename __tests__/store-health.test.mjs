@@ -5,50 +5,51 @@
 // Inlines a plain-JS copy of lib/store-health.ts (must stay in sync) — same convention as
 // __tests__/fulfillment-byrd.test.mjs / __tests__/export-whitelabel.test.mjs, since these
 // tests run via plain `node --test` without a TypeScript loader.
+//
+// 2026-08-21: rewritten alongside lib/store-health.ts's switch from the legacy
+// ShopManifest (manifest_versions — never populated for code-gen mode stores) to
+// project_secrets-backed BusinessInfo/PaymentsInfo/ShippingInfo + code_versions file
+// presence for legal pages. See types/business.ts and MerchantPanel.tsx.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 // ─── lib/store-health.ts (inlined copy) ─────────────────────────────────────────
 
-function isValidIco(ico) {
-  return !!ico && /^\d{8}$/.test(ico.trim())
+function isValidTaxId(merchant) {
+  if (!merchant.taxId?.trim()) return false
+  if (merchant.country === 'CZ') return /^\d{8}$/.test(merchant.taxId.trim())
+  return true
 }
 
-const LEGAL_SLUGS = ['obchodni-podminky', 'ochrana-osobnich-udaju', 'cookies', 'kontakt']
-
 function computeStoreHealth(input) {
-  const { manifest, products, hasCookieConsent, deployment, emailTestSentAt } = input
-  const m = manifest?.merchant
+  const { merchant, payments, shipping, legalPagesPresent, products, hasCookieConsent, deployment, emailTestSentAt } = input
 
   const merchantComplete = !!(
-    m &&
-    m.obchodni_nazev?.trim() &&
-    isValidIco(m.ico) &&
-    m.sidlo?.ulice?.trim() &&
-    m.sidlo?.mesto?.trim() &&
-    m.sidlo?.psc?.trim() &&
-    m.kontakt?.email?.trim()
+    merchant &&
+    merchant.name?.trim() &&
+    isValidTaxId(merchant) &&
+    merchant.street?.trim() &&
+    merchant.city?.trim() &&
+    merchant.postalCode?.trim() &&
+    merchant.email?.trim()
   )
 
-  const customPageSlugs = new Set((manifest?.customPages ?? []).map((p) => p.slug))
-  const legalPagesDone = LEGAL_SLUGS.every((slug) => customPageSlugs.has(slug))
-  const legalPagesPresent = LEGAL_SLUGS.filter((slug) => customPageSlugs.has(slug)).length
+  const legalPagesDone = legalPagesPresent >= 4
 
-  const payments = manifest?.payments
   const paymentActive = !!(
     payments &&
     ((payments.providers?.length ?? 0) > 0 ||
-      payments.dobirka?.enabled ||
-      payments.prevod?.enabled)
+      payments.cod?.enabled ||
+      payments.bankTransfer?.enabled)
   )
 
-  const shippingMethods = manifest?.shipping?.methods ?? []
-  const shippingDone = shippingMethods.length > 0 && shippingMethods.every((sm) => typeof sm.cena_czk === 'number' && sm.cena_czk >= 0)
+  const shippingMethods = shipping?.methods ?? []
+  const shippingDone = shippingMethods.length > 0 && shippingMethods.every((sm) => typeof sm.price === 'number' && sm.price >= 0)
 
   const emailTested = !!emailTestSentAt
 
-  const productList = products ?? manifest?.catalog?.products ?? []
+  const productList = products ?? []
   const sellableProduct = productList.find(
     (p) => p.images?.length > 0 && typeof p.price === 'number' && p.price > 0 && p.available
   )
@@ -92,29 +93,43 @@ function emptyDeployment() {
   return { status: null, domain: null, customDomain: null, customDomainVerified: false }
 }
 
-function fullManifest() {
+function fullMerchant() {
   return {
-    merchant: {
-      obchodni_nazev: 'Kavárna Nova s.r.o.',
-      ico: '12345678',
-      sidlo: { ulice: 'Hlavní 1', mesto: 'Praha', psc: '11000', zeme: 'CZ' },
-      kontakt: { email: 'info@kavarna.cz', telefon: '+420123456789' },
-    },
-    customPages: LEGAL_SLUGS.map((slug) => ({ slug, title: slug, sections: [] })),
-    payments: { providers: [], prevod: { enabled: true, qr: true } },
-    shipping: { methods: [{ type: 'zasilkovna', cena_czk: 79 }] },
-    catalog: {
-      currency: 'CZK',
-      products: [{ id: '1', name: 'Espresso', price: 89, images: ['x.jpg'], available: true, slug: 'espresso' }],
-    },
+    name: 'Nova Coffee Ltd.',
+    taxId: '12345678',
+    vatId: 'CZ12345678',
+    vatRegistered: true,
+    country: 'CZ',
+    street: 'Main St 1',
+    city: 'Prague',
+    postalCode: '11000',
+    email: 'info@novacoffee.example',
+    phone: '+420123456789',
+    bankAccount: '123456789/0800',
+    responsiblePerson: '',
   }
+}
+
+function fullPayments() {
+  return { providers: [], cod: { enabled: false, fee: 0 }, bankTransfer: { enabled: true, qr: true } }
+}
+
+function fullShipping() {
+  return { methods: [{ id: 'zasilkovna', label: 'Zásilkovna / Packeta', price: 79 }], pickupEnabled: false, freeShippingFrom: 0 }
+}
+
+function fullProducts() {
+  return [{ id: '1', name: 'Espresso', price: 89, images: ['x.jpg'], available: true, slug: 'espresso' }]
 }
 
 // ─── tests ───────────────────────────────────────────────────────────────────────
 
 test('empty project scores 0 and is not ready to sell', () => {
   const result = computeStoreHealth({
-    manifest: null,
+    merchant: null,
+    payments: null,
+    shipping: null,
+    legalPagesPresent: 0,
     products: null,
     hasCookieConsent: false,
     deployment: null,
@@ -128,8 +143,11 @@ test('empty project scores 0 and is not ready to sell', () => {
 
 test('fully configured project scores 100 and is ready to sell', () => {
   const result = computeStoreHealth({
-    manifest: fullManifest(),
-    products: null,
+    merchant: fullMerchant(),
+    payments: fullPayments(),
+    shipping: fullShipping(),
+    legalPagesPresent: 4,
+    products: fullProducts(),
     hasCookieConsent: true,
     deployment: { ...emptyDeployment(), status: 'ready' },
     emailTestSentAt: new Date().toISOString(),
@@ -140,61 +158,52 @@ test('fully configured project scores 100 and is ready to sell', () => {
   assert.equal(result.live.isLive, true)
 })
 
-test('invalid IČO (not 8 digits) fails the merchant check', () => {
-  const manifest = fullManifest()
-  manifest.merchant.ico = '123'
-  const result = computeStoreHealth({ manifest, products: null, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
+test('invalid IČO (not 8 digits, CZ) fails the merchant check', () => {
+  const merchant = { ...fullMerchant(), taxId: '123' }
+  const result = computeStoreHealth({ merchant, payments: null, shipping: null, legalPagesPresent: 0, products: null, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
   assert.equal(result.items.find((i) => i.id === 'merchant').done, false)
 })
 
+test('non-CZ merchant only needs a non-empty tax id, not an 8-digit IČO', () => {
+  const merchant = { ...fullMerchant(), country: 'US', taxId: 'EIN-98-7654321' }
+  const result = computeStoreHealth({ merchant, payments: null, shipping: null, legalPagesPresent: 0, products: null, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
+  assert.equal(result.items.find((i) => i.id === 'merchant').done, true)
+})
+
 test('partial legal pages (3 of 4) do not count as done, but are tracked', () => {
-  const manifest = fullManifest()
-  manifest.customPages = manifest.customPages.filter((p) => p.slug !== 'kontakt')
-  const result = computeStoreHealth({ manifest, products: null, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
+  const result = computeStoreHealth({ merchant: fullMerchant(), payments: fullPayments(), shipping: fullShipping(), legalPagesPresent: 3, products: fullProducts(), hasCookieConsent: true, deployment: null, emailTestSentAt: null })
   const legal = result.items.find((i) => i.id === 'legal_pages')
   assert.equal(legal.done, false)
   assert.equal(legal.legalPagesPresent, 3)
 })
 
 test('shipping method with a negative price does not count as done', () => {
-  const manifest = fullManifest()
-  manifest.shipping.methods = [{ type: 'zasilkovna', cena_czk: -1 }]
-  const result = computeStoreHealth({ manifest, products: null, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
+  const shipping = { methods: [{ id: 'zasilkovna', label: 'Zásilkovna', price: -1 }], pickupEnabled: false, freeShippingFrom: 0 }
+  const result = computeStoreHealth({ merchant: fullMerchant(), payments: fullPayments(), shipping, legalPagesPresent: 4, products: fullProducts(), hasCookieConsent: true, deployment: null, emailTestSentAt: null })
   assert.equal(result.items.find((i) => i.id === 'shipping').done, false)
 })
 
 test('product without a photo does not satisfy the product checklist item', () => {
-  const manifest = fullManifest()
-  manifest.catalog.products = [{ id: '1', name: 'Espresso', price: 89, images: [], available: true, slug: 'espresso' }]
-  const result = computeStoreHealth({ manifest, products: null, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
+  const products = [{ id: '1', name: 'Espresso', price: 89, images: [], available: true, slug: 'espresso' }]
+  const result = computeStoreHealth({ merchant: fullMerchant(), payments: fullPayments(), shipping: fullShipping(), legalPagesPresent: 4, products, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
   assert.equal(result.items.find((i) => i.id === 'product').done, false)
-})
-
-test('code-gen products (passed via `products`) take priority over manifest.catalog.products', () => {
-  const manifest = fullManifest()
-  manifest.catalog.products = [] // manifest has no products
-  const products = [{ id: '9', name: 'Latte', price: 99, images: ['a.jpg'], available: true, slug: 'latte' }]
-  const result = computeStoreHealth({ manifest, products, hasCookieConsent: true, deployment: null, emailTestSentAt: null })
-  assert.equal(result.items.find((i) => i.id === 'product').done, true)
 })
 
 test('a verified custom domain is surfaced in live.url over the raw deployment domain', () => {
   const result = computeStoreHealth({
-    manifest: fullManifest(),
-    products: null,
+    merchant: fullMerchant(), payments: fullPayments(), shipping: fullShipping(), legalPagesPresent: 4, products: fullProducts(),
     hasCookieConsent: true,
-    deployment: { status: 'ready', domain: 'foo.quante.app', customDomain: 'kavarna.cz', customDomainVerified: true },
+    deployment: { status: 'ready', domain: 'foo.quante.app', customDomain: 'novacoffee.example', customDomainVerified: true },
     emailTestSentAt: null,
   })
-  assert.equal(result.live.url, 'kavarna.cz')
+  assert.equal(result.live.url, 'novacoffee.example')
 })
 
 test('an unverified custom domain falls back to the raw deployment domain', () => {
   const result = computeStoreHealth({
-    manifest: fullManifest(),
-    products: null,
+    merchant: fullMerchant(), payments: fullPayments(), shipping: fullShipping(), legalPagesPresent: 4, products: fullProducts(),
     hasCookieConsent: true,
-    deployment: { status: 'ready', domain: 'foo.quante.app', customDomain: 'kavarna.cz', customDomainVerified: false },
+    deployment: { status: 'ready', domain: 'foo.quante.app', customDomain: 'novacoffee.example', customDomainVerified: false },
     emailTestSentAt: null,
   })
   assert.equal(result.live.url, 'foo.quante.app')
