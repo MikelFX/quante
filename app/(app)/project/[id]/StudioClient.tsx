@@ -439,6 +439,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [ownedDomains, setOwnedDomains] = useState<Array<{ id: string; domain: string; status: string; dns_verified: boolean; project_id: string | null }>>([])
   const [domainConnectInput, setDomainConnectInput] = useState('')
   const [domainConnecting, setDomainConnecting] = useState(false)
+  // id of the owned-but-unassigned domain currently being attached to this project,
+  // or null when none is in flight — drives the per-row "Connect" button spinner.
+  const [domainAssigning, setDomainAssigning] = useState<string | null>(null)
   const [domainConnectResult, setDomainConnectResult] = useState<{ instructions: string; dnsValue: string } | null>(null)
   const [domainPurchasing, setDomainPurchasing] = useState(false)
   // Registrant contact must be collected before we charge anything — this
@@ -1977,6 +1980,26 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       if (data.instructions) setDomainConnectResult({ instructions: data.instructions, dnsValue: data.dnsValue })
     } catch {}
     setDomainConnecting(false)
+  }
+
+  // Attaches a domain the user already owns (bought via /domains without picking a
+  // store, so it's sitting with project_id = null) to this project. Pairs with the
+  // "Your domains" / "Available to connect" split below — see StudioClient render
+  // and app/api/domains/[id]/route.ts PATCH handler (added 2026-08-21).
+  async function handleDomainAssign(domainId: string) {
+    if (domainAssigning) return
+    setDomainAssigning(domainId)
+    try {
+      const res = await fetch(`/api/domains/${domainId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId }),
+      })
+      if (res.ok) {
+        setOwnedDomains(prev => prev.map(d => (d.id === domainId ? { ...d, project_id: projectId } : d)))
+      }
+    } catch {}
+    setDomainAssigning(null)
   }
 
   async function handleSaveIban() {
@@ -3569,12 +3592,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             </div>
           )}
 
-          {/* Owned domains */}
-          {ownedDomains.filter(d => !d.project_id || d.project_id === projectId).length > 0 && (
+          {/* Domains connected to THIS project only — was previously merged with
+              unassigned domains from every other project on the account (any domain
+              with project_id === null matched every project's filter), which made an
+              owned-but-unclaimed domain look like it had leaked in from somewhere else.
+              Fixed 2026-08-21: split into this section (already connected) and the
+              "Available to connect" section below (yours, but not attached anywhere
+              yet) with an explicit action to attach one, instead of passively listing
+              it as if it already belonged here. */}
+          {ownedDomains.filter(d => d.project_id === projectId).length > 0 && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Your domains</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {ownedDomains.filter(d => !d.project_id || d.project_id === projectId).map(d => (
+                {ownedDomains.filter(d => d.project_id === projectId).map(d => (
                   <div key={d.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)',
@@ -3587,6 +3617,42 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     <span style={{ fontSize: 10, color: '#5b5b64', textTransform: 'uppercase' }}>
                       {d.dns_verified ? 'verified' : d.status}
                     </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Domains this account owns but hasn't attached to any store yet (bought via
+              the general /domains page without picking a project). Shown separately,
+              clearly labeled, with an explicit "Connect" action — not silently merged
+              into the list above. */}
+          {ownedDomains.filter(d => !d.project_id).length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Available to connect</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {ownedDomains.filter(d => !d.project_id).map(d => (
+                  <div key={d.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)',
+                    background: 'rgba(255,255,255,.02)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#5b5b64' }} />
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#d0d0da' }}>{d.domain}</span>
+                    </div>
+                    <button
+                      onClick={() => handleDomainAssign(d.id)}
+                      disabled={domainAssigning === d.id}
+                      style={{
+                        padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
+                        border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)',
+                        color: '#d0d0da', cursor: domainAssigning === d.id ? 'not-allowed' : 'pointer',
+                        opacity: domainAssigning === d.id ? 0.5 : 1, textTransform: 'uppercase',
+                      }}
+                    >
+                      {domainAssigning === d.id ? '…' : 'Connect'}
+                    </button>
                   </div>
                 ))}
               </div>
