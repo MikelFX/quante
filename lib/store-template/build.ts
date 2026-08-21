@@ -307,7 +307,7 @@ export function CartDrawer({ open, onClose }: Props) {
                 <span style={{ fontWeight: 700 }}>{total.toFixed(2)} {currency}</span>
               </div>
               <Link
-                href="/checkout" onClick={onClose}
+                href="/cart" onClick={onClose}
                 style={{ display: 'block', textAlign: 'center', padding: '0.75rem', background: 'var(--color-accent)', color: 'var(--color-accent-text)', borderRadius: 'var(--radius)', fontWeight: 600, textDecoration: 'none', fontSize: 14 }}
               >
                 Checkout
@@ -318,6 +318,212 @@ export function CartDrawer({ open, onClose }: Props) {
       </div>
     </>
   )
+}
+`)
+
+  // ── app/cart/page.tsx ─────────────────────────────────────────────────────
+  // Doubles as the checkout page — cart contents + contact details + "Proceed to
+  // payment" in one screen. Deterministic/scaffold, not left to the AI, because a
+  // working checkout is core-engine behavior per the manifest-driven architecture,
+  // not something that should vary by what a given generation run happened to write.
+  // Added 2026-08-21: this route (and app/api/checkout/route.ts below) didn't exist
+  // at all in code-gen mode — only in the older, Czech-specific "legacy manifest
+  // mode" branch of this file, which nothing live uses anymore. The cart drawer's
+  // "Checkout" link pointed at a /checkout route that was never generated either way;
+  // it now points here. Deliberately minimal for v1: a single flat-rate-free
+  // "calculated at checkout" note instead of a real carrier/shipping-method picker —
+  // the code-gen data model (StoreConfig) has no shipping/payment schema yet to
+  // drive one from. Real per-store shipping config is separate, larger scoped work.
+  add('app/cart/page.tsx', `'use client'
+import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft, Trash2, Plus, Minus } from 'lucide-react'
+import { useCart } from '@/lib/store/cart'
+import { config } from '@/data/config'
+
+export default function CartPage() {
+  const { items, total, count, updateQty, removeItem } = useCart()
+  const [customerName, setCustomerName] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const currency = config.brand.currency
+
+  async function handleCheckout() {
+    if (!customerEmail.trim()) { setError('Please enter your email address.'); return }
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.map(({ product, quantity }) => ({
+            id: product.id, name: product.name, price: product.price, currency, quantity,
+          })),
+          customerEmail: customerEmail.trim(),
+          customerName: customerName.trim() || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) { window.location.href = data.url; return }
+      setError(data.error || 'Something went wrong. Please try again.')
+    } catch {
+      setError('Something went wrong. Please try again.')
+    }
+    setLoading(false)
+  }
+
+  if (items.length === 0) {
+    return (
+      <div style={{ minHeight: '55vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '4rem 1.5rem' }}>
+        <p style={{ fontSize: 16, color: 'var(--color-muted)' }}>Your cart is empty.</p>
+        <Link href="/collections/all" style={{ color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>Continue shopping →</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 980, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
+      <Link href="/collections/all" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-muted)', textDecoration: 'none', marginBottom: 24 }}>
+        <ArrowLeft size={14} /> Continue shopping
+      </Link>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, marginBottom: 28 }}>Your cart</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 40, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {items.map(({ product, quantity }) => (
+            <div key={product.id} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', paddingBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
+              {product.images[0] ? (
+                <img src={product.images[0]} alt={product.name} style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+              ) : (
+                <div style={{ width: 88, height: 88, background: 'var(--color-surface)', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 15, fontWeight: 500 }}>{product.name}</p>
+                <p style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 600, marginTop: 4 }}>{product.price} {currency}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  <button onClick={() => updateQty(product.id, quantity - 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 26, height: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
+                  <span style={{ fontSize: 14, minWidth: 22, textAlign: 'center' }}>{quantity}</span>
+                  <button onClick={() => updateQty(product.id, quantity + 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 26, height: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={12} /></button>
+                  <button onClick={() => removeItem(product.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', marginLeft: 'auto', padding: 4, lineHeight: 0 }}><Trash2 size={14} /></button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}>
+            <span>Subtotal ({count} {count === 1 ? 'item' : 'items'})</span>
+            <span>{total.toFixed(2)} {currency}</span>
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 20 }}>Shipping calculated at checkout.</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full name" style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 14, background: 'var(--color-bg)', color: 'var(--color-text)' }} />
+            <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} type="email" placeholder="Email address" style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 14, background: 'var(--color-bg)', color: 'var(--color-text)' }} />
+          </div>
+          {error && <p style={{ fontSize: 13, color: '#dc2626', marginBottom: 12 }}>{error}</p>}
+          <button onClick={handleCheckout} disabled={loading} style={{ width: '100%', padding: '0.85rem', background: 'var(--color-accent)', color: 'var(--color-accent-text)', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
+            {loading ? 'Redirecting…' : 'Proceed to payment'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+`)
+
+  // ── app/success/page.tsx ──────────────────────────────────────────────────
+  add('app/success/page.tsx', `'use client'
+import { useEffect } from 'react'
+import Link from 'next/link'
+import { useCart } from '@/lib/store/cart'
+
+export default function SuccessPage() {
+  const { clearCart } = useCart()
+
+  useEffect(() => {
+    clearCart()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '4rem 1.5rem', textAlign: 'center' }}>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 26 }}>Thank you — your order is confirmed.</h1>
+      <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 420 }}>A confirmation email is on its way. We'll let you know as soon as your order ships.</p>
+      <Link href="/collections/all" style={{ marginTop: 12, color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>Continue shopping →</Link>
+    </div>
+  )
+}
+`)
+
+  // ── app/api/checkout/route.ts ─────────────────────────────────────────────
+  // Hosted mode (default, when deployed via Quante): forwards to the Quante platform,
+  // which creates a real Stripe Checkout Session under Quante's own Stripe account and
+  // records the order — no Stripe keys needed on the merchant's side. QUANTE_PROJECT_ID
+  // / QUANTE_API_URL are injected automatically by the deploy pipeline (see
+  // app/api/deploy/route.ts setEnvVars call).
+  // Self-hosted mode: if this project was exported and runs outside Quante,
+  // QUANTE_PROJECT_ID won't be set, so this falls back to a direct Stripe integration —
+  // set STRIPE_SECRET_KEY in .env.local to activate it.
+  add('app/api/checkout/route.ts', `import { NextResponse } from 'next/server'
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}))
+  if (!body?.items?.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+
+  const projectId = process.env.QUANTE_PROJECT_ID
+  if (projectId) {
+    const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quantecode.com'
+    // The platform builds Stripe success/cancel URLs from the Origin header of this
+    // request. A server-to-server fetch() doesn't set one automatically the way a
+    // browser request does, so it's forwarded explicitly from the original browser
+    // request's own Origin/Host — otherwise Stripe would redirect back to
+    // quantecode.com instead of this store's own domain.
+    const storeOrigin = request.headers.get('origin')
+      || (request.headers.get('host') ? \`https://\${request.headers.get('host')}\` : quanteUrl)
+    const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: storeOrigin },
+      body: JSON.stringify({ projectId, ...body }),
+    })
+    const data = await res.json()
+    return NextResponse.json(data, { status: res.status })
+  }
+
+  // ── Self-hosted mode ────────────────────────────────────────────────────────
+  const { items, customerEmail } = body as {
+    items: Array<{ name: string; price: number; currency: string; quantity: number }>
+    customerEmail?: string
+  }
+  const origin = request.headers.get('origin') || 'http://localhost:3000'
+  const currency = (items[0]?.currency ?? 'USD').toLowerCase()
+
+  const stripeKey = process.env.STRIPE_SECRET_KEY
+  if (!stripeKey) {
+    return NextResponse.json({
+      error: 'This store is not connected to a payment provider yet. Add STRIPE_SECRET_KEY to .env.local and run: npm install stripe',
+    }, { status: 503 })
+  }
+  try {
+    // @ts-expect-error — install stripe with: npm install stripe
+    const { default: Stripe } = await import('stripe')
+    const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: items.map((i) => ({
+        price_data: { currency, product_data: { name: i.name }, unit_amount: Math.round(i.price * 100) },
+        quantity: i.quantity,
+      })),
+      mode: 'payment',
+      success_url: \`\${origin}/success\`,
+      cancel_url: \`\${origin}/cart\`,
+      customer_email: customerEmail,
+    })
+    return NextResponse.json({ url: session.url })
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Stripe error'
+    return NextResponse.json({ error: msg }, { status: 500 })
+  }
 }
 `)
 
@@ -631,7 +837,16 @@ export function buildStoreFiles(
 
     // Merge: AI-generated files override scaffold files with the same path.
     // Locked paths are always taken from the scaffold — Claude cannot override them.
-    const LOCKED = new Set(['app/layout.tsx', 'components/layout/Navbar.tsx', 'components/layout/Footer.tsx', 'components/layout/CartDrawer.tsx'])
+    // app/cart/page.tsx, app/success/page.tsx, and app/api/checkout/route.ts joined
+    // this list 2026-08-21 — checkout is core-engine behavior (cart, routing, payment
+    // wiring), not something an individual generation run should be free to omit or
+    // rewrite. Before this, nothing stopped the AI from silently not writing a cart
+    // page at all, which is exactly what happened to every store generated up to
+    // this point — the "Checkout" button in every deployed store 404'd.
+    const LOCKED = new Set([
+      'app/layout.tsx', 'components/layout/Navbar.tsx', 'components/layout/Footer.tsx', 'components/layout/CartDrawer.tsx',
+      'app/cart/page.tsx', 'app/success/page.tsx', 'app/api/checkout/route.ts',
+    ])
 
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
     for (const [filePath, content] of Object.entries(codeFiles)) {

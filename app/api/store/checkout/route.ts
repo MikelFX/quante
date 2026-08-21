@@ -134,7 +134,7 @@ export async function POST(request: Request) {
         line_items: lineItems,
         mode: 'payment',
         success_url: `${storeBase}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${storeBase}/checkout`,
+        cancel_url: `${storeBase}/cart`,
         customer_email: body.customerEmail,
         metadata: { type: 'store_sale', project_id: projectId, order_id: orderId },
       })
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
         label: `Order ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
         returnUrl: `${storeBase}/success?order=${orderNumber}`,
-        cancelUrl: `${storeBase}/checkout`,
+        cancelUrl: `${storeBase}/cart`,
         notifyUrl: `${QUANTE_URL}/api/payments/comgate/notify`,
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
         label: `Order ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
         returnUrl: `${storeBase}/success?order=${orderNumber}`,
-        cancelUrl: `${storeBase}/checkout`,
+        cancelUrl: `${storeBase}/cart`,
         notifyUrl: `${QUANTE_URL}/api/payments/gopay/notify`,
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
@@ -218,7 +218,7 @@ export async function POST(request: Request) {
         label: `Order ${orderNumber}`,
         customerEmail: body.customerEmail ?? '',
         returnUrl: `${storeBase}/success?order=${orderNumber}`,
-        cancelUrl: `${storeBase}/checkout`,
+        cancelUrl: `${storeBase}/cart`,
         notifyUrl: `${QUANTE_URL}/api/payments/paypal/notify`,
       })
       await supabaseAdmin.from('store_orders').update({ payment_ref: result.transactionId }).eq('id', orderId)
