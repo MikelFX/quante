@@ -27,13 +27,22 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   since.setDate(since.getDate() - days + 1)
   since.setHours(0, 0, 0, 0)
 
-  const { data: rows } = await supabaseAdmin
-    .from('store_orders')
-    .select('total_cents, currency, payment_status, created_at')
-    .eq('project_id', projectId)
-    .eq('payment_status', 'paid')
-    .gte('created_at', since.toISOString())
-    .order('created_at', { ascending: true })
+  const [{ data: rows }, { data: codeVersion }] = await Promise.all([
+    supabaseAdmin
+      .from('store_orders')
+      .select('total_cents, currency, payment_status, created_at')
+      .eq('project_id', projectId)
+      .eq('payment_status', 'paid')
+      .gte('created_at', since.toISOString())
+      .order('created_at', { ascending: true }),
+    supabaseAdmin
+      .from('code_versions')
+      .select('files')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
   // Build day-indexed map
   const dayMap = new Map<string, { revenue: number; orders: number }>()
@@ -44,7 +53,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     dayMap.set(key, { revenue: 0, orders: 0 })
   }
 
-  const currency = (rows?.[0]?.currency as string ?? 'czk').toUpperCase()
+  // Prefer the currency of an actual paid order (ground truth); if there are none yet
+  // (new store, no sales), fall back to the store's own configured currency instead of
+  // a hardcoded 'czk' — same regex approach as app/api/projects/[id]/products/route.ts,
+  // since code-gen stores have no manifest row to read a currency field from directly.
+  // 2026-08-22: was unconditionally 'czk', so every store showed "Revenue (CZK)" before
+  // its first sale regardless of its actual currency (e.g. a USD store).
+  let currency = (rows?.[0]?.currency as string | undefined)?.toUpperCase()
+  if (!currency) {
+    const files = (codeVersion?.files ?? {}) as Record<string, string>
+    const currencyMatch = (files['data/config.ts'] ?? '').match(/currency:\s*['"]([A-Za-z]{3})['"]/)
+    currency = currencyMatch?.[1]?.toUpperCase() ?? 'CZK'
+  }
 
   for (const row of rows ?? []) {
     const key = (row.created_at as string).slice(0, 10)

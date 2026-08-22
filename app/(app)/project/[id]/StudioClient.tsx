@@ -507,9 +507,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  // Load products parsed from the generated code (code-gen stores have no manifest)
+  // Load products parsed from the generated code (code-gen stores have no manifest).
+  // Also triggered by the Admin dashboard (not just the Products panel) — 2026-08-22:
+  // the dashboard's revenue stats used a hardcoded 'CZK' fallback via
+  // currentManifest?.catalog.currency (always null for code-gen stores) until this
+  // effect had loaded codeCurrency, which previously only happened once the Products
+  // tab was opened. A USD (or any non-CZK) store visiting the dashboard first would
+  // see "Revenue (CZK)" even after real sales existed, purely because this hadn't run yet.
   useEffect(() => {
-    const productsOpen = (adminMode && adminTab === 'products') || desktopTab === 'products' || activeTab === 'products'
+    const productsOpen = (adminMode && (adminTab === 'products' || adminTab === 'dashboard')) || desktopTab === 'products' || activeTab === 'products'
     if (!productsOpen || currentManifest || !hasGeneratedOnce || codeProductsLoaded) return
     setCodeProductsLoaded(true)
     fetch(`/api/projects/${projectId}/products`)
@@ -4418,7 +4424,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // ── Admin panel ──────────────────────────────────────────────────────────────
   const productCount = currentManifest?.catalog.products.length ?? 0
   const sectionCount = currentManifest?.pages.home.length ?? 0
-  const currency = currentManifest?.catalog.currency ?? 'CZK'
+  const currency = currentManifest?.catalog.currency ?? codeCurrency
 
   const ADMIN_TABS: { id: AdminTab; label: string; icon: React.ElementType }[] = [
     { id: 'dashboard',  label: 'Dashboard',  icon: LayoutDashboard },
@@ -4719,7 +4725,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {/* Tab switcher: Store orders vs Stripe */}
       <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.04)', borderRadius: 9, padding: 4, alignSelf: 'flex-start' }}>
         {[
-          { id: 'store' as const, label: 'Packeta / Comgate' },
+          { id: 'store' as const, label: 'Other methods' },
           { id: 'stripe' as const, label: 'Stripe' },
         ].map(({ id, label }) => (
           <button
@@ -4742,7 +4748,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {ordersTab === 'store' ? (
-        /* ── Supabase store_orders (Zásilkovna / Comgate / bank) ── */
+        /* ── Supabase store_orders (bank transfer, COD, Comgate/GoPay/PayPal etc.) ── */
         isLoadingStoreOrders ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1, 2, 3].map(i => (
@@ -4753,7 +4759,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
             <ClipboardList size={36} style={{ color: '#5b5b64' }} />
             <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
-            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Orders via Packeta, Comgate and bank transfer will appear here.</p>
+            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Orders via bank transfer, cash on delivery, or other connected payment/shipping providers will appear here.</p>
             <button onClick={handleLoadStoreOrders} style={{ fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </div>
         ) : (
