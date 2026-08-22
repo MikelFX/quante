@@ -117,6 +117,7 @@ export interface StoreConfig {
     tagline: string
     currency: string
     language: string
+    country: string
     logoText?: string
   }
   seo: { title: string; description: string }
@@ -233,7 +234,7 @@ export function useCart(): CartContextValue {
   add('data/config.ts', `import type { StoreConfig } from '@/types/store-code'
 
 export const config: StoreConfig = {
-  brand: { name: 'My Store', tagline: '', currency: 'EUR', language: 'en' },
+  brand: { name: 'My Store', tagline: '', currency: 'EUR', language: 'en', country: 'US' },
   seo: { title: 'My Store', description: '' },
   design: {
     colors: { bg: '#ffffff', text: '#111111', accent: '#111111', accentText: '#ffffff', muted: '#6b7280', surface: '#f9fafb', border: '#e5e7eb' },
@@ -245,18 +246,137 @@ export const config: StoreConfig = {
 }
 `)
 
+  // ── lib/i18n.ts (LOCKED) ──────────────────────────────────────────────────
+  // Added 2026-08-22: the scaffold's fixed UI chrome (cart, checkout, success,
+  // cookie banner, legal-page fallback, 404) used to be hardcoded English strings
+  // regardless of config.brand.language/country — a store generated for the Czech
+  // market got AI-written Czech homepage copy but an English checkout. Config
+  // already carried a `language` field (unused by the scaffold until now); this
+  // adds `country` alongside it plus a small dictionary + Intl-based locale
+  // formatting so the deterministic parts of the store adapt to its actual market,
+  // the same way currency already did. Starts with full en/cs coverage (Quante's
+  // two proven markets this session); any other language code falls back to en
+  // rather than showing missing strings.
+  add('lib/i18n.ts', `import { config } from '@/data/config'
+
+type StringKey =
+  | 'cart' | 'cartEmpty' | 'continueShopping' | 'subtotal' | 'item' | 'items'
+  | 'shipping' | 'free' | 'total' | 'fullName' | 'email' | 'phone'
+  | 'shippingMethod' | 'shippingAddress' | 'street' | 'city' | 'state'
+  | 'zip' | 'postcode' | 'postalCode' | 'country' | 'proceedToPayment' | 'redirecting'
+  | 'errorEmail' | 'errorAddress' | 'errorShippingMethod' | 'errorGeneric'
+  | 'thankYou' | 'confirmationNote' | 'cartHeading' | 'checkout'
+  | 'cookieMessage' | 'learnMore' | 'accept'
+  | 'pageNotFound' | 'pageNotFoundBody' | 'backTo' | 'legalNotConfigured'
+  | 'termsOfService' | 'privacyPolicy' | 'cookiePolicy' | 'contact'
+
+const STRINGS: Record<'en' | 'cs', Record<StringKey, string>> = {
+  en: {
+    cart: 'Your cart', cartEmpty: 'Your cart is empty.', continueShopping: 'Continue shopping',
+    subtotal: 'Subtotal', item: 'item', items: 'items',
+    shipping: 'Shipping', free: 'Free', total: 'Total',
+    fullName: 'Full name', email: 'Email address', phone: 'Phone (optional)',
+    shippingMethod: 'Shipping method', shippingAddress: 'Shipping address',
+    street: 'Street address', city: 'City', state: 'State',
+    zip: 'ZIP code', postcode: 'Postcode', postalCode: 'Postal code', country: 'Country',
+    proceedToPayment: 'Proceed to payment', redirecting: 'Redirecting…',
+    errorEmail: 'Please enter your email address.',
+    errorAddress: 'Please fill in your shipping address.',
+    errorShippingMethod: 'Please select a shipping method.',
+    errorGeneric: 'Something went wrong. Please try again.',
+    thankYou: 'Thank you — your order is confirmed.',
+    confirmationNote: 'A confirmation email is on its way. We\\'ll let you know as soon as your order ships.',
+    cartHeading: 'Cart', checkout: 'Checkout',
+    cookieMessage: 'We use cookies to make this store work and, with your consent, to understand how it\\'s used.',
+    learnMore: 'Learn more', accept: 'Accept',
+    pageNotFound: 'Page not found',
+    pageNotFoundBody: 'The page you\\'re looking for doesn\\'t exist or may have moved.',
+    backTo: 'Back to', legalNotConfigured: 'This page has not been set up yet.',
+    termsOfService: 'Terms of Service', privacyPolicy: 'Privacy Policy',
+    cookiePolicy: 'Cookies', contact: 'Contact',
+  },
+  cs: {
+    cart: 'Váš košík', cartEmpty: 'Váš košík je prázdný.', continueShopping: 'Pokračovat v nákupu',
+    subtotal: 'Mezisoučet', item: 'položka', items: 'položek',
+    shipping: 'Doprava', free: 'Zdarma', total: 'Celkem',
+    fullName: 'Jméno a příjmení', email: 'E-mailová adresa', phone: 'Telefon (nepovinné)',
+    shippingMethod: 'Způsob dopravy', shippingAddress: 'Doručovací adresa',
+    street: 'Ulice a číslo popisné', city: 'Město', state: 'Stát',
+    zip: 'PSČ', postcode: 'PSČ', postalCode: 'PSČ', country: 'Země',
+    proceedToPayment: 'Pokračovat k platbě', redirecting: 'Přesměrovávám…',
+    errorEmail: 'Zadejte prosím svou e-mailovou adresu.',
+    errorAddress: 'Vyplňte prosím doručovací adresu.',
+    errorShippingMethod: 'Vyberte prosím způsob dopravy.',
+    errorGeneric: 'Něco se nepovedlo. Zkuste to prosím znovu.',
+    thankYou: 'Děkujeme — vaše objednávka je potvrzena.',
+    confirmationNote: 'Potvrzovací e-mail je na cestě. Jakmile objednávku odešleme, dáme vám vědět.',
+    cartHeading: 'Košík', checkout: 'K pokladně',
+    cookieMessage: 'Používáme cookies, aby obchod fungoval, a s vaším souhlasem i k pochopení, jak ho používáte.',
+    learnMore: 'Zjistit více', accept: 'Přijmout',
+    pageNotFound: 'Stránka nenalezena',
+    pageNotFoundBody: 'Stránka, kterou hledáte, neexistuje nebo byla přesunuta.',
+    backTo: 'Zpět na', legalNotConfigured: 'Tato stránka zatím není nastavena.',
+    termsOfService: 'Obchodní podmínky', privacyPolicy: 'Zásady ochrany osobních údajů',
+    cookiePolicy: 'Cookies', contact: 'Kontakt',
+  },
+}
+
+function resolveLang(): 'en' | 'cs' {
+  return config.brand.language === 'cs' ? 'cs' : 'en'
+}
+
+export function t(key: StringKey): string {
+  return STRINGS[resolveLang()][key]
+}
+
+// BCP-47 locale for Intl formatting, e.g. "en-US", "cs-CZ".
+export function getLocale(): string {
+  const language = config.brand.language || 'en'
+  const country = (config.brand.country || 'US').toUpperCase()
+  return \`\${language}-\${country}\`
+}
+
+export function formatMoney(amount: number): string {
+  try {
+    return new Intl.NumberFormat(getLocale(), { style: 'currency', currency: config.brand.currency || 'USD' }).format(amount)
+  } catch {
+    return \`\${amount.toFixed(2)} \${config.brand.currency}\`
+  }
+}
+
+export function formatDate(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat(getLocale(), { day: 'numeric', month: 'long', year: 'numeric' }).format(date)
+  } catch {
+    return date.toLocaleDateString()
+  }
+}
+
+// Postal-code field label, adapted per country convention.
+export function postalLabel(): string {
+  const c = (config.brand.country || '').toUpperCase()
+  if (c === 'US') return t('zip')
+  if (c === 'GB') return t('postcode')
+  return t('postalCode')
+}
+
+// Whether this country conventionally collects a "State / Province" field.
+export function usesStateField(): boolean {
+  return ['US', 'CA', 'AU', 'MX', 'BR', 'IN'].includes((config.brand.country || '').toUpperCase())
+}
+`)
+
   // ── components/layout/CartDrawer.tsx ─────────────────────────────────────
   add('components/layout/CartDrawer.tsx', `'use client'
 import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
 import { useCart } from '@/lib/store/cart'
-import { config } from '@/data/config'
+import { t, formatMoney } from '@/lib/i18n'
 
 interface Props { open: boolean; onClose: () => void }
 
 export function CartDrawer({ open, onClose }: Props) {
   const { items, total, removeItem, updateQty } = useCart()
-  const currency = config.brand.currency
 
   if (!open) return null
 
@@ -269,14 +389,14 @@ export function CartDrawer({ open, onClose }: Props) {
         display: 'flex', flexDirection: 'column',
       }}>
         <div style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
-          <span style={{ fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-heading)' }}>Cart ({items.length})</span>
+          <span style={{ fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-heading)' }}>{t('cartHeading')} ({items.length})</span>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', padding: 4, lineHeight: 0 }}><X size={20} /></button>
         </div>
 
         {items.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--color-muted)' }}>
             <ShoppingBag size={36} style={{ opacity: 0.3 }} />
-            <p style={{ fontSize: 14 }}>Your cart is empty</p>
+            <p style={{ fontSize: 14 }}>{t('cartEmpty')}</p>
           </div>
         ) : (
           <>
@@ -290,7 +410,7 @@ export function CartDrawer({ open, onClose }: Props) {
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{product.name}</p>
-                    <p style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 600 }}>{product.price} {currency}</p>
+                    <p style={{ fontSize: 13, color: 'var(--color-accent)', fontWeight: 600 }}>{formatMoney(product.price)}</p>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
                       <button onClick={() => updateQty(product.id, quantity - 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
                       <span style={{ fontSize: 13, minWidth: 20, textAlign: 'center' }}>{quantity}</span>
@@ -303,14 +423,14 @@ export function CartDrawer({ open, onClose }: Props) {
             </div>
             <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--color-border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 14, fontSize: 14 }}>
-                <span>Total</span>
-                <span style={{ fontWeight: 700 }}>{total.toFixed(2)} {currency}</span>
+                <span>{t('total')}</span>
+                <span style={{ fontWeight: 700 }}>{formatMoney(total)}</span>
               </div>
               <Link
                 href="/cart" onClick={onClose}
                 style={{ display: 'block', textAlign: 'center', padding: '0.75rem', background: 'var(--color-accent)', color: 'var(--color-accent-text)', borderRadius: 'var(--radius)', fontWeight: 600, textDecoration: 'none', fontSize: 14 }}
               >
-                Checkout
+                {t('checkout')}
               </Link>
             </div>
           </>
@@ -328,17 +448,18 @@ export function CartDrawer({ open, onClose }: Props) {
   // AI can restyle it further if asked, but it always exists as a sensible default.
   add('app/not-found.tsx', `import Link from 'next/link'
 import { config } from '@/data/config'
+import { t } from '@/lib/i18n'
 
 export default function NotFound() {
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: '6rem 1.25rem', textAlign: 'center' }}>
       <p style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(3rem, 8vw, 5rem)', fontWeight: 700, color: 'var(--color-accent)', margin: 0, lineHeight: 1 }}>404</p>
-      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 700, marginTop: '1rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>Page not found</h1>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 22, fontWeight: 700, marginTop: '1rem', marginBottom: '0.5rem', color: 'var(--color-text)' }}>{t('pageNotFound')}</h1>
       <p style={{ fontSize: 14, color: 'var(--color-muted)', marginBottom: '2rem', lineHeight: 1.6 }}>
-        The page you&apos;re looking for doesn&apos;t exist or may have moved.
+        {t('pageNotFoundBody')}
       </p>
       <Link href="/" style={{ display: 'inline-block', background: 'var(--color-accent)', color: 'var(--color-accent-text)', borderRadius: 8, padding: '0.65rem 1.5rem', fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
-        Back to {config.brand.name}
+        {t('backTo')} {config.brand.name}
       </Link>
     </div>
   )
@@ -346,35 +467,67 @@ export default function NotFound() {
 `)
 
   // ── app/cart/page.tsx ─────────────────────────────────────────────────────
-  // Doubles as the checkout page — cart contents + contact details + "Proceed to
-  // payment" in one screen. Deterministic/scaffold, not left to the AI, because a
-  // working checkout is core-engine behavior per the manifest-driven architecture,
-  // not something that should vary by what a given generation run happened to write.
-  // Added 2026-08-21: this route (and app/api/checkout/route.ts below) didn't exist
-  // at all in code-gen mode — only in the older, Czech-specific "legacy manifest
-  // mode" branch of this file, which nothing live uses anymore. The cart drawer's
-  // "Checkout" link pointed at a /checkout route that was never generated either way;
-  // it now points here. Deliberately minimal for v1: a single flat-rate-free
-  // "calculated at checkout" note instead of a real carrier/shipping-method picker —
-  // the code-gen data model (StoreConfig) has no shipping/payment schema yet to
-  // drive one from. Real per-store shipping config is separate, larger scoped work.
+  // Doubles as the checkout page — cart contents + shipping + contact details +
+  // "Proceed to payment" in one screen. Deterministic/scaffold, not left to the
+  // AI, because a working checkout is core-engine behavior, not something that
+  // should vary by what a given generation run happened to write.
+  // Added 2026-08-21: this route didn't exist at all in code-gen mode.
+  // Rewritten 2026-08-22 (market/language work): now fetches the merchant's real
+  // configured shipping methods (app/api/shipping) instead of a flat "calculated
+  // at checkout" placeholder, collects a real shipping address (field labels
+  // adapt per config.brand.country — ZIP/Postcode/Postal code, State field for
+  // US/CA/AU/MX/BR/IN), and every fixed string + money amount goes through
+  // lib/i18n.ts so the checkout matches the store's actual target market instead
+  // of always being English.
   add('app/cart/page.tsx', `'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Trash2, Plus, Minus } from 'lucide-react'
 import { useCart } from '@/lib/store/cart'
 import { config } from '@/data/config'
+import { t, formatMoney, postalLabel, usesStateField } from '@/lib/i18n'
+
+interface ShippingMethod { id: string; label: string; price: number }
 
 export default function CartPage() {
   const { items, total, count, updateQty, removeItem } = useCart()
   const [customerName, setCustomerName] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [street, setStreet] = useState('')
+  const [city, setCity] = useState('')
+  const [region, setRegion] = useState('')
+  const [postal, setPostal] = useState('')
+  const [country, setCountry] = useState(config.brand.country || 'US')
+  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
+  const [freeShippingFrom, setFreeShippingFrom] = useState(0)
+  const [selectedShipping, setSelectedShipping] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const currency = config.brand.currency
+  const showState = usesStateField()
+
+  useEffect(() => {
+    fetch('/api/shipping')
+      .then((r) => r.json())
+      .then((d) => {
+        const methods: ShippingMethod[] = d.methods ?? []
+        setShippingMethods(methods)
+        setFreeShippingFrom(d.freeShippingFrom ?? 0)
+        if (methods[0]) setSelectedShipping(methods[0].id)
+      })
+      .catch(() => setShippingMethods([{ id: 'standard', label: 'Standard shipping', price: 0 }]))
+  }, [])
+
+  const selectedMethod = shippingMethods.find((m) => m.id === selectedShipping)
+  const qualifiesFreeShipping = freeShippingFrom > 0 && total >= freeShippingFrom
+  const shippingCost = qualifiesFreeShipping ? 0 : (selectedMethod?.price ?? 0)
+  const orderTotal = total + shippingCost
 
   async function handleCheckout() {
-    if (!customerEmail.trim()) { setError('Please enter your email address.'); return }
+    if (!customerEmail.trim()) { setError(t('errorEmail')); return }
+    if (!street.trim() || !city.trim() || !postal.trim()) { setError(t('errorAddress')); return }
+    if (shippingMethods.length > 0 && !selectedShipping) { setError(t('errorShippingMethod')); return }
     setLoading(true)
     setError('')
     try {
@@ -387,22 +540,30 @@ export default function CartPage() {
           })),
           customerEmail: customerEmail.trim(),
           customerName: customerName.trim() || undefined,
+          customerPhone: customerPhone.trim() || undefined,
+          shippingMethod: selectedMethod?.label,
+          shippingCents: Math.round(shippingCost * 100),
+          shippingCountry: country || undefined,
+          shippingAddress: { ulice: street.trim(), mesto: city.trim(), psc: postal.trim(), zeme: country || undefined },
         }),
       })
       const data = await res.json()
       if (data.url) { window.location.href = data.url; return }
-      setError(data.error || 'Something went wrong. Please try again.')
+      setError(data.error || t('errorGeneric'))
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t('errorGeneric'))
     }
     setLoading(false)
   }
 
+  const inputStyle = { padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 14, background: 'var(--color-bg)', color: 'var(--color-text)', width: '100%', boxSizing: 'border-box' as const }
+  const labelStyle = { fontSize: 11, fontWeight: 600, color: 'var(--color-muted)', marginBottom: 4, display: 'block', textTransform: 'uppercase' as const, letterSpacing: '0.03em' }
+
   if (items.length === 0) {
     return (
       <div style={{ minHeight: '55vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: '4rem 1.5rem' }}>
-        <p style={{ fontSize: 16, color: 'var(--color-muted)' }}>Your cart is empty.</p>
-        <Link href="/collections/all" style={{ color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>Continue shopping →</Link>
+        <p style={{ fontSize: 16, color: 'var(--color-muted)' }}>{t('cartEmpty')}</p>
+        <Link href="/collections/all" style={{ color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>{t('continueShopping')} →</Link>
       </div>
     )
   }
@@ -410,44 +571,117 @@ export default function CartPage() {
   return (
     <div style={{ maxWidth: 980, margin: '0 auto', padding: '3rem 1.5rem 5rem' }}>
       <Link href="/collections/all" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--color-muted)', textDecoration: 'none', marginBottom: 24 }}>
-        <ArrowLeft size={14} /> Continue shopping
+        <ArrowLeft size={14} /> {t('continueShopping')}
       </Link>
-      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, marginBottom: 28 }}>Your cart</h1>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 40, alignItems: 'start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {items.map(({ product, quantity }) => (
-            <div key={product.id} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', paddingBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
-              {product.images[0] ? (
-                <img src={product.images[0]} alt={product.name} style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
-              ) : (
-                <div style={{ width: 88, height: 88, background: 'var(--color-surface)', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
-              )}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 15, fontWeight: 500 }}>{product.name}</p>
-                <p style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 600, marginTop: 4 }}>{product.price} {currency}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => updateQty(product.id, quantity - 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 26, height: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
-                  <span style={{ fontSize: 14, minWidth: 22, textAlign: 'center' }}>{quantity}</span>
-                  <button onClick={() => updateQty(product.id, quantity + 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 26, height: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={12} /></button>
-                  <button onClick={() => removeItem(product.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', marginLeft: 'auto', padding: 4, lineHeight: 0 }}><Trash2 size={14} /></button>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, marginBottom: 28 }}>{t('cart')}</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 40, alignItems: 'start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {items.map(({ product, quantity }) => (
+              <div key={product.id} style={{ display: 'flex', gap: 16, alignItems: 'flex-start', paddingBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
+                {product.images[0] ? (
+                  <img src={product.images[0]} alt={product.name} style={{ width: 88, height: 88, objectFit: 'cover', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                ) : (
+                  <div style={{ width: 88, height: 88, background: 'var(--color-surface)', borderRadius: 'calc(var(--radius) * 0.6)', flexShrink: 0, border: '1px solid var(--color-border)' }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 15, fontWeight: 500 }}>{product.name}</p>
+                  <p style={{ fontSize: 14, color: 'var(--color-accent)', fontWeight: 600, marginTop: 4 }}>{formatMoney(product.price)}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                    <button onClick={() => updateQty(product.id, quantity - 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 26, height: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Minus size={12} /></button>
+                    <span style={{ fontSize: 14, minWidth: 22, textAlign: 'center' }}>{quantity}</span>
+                    <button onClick={() => updateQty(product.id, quantity + 1)} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 4, width: 26, height: 26, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Plus size={12} /></button>
+                    <button onClick={() => removeItem(product.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-muted)', marginLeft: 'auto', padding: 4, lineHeight: 0 }}><Trash2 size={14} /></button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '1.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, marginBottom: 8 }}>
-            <span>Subtotal ({count} {count === 1 ? 'item' : 'items'})</span>
-            <span>{total.toFixed(2)} {currency}</span>
+            ))}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--color-muted)', marginBottom: 20 }}>Shipping calculated at checkout.</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full name" style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 14, background: 'var(--color-bg)', color: 'var(--color-text)' }} />
-            <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} type="email" placeholder="Email address" style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid var(--color-border)', fontSize: 14, background: 'var(--color-bg)', color: 'var(--color-text)' }} />
+
+          {shippingMethods.length > 0 && (
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{t('shippingMethod')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {shippingMethods.map((m) => (
+                  <label key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', border: \`1px solid \${selectedShipping === m.id ? 'var(--color-accent)' : 'var(--color-border)'}\`, borderRadius: 'var(--radius)', cursor: 'pointer' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+                      <input type="radio" name="shipping" checked={selectedShipping === m.id} onChange={() => setSelectedShipping(m.id)} style={{ accentColor: 'var(--color-accent)' }} />
+                      {m.label}
+                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: (qualifiesFreeShipping || m.price === 0) ? '#059669' : 'var(--color-text)' }}>
+                      {qualifiesFreeShipping || m.price === 0 ? t('free') : formatMoney(m.price)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{t('shippingAddress')}</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>{t('fullName')}</label>
+                  <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t('phone')}</label>
+                  <input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} type="tel" style={inputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={labelStyle}>{t('email')} *</label>
+                <input value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} type="email" required style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>{t('street')} *</label>
+                <input value={street} onChange={(e) => setStreet(e.target.value)} style={inputStyle} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: showState ? '1fr 1fr 1fr' : '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>{t('city')} *</label>
+                  <input value={city} onChange={(e) => setCity(e.target.value)} style={inputStyle} />
+                </div>
+                {showState && (
+                  <div>
+                    <label style={labelStyle}>{t('state')}</label>
+                    <input value={region} onChange={(e) => setRegion(e.target.value)} style={inputStyle} />
+                  </div>
+                )}
+                <div>
+                  <label style={labelStyle}>{postalLabel()} *</label>
+                  <input value={postal} onChange={(e) => setPostal(e.target.value)} style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ maxWidth: 160 }}>
+                <label style={labelStyle}>{t('country')}</label>
+                <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())} maxLength={2} style={inputStyle} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', padding: '1.5rem', position: 'sticky', top: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+              <span style={{ color: 'var(--color-muted)' }}>{t('subtotal')} ({count} {count === 1 ? t('item') : t('items')})</span>
+              <span>{formatMoney(total)}</span>
+            </div>
+            {shippingMethods.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: 'var(--color-muted)' }}>{t('shipping')}</span>
+                <span style={{ color: shippingCost === 0 ? '#059669' : 'var(--color-text)' }}>{shippingCost === 0 ? t('free') : formatMoney(shippingCost)}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 8, borderTop: '1px solid var(--color-border)' }}>
+              <span>{t('total')}</span>
+              <span>{formatMoney(orderTotal)}</span>
+            </div>
           </div>
           {error && <p style={{ fontSize: 13, color: '#dc2626', marginBottom: 12 }}>{error}</p>}
           <button onClick={handleCheckout} disabled={loading} style={{ width: '100%', padding: '0.85rem', background: 'var(--color-accent)', color: 'var(--color-accent-text)', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
-            {loading ? 'Redirecting…' : 'Proceed to payment'}
+            {loading ? t('redirecting') : t('proceedToPayment')}
           </button>
         </div>
       </div>
@@ -461,6 +695,7 @@ export default function CartPage() {
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useCart } from '@/lib/store/cart'
+import { t } from '@/lib/i18n'
 
 export default function SuccessPage() {
   const { clearCart } = useCart()
@@ -472,9 +707,9 @@ export default function SuccessPage() {
 
   return (
     <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '4rem 1.5rem', textAlign: 'center' }}>
-      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 26 }}>Thank you — your order is confirmed.</h1>
-      <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 420 }}>A confirmation email is on its way. We'll let you know as soon as your order ships.</p>
-      <Link href="/collections/all" style={{ marginTop: 12, color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>Continue shopping →</Link>
+      <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 26 }}>{t('thankYou')}</h1>
+      <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 420 }}>{t('confirmationNote')}</p>
+      <Link href="/collections/all" style={{ marginTop: 12, color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>{t('continueShopping')} →</Link>
     </div>
   )
 }
@@ -551,6 +786,29 @@ export async function POST(request: Request) {
 }
 `)
 
+  // ── app/api/shipping/route.ts ─────────────────────────────────────────────
+  // Added 2026-08-22 alongside the market/language work: proxies to the Quante
+  // platform's /api/store/shipping so the cart page can show the merchant's
+  // actually-configured shipping methods and prices — same hosted-mode pattern as
+  // app/api/checkout/route.ts. Self-hosted mode gets a single free "Standard
+  // shipping" fallback (no merchant-side config to read without Quante).
+  add('app/api/shipping/route.ts', `import { NextResponse } from 'next/server'
+
+export async function GET() {
+  const projectId = process.env.QUANTE_PROJECT_ID
+  if (projectId) {
+    const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quantecode.com'
+    try {
+      const res = await fetch(\`\${quanteUrl}/api/store/shipping?projectId=\${projectId}\`, { cache: 'no-store' })
+      if (res.ok) return NextResponse.json(await res.json())
+    } catch {
+      // fall through to default below
+    }
+  }
+  return NextResponse.json({ methods: [{ id: 'standard', label: 'Standard shipping', price: 0 }], freeShippingFrom: 0 })
+}
+`)
+
   // ── components/legal/LegalPageView.tsx + app/{terms,privacy,cookies,contact}/page.tsx
   // (LOCKED) — Added 2026-08-21 alongside app/api/store/legal (platform side): the
   // Publish panel's "Generate legal pages" button used to write into manifest_versions,
@@ -561,6 +819,7 @@ export async function POST(request: Request) {
   // (same QUANTE_PROJECT_ID pattern as app/api/checkout/route.ts), so the pages update
   // automatically without a redeploy whenever the merchant edits their business data.
   add('components/legal/LegalPageView.tsx', `import { config } from '@/data/config'
+import { t } from '@/lib/i18n'
 
 interface LegalSection { heading?: string; body: string[] }
 interface LegalPageData { title: string; sections: LegalSection[] }
@@ -578,15 +837,21 @@ async function getLegalContent(page: string): Promise<LegalPageData | null> {
   }
 }
 
-export default async function LegalPageView({ page, fallbackTitle }: { page: string; fallbackTitle: string }) {
+const FALLBACK_TITLES: Record<string, StringKeyForTitle> = {
+  terms: 'termsOfService', privacy: 'privacyPolicy', cookies: 'cookiePolicy', contact: 'contact',
+}
+type StringKeyForTitle = 'termsOfService' | 'privacyPolicy' | 'cookiePolicy' | 'contact'
+
+export default async function LegalPageView({ page }: { page: string }) {
   const data = await getLegalContent(page)
 
   if (!data) {
+    const key = FALLBACK_TITLES[page] ?? 'contact'
     return (
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '4rem 1.25rem' }}>
-        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 700, marginBottom: '1rem' }}>{fallbackTitle}</h1>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.75rem, 4vw, 2.5rem)', fontWeight: 700, marginBottom: '1rem' }}>{t(key)}</h1>
         <p style={{ fontSize: 15, color: 'var(--color-muted)', lineHeight: 1.7 }}>
-          This page hasn&apos;t been set up yet. The store owner can add business details and generate legal pages from the Publish panel.
+          {t('legalNotConfigured')}
         </p>
       </div>
     )
@@ -612,16 +877,16 @@ export default async function LegalPageView({ page, fallbackTitle }: { page: str
 `)
 
   add('app/terms/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
-export default function Page() { return <LegalPageView page="terms" fallbackTitle="Terms of Service" /> }
+export default function Page() { return <LegalPageView page="terms" /> }
 `)
   add('app/privacy/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
-export default function Page() { return <LegalPageView page="privacy" fallbackTitle="Privacy Policy" /> }
+export default function Page() { return <LegalPageView page="privacy" /> }
 `)
   add('app/cookies/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
-export default function Page() { return <LegalPageView page="cookies" fallbackTitle="Cookie Policy" /> }
+export default function Page() { return <LegalPageView page="cookies" /> }
 `)
   add('app/contact/page.tsx', `import LegalPageView from '@/components/legal/LegalPageView'
-export default function Page() { return <LegalPageView page="contact" fallbackTitle="Contact" /> }
+export default function Page() { return <LegalPageView page="contact" /> }
 `)
 
   // ── components/layout/Navbar.tsx ─────────────────────────────────────────
@@ -706,6 +971,7 @@ export function Navbar() {
   add('components/layout/Footer.tsx', `import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import { config } from '@/data/config'
+import { t } from '@/lib/i18n'
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1)
@@ -751,10 +1017,10 @@ export function Footer() {
         {/* Always-present legal links — independent of AI-authored footer columns,
             so these routes (which always exist in the scaffold) are never dead links. */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 12 }}>
-          <Link href="/terms" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Terms of Service</Link>
-          <Link href="/privacy" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Privacy Policy</Link>
-          <Link href="/cookies" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Cookies</Link>
-          <Link href="/contact" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>Contact</Link>
+          <Link href="/terms" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>{t('termsOfService')}</Link>
+          <Link href="/privacy" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>{t('privacyPolicy')}</Link>
+          <Link href="/cookies" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>{t('cookiePolicy')}</Link>
+          <Link href="/contact" style={{ fontSize: 12, color: 'var(--color-muted)', textDecoration: 'none', opacity: 0.7 }}>{t('contact')}</Link>
         </div>
       </div>
     </footer>
@@ -772,6 +1038,7 @@ export function Footer() {
   add('components/layout/CookieConsent.tsx', `'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { t } from '@/lib/i18n'
 
 const STORAGE_KEY = 'cookie-consent'
 
@@ -800,14 +1067,14 @@ export function CookieConsent() {
       padding: '1rem 1.25rem', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between',
     }}>
       <p style={{ fontSize: 13, color: 'var(--color-text)', margin: 0, maxWidth: 640 }}>
-        We use cookies to make this store work and, with your consent, to understand how it&apos;s used.{' '}
-        <Link href="/cookies" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>Learn more</Link>
+        {t('cookieMessage')}{' '}
+        <Link href="/cookies" style={{ color: 'var(--color-accent)', textDecoration: 'underline' }}>{t('learnMore')}</Link>
       </p>
       <button
         onClick={accept}
         style={{ background: 'var(--color-accent)', color: 'var(--color-accent-text)', border: 'none', borderRadius: 6, padding: '0.5rem 1rem', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >
-        Accept
+        {t('accept')}
       </button>
     </div>
   )
@@ -1009,12 +1276,16 @@ export function buildStoreFiles(
     // this point — the "Checkout" button in every deployed store 404'd.
     const LOCKED = new Set([
       'app/layout.tsx', 'components/layout/Navbar.tsx', 'components/layout/Footer.tsx', 'components/layout/CartDrawer.tsx',
-      'app/cart/page.tsx', 'app/success/page.tsx', 'app/api/checkout/route.ts',
+      'app/cart/page.tsx', 'app/success/page.tsx', 'app/api/checkout/route.ts', 'app/api/shipping/route.ts',
       // Legal pages (2026-08-21) — always live-fetched from saved business info via
       // app/api/store/legal, same rationale as checkout: correctness over AI freedom.
       'components/legal/LegalPageView.tsx',
       'app/terms/page.tsx', 'app/privacy/page.tsx', 'app/cookies/page.tsx', 'app/contact/page.tsx',
       'components/layout/CookieConsent.tsx',
+      // i18n (2026-08-22) — the scaffold's fixed UI strings/locale formatting;
+      // must always reflect the actual dictionary, not something a generation
+      // run could accidentally omit or overwrite with different keys.
+      'lib/i18n.ts',
     ])
 
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))

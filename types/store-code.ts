@@ -21,7 +21,8 @@ export interface StoreConfig {
     name: string
     tagline: string
     currency: string  // ISO 4217, e.g. "CZK", "EUR"
-    language: string  // e.g. "cs", "en"
+    language: string  // ISO 639-1, e.g. "cs", "en" — drives scaffold UI strings (checkout, cart, legal pages, cookie banner) via lib/i18n.ts
+    country: string   // ISO 3166-1 alpha-2, e.g. "CZ", "US" — drives address field layout, tax display, locale formatting
     logoText?: string
   }
   seo: { title: string; description: string }
