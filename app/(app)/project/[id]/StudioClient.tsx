@@ -5526,39 +5526,48 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {HostingBanner}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
 
-          {/* ── Mode rail (icon strip) ──────────────────────────────── */}
+          {/* ── Mode rail (icon + label — unified with Admin's sidebar pattern) ── */}
           <div style={{
-            width: 52, flexShrink: 0,
+            width: 190, flexShrink: 0,
             display: 'flex', flexDirection: 'column',
-            alignItems: 'center', paddingTop: 8, gap: 2,
+            padding: '12px 10px', gap: 2,
             background: '#0d0d11',
             borderRight: '1px solid rgba(255,255,255,.07)',
           }}>
-            {STUDIO_MODES.map(({ id, icon: Icon, label }) => {
+            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', padding: '4px 12px 10px' }}>
+              Build
+            </p>
+            {/* Sections/Theme only shown for legacy manifest-type stores — for code-gen
+                stores (the current default), design changes go through Chat instead, so
+                those two panels would otherwise be dead-ends here. */}
+            {STUDIO_MODES.filter(m => (m.id === 'sections' || m.id === 'theme') ? !!currentManifest : true).map(({ id, icon: Icon, label }) => {
               const active = desktopTab === id
               return (
                 <button
                   key={id}
                   onClick={() => setDesktopTab(id)}
-                  title={label}
                   style={{
-                    width: 36, height: 36, borderRadius: 9,
-                    border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: active ? 'rgba(111,120,230,.15)' : 'transparent',
-                    color: active ? '#6f78e6' : '#5b5b64',
-                    transition: 'background 0.12s, color 0.12s',
-                    position: 'relative',
+                    width: '100%', textAlign: 'left', padding: '8px 12px 8px 14px', borderRadius: 8,
+                    border: 'none', cursor: 'pointer', fontSize: 13,
+                    fontWeight: active ? 550 : 400,
+                    background: active ? 'rgba(111,120,230,.1)' : 'transparent',
+                    color: active ? '#f4f4f6' : '#8a8a93',
+                    display: 'flex', alignItems: 'center', gap: 9,
+                    position: 'relative', transition: 'background 0.12s, color 0.12s',
                   }}
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93' }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLButtonElement).style.color = '#5b5b64' }}
+                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.05)' } }}
+                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
                 >
-                  <Icon size={16} strokeWidth={active ? 2.2 : 1.7} />
+                  {active && (
+                    <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: '#6f78e6', boxShadow: '0 0 8px rgba(111,120,230,.5)' }} />
+                  )}
+                  <Icon size={14} strokeWidth={active ? 2.2 : 1.7} color={active ? '#6f78e6' : undefined} />
+                  {label}
                   {id === 'publish' && currentManifest && !checklistAllOk && (
-                    <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#f87171' }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f87171', marginLeft: 'auto', flexShrink: 0 }} />
                   )}
                   {id === 'publish' && deployStatus === 'ready' && (
-                    <span style={{ position: 'absolute', top: 5, right: 5, width: 5, height: 5, borderRadius: '50%', background: '#3ecf8e' }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3ecf8e', marginLeft: 'auto', flexShrink: 0 }} />
                   )}
                 </button>
               )
@@ -5636,7 +5645,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {([
           { id: 'chat',     label: 'Chat'     },
           { id: 'preview',  label: 'Preview'  },
-          { id: 'sections', label: 'Pages'    },
+          { id: 'sections', label: 'Sections' },
           { id: 'products', label: 'Products' },
           { id: 'theme',    label: 'Theme'    },
           { id: 'publish',  label: 'Publish'  },
