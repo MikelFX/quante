@@ -38,6 +38,16 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
   const [aresMsg, setAresMsg] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
+
+  // Storefront market & language — drives the checkout/cart/legal-page/cookie-banner
+  // copy and currency/date formatting on the deployed store (lib/i18n.ts), separate
+  // from the merchant's own business/tax country below. Defaults to what the AI set
+  // at generation time; saving here overrides it and seeds future generations too
+  // (see supabase/migration-store-market.sql).
+  const [marketCountry, setMarketCountry] = useState('')
+  const [marketLanguage, setMarketLanguage] = useState('')
+  const [isSavingMarket, setIsSavingMarket] = useState(false)
+  const [marketMsg, setMarketMsg] = useState('')
   const [emailFrom, setEmailFrom] = useState('')
   const [isSavingEmail, setIsSavingEmail] = useState(false)
   const [emailFromMsg, setEmailFromMsg] = useState('')
@@ -94,6 +104,8 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
         setHasGopaySecret(!!d.hasGopaySecret)
         if (d.paypalClientId) setPaypalClientId(d.paypalClientId)
         setHasPaypalSecret(!!d.hasPaypalSecret)
+        if (d.marketCountry) setMarketCountry(d.marketCountry)
+        if (d.marketLanguage) setMarketLanguage(d.marketLanguage)
 
         const m = d.merchant as BusinessInfo | null
         if (m) setForm({ ...EMPTY_BUSINESS_INFO, ...m })
@@ -187,6 +199,25 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
       setSaveMsg('Failed to save')
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function saveMarket() {
+    setIsSavingMarket(true)
+    setMarketMsg('')
+    try {
+      const res = await fetch('/api/project/secrets', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, market_country: marketCountry || null, market_language: marketLanguage || null }),
+      })
+      if (!res.ok) { setMarketMsg('Failed to save'); return }
+      setMarketMsg('Saved — next generation/edit will use this')
+      setTimeout(() => setMarketMsg(''), 3500)
+    } catch {
+      setMarketMsg('Failed to save')
+    } finally {
+      setIsSavingMarket(false)
     }
   }
 
@@ -350,6 +381,47 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
         Business details are required for generating legal pages and invoicing.
         Without them the store cannot be published to a live domain.
       </p>
+
+      {/* Storefront market & language */}
+      <div>
+        <p style={sectionHeadStyle}>Storefront market & language</p>
+        <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.5 }}>
+          Controls the language and formatting of checkout, cart, legal pages and the cookie banner on your live store — separate from your business address below. Quante infers this from your brief when generating the store; override it here if it guessed wrong.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+          <div>
+            <label style={labelStyle}>Country</label>
+            <select style={fieldStyle} value={marketCountry} onChange={(e) => setMarketCountry(e.target.value)}>
+              <option value="">Auto (from generation)</option>
+              <option value="US">United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="CZ">Czech Republic</option>
+              <option value="SK">Slovakia</option>
+              <option value="DE">Germany</option>
+              <option value="FR">France</option>
+              <option value="CA">Canada</option>
+              <option value="AU">Australia</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Language</label>
+            <select style={fieldStyle} value={marketLanguage} onChange={(e) => setMarketLanguage(e.target.value)}>
+              <option value="">Auto (from generation)</option>
+              <option value="en">English</option>
+              <option value="cs">Čeština</option>
+            </select>
+          </div>
+        </div>
+        <button
+          onClick={saveMarket}
+          disabled={isSavingMarket}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: isSavingMarket ? 0.6 : 1 }}
+        >
+          {isSavingMarket ? 'Saving…' : 'Save market & language'}
+        </button>
+        {marketMsg && <p style={{ fontSize: 10, color: marketMsg.includes('Failed') ? '#f87171' : '#34d399', margin: '4px 0 0' }}>{marketMsg}</p>}
+      </div>
 
       {/* Country + identification */}
       <div>

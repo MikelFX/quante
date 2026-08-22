@@ -27,6 +27,8 @@ const PLAIN_FIELDS = [
   'merchant_json',
   'payments_json',
   'shipping_json',
+  'market_country',
+  'market_language',
 ] as const
 
 const ENCRYPTED_FIELDS = [
@@ -104,7 +106,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabaseAdmin
     .from('project_secrets')
-    .select('resend_from_email, payment_test_mode, zasilkovna_api_key, comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id, paypal_client_id, paypal_client_secret, merchant_json, payments_json, shipping_json')
+    .select('resend_from_email, payment_test_mode, zasilkovna_api_key, comgate_merchant_id, comgate_secret, gopay_client_id, gopay_client_secret, gopay_go_id, paypal_client_id, paypal_client_secret, merchant_json, payments_json, shipping_json, market_country, market_language')
     .eq('project_id', projectId)
     .maybeSingle()
 
@@ -122,5 +124,7 @@ export async function GET(request: Request) {
     merchant: (data?.merchant_json as Record<string, unknown> | null) ?? null,
     payments: (data?.payments_json as Record<string, unknown> | null) ?? null,
     shipping: (data?.shipping_json as Record<string, unknown> | null) ?? null,
+    marketCountry: (data?.market_country as string | null) ?? null,
+    marketLanguage: (data?.market_language as string | null) ?? null,
   })
 }
