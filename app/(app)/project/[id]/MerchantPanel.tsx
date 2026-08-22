@@ -11,9 +11,16 @@ import {
   type ShippingInfo,
 } from '@/types/business'
 
+// Which fieldset(s) to render — lets Admin -> Settings' sub-tabs each mount
+// just their own slice of this panel instead of the old single long scroll.
+// All state/handlers stay defined unconditionally (hooks can't be conditional);
+// only the returned JSX is filtered by section.
+export type MerchantPanelSection = 'business' | 'payments' | 'shipping' | 'market' | 'emails'
+
 interface Props {
   projectId: string
   onBalanceRefresh: () => void
+  section: MerchantPanelSection
 }
 
 // 2026-08-21: This panel used to read/write app/(app)/project/[id]/StudioClient.tsx's
@@ -30,7 +37,8 @@ interface Props {
 // written via the existing /api/project/secrets route, entirely independent of the
 // legacy ShopManifest. This panel owns its own fetch + state instead of depending on a
 // prop from the parent.
-export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
+export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
+  void onBalanceRefresh // kept for prop-compatibility with existing call sites; unused here
   const [loaded, setLoaded] = useState(false)
   const [form, setForm] = useState<BusinessInfo>(EMPTY_BUSINESS_INFO)
   const [icoError, setIcoError] = useState('')
@@ -375,14 +383,40 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
     )
   }
 
+  const savePayShipButton = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <button
+        onClick={savePaymentsShipping}
+        disabled={isSavingPayShip}
+        style={{
+          padding: '0.5rem 0.75rem',
+          background: '#6f78e6',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 6,
+          fontSize: 12,
+          fontWeight: 600,
+          cursor: 'pointer',
+          opacity: isSavingPayShip ? 0.6 : 1,
+        }}
+      >
+        {isSavingPayShip ? 'Saving…' : 'Save payments & shipping'}
+      </button>
+      {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{payShipMsg}</p>}
+    </div>
+  )
+
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {section === 'business' && (
       <p style={{ fontSize: 11, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
         Business details are required for generating legal pages and invoicing.
         Without them the store cannot be published to a live domain.
       </p>
+      )}
 
       {/* Storefront market & language */}
+      {section === 'market' && (
       <div>
         <p style={sectionHeadStyle}>Storefront market & language</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: '0 0 8px', lineHeight: 1.5 }}>
@@ -422,8 +456,11 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
         </button>
         {marketMsg && <p style={{ fontSize: 10, color: marketMsg.includes('Failed') ? '#f87171' : '#34d399', margin: '4px 0 0' }}>{marketMsg}</p>}
       </div>
+      )}
 
       {/* Country + identification */}
+      {section === 'business' && (
+      <>
       <div>
         <p style={sectionHeadStyle}>Identification</p>
         <div style={{ marginBottom: 8 }}>
@@ -579,9 +616,12 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
           <p style={{ fontSize: 10, color: saveMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{saveMsg}</p>
         )}
       </div>
+      </>
+      )}
 
       {/* E-mail sender */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {section === 'emails' && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Transactional emails</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
           Customer emails are sent from <code style={{ fontSize: 9 }}>objednavky@quantecode.com</code> (default). For your own domain, verify it in Resend and enter the address below.
@@ -612,9 +652,11 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
         </button>
         {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{testEmailMsg}</p>}
       </div>
+      )}
 
       {/* Legal pages — always live at /terms, /privacy, /cookies, /contact; content is
           generated automatically from the business data above, no separate step needed. */}
+      {section === 'business' && (
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Legal pages</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
@@ -636,9 +678,12 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
           Templates are a starting point — the operator is ultimately responsible. We recommend a legal review.
         </p>
       </div>
+      )}
 
       {/* Payment methods */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {section === 'payments' && (
+      <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Payment methods</p>
 
         {/* Quante managed payments banner */}
@@ -742,8 +787,14 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
         {gatewaysMsg && <p style={{ fontSize: 10, color: gatewaysMsg === 'Saved' ? '#34d399' : '#f87171', margin: 0 }}>{gatewaysMsg}</p>}
       </div>
 
+      {savePayShipButton}
+      </>
+      )}
+
       {/* Shipping */}
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {section === 'shipping' && (
+      <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Shipping</p>
         {!isCz && (
           <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
@@ -782,27 +833,9 @@ export function MerchantPanel({ projectId, onBalanceRefresh }: Props) {
         </div>
       </div>
 
-      {/* Save payments + shipping */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <button
-          onClick={savePaymentsShipping}
-          disabled={isSavingPayShip}
-          style={{
-            padding: '0.5rem 0.75rem',
-            background: '#6f78e6',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: 'pointer',
-            opacity: isSavingPayShip ? 0.6 : 1,
-          }}
-        >
-          {isSavingPayShip ? 'Saving…' : 'Save payments & shipping'}
-        </button>
-        {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{payShipMsg}</p>}
-      </div>
+      {savePayShipButton}
+      </>
+      )}
     </div>
   )
 }

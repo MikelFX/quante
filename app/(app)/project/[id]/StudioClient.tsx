@@ -360,6 +360,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Admin mode
   const [adminMode, setAdminMode] = useState(false)
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard')
+  // Admin -> Settings sub-tabs (Studio IA wave 2, step 3): the old single long
+  // scroll (carrier keys + domain) is now one pill-tabbed section that also
+  // absorbs MerchantPanel's content and the Earnings/Payout + Hosting blocks
+  // that used to live stacked under Builder -> Publish.
+  const [settingsTab, setSettingsTab] = useState<'business' | 'payments' | 'shipping' | 'domain' | 'market' | 'emails' | 'payout'>('business')
   const [orders, setOrders] = useState<StripeOrder[]>([])
   const [orderRevenue, setOrderRevenue] = useState(0)
   const [isLoadingOrders, setIsLoadingOrders] = useState(false)
@@ -3834,15 +3839,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             display: 'flex', flexDirection: 'column', gap: 7,
           }}>
             {publishChecklist.map((item) => {
-              const fixMode: Record<string, DesktopTab | null> = {
+              // Builder-tab items jump within the Builder rail; the rest now live
+              // in Admin -> Settings (moved there in the IA restructure), so those
+              // open Admin mode straight to the right sub-tab instead of a Builder
+              // tab that no longer has this content.
+              const builderFix: Record<string, DesktopTab | undefined> = {
                 products: 'products',
                 product_images: 'products',
-                merchant: 'publish',
-                legal: 'publish',
-                payment: 'publish',
-                shipping: 'publish',
               }
-              const mode = fixMode[item.id] ?? null
+              const settingsFix: Record<string, typeof settingsTab | undefined> = {
+                merchant: 'business',
+                legal: 'business',
+                payment: 'payments',
+                shipping: 'shipping',
+              }
+              const builderMode = builderFix[item.id]
+              const settingsMode = settingsFix[item.id]
               return (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ flexShrink: 0, fontSize: 13, lineHeight: 1, color: item.ok ? 'var(--live)' : '#e0564f' }}>
@@ -3851,9 +3863,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   <span style={{ flex: 1, fontSize: 12, color: item.ok ? '#f4f4f6' : '#8a8a93', lineHeight: 1.4 }}>
                     {item.label}
                   </span>
-                  {!item.ok && mode && (
+                  {!item.ok && builderMode && (
                     <button
-                      onClick={() => { setDesktopTab(mode); setActiveTab(mode) }}
+                      onClick={() => { setDesktopTab(builderMode); setActiveTab(builderMode) }}
+                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                    >
+                      Fix →
+                    </button>
+                  )}
+                  {!item.ok && settingsMode && (
+                    <button
+                      onClick={() => { setSettingsTab(settingsMode); setAdminTab('settings'); setAdminMode(true) }}
                       style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#6f78e6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
                     >
                       Fix →
@@ -3971,62 +3991,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         )}
       </section>
 
-      {/* ── 3. Custom domain ─────────────────────────────────────────────────── */}
-      {(deployStatus === 'ready' || liveDeployment?.status === 'ready') && (
-        <section>
-          <p style={eyebrowSt}>Custom domain</p>
-          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {liveDeployment?.customDomain && !domainResult && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 7, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
-                <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
-                  {liveDeployment.customDomainVerified ? '✓' : '⚠'}
-                </span>
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', flex: 1 }}>
-                  {liveDeployment.customDomain}
-                </span>
-                <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
-                  {liveDeployment.customDomainVerified ? 'active' : 'pending DNS'}
-                </span>
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                value={customDomainInput}
-                onChange={e => setCustomDomainInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAddDomain()}
-                placeholder="yourdomain.com"
-                style={{ flex: 1, fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', fontFamily: 'var(--font-geist-mono)' }}
-              />
-              <button
-                onClick={handleAddDomain}
-                disabled={isAddingDomain || !customDomainInput.trim()}
-                style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 7, border: 'none', cursor: isAddingDomain || !customDomainInput.trim() ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}
-              >
-                {isAddingDomain ? '…' : 'Connect'}
-              </button>
-            </div>
-            {domainResult && (
-              <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(62,207,142,.07)' : 'rgba(111,120,230,.07)', border: `1px solid ${domainResult.verified ? 'rgba(62,207,142,.2)' : 'rgba(111,120,230,.2)'}`, padding: '10px 12px' }}>
-                {domainResult.verified ? (
-                  <p style={{ fontSize: 11, color: 'var(--live)', fontWeight: 600, margin: 0 }}>✓ Domain verified and live!</p>
-                ) : (
-                  <>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>Add this DNS record:</p>
-                    <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#a5b4fc', marginBottom: 8 }}>
-                      {domainResult.dnsInstructions ?? `CNAME  ${domainResult.domain}  →  cname.vercel-dns.com`}
-                    </div>
-                    <p style={{ fontSize: 10, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
-                      DNS changes can take up to 48h. Click Connect again to re-check.
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {/* ── 4. Export ────────────────────────────────────────────────────────── */}
+      {/* ── 3. Export (custom-domain reconnect + Earnings/Payout + Hosting now
+             live in Admin -> Settings, since "Your Domain" above already covers
+             first-time buy/connect) ───────────────────────────────────────── */}
       <section>
         <p style={eyebrowSt}>Export</p>
         <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -4065,117 +4032,6 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {isExportingAdmin ? '…' : '↓ ZIP + Admin'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
             </button>
           </div>
-        </div>
-      </section>
-
-      {/* ── 5. Earnings ──────────────────────────────────────────────────────── */}
-      <section>
-        <p style={eyebrowSt}>Earnings <span style={{ color: '#5b5b64', marginLeft: 4 }}>5% platform fee</span></p>
-        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Available</p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
-                {earnings ? `${earnings.currency} ${earnings.available.toFixed(2)}` : '—'}
-              </p>
-            </div>
-            <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Sales</p>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
-                {earnings ? String(earnings.saleCount) : '—'}
-              </p>
-            </div>
-          </div>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 12 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 8 }}>Payout account</p>
-            <input
-              value={holderInput}
-              onChange={e => setHolderInput(e.target.value)}
-              placeholder="Account holder name"
-              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
-            />
-            <input
-              value={ibanInput}
-              onChange={e => setIbanInput(e.target.value)}
-              placeholder="Your IBAN"
-              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
-            />
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button
-                onClick={handleSaveIban}
-                disabled={isSavingIban || !ibanInput.trim() || !holderInput.trim()}
-                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSavingIban ? 0.5 : 1 }}
-              >
-                {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
-              </button>
-              {payoutAccount?.iban && (earnings?.available ?? 0) > 0 && (
-                <button
-                  onClick={handleRequestPayout}
-                  disabled={isRequestingPayout}
-                  style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
-                >
-                  {isRequestingPayout ? '…' : 'Request payout'}
-                </button>
-              )}
-            </div>
-            {payoutMsg && (
-              <p style={{ fontSize: 11, marginTop: 8, color: payoutMsg.startsWith('Payout') ? 'var(--live)' : '#f87171', lineHeight: 1.5, margin: '8px 0 0' }}>
-                {payoutMsg}
-              </p>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 6. Hosting plan ──────────────────────────────────────────────────── */}
-      <section>
-        <p style={eyebrowSt}>Hosting</p>
-        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {hostingInfo.subscribed ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6' }}>Hosting active</span>
-              </div>
-              {hostingInfo.subscriptionEndsAt && (
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>
-                  {hostingInfo.cancelAtPeriodEnd ? 'Ends' : 'Renews'} {new Date(hostingInfo.subscriptionEndsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-              )}
-            </>
-          ) : hostingInfo.trialEndsAt ? (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? '#e0564f' : '#e0a04f', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? '#e0564f' : '#e0a04f' }}>
-                  {hostingInfo.suspendedAt
-                    ? 'Store paused — hosting expired'
-                    : trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
-                </span>
-              </div>
-              {hostingInfo.suspendedAt && (
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
-                  Visitors see a maintenance page. Your data is safe — subscribe and the store goes back online automatically.
-                </p>
-              )}
-              <button
-                onClick={() => handleHostingSubscribe('year')}
-                disabled={isSubscribing}
-                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
-              >
-                {isSubscribing ? '…' : 'Subscribe · $99/year'}
-              </button>
-              <button
-                onClick={() => handleHostingSubscribe('month')}
-                disabled={isSubscribing}
-                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSubscribing ? 0.6 : 1 }}
-              >
-                {isSubscribing ? '…' : 'Or $9.99/month'}
-              </button>
-            </>
-          ) : (
-            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy your store to start your 30-day free trial.</p>
-          )}
         </div>
       </section>
 
@@ -4805,7 +4661,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             { label: 'View orders', sub: 'Revenue + order history', action: () => { setAdminTab('orders'); handleLoadOrders() }, icon: ClipboardList },
             { label: 'Products', sub: 'Inventory management', action: () => setAdminTab('products'), icon: ShoppingBag },
             { label: 'Customers', sub: 'Profiles + order history', action: () => { setAdminTab('customers'); handleLoadCustomers() }, icon: Users },
-            { label: 'Settings', sub: 'Stripe, domain, keys', action: () => setAdminTab('settings'), icon: Settings2 },
+            { label: 'Settings', sub: 'Business, payments, shipping, domain', action: () => setAdminTab('settings'), icon: Settings2 },
             { label: 'AI Builder', sub: 'Edit design + content', action: () => setAdminMode(false), icon: Paintbrush },
           ].map(({ label, sub, action, icon: Icon }) => (
             <button key={label} onClick={action} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
@@ -5051,14 +4907,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       ) : (
         /* ── Stripe orders ── */
         ordersError === 'no_key' ? (
+          // Stripe checkout runs through Quante's own managed account (see
+          // "Payments managed by Quante" in Settings -> Payments) — there is no
+          // per-project Stripe key to add, so this used to link to a Settings
+          // field that never existed. This tab only has data for the rare
+          // project with its own connected Stripe account.
           <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.25)', background: 'rgba(111,120,230,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
             <Settings2 size={32} style={{ color: '#5b5b64' }} />
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Connect your Stripe account</p>
+            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No Stripe orders here</p>
             <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
-              Add your store&apos;s Stripe secret key in Settings to view Stripe orders here.
+              Card payments run through Quante&apos;s managed Stripe account, not a key you configure — check the &quot;Other methods&quot; tab for all orders.
             </p>
-            <button onClick={() => setAdminTab('settings')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
-              Go to Settings
+            <button onClick={() => setOrdersTab('store')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer' }}>
+              View other methods
             </button>
           </div>
         ) : isLoadingOrders ? (
@@ -5234,8 +5095,56 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     </div>
   )
 
+  const ADMIN_SETTINGS_TABS: { id: typeof settingsTab; label: string }[] = [
+    { id: 'business', label: 'Business & legal' },
+    { id: 'payments', label: 'Payments' },
+    { id: 'shipping', label: 'Shipping' },
+    { id: 'domain', label: 'Domain & hosting' },
+    { id: 'market', label: 'Market & language' },
+    { id: 'emails', label: 'Emails' },
+    { id: 'payout', label: 'Payout' },
+  ]
+
   const AdminSettings = (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
+    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      {/* Sub-tabs — restructured (Studio IA wave 2, step 3) from one long scroll
+          into pills, and now also absorbs MerchantPanel's content plus the
+          Earnings/Payout and Hosting blocks that used to live stacked under
+          Builder -> Publish. */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+        {ADMIN_SETTINGS_TABS.map(({ id, label }) => {
+          const active = settingsTab === id
+          return (
+            <button
+              key={id}
+              onClick={() => setSettingsTab(id)}
+              style={{
+                fontSize: 12, fontWeight: active ? 600 : 400, padding: '6px 14px', borderRadius: 20,
+                border: `1px solid ${active ? 'rgba(62,207,142,.4)' : 'rgba(255,255,255,.1)'}`,
+                background: active ? 'rgba(62,207,142,.1)' : 'transparent',
+                color: active ? 'var(--live)' : '#8a8a93', cursor: 'pointer', whiteSpace: 'nowrap',
+                transition: 'background 0.12s, color 0.12s, border-color 0.12s',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 620 }}>
+
+      {settingsTab === 'business' && <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="business" />}
+
+      {settingsTab === 'market' && <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="market" />}
+
+      {settingsTab === 'emails' && <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="emails" />}
+
+      {settingsTab === 'payments' && <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="payments" />}
+
+      {settingsTab === 'shipping' && (
+        <>
+      <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="shipping" />
 
       {/* Zásilkovna */}
       <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.2)', overflow: 'hidden', flexShrink: 0 }}>
@@ -5440,7 +5349,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           )}
         </div>
       </div>
+        </>
+      )}
 
+      {settingsTab === 'domain' && (
+        <>
       {/* Custom domain */}
       <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
@@ -5481,6 +5394,126 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             </div>
           )}
         </div>
+      </div>
+
+      {/* Hosting plan — moved here from Builder -> Publish, which now only
+          keeps the first-time domain buy/connect flow. */}
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Hosting</p>
+        </div>
+        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {hostingInfo.subscribed ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6' }}>Hosting active</span>
+              </div>
+              {hostingInfo.subscriptionEndsAt && (
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>
+                  {hostingInfo.cancelAtPeriodEnd ? 'Ends' : 'Renews'} {new Date(hostingInfo.subscriptionEndsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              )}
+            </>
+          ) : hostingInfo.trialEndsAt ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? '#e0564f' : '#e0a04f', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? '#e0564f' : '#e0a04f' }}>
+                  {hostingInfo.suspendedAt
+                    ? 'Store paused — hosting expired'
+                    : trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+                </span>
+              </div>
+              {hostingInfo.suspendedAt && (
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+                  Visitors see a maintenance page. Your data is safe — subscribe and the store goes back online automatically.
+                </p>
+              )}
+              <button
+                onClick={() => handleHostingSubscribe('year')}
+                disabled={isSubscribing}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
+              >
+                {isSubscribing ? '…' : 'Subscribe · $99/year'}
+              </button>
+              <button
+                onClick={() => handleHostingSubscribe('month')}
+                disabled={isSubscribing}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSubscribing ? 0.6 : 1 }}
+              >
+                {isSubscribing ? '…' : 'Or $9.99/month'}
+              </button>
+            </>
+          ) : (
+            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy your store to start your 30-day free trial.</p>
+          )}
+        </div>
+      </div>
+        </>
+      )}
+
+      {settingsTab === 'payout' && (
+        <>
+      {/* Earnings + Payout — moved here from Builder -> Publish. */}
+      <p style={eyebrowSt}>Earnings <span style={{ color: '#5b5b64', marginLeft: 4 }}>5% platform fee</span></p>
+      <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Available</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+              {earnings ? `${earnings.currency} ${earnings.available.toFixed(2)}` : '—'}
+            </p>
+          </div>
+          <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Sales</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+              {earnings ? String(earnings.saleCount) : '—'}
+            </p>
+          </div>
+        </div>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 12 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 8 }}>Payout account</p>
+          <input
+            value={holderInput}
+            onChange={e => setHolderInput(e.target.value)}
+            placeholder="Account holder name"
+            style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
+          />
+          <input
+            value={ibanInput}
+            onChange={e => setIbanInput(e.target.value)}
+            placeholder="Your IBAN"
+            style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
+          />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={handleSaveIban}
+              disabled={isSavingIban || !ibanInput.trim() || !holderInput.trim()}
+              style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSavingIban ? 0.5 : 1 }}
+            >
+              {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
+            </button>
+            {payoutAccount?.iban && (earnings?.available ?? 0) > 0 && (
+              <button
+                onClick={handleRequestPayout}
+                disabled={isRequestingPayout}
+                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#6f78e6', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
+              >
+                {isRequestingPayout ? '…' : 'Request payout'}
+              </button>
+            )}
+          </div>
+          {payoutMsg && (
+            <p style={{ fontSize: 11, marginTop: 8, color: payoutMsg.startsWith('Payout') ? 'var(--live)' : '#f87171', lineHeight: 1.5, margin: '8px 0 0' }}>
+              {payoutMsg}
+            </p>
+          )}
+        </div>
+      </div>
+        </>
+      )}
+
       </div>
     </div>
   )
@@ -5706,12 +5739,6 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {desktopTab === 'publish'  && (
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                   {PublishPanel}
-                  <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
-                    <MerchantPanel
-                      projectId={projectId}
-                      onBalanceRefresh={refreshBalance}
-                    />
-                  </div>
                 </div>
               )}
             </div>
@@ -5791,12 +5818,6 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {activeTab === 'publish'  && (
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {PublishPanel}
-            <div style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}>
-              <MerchantPanel
-                projectId={projectId}
-                onBalanceRefresh={refreshBalance}
-              />
-            </div>
           </div>
         )}
       </div>
