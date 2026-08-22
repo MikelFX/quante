@@ -1272,11 +1272,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     }
   }
 
-  async function handleSend() {
-    const text = input.trim()
+  async function handleSend(overrideText?: string) {
+    const text = (overrideText ?? input).trim()
     if (!text || isGenerating) return
 
-    setInput('')
+    if (!overrideText) setInput('')
     setMessages((prev) => [
       ...prev,
       { role: 'user', content: text },
@@ -2082,7 +2082,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   }
 
   async function handleVisionAnalyze(file: File) {
-    if (!currentManifest) return
+    // Works for both manifest stores (applies directly to design tokens) and
+    // code-gen stores (translated into a chat instruction in handleApplyVision below)
+    // — the /api/quante/vision endpoint itself is manifest-agnostic.
     setIsVisionAnalyzing(true)
     setVisionResult(null)
     try {
@@ -2108,8 +2110,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   }
 
   async function handleApplyVision() {
-    if (!visionResult || !currentManifest) return
+    if (!visionResult) return
     const v = visionResult
+
+    // Code-gen stores have no manifest to patch directly — translate the
+    // extracted design system into a chat instruction and send it through
+    // the normal iterate flow instead.
+    if (!currentManifest) {
+      const paletteDesc = Object.entries(v.palette).map(([k, hex]) => `${k}: ${hex}`).join(', ')
+      const instruction = `Apply this design system extracted from a reference image — palette (${paletteDesc}), heading font "${v.typography.headingFont}", body font "${v.typography.bodyFont}", ${v.radius} corner radius, ${v.density} density, ${v.motion} motion, ${v.voice} voice. ${v.reasoning}`
+      setVisionResult(null)
+      await handleSend(instruction)
+      return
+    }
+
     const updated: ShopManifest = {
       ...currentManifest,
       brand: { ...currentManifest.brand, voice: (v.voice as ShopManifest['brand']['voice']) ?? currentManifest.brand.voice },
@@ -3123,6 +3137,97 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {/* ── Input area ───────────────────────────────────────────────── */}
       <div style={{ flexShrink: 0, padding: '10px 12px 12px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
 
+        {/* Design quick actions — the one useful piece of the old manifest-only
+            Theme panel (Image → Brand), folded into Chat for code-gen stores since
+            that's where all their other design changes already happen. */}
+        {hasGeneratedOnce && !currentManifest && !isGenerating && (
+          <div style={{
+            marginBottom: 10, padding: '8px 10px', borderRadius: 8,
+            border: '1px solid rgba(111,120,230,.18)', background: 'rgba(111,120,230,.05)',
+          }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#a5b4fc', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 4 }}>
+              ✦ Design quick actions
+            </p>
+            <input
+              ref={visionInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) handleVisionAnalyze(file)
+                e.target.value = ''
+              }}
+            />
+            {!visionResult ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => visionInputRef.current?.click()}
+                  disabled={isVisionAnalyzing}
+                  style={{
+                    fontSize: 11, padding: '3px 9px', borderRadius: 20,
+                    border: '1px solid rgba(111,120,230,.3)',
+                    background: 'rgba(111,120,230,.08)',
+                    color: isVisionAnalyzing ? '#8a8a93' : '#a5b4fc',
+                    cursor: isVisionAnalyzing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isVisionAnalyzing ? '✦ Analysing…' : '↑ Image → Brand · 1 cr'}
+                </button>
+                <button
+                  onClick={() => { setInput('Change the accent color to '); setTimeout(() => textareaRef.current?.focus(), 10) }}
+                  style={{
+                    fontSize: 11, padding: '3px 9px', borderRadius: 20,
+                    border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
+                    color: '#8a8a93', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  Change accent
+                </button>
+                <button
+                  onClick={() => { setInput('Change the fonts to '); setTimeout(() => textareaRef.current?.focus(), 10) }}
+                  style={{
+                    fontSize: 11, padding: '3px 9px', borderRadius: 20,
+                    border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
+                    color: '#8a8a93', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >
+                  Change fonts
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                  {Object.entries(visionResult.palette).map(([k, v]) => (
+                    <div key={k} title={k} style={{ width: 16, height: 16, borderRadius: 4, background: v as string, border: '1px solid rgba(255,255,255,.15)' }} />
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: '0 0 6px', lineHeight: 1.5 }}>{visionResult.reasoning}</p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={handleApplyVision}
+                    style={{
+                      fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
+                      border: 'none', background: '#6f78e6', color: '#fff', cursor: 'pointer',
+                    }}
+                  >
+                    Apply to store
+                  </button>
+                  <button
+                    onClick={() => setVisionResult(null)}
+                    style={{
+                      fontSize: 11, padding: '4px 10px', borderRadius: 6,
+                      border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#8a8a93', cursor: 'pointer',
+                    }}
+                  >
+                    Discard
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Quick suggestion chips */}
         {hasGeneratedOnce && !isGenerating && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -3171,7 +3276,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
             <button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={isGenerating || !input.trim()}
               style={{
                 padding: '8px 14px', fontSize: 13, fontWeight: 600,
