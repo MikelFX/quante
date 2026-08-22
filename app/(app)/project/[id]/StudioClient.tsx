@@ -3971,7 +3971,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
               <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Available</p>
               <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
-                {earnings ? `€${earnings.available.toFixed(2)}` : '—'}
+                {earnings ? `${earnings.currency} ${earnings.available.toFixed(2)}` : '—'}
               </p>
             </div>
             <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
@@ -3992,7 +3992,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <input
               value={ibanInput}
               onChange={e => setIbanInput(e.target.value)}
-              placeholder="IBAN (e.g. CZ65 0800 0000 1920 0014 5399)"
+              placeholder="Your IBAN"
               style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
             />
             <div style={{ display: 'flex', gap: 6 }}>

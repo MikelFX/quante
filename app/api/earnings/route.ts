@@ -23,11 +23,20 @@ export async function GET(request: Request) {
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  const { data: earnings } = await supabaseAdmin
-    .from('store_earnings')
-    .select('gross_amount_cents, net_amount_cents, platform_fee_cents, currency, created_at')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: false })
+  const [{ data: earnings }, { data: codeVersion }] = await Promise.all([
+    supabaseAdmin
+      .from('store_earnings')
+      .select('gross_amount_cents, net_amount_cents, platform_fee_cents, currency, created_at')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false }),
+    supabaseAdmin
+      .from('code_versions')
+      .select('files')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
   const rows = earnings ?? []
   const grossTotal = rows.reduce((s, r) => s + r.gross_amount_cents, 0)
@@ -48,7 +57,17 @@ export async function GET(request: Request) {
     .reduce((s, p) => s + p.amount_cents, 0)
 
   const availableCents = netTotal - pendingPayouts - paidOut
-  const currency = rows[0]?.currency ?? 'eur'
+
+  // Same fallback as revenue/route.ts: before any sale exists there's no
+  // store_earnings row to read a currency from, so fall back to the store's
+  // own configured currency instead of a hardcoded 'eur' (was showing e.g.
+  // "€0.00" for USD stores with zero sales).
+  let currency = rows[0]?.currency as string | undefined
+  if (!currency) {
+    const files = (codeVersion?.files ?? {}) as Record<string, string>
+    const currencyMatch = (files['data/config.ts'] ?? '').match(/currency:\s*['"]([A-Za-z]{3})['"]/)
+    currency = currencyMatch?.[1] ?? 'eur'
+  }
 
   return NextResponse.json({
     grossTotal: grossTotal / 100,
