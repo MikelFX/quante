@@ -279,8 +279,8 @@ function diffManifest(oldM: ShopManifest, newM: ShopManifest): string[] {
 }
 
 const QUICK_CHIPS = [
-  { label: 'GDPR page', prompt: 'Vytvoř kompletní stránku Zásady ochrany osobních údajů (GDPR) s reálným textem dle české legislativy.' },
-  { label: 'Terms of service', prompt: 'Vytvoř stránku Obchodní podmínky s 14denním právem na vrácení zboží, reklamačním řádem a identifikací prodávajícího.' },
+  { label: 'Privacy policy', prompt: 'Create a complete Privacy Policy page for this store, using its actual business details and written appropriately for its target market.' },
+  { label: 'Terms of service', prompt: 'Create a Terms of Service page covering returns, refunds, and seller identification, appropriate for this store\'s target market and applicable consumer protection laws.' },
   { label: 'Rewrite copy', prompt: 'Rewrite all the text on the site — hero, products, and sections — so it sounds confident and sales-ready.' },
   { label: 'Add product', prompt: 'Add a new product: ' },
   { label: 'New section', prompt: 'Add a section to the homepage: ' },
@@ -572,10 +572,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         loadHealth()
       } else {
         const d = await res.json().catch(() => ({} as { error?: string }))
-        setHealthActionError(d.error ?? 'Nepodařilo se vygenerovat právní stránky.')
+        setHealthActionError(d.error ?? 'Failed to generate legal pages.')
       }
     } catch {
-      setHealthActionError('Nepodařilo se vygenerovat právní stránky.')
+      setHealthActionError('Failed to generate legal pages.')
     } finally {
       setIsGeneratingLegal(false)
     }
@@ -3533,7 +3533,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── 0. Domain section ────────────────────────────────────────────────── */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 16 }}>🌐</span>
           <div>
@@ -4559,7 +4559,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <CheckCircle size={14} style={{ color: healthData?.readyToSell ? 'var(--live)' : '#8a8a93' }} />
-            Připraveno k prodeji
+            Ready to sell
           </h3>
           {healthData && (
             <span style={{
@@ -5133,7 +5133,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 560 }}>
 
       {/* Zásilkovna */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.2)', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(111,120,230,.2)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(111,120,230,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>📦</span>
           <div>
@@ -5186,7 +5186,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* DHL Express */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,193,7,.18)', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,193,7,.18)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,193,7,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>✈️</span>
           <div>
@@ -5233,7 +5233,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* GLS */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(0,102,204,.22)', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(0,102,204,.22)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(0,102,204,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>🚚</span>
           <div>
@@ -5296,7 +5296,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* byrd fulfillment */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.18)', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.18)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(62,207,142,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>🏭</span>
           <div>
@@ -5337,7 +5337,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* Custom domain */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden', flexShrink: 0 }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
           <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Custom domain</p>
           <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>Connect your own domain. Works with any registrar — just add a CNAME record.</p>

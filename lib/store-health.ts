@@ -111,72 +111,72 @@ export function computeStoreHealth(input: StoreHealthInput): StoreHealthResult {
   const items: HealthCheckItem[] = [
     {
       id: 'merchant',
-      label: 'Fakturační údaje',
+      label: 'Business info',
       done: merchantComplete,
       detail: merchantComplete
         ? `${merchant!.name} · ${merchant!.taxId}`
-        : 'Doplňte název firmy, IČO/registrační číslo a sídlo v Publish panelu.',
-      actionLabel: 'Doplnit údaje',
+        : 'Add your business name, tax/registration ID and address in the Publish panel.',
+      actionLabel: 'Add business info',
       actionTarget: 'publish',
     },
     {
       id: 'legal_pages',
-      label: 'Právní stránky (4×)',
+      label: 'Legal pages (4)',
       done: legalPagesDone,
       detail: legalPagesDone
-        ? 'Obchodní podmínky, zásady ochrany osobních údajů, cookies a kontakt vygenerovány.'
-        : `${legalPagesPresent}/4 stránek hotovo — vygenerujte je v Publish panelu ("Generate legal pages").`,
-      actionLabel: 'Vygenerovat stránky',
+        ? 'Terms, privacy policy, cookies and contact pages generated.'
+        : `${legalPagesPresent}/4 pages done — generate them from the Publish panel ("Generate legal pages").`,
+      actionLabel: 'Generate pages',
       actionTarget: 'legal',
     },
     {
       id: 'payment',
-      label: 'Platební metoda',
+      label: 'Payment method',
       done: paymentActive,
       detail: paymentActive
-        ? 'Alespoň jedna platební metoda je aktivní.'
-        : 'Zapněte platbu převodem, dobírkou nebo platební bránu v Publish panelu.',
-      actionLabel: 'Nastavit platby',
+        ? 'At least one payment method is active.'
+        : 'Enable bank transfer, cash on delivery, or a payment gateway in the Publish panel.',
+      actionLabel: 'Set up payments',
       actionTarget: 'publish',
     },
     {
       id: 'shipping',
-      label: 'Doprava s cenou',
+      label: 'Shipping with pricing',
       done: shippingDone,
       detail: shippingDone
-        ? `${shippingMethods.length} dopravní metod${shippingMethods.length === 1 ? 'a' : 'y'} nastaveno.`
-        : 'Přidejte alespoň jednu dopravní metodu s cenou v Publish panelu.',
-      actionLabel: 'Nastavit dopravu',
+        ? `${shippingMethods.length} shipping method${shippingMethods.length === 1 ? '' : 's'} set up.`
+        : 'Add at least one shipping method with a price in the Publish panel.',
+      actionLabel: 'Set up shipping',
       actionTarget: 'publish',
     },
     {
       id: 'email_test',
-      label: 'Test transakčního e-mailu',
+      label: 'Test order email',
       done: emailTested,
       detail: emailTested
-        ? `Testovací e-mail odeslán ${new Date(emailTestSentAt as string).toLocaleDateString('cs-CZ')}.`
-        : 'Odešlete testovací potvrzení objednávky na svou adresu.',
-      actionLabel: 'Odeslat test',
+        ? `Test email sent ${new Date(emailTestSentAt as string).toLocaleDateString('en-US')}.`
+        : 'Send a test order confirmation email to your own address.',
+      actionLabel: 'Send test',
       actionTarget: 'publish',
     },
     {
       id: 'product',
-      label: 'Produkt s fotkou a cenou',
+      label: 'Product with photo & price',
       done: !!sellableProduct,
       detail: sellableProduct
-        ? `"${sellableProduct.name}" je připraven k prodeji.`
-        : 'Přidejte alespoň jeden produkt s fotkou, cenou a skladem.',
-      actionLabel: 'Přidat produkt',
+        ? `"${sellableProduct.name}" is ready to sell.`
+        : 'Add at least one product with a photo, price, and stock.',
+      actionLabel: 'Add product',
       actionTarget: 'products',
     },
     {
       id: 'cookie_bar',
-      label: 'Cookie lišta',
+      label: 'Cookie banner',
       done: cookieBarDone,
       detail: cookieBarDone
-        ? 'Cookie lišta je součástí obchodu.'
-        : 'Cookie lišta chybí v tomto obchodě.',
-      actionLabel: 'Otevřít Builder',
+        ? 'A cookie consent banner is part of this store.'
+        : 'This store is missing a cookie consent banner.',
+      actionLabel: 'Open Builder',
       actionTarget: 'theme',
     },
   ]
