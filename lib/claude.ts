@@ -312,7 +312,8 @@ interface StoreConfig {
     name: string
     tagline: string     // short brand tagline
     currency: string    // ISO 4217: "CZK", "EUR", "USD", etc.
-    language: string    // "cs", "en", etc.
+    language: string    // ISO 639-1: "cs", "en", etc. — drives checkout/cart/legal-page/cookie-banner text on the deployed store
+    country: string     // ISO 3166-1 alpha-2: "US", "CZ", "DE", etc. — drives address field layout and locale formatting
     logoText?: string
   }
   seo: {
@@ -394,7 +395,8 @@ DO NOT generate app/layout.tsx, components/layout/Navbar.tsx, components/layout/
 11. config.nav: include links to all relevant pages. Common: [{label:"Products",href:"/collections/all"},{label:"About",href:"/about"}]
 12. config.footer.columns: include at least one column with Shop / Company links matching config.nav.
 13. Write clean, minimal TypeScript — no inline comments, no JSDoc. Compact but fully functional.
-14. CRITICAL: You MUST output ALL 7 required files in the correct order. Missing any core file breaks the build entirely.`
+14. CRITICAL: You MUST output ALL 7 required files in the correct order. Missing any core file breaks the build entirely.
+15. config.brand.country/language/currency describe the STORE'S target customers and market — not the language the person briefing you is typing in. Infer all three consistently from the brief (target audience, mentioned country/city, currency mentioned, or the language the brief explicitly asks the store's copy to be written in). Default to country: "US", language: "en", currency: "USD" when nothing in the brief indicates otherwise. These three drive the deployed store's checkout, legal pages, and cookie banner via the scaffold — get them right, don't just default to Czech out of habit.`
 
 export const SYSTEM_PROMPT_CODE_ITERATION = `You are Quante, an expert e-commerce designer and front-end engineer updating an existing store.
 

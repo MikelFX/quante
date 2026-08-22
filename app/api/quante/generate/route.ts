@@ -128,6 +128,33 @@ async function runGeneration(params: RunParams): Promise<void> {
   try {
     await setPhase('designing')
 
+    // --- Market override ---
+    // If the merchant has explicitly set project_secrets.market_country/market_language
+    // (via the Publish panel's "Storefront market & language" control), that overrides
+    // whatever the AI would otherwise infer from the brief text. Only applies to existing
+    // projects — a brand-new project has no project_secrets row yet, so it always falls
+    // back to pure inference, same as before.
+    let effectiveBrief = brief
+    if (existingProjectId) {
+      try {
+        const { data: marketRow } = await supabaseAdmin
+          .from('project_secrets')
+          .select('market_country, market_language')
+          .eq('project_id', existingProjectId)
+          .maybeSingle()
+        const marketCountry = marketRow?.market_country as string | null | undefined
+        const marketLanguage = marketRow?.market_language as string | null | undefined
+        if (marketCountry || marketLanguage) {
+          const lines: string[] = []
+          if (marketCountry) lines.push(`config.brand.country MUST be "${marketCountry}".`)
+          if (marketLanguage) lines.push(`config.brand.language MUST be "${marketLanguage}".`)
+          effectiveBrief = `${brief}\n\n[Merchant-set market override — takes precedence over anything you'd otherwise infer from the brief above: ${lines.join(' ')} Pick a currency and any other locale-dependent details consistent with this market.]`
+        }
+      } catch (err) {
+        console.error('[generate:bg] market override lookup failed (non-fatal, falling back to inference):', err)
+      }
+    }
+
     // --- Primary generation ---
     // Falls back to MODELS.fallback on refusal or hard API error (rate limit, access denied, network).
     // Our own soft-timeout AbortError is NOT treated as a fallback trigger — it goes to partial-file
@@ -141,7 +168,7 @@ async function runGeneration(params: RunParams): Promise<void> {
     const primaryStream = anthropic.messages.stream({
       model: PRIMARY_MODEL, max_tokens: MAX_TOKENS,
       system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: brief }],
+      messages: [{ role: 'user', content: effectiveBrief }],
     })
 
     const softAbort = setTimeout(() => {
@@ -194,7 +221,7 @@ async function runGeneration(params: RunParams): Promise<void> {
       const fallbackStream = anthropic.messages.stream({
         model: FALLBACK_MODEL, max_tokens: MAX_TOKENS,
         system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
-        messages: [{ role: 'user', content: brief }],
+        messages: [{ role: 'user', content: effectiveBrief }],
       })
 
       const softAbortFallback = setTimeout(() => {
