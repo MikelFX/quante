@@ -1688,8 +1688,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     const header = 'Email,Name,Phone,Orders,Total Spent,Currency,First Order,Last Order'
     const rows = customers.map(c =>
       [c.email, c.name, c.phone ?? '', c.orderCount, c.totalSpent.toFixed(2), c.currency,
-        new Date(c.firstOrderAt).toLocaleDateString('cs-CZ'),
-        new Date(c.lastOrderAt).toLocaleDateString('cs-CZ'),
+        new Date(c.firstOrderAt).toLocaleDateString('en-GB'),
+        new Date(c.lastOrderAt).toLocaleDateString('en-GB'),
       ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
     )
     const csv = [header, ...rows].join('\n')
@@ -4802,7 +4802,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         <p style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: paid ? 'var(--live)' : '#f4f4f6', margin: 0 }}>
                           {o.amount.toFixed(2)} {o.currency}
                         </p>
-                        <p style={{ fontSize: 10, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>{new Date(o.createdAt).toLocaleDateString('cs-CZ')}</p>
+                        <p style={{ fontSize: 10, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>{new Date(o.createdAt).toLocaleDateString('en-GB')}</p>
                       </div>
                     </div>
 
@@ -5119,7 +5119,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   {c.orderCount} order{c.orderCount !== 1 ? 's' : ''}
                 </p>
                 <p style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>
-                  {new Date(c.lastOrderAt).toLocaleDateString('cs-CZ')}
+                  {new Date(c.lastOrderAt).toLocaleDateString('en-GB')}
                 </p>
               </div>
             </div>

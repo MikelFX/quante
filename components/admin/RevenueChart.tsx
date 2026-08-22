@@ -80,7 +80,7 @@ export function RevenueChart({ projectId }: Props) {
               labelStyle={{ color: '#8a8a93', marginBottom: 4 }}
               itemStyle={{ color: '#3ecf8e' }}
               formatter={(v) => [`${currency} ${Number(v).toFixed(2)}`, 'Revenue']}
-              labelFormatter={v => new Date(v as string).toLocaleDateString('cs-CZ')}
+              labelFormatter={v => new Date(v as string).toLocaleDateString('en-GB')}
             />
             <Area
               type="monotone" dataKey="revenue"
