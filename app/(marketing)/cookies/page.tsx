@@ -14,8 +14,8 @@ const EFFECTIVE = '1 July 2026'
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 40 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f4f4f6', marginBottom: 12, letterSpacing: '-.02em' }}>{title}</h2>
-      <div style={{ fontSize: 14, color: '#8a8a93', lineHeight: 1.75 }}>{children}</div>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--qp-ink)', marginBottom: 12, letterSpacing: '-.02em' }}>{title}</h2>
+      <div style={{ fontSize: 14, color: 'var(--qp-sub)', lineHeight: 1.75 }}>{children}</div>
     </section>
   )
 }
@@ -56,13 +56,13 @@ export default function CookiesPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Legal
       </p>
-      <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: '#f4f4f6' }}>
+      <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: 'var(--qp-ink)' }}>
         Cookie Policy
       </h1>
-      <p style={{ fontSize: 13.5, color: '#5b5b64', marginBottom: 48 }}>
+      <p style={{ fontSize: 13.5, color: 'var(--qp-mut)', marginBottom: 48 }}>
         Effective {EFFECTIVE} · {operator.name}
       </p>
 
@@ -75,22 +75,22 @@ export default function CookiesPage() {
           {COOKIES.map(c => (
             <div key={c.name} style={{
               padding: '16px 18px',
-              background: 'rgba(255,255,255,.03)',
-              border: '1px solid rgba(255,255,255,.07)',
+              background: 'var(--qp-line-soft)',
+              border: '1px solid var(--qp-line-soft)',
               borderRadius: 10,
             }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12.5, color: '#c4c4cc', fontWeight: 600, margin: 0 }}>{c.name}</p>
+                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12.5, color: 'var(--qp-sub)', fontWeight: 600, margin: 0 }}>{c.name}</p>
                 <span style={{
                   fontFamily: 'var(--font-geist-mono)', fontSize: 10, letterSpacing: '.06em',
-                  background: 'rgba(111,120,230,.15)', color: '#7a82e8',
+                  background: 'rgba(111,120,230,.15)', color: 'var(--qp-accent-deep)',
                   padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap',
                 }}>
                   {c.type}
                 </span>
               </div>
-              <p style={{ margin: '0 0 6px', color: '#8a8a93' }}>{c.purpose}</p>
-              <p style={{ margin: 0, fontSize: 12.5, color: '#5b5b64' }}>
+              <p style={{ margin: '0 0 6px', color: 'var(--qp-sub)' }}>{c.purpose}</p>
+              <p style={{ margin: 0, fontSize: 12.5, color: 'var(--qp-mut)' }}>
                 Storage: {c.storage} · Duration: {c.duration}
               </p>
             </div>
@@ -100,7 +100,7 @@ export default function CookiesPage() {
 
       <Section title="3. How to control and clear cookies">
         <p>You can control cookies through your browser settings. Disabling cookies may affect the functionality of the Quante platform — in particular, authentication requires the session cookie to function.</p>
-        <p style={{ marginTop: 10 }}>To clear the announcement banner preference stored in localStorage, open your browser's developer tools, go to Application → Local Storage → your domain, and delete the <code style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#a5abf0', background: 'rgba(165,171,240,.1)', padding: '1px 5px', borderRadius: 3 }}>quante_banner_v1_dismissed</code> key.</p>
+        <p style={{ marginTop: 10 }}>To clear the announcement banner preference stored in localStorage, open your browser's developer tools, go to Application → Local Storage → your domain, and delete the <code style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: 'var(--qp-accent-deep)', background: 'rgba(165,171,240,.1)', padding: '1px 5px', borderRadius: 3 }}>quante_banner_v1_dismissed</code> key.</p>
         <p style={{ marginTop: 10 }}>Most browsers also support clearing all site data via Settings → Privacy. Refer to your browser's help documentation for specific instructions.</p>
       </Section>
 
@@ -116,7 +116,7 @@ export default function CookiesPage() {
       <Section title="6. Contact">
         <p>
           {operator.name} · {operator.address}
-          {email && <> · <a href={`mailto:${email}`} style={{ color: '#6f78e6' }}>{email}</a></>}
+          {email && <> · <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></>}
         </p>
       </Section>
     </div>

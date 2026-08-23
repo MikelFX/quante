@@ -101,6 +101,235 @@
   --sidebar-ring: oklch(0.60 0.18 270);
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   Public site theme — light + glassmorphism.
+   Scoped entirely under `.qnt-public` so it can NEVER leak into the app
+   shell / Studio, which stay on the dark :root tokens above untouched.
+   Applied by wrapping every public/marketing page's root element in
+   `.qnt-public` (done once, in PublicNav's parent wrapper per page).
+   ════════════════════════════════════════════════════════════════════════ */
+.qnt-public {
+  --qp-bg: #FAF7F1;
+  --qp-bg-alt: #F3EEE4;
+  --qp-surface: #FFFFFF;
+  --qp-ink: #1B1A22;
+  --qp-sub: #57545F;
+  --qp-mut: #8C8996;
+  --qp-line: rgba(27,26,34,.09);
+  --qp-line-soft: rgba(27,26,34,.06);
+
+  --qp-accent: #5B54F0;
+  --qp-accent-light: #8B84FF;
+  --qp-accent-deep: #4741C9;
+  --qp-accent-wash: rgba(91,84,240,.10);
+  --qp-mint: #22B27D;
+  --qp-mint-light: #5FE0A8;
+  --qp-mint-wash: rgba(34,178,125,.10);
+
+  --qp-shelf: rgba(43,38,66,.08);
+  --qp-shelf-soft: rgba(43,38,66,.045);
+  --qp-shelf-b: rgba(91,84,240,.13);
+  --qp-shelf-b-soft: rgba(91,84,240,.06);
+
+  /* Lowered from .55/.72 — at the higher opacity the panel read as an
+     almost-solid off-white card even with a working backdrop-filter,
+     because there wasn't enough translucency left for the blurred backdrop
+     to show through. See also the widened .qp-ambient blobs below — the
+     two problems compounded (thick glass + too little colour behind it). */
+  --qp-glass-bg: rgba(255,255,255,.4);
+  --qp-glass-bg-strong: rgba(255,255,255,.58);
+  --qp-glass-border: rgba(255,255,255,.75);
+  --qp-glass-blur: 20px;
+  --qp-glass-shadow: 0 10px 34px -12px rgba(27,26,34,.16), inset 0 1px 0 rgba(255,255,255,.55);
+
+  --qp-shadow-clay: 0 1px 1px rgba(27,26,34,.04), 0 8px 20px -6px rgba(27,26,34,.14), 0 24px 48px -20px rgba(91,84,240,.18);
+  --qp-shadow-clay-sm: 0 1px 1px rgba(27,26,34,.05), 0 6px 14px -6px rgba(27,26,34,.16);
+  --qp-shadow-card: 0 1px 2px rgba(27,26,34,.04), 0 12px 28px -14px rgba(27,26,34,.16);
+
+  --qp-r-lg: 28px;
+  --qp-r-md: 20px;
+  --qp-r-sm: 14px;
+  --qp-sp-kicker: 14px;
+  --qp-sp-lead: 20px;
+  --qp-sp-block: 52px;
+
+  --qp-mono: var(--font-geist-mono);
+  --qp-sans: var(--font-geist-sans);
+
+  background: var(--qp-bg);
+  color: var(--qp-ink);
+}
+
+.qnt-public .qp-kicker {
+  font-family: var(--qp-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--qp-mut); display: flex; align-items: center; gap: 8px; justify-content: center;
+  margin: 0 0 var(--qp-sp-kicker);
+}
+.qnt-public .qp-kicker .qp-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--qp-accent); box-shadow: 0 0 0 4px var(--qp-accent-wash); flex-shrink: 0;
+}
+
+/* ── Glass utility — the primary panel style ─────────────────────────── */
+.qnt-public .qp-glass {
+  background: var(--qp-glass-bg);
+  -webkit-backdrop-filter: blur(var(--qp-glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--qp-glass-blur)) saturate(160%);
+  border: 1px solid var(--qp-glass-border);
+  box-shadow: var(--qp-glass-shadow);
+  border-radius: var(--qp-r-md);
+}
+.qnt-public .qp-glass-strong { background: var(--qp-glass-bg-strong); }
+
+/* ── Liquid Glass — reserved for the handful of most prominent surfaces
+   (hero store card, the "Quante" side of a comparison, the popular pricing
+   card). Flat glassmorphism just blurs; this also visibly REFRACTS the
+   backdrop via an SVG feTurbulence/feDisplacementMap filter, plus a
+   rim-light gradient border and a corner specular highlight, the way a
+   real curved glass edge catches light. Ported from the approved
+   mockups/quante-redesign-mockup.html round-4 pass — the SVG filter itself
+   lives in <LiquidGlassDefs> (components/public/LiquidGlassDefs.tsx),
+   rendered once per page via <PublicNav>. Everything else on the site
+   stays on the plain .qp-glass blur — this is a stronger variant of the
+   same material, not a different one, so it should read as premium rather
+   than noisy. */
+.qnt-public .qp-liquid-glass {
+  position: relative;
+  background: var(--qp-glass-bg-strong);
+  border: 1.5px solid transparent;
+  background-image:
+    linear-gradient(var(--qp-glass-bg-strong), var(--qp-glass-bg-strong)),
+    conic-gradient(from 210deg at 26% 20%,
+      rgba(255,255,255,.95) 0deg,
+      rgba(255,255,255,.12) 70deg,
+      rgba(255,255,255,.05) 160deg,
+      rgba(139,132,255,.42) 250deg,
+      rgba(255,255,255,.95) 360deg);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow: var(--qp-glass-shadow);
+  /* Fallback declared first (plain blur, universally supported); the
+     enhanced declaration is only picked up by browsers that accept an
+     SVG-filter reference inside backdrop-filter. Browsers that reject it
+     treat the whole declaration as invalid and keep the fallback instead
+     of breaking — this is why there are two backdrop-filter lines here. */
+  -webkit-backdrop-filter: blur(var(--qp-glass-blur)) saturate(170%);
+  backdrop-filter: blur(var(--qp-glass-blur)) saturate(170%);
+  backdrop-filter: url(#qp-liquid-distort) blur(calc(var(--qp-glass-blur) - 5px)) saturate(170%);
+}
+.qnt-public .qp-liquid-glass::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: radial-gradient(ellipse 55% 38% at 20% 16%, rgba(255,255,255,.7), transparent 62%);
+  mix-blend-mode: overlay; pointer-events: none;
+}
+.qnt-public .qp-liquid-glass::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: radial-gradient(ellipse 42% 32% at 82% 88%, rgba(139,132,255,.2), transparent 65%);
+  mix-blend-mode: screen; pointer-events: none;
+}
+/* Mint-tinted variant for the "Quante" (positive) side of a comparison —
+   applied together with .qp-liquid-glass, overrides just the tint. */
+.qnt-public .qp-liquid-glass.qp-tint-mint {
+  background-image:
+    linear-gradient(var(--qp-glass-bg-strong), var(--qp-glass-bg-strong)),
+    conic-gradient(from 210deg at 26% 20%,
+      rgba(255,255,255,.95) 0deg, rgba(255,255,255,.12) 70deg,
+      rgba(255,255,255,.05) 160deg, rgba(34,178,125,.4) 250deg, rgba(255,255,255,.95) 360deg);
+}
+.qnt-public .qp-liquid-glass.qp-tint-mint::after {
+  background: radial-gradient(ellipse 42% 32% at 82% 88%, rgba(34,178,125,.22), transparent 65%);
+}
+/* Displacement maps are comparatively expensive to composite — drop to the
+   plain-blur fallback on small screens and when the user prefers reduced
+   motion/effects. */
+@media (max-width: 600px), (prefers-reduced-motion: reduce) {
+  .qnt-public .qp-liquid-glass {
+    backdrop-filter: blur(var(--qp-glass-blur)) saturate(170%) !important;
+    -webkit-backdrop-filter: blur(var(--qp-glass-blur)) saturate(170%) !important;
+  }
+}
+
+/* ── Clay icon tiles — kept solid so colour pops against the glass ──── */
+.qnt-public .qp-clay {
+  border-radius: 22px;
+  background: linear-gradient(155deg,#ffffff, #F1EDE3 70%);
+  box-shadow: var(--qp-shadow-clay-sm);
+}
+.qnt-public .qp-clay-accent {
+  background: linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 60%,var(--qp-accent-deep));
+  box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 -6px 14px rgba(0,0,0,.14) inset, var(--qp-shadow-clay-sm);
+}
+.qnt-public .qp-clay-mint {
+  background: linear-gradient(155deg,var(--qp-mint-light),var(--qp-mint) 65%,#128F62);
+  box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 -6px 14px rgba(0,0,0,.14) inset, var(--qp-shadow-clay-sm);
+}
+.qnt-public .qp-icon-tile {
+  width: 52px; height: 52px; border-radius: 16px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  margin-bottom: 16px; color: #fff;
+}
+.qnt-public .qp-icon-tile svg { width: 24px; height: 24px; }
+
+/* ── Ambient background blobs behind glass panels ─────────────────────
+   These exist so backdrop-filter has actual colour to blur/refract — a
+   handful of small corner blobs (the original version) mostly missed wide
+   feature-grid rows, so cards in the middle of a grid sat over flat page
+   background and the glass read as plain frosted white regardless of
+   whether backdrop-filter was working. Bigger, more diffuse, and spread
+   across the section width fixes that; opacity stays low so it reads as
+   ambient colour, not a visible shape. */
+.qnt-public .qp-ambient { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.qnt-public .qp-ambient .qp-blob { position: absolute; border-radius: 50%; filter: blur(50px); }
+.qnt-public .qp-ambient .qp-blob-accent { width: 620px; height: 620px; background: radial-gradient(circle,rgba(91,84,240,.24),transparent 72%); }
+.qnt-public .qp-ambient .qp-blob-mint { width: 560px; height: 560px; background: radial-gradient(circle,rgba(34,178,125,.20),transparent 72%); }
+.qnt-public .qp-ambient .qp-blob-wide {
+  width: 900px; height: 420px; border-radius: 50%;
+  background: radial-gradient(ellipse,rgba(91,84,240,.14),rgba(34,178,125,.10) 55%,transparent 75%);
+}
+
+/* ── Feature grid — auto-fit collapses to 1 column on mobile with no
+   breakpoint/specificity fights (this is what the mockup's round-3
+   mobile-overflow bug was fixed with; keep it this way). ─────────────── */
+.qnt-public .qp-feature-grid {
+  display: grid; grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
+  gap: 18px; max-width: 1080px; margin: var(--qp-sp-block) auto 0; position: relative; z-index: 2;
+}
+.qnt-public .qp-feature-card {
+  border-radius: var(--qp-r-md); padding: 28px 26px; text-align: left;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.qnt-public .qp-feature-card:hover { transform: translateY(-4px); }
+.qnt-public .qp-feature-card h3 { font-size: 17px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; margin: 0 0 8px; color: var(--qp-ink); }
+.qnt-public .qp-feature-card p { font-size: 13.5px; color: var(--qp-sub); line-height: 1.6; margin: 0; }
+
+/* ── Shelving background (hero + optional secondary sections) ───────── */
+.qnt-public .qp-shelf-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.qnt-public .qp-shelf-layer svg { position: absolute; }
+
+@keyframes qp-floaty { 0%,100% { transform: translateY(0px) rotate(var(--qp-rot,0deg)); } 50% { transform: translateY(-13px) rotate(var(--qp-rot,0deg)); } }
+@keyframes qp-floaty-slow { 0%,100% { transform: translateY(0px) rotate(var(--qp-rot,0deg)); } 50% { transform: translateY(-8px) rotate(var(--qp-rot,0deg)); } }
+.qnt-public .qp-float { animation: qp-floaty 7s ease-in-out infinite; }
+.qnt-public .qp-float-slow { animation: qp-floaty-slow 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .qnt-public .qp-float, .qnt-public .qp-float-slow { animation: none; }
+}
+
+/* ── Mobile fixes carried over from the approved mockup ─────────────── */
+@media (max-width: 600px) {
+  .qnt-public .qp-shelf-layer { opacity: .5; }
+  .qnt-public .qp-hero-float { display: none; }
+  /* The hero store-card frame is centred via absolute positioning + a
+     fixed-height container on desktop; on narrow screens that math is
+     what caused the round-3 mockup overlap bug, so switch both to normal
+     flow instead of trying to keep the absolute-position math in sync. */
+  .qnt-public .qp-hero-visual { position: static !important; height: auto !important; margin-top: 36px !important; }
+  .qnt-public .qp-hero-store-card {
+    position: static !important; margin: 0 auto !important; transform: none !important;
+    width: min(420px,92%) !important; height: auto !important;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

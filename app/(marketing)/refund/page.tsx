@@ -21,8 +21,8 @@ const REFUND_WINDOW_DAYS = 14
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 40 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f4f4f6', marginBottom: 12, letterSpacing: '-.02em' }}>{title}</h2>
-      <div style={{ fontSize: 14, color: '#8a8a93', lineHeight: 1.75 }}>{children}</div>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--qp-ink)', marginBottom: 12, letterSpacing: '-.02em' }}>{title}</h2>
+      <div style={{ fontSize: 14, color: 'var(--qp-sub)', lineHeight: 1.75 }}>{children}</div>
     </section>
   )
 }
@@ -32,21 +32,21 @@ export default function RefundPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Legal
       </p>
-      <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: '#f4f4f6' }}>
+      <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: 'var(--qp-ink)' }}>
         Refund Policy
       </h1>
-      <p style={{ fontSize: 13.5, color: '#5b5b64', marginBottom: 48 }}>
+      <p style={{ fontSize: 13.5, color: 'var(--qp-mut)', marginBottom: 48 }}>
         Effective {EFFECTIVE} · {operator.name}
       </p>
 
       <Section title="1. Credits">
-        <p><strong style={{ color: '#f4f4f6' }}>Unused purchased credits.</strong> If you have purchased a credit pack and have not spent those credits, you may request a full refund within {REFUND_WINDOW_DAYS} days of the original purchase. To request a refund, contact us using the details in Section 5 and include the email address on your account and the approximate date of purchase. We will process the refund to your original payment method within 10 business days.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Partially used credit packs.</strong> If you have spent some but not all credits from a pack, only the value of the remaining (unspent) credits is eligible for a pro-rata refund, subject to the {REFUND_WINDOW_DAYS}-day window above.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Credits already spent on generation.</strong> Credits that have been consumed to generate, iterate, or export a store are non-refundable, regardless of whether you are satisfied with the output. This is because the underlying AI API costs are incurred at the point of generation.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Complimentary starter credits.</strong> The 25 credits granted to new accounts at sign-up are complimentary and non-refundable in all circumstances.</p>
+        <p><strong style={{ color: 'var(--qp-ink)' }}>Unused purchased credits.</strong> If you have purchased a credit pack and have not spent those credits, you may request a full refund within {REFUND_WINDOW_DAYS} days of the original purchase. To request a refund, contact us using the details in Section 5 and include the email address on your account and the approximate date of purchase. We will process the refund to your original payment method within 10 business days.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Partially used credit packs.</strong> If you have spent some but not all credits from a pack, only the value of the remaining (unspent) credits is eligible for a pro-rata refund, subject to the {REFUND_WINDOW_DAYS}-day window above.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Credits already spent on generation.</strong> Credits that have been consumed to generate, iterate, or export a store are non-refundable, regardless of whether you are satisfied with the output. This is because the underlying AI API costs are incurred at the point of generation.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Complimentary starter credits.</strong> The 25 credits granted to new accounts at sign-up are complimentary and non-refundable in all circumstances.</p>
       </Section>
 
       <Section title="2. Domain purchases">
@@ -66,7 +66,7 @@ export default function RefundPage() {
       <Section title="5. How to request a refund">
         <p>
           Contact us{email
-            ? <> at <a href={`mailto:${email}`} style={{ color: '#6f78e6' }}>{email}</a></>
+            ? <> at <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></>
             : ' using the contact information in our Terms of Service'
           } with:
         </p>

@@ -34,37 +34,37 @@ export default function ContactPage() {
 
   return (
     <div style={{ maxWidth: 680, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Contact
       </p>
-      <h1 style={{ fontSize: 'clamp(28px,5vw,42px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 12, color: '#f4f4f6' }}>
+      <h1 style={{ fontSize: 'clamp(28px,5vw,42px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 12, color: 'var(--qp-ink)' }}>
         Get in touch
       </h1>
-      <p style={{ fontSize: 15, color: '#8a8a93', lineHeight: 1.65, marginBottom: 48 }}>
+      <p style={{ fontSize: 15, color: 'var(--qp-sub)', lineHeight: 1.65, marginBottom: 48 }}>
         Questions about the platform, billing, or a custom plan? We read and respond to every message.
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 56 }} className="contact-grid">
         {/* Contact details */}
         <div>
-          <p style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.10em', textTransform: 'uppercase', color: '#5b5b64', marginBottom: 14 }}>
+          <p style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.10em', textTransform: 'uppercase', color: 'var(--qp-mut)', marginBottom: 14 }}>
             Contact
           </p>
           {email ? (
-            <a href={`mailto:${email}`} style={{ fontSize: 14, color: '#a5abf0', textDecoration: 'underline', textUnderlineOffset: 3, display: 'block', marginBottom: 10 }}>
+            <a href={`mailto:${email}`} style={{ fontSize: 14, color: 'var(--qp-accent-deep)', textDecoration: 'underline', textUnderlineOffset: 3, display: 'block', marginBottom: 10 }}>
               {email}
             </a>
           ) : (
-            <p style={{ fontSize: 14, color: '#5b5b64' }}>Email address coming soon.</p>
+            <p style={{ fontSize: 14, color: 'var(--qp-mut)' }}>Email address coming soon.</p>
           )}
         </div>
 
         {/* Business address — required by Czech law for online businesses */}
         <div>
-          <p style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.10em', textTransform: 'uppercase', color: '#5b5b64', marginBottom: 14 }}>
+          <p style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.10em', textTransform: 'uppercase', color: 'var(--qp-mut)', marginBottom: 14 }}>
             Business address
           </p>
-          <p style={{ fontSize: 14, color: '#8a8a93', lineHeight: 1.65 }}>
+          <p style={{ fontSize: 14, color: 'var(--qp-sub)', lineHeight: 1.65 }}>
             {operator.name}<br />
             Švermova 441/12<br />
             273 43 Buštěhrad<br />
@@ -82,13 +82,13 @@ export default function ContactPage() {
           borderRadius: 14,
           textAlign: 'center',
         }}>
-          <p style={{ fontSize: 16, fontWeight: 700, color: '#34d399', marginBottom: 6 }}>Message sent.</p>
-          <p style={{ fontSize: 14, color: '#8a8a93' }}>We'll get back to you within one business day.</p>
+          <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--qp-mint)', marginBottom: 6 }}>Message sent.</p>
+          <p style={{ fontSize: 14, color: 'var(--qp-sub)' }}>We'll get back to you within one business day.</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12.5, color: '#8a8a93', marginBottom: 6 }}>Your name</label>
+            <label style={{ display: 'block', fontSize: 12.5, color: 'var(--qp-sub)', marginBottom: 6 }}>Your name</label>
             <input
               required
               value={name}
@@ -96,15 +96,15 @@ export default function ContactPage() {
               placeholder="Jane Smith"
               style={{
                 width: '100%', height: 42, padding: '0 14px',
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.12)',
-                borderRadius: 8, color: '#f4f4f6', fontSize: 14,
+                background: 'var(--qp-line-soft)',
+                border: '1px solid var(--qp-line)',
+                borderRadius: 8, color: 'var(--qp-ink)', fontSize: 14,
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12.5, color: '#8a8a93', marginBottom: 6 }}>Email address</label>
+            <label style={{ display: 'block', fontSize: 12.5, color: 'var(--qp-sub)', marginBottom: 6 }}>Email address</label>
             <input
               required
               type="email"
@@ -113,15 +113,15 @@ export default function ContactPage() {
               placeholder="you@example.com"
               style={{
                 width: '100%', height: 42, padding: '0 14px',
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.12)',
-                borderRadius: 8, color: '#f4f4f6', fontSize: 14,
+                background: 'var(--qp-line-soft)',
+                border: '1px solid var(--qp-line)',
+                borderRadius: 8, color: 'var(--qp-ink)', fontSize: 14,
                 outline: 'none', boxSizing: 'border-box',
               }}
             />
           </div>
           <div>
-            <label style={{ display: 'block', fontSize: 12.5, color: '#8a8a93', marginBottom: 6 }}>Message</label>
+            <label style={{ display: 'block', fontSize: 12.5, color: 'var(--qp-sub)', marginBottom: 6 }}>Message</label>
             <textarea
               required
               rows={6}
@@ -130,9 +130,9 @@ export default function ContactPage() {
               placeholder="Tell us what you need..."
               style={{
                 width: '100%', padding: '12px 14px',
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.12)',
-                borderRadius: 8, color: '#f4f4f6', fontSize: 14,
+                background: 'var(--qp-line-soft)',
+                border: '1px solid var(--qp-line)',
+                borderRadius: 8, color: 'var(--qp-ink)', fontSize: 14,
                 outline: 'none', resize: 'vertical', boxSizing: 'border-box',
                 fontFamily: 'inherit',
               }}
@@ -144,8 +144,9 @@ export default function ContactPage() {
             style={{
               alignSelf: 'flex-start',
               height: 42, padding: '0 24px',
-              background: '#f4f4f6', color: '#070709',
-              border: 'none', borderRadius: 8,
+              background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
+              color: '#fff',
+              border: 'none', borderRadius: 99,
               fontSize: 14, fontWeight: 600, cursor: 'pointer',
               opacity: state === 'sending' ? 0.6 : 1,
             }}
@@ -153,7 +154,7 @@ export default function ContactPage() {
             {state === 'sending' ? 'Sending…' : 'Send message'}
           </button>
           {state === 'error' && (
-            <p style={{ fontSize: 13, color: '#f87171' }}>Something went wrong. Please email us directly.</p>
+            <p style={{ fontSize: 13, color: '#D6534A' }}>Something went wrong. Please email us directly.</p>
           )}
         </form>
       )}

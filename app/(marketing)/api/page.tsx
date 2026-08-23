@@ -26,7 +26,7 @@ export default function ApiPage() {
         <span style={{
           display: 'inline-block',
           fontFamily: mono, fontSize: 10, letterSpacing: '.12em',
-          background: 'rgba(111,120,230,.18)', color: '#7a82e8',
+          background: 'rgba(111,120,230,.18)', color: 'var(--qp-accent-deep)',
           border: '1px solid rgba(111,120,230,.28)',
           padding: '4px 12px', borderRadius: 99, marginBottom: 24,
         }}>
@@ -37,19 +37,19 @@ export default function ApiPage() {
           Programmatic<br />store generation.
         </h1>
 
-        <p style={{ fontSize: 16, color: '#8a8a93', lineHeight: 1.65, marginBottom: 40, maxWidth: 460, margin: '0 auto 40px' }}>
+        <p style={{ fontSize: 16, color: 'var(--qp-sub)', lineHeight: 1.65, marginBottom: 40, maxWidth: 460, margin: '0 auto 40px' }}>
           The Quante API will let you generate, iterate, and deploy storefronts programmatically — from your own backend, CI pipeline, or agent workflow. Sign up to be notified when it launches.
         </p>
 
         {/* Preview of what the API will look like */}
         <div style={{
-          background: '#0c0c12',
-          border: '1px solid rgba(255,255,255,.1)',
+          background: '#15141C',
+          border: '1px solid rgba(255,255,255,.08)',
           borderRadius: 12, padding: '18px 20px',
           textAlign: 'left', marginBottom: 40,
           overflow: 'auto',
         }}>
-          <pre style={{ fontFamily: mono, fontSize: 12.5, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>{`POST https://api.quantecode.com/v1/generate
+          <pre style={{ fontFamily: mono, fontSize: 12.5, color: '#C7C4D6', margin: 0, lineHeight: 1.6 }}>{`POST https://api.quantecode.com/v1/generate
 Authorization: Bearer qnt_••••••••••••
 
 {
@@ -70,7 +70,7 @@ Authorization: Bearer qnt_••••••••••••
             borderRadius: 12,
             display: 'inline-block',
           }}>
-            <p style={{ fontSize: 14, color: '#34d399', margin: 0 }}>
+            <p style={{ fontSize: 14, color: 'var(--qp-mint)', margin: 0 }}>
               You&apos;re on the list. We&apos;ll reach out when the API launches.
             </p>
           </div>
@@ -85,9 +85,9 @@ Authorization: Bearer qnt_••••••••••••
               aria-label="Email for API launch notification"
               style={{
                 height: 44, padding: '0 16px', width: 280,
-                background: 'rgba(255,255,255,.05)',
-                border: '1px solid rgba(255,255,255,.12)',
-                borderRadius: 8, color: '#f4f4f6', fontSize: 14,
+                background: 'var(--qp-line-soft)',
+                border: '1px solid var(--qp-line)',
+                borderRadius: 8, color: 'var(--qp-ink)', fontSize: 14,
                 outline: 'none',
               }}
             />
@@ -95,8 +95,9 @@ Authorization: Bearer qnt_••••••••••••
               type="submit"
               style={{
                 height: 44, padding: '0 22px',
-                background: '#f4f4f6', color: '#070709',
-                border: 'none', borderRadius: 8,
+                background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
+                color: '#fff',
+                border: 'none', borderRadius: 99,
                 fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}
             >

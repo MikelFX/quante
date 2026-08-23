@@ -1,10 +1,14 @@
 import Link from 'next/link'
 import { operator, socialLinks, footerNav } from '@/lib/site-config'
 
-const muted  = '#5b5b64'
-const subtle = '#8a8a93'
-const fg     = '#f4f4f6'
-const mono   = 'var(--font-geist-mono)'
+// Light/glass footer for the public site. Only rendered on public pages
+// (never inside app/(app) — the Studio/dashboard has its own dark shell and
+// doesn't import this component), so it's safe to hardcode the light
+// palette here rather than reuse the dark tokens above.
+const muted  = 'var(--qp-mut)'
+const subtle = 'var(--qp-sub)'
+const fg     = 'var(--qp-ink)'
+const mono   = 'var(--qp-mono)'
 
 function Col({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -28,8 +32,8 @@ function NavLink({ href, label, badge }: { href: string; label: string; badge?: 
       {badge && (
         <span style={{
           fontFamily: mono, fontSize: 9, letterSpacing: '.06em',
-          background: 'rgba(111,120,230,.18)', color: '#7a82e8',
-          border: '1px solid rgba(111,120,230,.25)',
+          background: 'var(--qp-accent-wash)', color: 'var(--qp-accent-deep)',
+          border: '1px solid rgba(91,84,240,.25)',
           padding: '1px 5px', borderRadius: 4,
         }}>
           {badge}
@@ -46,8 +50,8 @@ export function SiteFooter() {
 
   return (
     <footer style={{
-      borderTop: '1px solid rgba(255,255,255,.07)',
-      background: '#070709',
+      borderTop: '1px solid var(--qp-line-soft)',
+      background: 'var(--qp-bg-alt)',
       padding: 'clamp(3rem,5vw,4rem) clamp(1.25rem,4vw,3rem)',
     }}>
       <div style={{ maxWidth: 1080, margin: '0 auto' }}>
@@ -106,7 +110,7 @@ export function SiteFooter() {
 
         {/* ── Impressum ── */}
         <div style={{
-          borderTop: '1px solid rgba(255,255,255,.05)',
+          borderTop: '1px solid var(--qp-line-soft)',
           paddingTop: 24,
           marginBottom: 20,
         }}>
@@ -133,7 +137,7 @@ export function SiteFooter() {
 
         {/* ── Bottom bar ── */}
         <div style={{
-          borderTop: '1px solid rgba(255,255,255,.05)',
+          borderTop: '1px solid var(--qp-line-soft)',
           paddingTop: 18,
           display: 'flex',
           alignItems: 'center',

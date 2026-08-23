@@ -14,8 +14,8 @@ const EFFECTIVE = '1 July 2026'
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 40 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#f4f4f6', marginBottom: 12, letterSpacing: '-.02em' }}>{title}</h2>
-      <div style={{ fontSize: 14, color: '#8a8a93', lineHeight: 1.75 }}>{children}</div>
+      <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--qp-ink)', marginBottom: 12, letterSpacing: '-.02em' }}>{title}</h2>
+      <div style={{ fontSize: 14, color: 'var(--qp-sub)', lineHeight: 1.75 }}>{children}</div>
     </section>
   )
 }
@@ -25,34 +25,34 @@ export default function PrivacyPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Legal
       </p>
-      <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: '#f4f4f6' }}>
+      <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: 'var(--qp-ink)' }}>
         Privacy Policy
       </h1>
-      <p style={{ fontSize: 13.5, color: '#5b5b64', marginBottom: 48 }}>
+      <p style={{ fontSize: 13.5, color: 'var(--qp-mut)', marginBottom: 48 }}>
         Effective {EFFECTIVE} · {operator.name}
       </p>
 
       <Section title="1. Who we are and how to reach us">
         <p>The data controller for the Quante platform is:</p>
-        <p style={{ marginTop: 8, padding: '12px 16px', background: 'rgba(255,255,255,.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)' }}>
+        <p style={{ marginTop: 8, padding: '12px 16px', background: 'var(--qp-line-soft)', borderRadius: 8, border: '1px solid var(--qp-line-soft)' }}>
           {operator.name} · {operator.role}<br />
           {operator.address}
-          {email && <><br /><a href={`mailto:${email}`} style={{ color: '#6f78e6' }}>{email}</a></>}
+          {email && <><br /><a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></>}
         </p>
         <p style={{ marginTop: 10 }}>For questions about this policy or to exercise your rights, contact us at the address above. We will respond within 30 days.</p>
       </Section>
 
       <Section title="2. Data we collect and why">
-        <p><strong style={{ color: '#f4f4f6' }}>Account data.</strong> When you sign up, we collect your email address and (optionally) your name. Legal basis: performance of a contract.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Payment data.</strong> Payment card information is processed exclusively by Stripe. We receive only a token and last-four-digits confirmation; we never store raw card details. Legal basis: performance of a contract.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Store content.</strong> Text, product descriptions, images, and other content you enter into the Studio are stored to provide the Service. Legal basis: performance of a contract.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>AI generation inputs.</strong> Your prompts and the AI-generated manifests are stored per project to support version history and iteration. These inputs are transmitted to Anthropic's API for processing. Legal basis: performance of a contract.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Usage data.</strong> We log which features you use, credit transactions, and error events, primarily for debugging and product improvement. Legal basis: legitimate interests.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Domain registration data.</strong> If you purchase a domain through Quante, your name and address are shared with Namecheap as required for ICANN-compliant domain registration. Legal basis: performance of a contract.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: '#f4f4f6' }}>Session & authentication data.</strong> We use Clerk to manage authentication. Clerk stores your session token in a secure HTTP-only cookie. Legal basis: performance of a contract / legitimate interests.</p>
+        <p><strong style={{ color: 'var(--qp-ink)' }}>Account data.</strong> When you sign up, we collect your email address and (optionally) your name. Legal basis: performance of a contract.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Payment data.</strong> Payment card information is processed exclusively by Stripe. We receive only a token and last-four-digits confirmation; we never store raw card details. Legal basis: performance of a contract.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Store content.</strong> Text, product descriptions, images, and other content you enter into the Studio are stored to provide the Service. Legal basis: performance of a contract.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>AI generation inputs.</strong> Your prompts and the AI-generated manifests are stored per project to support version history and iteration. These inputs are transmitted to Anthropic's API for processing. Legal basis: performance of a contract.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Usage data.</strong> We log which features you use, credit transactions, and error events, primarily for debugging and product improvement. Legal basis: legitimate interests.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Domain registration data.</strong> If you purchase a domain through Quante, your name and address are shared with Namecheap as required for ICANN-compliant domain registration. Legal basis: performance of a contract.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Session & authentication data.</strong> We use Clerk to manage authentication. Clerk stores your session token in a secure HTTP-only cookie. Legal basis: performance of a contract / legitimate interests.</p>
       </Section>
 
       <Section title="3. Sub-processors">
@@ -66,10 +66,10 @@ export default function PrivacyPage() {
             ['Clerk, Inc.', 'Authentication and session management', 'United States (EU SCCs)'],
             ['Supabase, Inc.', 'PostgreSQL database hosting', 'EU region'],
           ].map(([name, purpose, transfer]) => (
-            <div key={name} style={{ padding: '12px 16px', background: 'rgba(255,255,255,.03)', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)' }}>
-              <p style={{ fontWeight: 600, color: '#c4c4cc', marginBottom: 4 }}>{name}</p>
+            <div key={name} style={{ padding: '12px 16px', background: 'var(--qp-line-soft)', borderRadius: 8, border: '1px solid var(--qp-line-soft)' }}>
+              <p style={{ fontWeight: 600, color: 'var(--qp-sub)', marginBottom: 4 }}>{name}</p>
               <p style={{ margin: 0 }}>{purpose}</p>
-              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#5b5b64' }}>{transfer}</p>
+              <p style={{ margin: '4px 0 0', fontSize: 12.5, color: 'var(--qp-mut)' }}>{transfer}</p>
             </div>
           ))}
         </div>
@@ -88,21 +88,21 @@ export default function PrivacyPage() {
       <Section title="5. Your rights under GDPR">
         <p>If you are in the European Economic Area, you have the following rights:</p>
         <ul style={{ paddingLeft: 20, marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <li><strong style={{ color: '#c4c4cc' }}>Access.</strong> Request a copy of the personal data we hold about you.</li>
-          <li><strong style={{ color: '#c4c4cc' }}>Rectification.</strong> Ask us to correct inaccurate or incomplete data.</li>
-          <li><strong style={{ color: '#c4c4cc' }}>Erasure.</strong> Request deletion of your data where there is no overriding legitimate interest or legal obligation.</li>
-          <li><strong style={{ color: '#c4c4cc' }}>Restriction.</strong> Ask us to restrict processing in certain circumstances.</li>
-          <li><strong style={{ color: '#c4c4cc' }}>Portability.</strong> Receive your data in a structured, machine-readable format.</li>
-          <li><strong style={{ color: '#c4c4cc' }}>Objection.</strong> Object to processing based on legitimate interests.</li>
-          <li><strong style={{ color: '#c4c4cc' }}>Withdraw consent.</strong> Where processing is based on consent, withdraw it at any time without affecting prior lawful processing.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Access.</strong> Request a copy of the personal data we hold about you.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Rectification.</strong> Ask us to correct inaccurate or incomplete data.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Erasure.</strong> Request deletion of your data where there is no overriding legitimate interest or legal obligation.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Restriction.</strong> Ask us to restrict processing in certain circumstances.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Portability.</strong> Receive your data in a structured, machine-readable format.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Objection.</strong> Object to processing based on legitimate interests.</li>
+          <li><strong style={{ color: 'var(--qp-sub)' }}>Withdraw consent.</strong> Where processing is based on consent, withdraw it at any time without affecting prior lawful processing.</li>
         </ul>
-        <p style={{ marginTop: 10 }}>To exercise any of these rights, contact us{email ? <> at <a href={`mailto:${email}`} style={{ color: '#6f78e6' }}>{email}</a></> : ' using the contact details in Section 1'}. We will respond within 30 days.</p>
+        <p style={{ marginTop: 10 }}>To exercise any of these rights, contact us{email ? <> at <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></> : ' using the contact details in Section 1'}. We will respond within 30 days.</p>
       </Section>
 
       <Section title="6. Right to complain">
         <p>You have the right to lodge a complaint with the Czech Office for Personal Data Protection (Úřad pro ochranu osobních údajů — ÚOOÚ):</p>
         <p style={{ marginTop: 8 }}>
-          Website: <a href="https://www.uoou.cz" target="_blank" rel="noopener noreferrer" style={{ color: '#6f78e6' }}>www.uoou.cz</a><br />
+          Website: <a href="https://www.uoou.cz" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--qp-accent)' }}>www.uoou.cz</a><br />
           Pplk. Sochora 27, 170 00 Prague 7, Czech Republic
         </p>
         <p style={{ marginTop: 10 }}>We would, however, appreciate the chance to address your concerns before you contact the supervisory authority.</p>

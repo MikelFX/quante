@@ -114,7 +114,7 @@ export default async function ChangelogPage() {
           borderRadius: 10,
           padding: '12px 16px',
           marginBottom: 24,
-          color: '#f87171',
+          color: '#D6534A',
           fontFamily: mono,
           fontSize: 12,
           lineHeight: 1.5,
@@ -124,19 +124,19 @@ export default async function ChangelogPage() {
         </div>
       )}
 
-      <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: '#5b5b64', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: mono, fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Changelog
       </p>
-      <h1 style={{ fontSize: 'clamp(28px,5vw,44px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 12, color: '#f4f4f6' }}>
+      <h1 style={{ fontSize: 'clamp(28px,5vw,44px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 12, color: 'var(--qp-ink)' }}>
         What&apos;s new
       </h1>
-      <p style={{ fontSize: 15, color: '#8a8a93', lineHeight: 1.6, marginBottom: 56 }}>
+      <p style={{ fontSize: 15, color: 'var(--qp-sub)', lineHeight: 1.6, marginBottom: 56 }}>
         Production updates to the Quante platform, newest first.
       </p>
 
       {Object.entries(groups).map(([monthKey, items]) => (
         <div key={monthKey} style={{ marginBottom: 52 }}>
-          <p style={{ fontFamily: mono, fontSize: 11.5, color: '#5b5b64', letterSpacing: '.06em', marginBottom: 24, textTransform: 'uppercase' }}>
+          <p style={{ fontFamily: mono, fontSize: 11.5, color: 'var(--qp-mut)', letterSpacing: '.06em', marginBottom: 24, textTransform: 'uppercase' }}>
             {formatMonthKey(monthKey)}
           </p>
 
@@ -154,16 +154,13 @@ export default async function ChangelogPage() {
                 }}
               >
                 <div style={{
-                  fontFamily: mono, fontSize: 22, fontWeight: 700, color: '#383845',
+                  fontFamily: mono, fontSize: 22, fontWeight: 700, color: 'var(--qp-mut)',
                   textAlign: 'right', paddingTop: 2,
                 }}>
                   {formatDay(entry.date)}
                 </div>
 
-                <div style={{
-                  background: '#0d0d12',
-                  border: '1px solid rgba(255,255,255,.08)',
-                  borderRadius: 12,
+                <div className="qp-glass" style={{
                   padding: '18px 20px',
                 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
@@ -172,8 +169,8 @@ export default async function ChangelogPage() {
                       return (
                         <span key={tag} style={{
                           fontFamily: mono, fontSize: 10, letterSpacing: '.06em',
-                          background: known ? TAG_BG[tag] : 'rgba(255,255,255,.06)',
-                          color: known ? TAG_FG[tag] : '#8a8a93',
+                          background: known ? TAG_BG[tag] : 'var(--qp-line-soft)',
+                          color: known ? TAG_FG[tag] : 'var(--qp-sub)',
                           padding: '2px 7px', borderRadius: 4,
                         }}>
                           {tag}
@@ -181,10 +178,10 @@ export default async function ChangelogPage() {
                       )
                     })}
                   </div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: '#f4f4f6', marginBottom: 6, lineHeight: 1.3 }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--qp-ink)', marginBottom: 6, lineHeight: 1.3 }}>
                     {entry.title}
                   </p>
-                  <p style={{ fontSize: 13.5, color: '#8a8a93', lineHeight: 1.6, margin: 0 }}>
+                  <p style={{ fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.6, margin: 0 }}>
                     {entry.description}
                   </p>
                 </div>

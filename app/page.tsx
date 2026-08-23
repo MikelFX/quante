@@ -1,14 +1,17 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
-import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
 import Link from 'next/link'
+import { Rocket, Download, CheckCircle2, MessageSquareText, History, Upload, Globe2, Link2 } from 'lucide-react'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { SiteFooter } from '@/components/SiteFooter'
+import { PublicNav } from '@/components/public/PublicNav'
+import { ShelfBackground } from '@/components/public/ShelfBackground'
+import { GlassCard } from '@/components/public/GlassCard'
+import { FeatureCard } from '@/components/public/FeatureCard'
+import { IconTile } from '@/components/public/IconTile'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
 
 const HERO_SHOWCASE = {
   url: 'https://maison-s-ve.stores.quantecode.com/',
@@ -16,108 +19,48 @@ const HERO_SHOWCASE = {
 }
 
 const STACK_CARDS = [
-  { n: '01', title: 'Live in 3 minutes', desc: 'Click Deploy. Quante provisions hosting, SSL, and your subdomain automatically. Zero server setup, zero DevOps.' },
-  { n: '02', title: "It's yours to keep", desc: "Download the source, host it anywhere, change whatever you want. No lock-in, no strings attached." },
-  { n: '03', title: 'It just works', desc: "The AI handles your design and copy. The code underneath is solid — it builds and runs without issues every time." },
-  { n: '04', title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
-  { n: '05', title: 'Nothing gets lost', desc: "Every change is saved automatically. Went too far? Jump back to any earlier version in one tap." },
+  { n: '01', icon: Rocket, title: 'Live in 3 minutes', desc: 'Click Deploy. Quante provisions hosting, SSL, and your subdomain automatically. Zero server setup, zero DevOps.' },
+  { n: '02', icon: Download, title: "It's yours to keep", desc: 'Download the source, host it anywhere, change whatever you want. No lock-in, no strings attached.' },
+  { n: '03', icon: CheckCircle2, title: 'It just works', desc: 'The AI handles your design and copy. The code underneath is solid — it builds and runs without issues every time.' },
+  { n: '04', icon: MessageSquareText, title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
+  { n: '05', icon: History, title: 'Nothing gets lost', desc: 'Every change is saved automatically. Went too far? Jump back to any earlier version in one tap.' },
 ]
 
 const SHOWCASE_PROJECTS = [
   {
-    url: 'Alegant.eu',
-    label: 'fashion · CZ/SK',
-    brand: 'ALEGANT',
-    tagline: 'Dress with intention.',
-    cta: 'Shop collection',
-    navRight: 'Cart (0)',
-    bg: '#f7f4ef',
-    navBg: '#f7f4ef',
-    heroBg: '#f0ece4',
-    brandColor: '#1a1714',
-    accentBg: '#b8955a',
-    accentText: '#fff',
-    brandFont: 'Georgia,serif',
-    taglineSize: 15,
+    url: 'Alegant.eu', label: 'fashion · CZ/SK', brand: 'ALEGANT', tagline: 'Dress with intention.',
+    cta: 'Shop collection', bg: '#f7f4ef', brandColor: '#1a1714', accentBg: '#b8955a', accentText: '#fff',
+    brandFont: 'Georgia,serif', taglineSize: 15,
   },
   {
-    url: 'Alegant.cz',
-    label: 'fashion · CZ',
-    brand: 'ALEGANT',
-    tagline: 'Style that lasts.',
-    cta: 'Explore collection',
-    navRight: 'Cart (0)',
-    bg: '#f5f0ea',
-    navBg: '#f5f0ea',
-    heroBg: '#ede7dd',
-    brandColor: '#1a1714',
-    accentBg: '#9c7a46',
-    accentText: '#fff',
-    brandFont: 'Georgia,serif',
-    taglineSize: 14,
+    url: 'FromageBox.cz', label: 'food · subscription', brand: 'FromageBox', tagline: "The world's finest cheeses, curated monthly.",
+    cta: 'Start your box', bg: '#faf5ec', brandColor: '#2d1f0e', accentBg: '#c9913a', accentText: '#fff',
+    brandFont: 'Georgia,serif', taglineSize: 13,
   },
   {
-    url: 'FromageBox.cz',
-    label: 'food · subscription',
-    brand: 'FromageBox',
-    tagline: 'The world\'s finest cheeses, curated monthly.',
-    cta: 'Start your box',
-    navRight: 'My box',
-    bg: '#faf5ec',
-    navBg: '#faf5ec',
-    heroBg: '#f2e9d8',
-    brandColor: '#2d1f0e',
-    accentBg: '#c9913a',
-    accentText: '#fff',
-    brandFont: 'Georgia,serif',
-    taglineSize: 13,
+    url: 'DocThink.app', label: 'SaaS · medtech', brand: 'DocThink', tagline: 'Think clearer. Decide faster.',
+    cta: 'Try for free', bg: '#f0f5ff', brandColor: '#0f1729', accentBg: '#2563eb', accentText: '#fff',
+    brandFont: 'system-ui,sans-serif', taglineSize: 15,
   },
   {
-    url: 'DocThink.app',
-    label: 'SaaS · medtech',
-    brand: 'DocThink',
-    tagline: 'Think clearer. Decide faster.',
-    cta: 'Try for free',
-    navRight: 'Sign in',
-    bg: '#f0f5ff',
-    navBg: '#ffffff',
-    heroBg: '#e8efff',
-    brandColor: '#0f1729',
-    accentBg: '#2563eb',
-    accentText: '#fff',
-    brandFont: 'system-ui,sans-serif',
-    taglineSize: 15,
-  },
-  {
-    url: 'QuanteCode',
-    label: 'AI builder · meta',
-    brand: 'quante',
-    tagline: 'Describe your store.\nWe build it.',
-    cta: 'Try it free →',
-    navRight: 'Log in',
-    bg: '#070709',
-    navBg: 'rgba(7,7,9,.9)',
-    heroBg: '#0c0c12',
-    brandColor: '#f4f4f6',
-    accentBg: '#6f78e6',
-    accentText: '#fff',
-    brandFont: 'var(--font-geist-mono)',
-    taglineSize: 14,
+    url: 'quantecode.com', label: 'AI builder · meta', brand: 'quante', tagline: 'Describe your store.\nWe build it.',
+    cta: 'Try it free →', bg: '#f0eeff', brandColor: '#1B1A22', accentBg: '#5B54F0', accentText: '#fff',
+    brandFont: 'var(--qp-mono)', taglineSize: 14,
   },
 ]
 
-// ─── Math helpers ─────────────────────────────────────────────────────────────
+const HOSTING_FEATURES = [
+  { icon: Upload, variant: 'accent' as const, title: 'One-click deploy', desc: 'Hit Deploy in the Studio. Quante handles the build, CDN and SSL certificate in about 3 minutes.' },
+  { icon: Globe2, variant: 'plain' as const, title: 'Your own subdomain', desc: "Every store gets a clean URL like my-store.stores.quantecode.com — live the moment it's ready." },
+  { icon: Link2, variant: 'mint' as const, title: 'Custom domain', desc: 'Already own a domain? Point your CNAME and Quante verifies it automatically. No DNS nightmare.' },
+  { icon: Download, variant: 'plain' as const, title: 'Or take the code', desc: 'Prefer self-hosting? Export the full Next.js source as a ZIP and deploy anywhere you want.' },
+]
 
-function cl(v: number, a = 0, b = 1) { return v < a ? a : v > b ? b : v }
-function eOut(p: number) { return 1 - Math.pow(1 - p, 3) }
-function lerp(a: number, b: number, t: number) { return a + (b - a) * t }
-function fp(p: number) { return eOut(cl((p - 0.12) / 0.7)) }
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// ─── Hero live storefront preview (lazy-loaded on intersection) ───────────────
 
 function HeroStorefront() {
   const [mounted, setMounted] = useState(false)
-  const [loaded, setLoaded]   = useState(false)
+  const [loaded, setLoaded] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -133,7 +76,6 @@ function HeroStorefront() {
 
   return (
     <div ref={wrapRef} style={{ flex: 1, minHeight: 0, position: 'relative', background: '#f2efe9' }}>
-      {/* Skeleton — fades out once iframe fires onLoad */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 1,
         background: '#f2efe9',
@@ -149,693 +91,331 @@ function HeroStorefront() {
           sandbox="allow-scripts allow-same-origin"
           referrerPolicy="no-referrer-when-downgrade"
           onLoad={() => setLoaded(true)}
-          style={{
-            width: '100%', height: '100%',
-            border: 'none', display: 'block',
-            pointerEvents: 'none',
-          }}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block', pointerEvents: 'none' }}
         />
       )}
     </div>
   )
 }
 
-function Ambient() {
-  return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
-      <span className="blob-drift1" style={{
-        position: 'absolute', borderRadius: '50%',
-        width: 520, height: 520,
-        background: 'radial-gradient(circle at center,rgba(79,91,213,.42),transparent 66%)',
-        top: -120, left: -60,
-      }} />
-      <span className="blob-drift2" style={{
-        position: 'absolute', borderRadius: '50%',
-        width: 460, height: 460,
-        background: 'radial-gradient(circle at center,rgba(62,207,142,.16),transparent 66%)',
-        bottom: -150, right: -90,
-      }} />
-      <span className="blob-drift1r" style={{
-        position: 'absolute', borderRadius: '50%',
-        width: 380, height: 380,
-        background: 'radial-gradient(circle at center,rgba(111,120,230,.30),transparent 68%)',
-        top: '38%', left: '54%',
-      }} />
-      {[
-        { left: '16%', top: '28%', delay: '0s' },
-        { left: '78%', top: '34%', delay: '1.4s' },
-        { left: '30%', top: '66%', delay: '2.6s' },
-        { left: '64%', top: '72%', delay: '0.8s' },
-        { left: '48%', top: '20%', delay: '3.4s' },
-      ].map((m, i) => (
-        <span key={i} className="mote-float" style={{
-          position: 'absolute',
-          width: 3, height: 3, borderRadius: '50%',
-          background: 'rgba(184,192,255,.55)',
-          left: m.left, top: m.top,
-          animationDelay: m.delay,
-        }} />
-      ))}
-    </div>
-  )
-}
-
-function GrainVignette() {
-  return (
-    <>
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
-        opacity: 0.045, mixBlendMode: 'overlay',
-        backgroundImage: `url("${GRAIN_SVG}")`, backgroundSize: '160px 160px',
-      }} />
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.6) 100%)',
-      }} />
-    </>
-  )
-}
-
-function LineReveal({ children, delay = 0, blue = false }: { children: string; delay?: number; blue?: boolean }) {
-  return (
-    <span style={{ display: 'block', overflow: 'hidden' }}>
-      <motion.span
-        initial={{ y: '112%', opacity: 0, filter: 'blur(8px)' }}
-        animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-        transition={{ duration: 1, delay, ease: [0.16, 0.84, 0.24, 1] }}
-        style={{
-          display: 'block',
-          fontSize: 'clamp(34px,6.2vw,56px)',
-          fontWeight: 800,
-          letterSpacing: '-.035em',
-          lineHeight: 1.07,
-          color: blue ? '#6f78e6' : '#f4f4f6',
-          ...(blue ? { textShadow: '0 0 26px rgba(79,91,213,.55),0 0 64px rgba(79,91,213,.28)' } : {}),
-        }}
-      >
-        {children}
-      </motion.span>
-    </span>
-  )
-}
-
-function StackCard({ card, index, total, progress }: {
-  card: typeof STACK_CARDS[0]
-  index: number
-  total: number
-  progress: MotionValue<number>
-}) {
-  const transform = useTransform(progress, p => {
-    const f = p * (total - 1)
-    const d = f - index
-    const ad = Math.abs(d)
-    const ty = d <= 0 ? (-d) * 72 : -d * 22
-    const sc = d <= 0 ? Math.max(0.8, 1 - (-d) * 0.05) : Math.max(0.78, 1 - d * 0.07)
-    return `translate(-50%,calc(-50% + ${ty.toFixed(1)}px)) scale(${sc.toFixed(3)})`
-  })
-
-  const opacity = useTransform(progress, p => {
-    const f = p * (total - 1)
-    const d = f - index
-    return d <= 0 ? cl(1 - (-d) * 0.62) : cl(1 - d * 0.32)
-  })
-
-  const filter = useTransform(progress, p => {
-    const f = p * (total - 1)
-    const d = f - index
-    const ad = Math.abs(d)
-    const blurPx = d > 0 ? cl(d, 0, 3) * 2.4 : cl(-d, 0, 3) * 1.3
-    const br = 1 - cl(ad, 0, 3) * 0.1
-    return `blur(${blurPx.toFixed(2)}px) brightness(${br.toFixed(3)})`
-  })
-
-  const zIndex = useTransform(progress, p => {
-    const f = p * (total - 1)
-    const d = f - index
-    return 120 - Math.round(Math.abs(d) * 12)
-  })
-
-  const boxShadow = useTransform(progress, p => {
-    const f = p * (total - 1)
-    return Math.abs(f - index) < 0.45 ? '0 0 70px rgba(79,91,213,.22)' : 'none'
-  })
-
-  return (
-    <motion.div
-      style={{
-        position: 'absolute', left: '50%', top: '50%', width: '100%',
-        background: '#101016',
-        border: '1px solid rgba(255,255,255,.13)',
-        borderRadius: 16, padding: 30, textAlign: 'left',
-        transform, opacity, filter, zIndex, boxShadow,
-      }}
-    >
-      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#6f78e6' }}>
-        {card.n}
-      </span>
-      <b style={{ display: 'block', margin: '14px 0 10px', fontSize: 21, fontWeight: 700, letterSpacing: '-.02em', color: '#f4f4f6' }}>
-        {card.title}
-      </b>
-      <p style={{ margin: 0, fontSize: 14, color: '#8a8a93', lineHeight: 1.55 }}>
-        {card.desc}
-      </p>
-    </motion.div>
-  )
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
-  const heroRef    = useRef<HTMLElement>(null)
-  const revealRef  = useRef<HTMLElement>(null)
-  const stackRef   = useRef<HTMLElement>(null)
-  const horizRef   = useRef<HTMLElement>(null)
-  const hTrackRef  = useRef<HTMLDivElement>(null)
-  const hStageRef  = useRef<HTMLDivElement>(null)
-  const [maxX, setMaxX] = useState(900)
-
-  const { scrollYProgress: heroP   } = useScroll({ target: heroRef,   offset: ['start start', 'end end'] })
-  const { scrollYProgress: revealP } = useScroll({ target: revealRef, offset: ['start start', 'end end'] })
-  const { scrollYProgress: stackP  } = useScroll({ target: stackRef,  offset: ['start start', 'end end'] })
-  const { scrollYProgress: horizP  } = useScroll({ target: horizRef,  offset: ['start start', 'end end'] })
-
-  useEffect(() => {
-    function measure() {
-      if (hTrackRef.current && hStageRef.current) {
-        setMaxX(Math.max(0, hTrackRef.current.scrollWidth - hStageRef.current.clientWidth))
-      }
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [])
-
-  // ── Hero transforms ──────────────────────────────────────────────────────
-  const heroCopyY      = useTransform(heroP, p => -p * 72)
-  const heroCopyOp     = useTransform(heroP, p => cl(1 - p * 0.92))
-  const heroCopyFilter = useTransform(heroP, p => `blur(${(p * 5).toFixed(2)}px)`)
-
-  const glowOp    = useTransform(heroP, p => cl((p - 0.1) / 0.3) * 0.95)
-  const glowScale = useTransform(heroP, p => lerp(0.7, 1.28, fp(p)))
-
-  const storeOp     = useTransform(heroP, p => Math.min(1, 0.8 + p * 2))
-  const storeW      = useTransform(heroP, p => lerp(50, 98, fp(p)) + '%')
-  const storeH      = useTransform(heroP, p => lerp(210, 332, fp(p)) + 'px')
-  const storeR      = useTransform(heroP, p => lerp(16, 8, fp(p)) + 'px')
-  const storeTrn    = useTransform(heroP, p =>
-    `translateY(${lerp(28, -42, fp(p)).toFixed(1)}px) scale(${lerp(0.955, 1, fp(p)).toFixed(3)})`
-  )
-  const cueOp = useTransform(heroP, [0, 0.05], [1, 0])
-
-  // ── Reveal (hosting) section ─────────────────────────────────────────────
-  const rLine1Op   = useTransform(revealP, [0.02, 0.14], [0, 1])
-  const rLine1Y    = useTransform(revealP, [0.02, 0.14], [50, 0])
-  const rLine1Blur = useTransform(revealP, [0.02, 0.14], ['blur(10px)', 'blur(0px)'])
-  const rLine2Op   = useTransform(revealP, [0.14, 0.26], [0, 1])
-  const rLine2Y    = useTransform(revealP, [0.14, 0.26], [50, 0])
-  const rLine2Blur = useTransform(revealP, [0.14, 0.26], ['blur(10px)', 'blur(0px)'])
-  const rLine3Op   = useTransform(revealP, [0.30, 0.42], [0, 1])
-  const rLine3Y    = useTransform(revealP, [0.30, 0.42], [40, 0])
-  const rLine3Blur = useTransform(revealP, [0.30, 0.42], ['blur(10px)', 'blur(0px)'])
-  const rLine4Op   = useTransform(revealP, [0.44, 0.58], [0, 1])
-  const rLine4Y    = useTransform(revealP, [0.44, 0.58], [50, 0])
-  const rLine4Blur = useTransform(revealP, [0.44, 0.58], ['blur(10px)', 'blur(0px)'])
-  const rCompOp    = useTransform(revealP, [0.68, 0.84], [0, 1])
-  const rCompY     = useTransform(revealP, [0.68, 0.84], [40, 0])
-
-  // ── Horizontal track ─────────────────────────────────────────────────────
-  const hTrackX    = useTransform(horizP, p => -(p * maxX))
-  const hProgWidth = useTransform(horizP, p => `${(p * 100).toFixed(1)}%`)
-
   return (
-    <div style={{ background: '#070709', color: '#f4f4f6', overflowX: 'clip' }}>
-
-      {/* ── Nav ── */}
-      <header style={{
-        position: 'fixed', top: 'var(--banner-h, 0px)', left: 0, right: 0, zIndex: 50,
-        height: '3.5rem', display: 'flex', alignItems: 'center',
-        padding: '0 2rem', justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(255,255,255,.07)',
-        background: 'rgba(7,7,9,.88)', backdropFilter: 'blur(10px)',
-      }}>
-        <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 14, fontWeight: 600, letterSpacing: '-.01em' }}>
-          quante
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link href="/showcase" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Showcase</Link>
-          <Link href="/pricing" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Pricing</Link>
-          <Link href="/about" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>About</Link>
-          <Link href="/login" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Log in</Link>
-          <Link href="/signup" style={{
-            fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            color: '#070709', background: '#f4f4f6',
-            padding: '0.4rem 0.9rem', borderRadius: 6,
-          }}>
-            Try free →
-          </Link>
-        </div>
-      </header>
+    <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <PublicNav />
 
       {/* ── HERO ── */}
-      <section ref={heroRef} style={{ height: 2200, position: 'relative' }}>
-        <div style={{
-          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 44,
-        }}>
-          <Ambient />
-          <GrainVignette />
-
-          {/* store glow */}
-          <motion.div style={{
-            position: 'absolute', left: '50%', top: '60%',
-            width: '62%', height: 300,
-            background: 'radial-gradient(ellipse at center,rgba(79,91,213,.55),transparent 70%)',
-            filter: 'blur(26px)', zIndex: 1, pointerEvents: 'none',
-            x: '-50%', y: '-50%',
-            opacity: glowOp, scale: glowScale,
-          }} />
-
-          {/* hero copy */}
-          <motion.div style={{
-            textAlign: 'center', position: 'relative', zIndex: 2,
-            y: heroCopyY, opacity: heroCopyOp, filter: heroCopyFilter,
-          }}>
-            <motion.div
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.05 }}
-              style={{
-                fontFamily: 'var(--font-geist-mono)', fontSize: 11.5,
-                letterSpacing: '.04em', color: '#5b5b64',
-                display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 20,
-              }}
-            >
-              <span className="dot-pulse-el" style={{
-                width: 7, height: 7, borderRadius: '50%',
-                background: '#6f78e6', display: 'inline-block',
-              }} />
-              try free — 25 credits on us
-            </motion.div>
-
-            <div style={{ position: 'relative' }} className="headline-sheen">
-              <LineReveal>Describe your store.</LineReveal>
-              <LineReveal delay={0.13} blue>We build it.</LineReveal>
-            </div>
-
-            <motion.p
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.34 }}
-              style={{ fontSize: 15, lineHeight: 1.6, color: '#8a8a93', maxWidth: 430, margin: '18px auto 0' }}
-            >
+      <section style={{ padding: 'clamp(3rem,9vw,6rem) 1.5rem clamp(2rem,6vw,3.5rem)', position: 'relative' }}>
+        <ShelfBackground variant="a" />
+        <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto' }}>
+            <div className="qp-kicker"><span className="qp-dot" /> try free — 25 credits on us</div>
+            <h1 style={{
+              fontSize: 'clamp(34px,7vw,62px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.08,
+              margin: '0 0 18px',
+            }}>
+              Describe your store.<br />
+              <span style={{
+                background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, #7A72FF)',
+                WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+              }}>
+                We build it.
+              </span>
+            </h1>
+            <p style={{ fontSize: 16.5, lineHeight: 1.65, color: 'var(--qp-sub)', maxWidth: 430, margin: '0 auto' }}>
               Describe what you want. Get a real, working online shop — deploy it with one click or download and host anywhere.
-            </motion.p>
-          </motion.div>
-
-          {/* store frame */}
-          <motion.div style={{
-            marginTop: 32,
-            background: '#f2efe9',
-            border: '1px solid rgba(255,255,255,.13)',
-            overflow: 'hidden', position: 'relative', zIndex: 2,
-            opacity: storeOp, width: storeW, height: storeH,
-            borderRadius: storeR, transform: storeTrn,
-            display: 'flex', flexDirection: 'column',
-          }}>
-            {/* browser chrome — unchanged */}
-            <div style={{ height: 24, background: '#e6e3db', display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', flexShrink: 0 }}>
-              {[0,1,2].map(i => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: '#c4c0b5', display: 'inline-block' }} />)}
-            </div>
-            <HeroStorefront />
-          </motion.div>
-
-          {/* scroll cue */}
-          <motion.div className="bob-anim" style={{
-            position: 'absolute', bottom: 18, left: '50%', x: '-50%',
-            color: '#5b5b64', fontSize: 20, zIndex: 2, opacity: cueOp,
-          }}>
-            ↓
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── REVEAL — hosting & domains manifesto ── */}
-      <section ref={revealRef} style={{ height: 3200, position: 'relative' }}>
-        <div style={{
-          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: '0 1.5rem',
-        }}>
-          <Ambient />
-          <GrainVignette />
-
-          <div style={{ maxWidth: 1080, width: '100%', margin: '0 auto', position: 'relative', zIndex: 2 }}>
-            <p style={{
-              fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em',
-              color: '#5b5b64', marginBottom: 36, textAlign: 'center',
-            }}>
-              02 — from idea to live store
             </p>
-
-            <div style={{
-              display: 'flex', flexDirection: 'column', gap: '0.4em',
-              fontSize: 'clamp(26px,4.4vw,48px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.08,
-            }}>
-              <motion.span style={{ opacity: rLine1Op, y: rLine1Y, filter: rLine1Blur, color: '#f4f4f6' }}>
-                Describe what you want.
-              </motion.span>
-              <motion.span style={{ opacity: rLine2Op, y: rLine2Y, filter: rLine2Blur, color: '#f4f4f6' }}>
-                Quante <span style={{ color: '#6f78e6', textShadow: '0 0 32px rgba(111,120,230,.55)' }}>builds the store</span> —
-              </motion.span>
-              <motion.span style={{
-                opacity: rLine3Op, y: rLine3Y, filter: rLine3Blur,
-                color: '#a4a4ad', fontSize: 'clamp(18px,3vw,28px)', fontWeight: 600, marginTop: '0.4em',
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 30, flexWrap: 'wrap' }}>
+              <Link href="/signup" style={{
+                fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
+                background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
+                boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+                padding: '14px 26px', borderRadius: 99,
               }}>
-                copy, design, products. All of it. Then hit Deploy —
-              </motion.span>
-              <motion.span style={{ opacity: rLine4Op, y: rLine4Y, filter: rLine4Blur, color: '#f4f4f6' }}>
-                and you&apos;re <span style={{ color: '#3ecf8e', textShadow: '0 0 32px rgba(62,207,142,.55)' }}>live on your own domain</span> in minutes.
-              </motion.span>
+                Try it free →
+              </Link>
+              <Link href="/showcase" className="qp-glass qp-glass-strong" style={{
+                fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: 'var(--qp-ink)',
+                padding: '14px 26px', borderRadius: 99, display: 'inline-block',
+              }}>
+                See showcase
+              </Link>
             </div>
+          </div>
 
-            {/* Comparison strip */}
-            <motion.div style={{
-              opacity: rCompOp, y: rCompY,
-              marginTop: 56, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14,
-              maxWidth: 880, marginInline: 'auto',
-            }} className="manifesto-compare">
-              <div style={{
-                padding: '20px 20px', borderRadius: 14,
-                border: '1px solid rgba(255,255,255,.1)',
-                background: 'rgba(255,255,255,.03)',
-              }}>
-                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#5b5b64', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
-                  The old way
-                </p>
-                {['Set up a server or Vercel account', 'Configure DNS and SSL yourself', 'DevOps before your first sale', 'Hours before you can share a link'].map(t => (
-                  <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: '#f87171' }}>✕</span> {t}
-                  </p>
-                ))}
+          {/* hero visual */}
+          <div className="qp-hero-visual" style={{ position: 'relative', margin: '56px auto 0', maxWidth: 960, height: 380 }}>
+            {[
+              { top: '9%', left: '2%', rot: -8, bg: 'accent' as const },
+              { bottom: '13%', left: '9%', rot: 6, bg: 'plain' as const },
+              { top: '6%', right: '5%', rot: 10, bg: 'mint' as const },
+              { bottom: '8%', right: '2%', rot: -6, bg: 'plain' as const },
+            ].map((t, i) => (
+              <div
+                key={i}
+                className="qp-hero-float qp-float-slow"
+                style={{
+                  position: 'absolute', width: 64, height: 64, borderRadius: 20,
+                  top: t.top, bottom: t.bottom, left: t.left, right: t.right,
+                  transform: `rotate(${t.rot}deg)`,
+                }}
+              >
+                <IconTile variant={t.bg} icon={<CheckCircle2 />} />
               </div>
+            ))}
+
+            <div className="qp-liquid-glass qp-hero-store-card" style={{
+              position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+              width: 'min(560px,88%)', height: 320, borderRadius: 26, overflow: 'hidden',
+              display: 'flex', flexDirection: 'column',
+            }}>
               <div style={{
-                padding: '20px 20px', borderRadius: 14,
-                border: '1px solid rgba(62,207,142,.25)',
-                background: 'rgba(62,207,142,.05)',
-                boxShadow: '0 0 50px rgba(62,207,142,.08)',
+                height: 32, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', flexShrink: 0,
+                background: 'rgba(255,255,255,.35)', borderBottom: '1px solid var(--qp-glass-border)',
               }}>
-                <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#3ecf8e', letterSpacing: '.06em', marginBottom: 10, textTransform: 'uppercase' }}>
-                  Quante
-                </p>
-                {['One click in the Studio', 'SSL included automatically', 'Live on your-store.stores.quantecode.com', 'Ready in about 3 minutes'].map(t => (
-                  <p key={t} style={{ fontSize: 13, color: '#c4c4cc', margin: '5px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: '#3ecf8e' }}>✓</span> {t}
-                  </p>
+                {[0, 1, 2].map(i => (
+                  <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(27,26,34,.18)' }} />
                 ))}
+                <span style={{ marginLeft: 8, fontFamily: 'var(--qp-mono)', fontSize: 10.5, color: 'var(--qp-sub)' }}>
+                  {HERO_SHOWCASE.label} · live preview
+                </span>
               </div>
-            </motion.div>
+              <HeroStorefront />
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── STACK — "built differently" ── */}
-      <section ref={stackRef} style={{ height: 2800, position: 'relative' }}>
-        <div style={{
-          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 44,
-        }}>
-          <Ambient />
-          <GrainVignette />
+      {/* ── MANIFESTO / REVEAL ── */}
+      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-accent" style={{ top: -140, left: -100 }} />
+          <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: -90 }} />
+        </div>
+        <div style={{ maxWidth: 760, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>02 — from idea to live store</div>
+          <h2 style={{ fontSize: 'clamp(27px,4.6vw,44px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.18, margin: 0 }}>
+            Quante <span style={{ color: 'var(--qp-accent)' }}>builds the store</span> —<br />
+            and you&apos;re <span style={{ color: 'var(--qp-mint)' }}>live on your own domain</span> in minutes.
+          </h2>
+          <p style={{ fontSize: 16, lineHeight: 1.6, color: 'var(--qp-sub)', maxWidth: 420, margin: '18px auto 0' }}>
+            Copy, design, and products — all generated from one description. Then hit Deploy.
+          </p>
 
-          <div style={{
-            position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
-            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
-          }}>
-            03 — why it's different
+          <div className="qp-feature-grid manifesto-compare" style={{ maxWidth: 760, textAlign: 'left' }}>
+            <GlassCard className="qp-feature-card">
+              <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--qp-mut)', margin: '0 0 14px' }}>
+                The old way
+              </p>
+              {['Set up a server or Vercel account', 'Configure DNS and SSL yourself', 'DevOps before your first sale', 'Hours before you can share a link'].map(t => (
+                <p key={t} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.5, margin: '0 0 10px' }}>
+                  <span style={{ color: '#D6534A' }}>✕</span> {t}
+                </p>
+              ))}
+            </GlassCard>
+            <GlassCard className="qp-feature-card qp-liquid-glass qp-tint-mint">
+              <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--qp-mint)', margin: '0 0 14px' }}>
+                Quante
+              </p>
+              {['One click in the Studio', 'SSL included automatically', 'Live on your-store.stores.quantecode.com', 'Ready in about 3 minutes'].map(t => (
+                <p key={t} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.5, margin: '0 0 10px' }}>
+                  <span style={{ color: 'var(--qp-mint)' }}>✓</span> {t}
+                </p>
+              ))}
+            </GlassCard>
           </div>
+        </div>
+      </section>
 
-          <div style={{ position: 'relative', width: '100%', maxWidth: 460, height: 296, zIndex: 2 }}>
-            {STACK_CARDS.map((card, i) => (
-              <StackCard key={i} card={card} index={i} total={STACK_CARDS.length} progress={stackP} />
+      {/* ── WHY IT'S DIFFERENT ── */}
+      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-accent" style={{ top: '20%', right: -140 }} />
+          <span className="qp-blob qp-blob-wide" style={{ top: 160, left: '50%', transform: 'translateX(-50%)' }} />
+        </div>
+        <div style={{ maxWidth: 640, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>03 — why it&apos;s different</div>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
+            Built differently, on purpose.
+          </h2>
+
+          <div className="qp-feature-grid">
+            {STACK_CARDS.map(card => (
+              <FeatureCard
+                key={card.n}
+                icon={<card.icon />}
+                eyebrow={card.n}
+                title={card.title}
+                desc={card.desc}
+              />
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── HORIZONTAL — "what quante can build" ── */}
-      <section ref={horizRef} style={{ height: 2600, position: 'relative' }}>
-        <div
-          ref={hStageRef}
-          style={{
-            position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            WebkitMaskImage: 'linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)',
-            maskImage: 'linear-gradient(90deg,transparent,#000 7%,#000 93%,transparent)',
-          }}
-        >
-          <Ambient />
-          <GrainVignette />
-
-          <div style={{
-            position: 'absolute', top: 42, left: 0, right: 0, textAlign: 'center', zIndex: 2,
-            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64',
-          }}>
-            04 — built with quante →
+      {/* ── SHOWCASE STRIP ── */}
+      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
+            <div className="qp-kicker" style={{ justifyContent: 'center' }}>04 — built with quante</div>
+            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
+              Real stores, built in minutes.
+            </h2>
           </div>
 
-          <motion.div
-            ref={hTrackRef}
-            style={{
-              display: 'flex', gap: 20, padding: '0 64px',
-              position: 'relative', zIndex: 2,
-              x: hTrackX,
-            }}
-          >
+          <div style={{
+            display: 'flex', gap: 18, overflowX: 'auto', padding: '8px 4px 20px', marginTop: 'var(--qp-sp-block)',
+            scrollSnapType: 'x proximity',
+          }}>
             {SHOWCASE_PROJECTS.map(p => (
               <div key={p.url} style={{
-                flex: '0 0 272px',
-                background: '#0c0c10',
-                border: '1px solid rgba(255,255,255,.1)',
-                borderRadius: 16, overflow: 'hidden',
-                display: 'flex', flexDirection: 'column',
-                boxShadow: '0 8px 32px rgba(0,0,0,.5)',
+                flex: '0 0 250px', scrollSnapAlign: 'start', borderRadius: 20, overflow: 'hidden',
+                background: '#fff', border: '1px solid var(--qp-line-soft)', boxShadow: 'var(--qp-shadow-card)',
               }}>
-                {/* browser chrome */}
-                <div style={{ height: 26, background: '#1a1a20', display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', flexShrink: 0 }}>
-                  {[0,1,2].map(i => <span key={i} style={{ width: 7, height: 7, borderRadius: '50%', background: i === 0 ? '#ff5f57' : i === 1 ? '#febc2e' : '#28c840', display: 'inline-block', opacity: 0.85 }} />)}
-                  <span style={{
-                    flex: 1, marginLeft: 8, fontSize: 9.5, color: '#5b5b64',
-                    fontFamily: 'var(--font-geist-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
+                <div style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: '#EFEAE0', flexShrink: 0 }}>
+                  {[0, 1, 2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(27,26,34,.18)' }} />)}
+                  <span style={{ marginLeft: 6, fontFamily: 'var(--qp-mono)', fontSize: 9, color: 'var(--qp-mut)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.url}
                   </span>
                 </div>
-
-                {/* store content */}
-                <div style={{ background: p.bg, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  {/* store nav */}
+                <div style={{ height: 184, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 20, background: p.bg }}>
                   <div style={{
-                    background: p.navBg, borderBottom: `1px solid rgba(0,0,0,${p.bg === '#070709' ? '.3' : '.06'})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 14px',
+                    fontFamily: p.brandFont, fontWeight: 700, letterSpacing: p.brandFont.includes('mono') ? '-.01em' : '.14em',
+                    fontSize: 12.5, color: p.brandColor, marginBottom: 12,
                   }}>
-                    <b style={{ fontFamily: p.brandFont, letterSpacing: p.brandFont.includes('mono') ? '-.01em' : '.18em', fontSize: 11, color: p.brandColor, fontWeight: p.brandFont.includes('mono') ? 600 : 700 }}>
-                      {p.brand}
-                    </b>
-                    <span style={{ fontSize: 9, color: p.brandColor, opacity: 0.45 }}>{p.navRight}</span>
+                    {p.brand}
                   </div>
-
-                  {/* hero */}
                   <div style={{
-                    flex: 1, background: p.heroBg,
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center',
-                    padding: '22px 16px',
-                    textAlign: 'center',
+                    fontFamily: p.brandFont, fontSize: p.taglineSize, color: p.brandColor, lineHeight: 1.4,
+                    marginBottom: 18, whiteSpace: 'pre-line',
                   }}>
-                    <div style={{
-                      fontFamily: p.brandFont,
-                      fontSize: p.taglineSize,
-                      color: p.brandColor,
-                      lineHeight: 1.25,
-                      fontWeight: p.brandFont.includes('mono') ? 700 : 400,
-                      letterSpacing: p.brandFont.includes('mono') ? '-.02em' : '-.01em',
-                      marginBottom: 16,
-                      whiteSpace: 'pre-line',
-                      ...(p.bg === '#070709' ? { textShadow: '0 0 24px rgba(111,120,230,.4)' } : {}),
-                    }}>
-                      {p.tagline}
-                    </div>
-                    <div style={{
-                      fontSize: 10, fontWeight: 600,
-                      padding: '6px 14px', borderRadius: 6,
-                      background: p.accentBg, color: p.accentText,
-                      boxShadow: `0 0 18px ${p.accentBg}55`,
-                      letterSpacing: '-.005em',
-                    }}>
-                      {p.cta}
-                    </div>
+                    {p.tagline}
+                  </div>
+                  <div style={{
+                    fontSize: 10, fontWeight: 600, padding: '7px 16px', borderRadius: 99,
+                    background: p.accentBg, color: p.accentText,
+                  }}>
+                    {p.cta}
                   </div>
                 </div>
-
-                {/* label */}
-                <div style={{
-                  flexShrink: 0, padding: '9px 14px',
-                  borderTop: '1px solid rgba(255,255,255,.06)',
-                  background: '#0c0c10',
-                }}>
-                  <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10, color: '#5b5b64' }}>{p.label}</span>
+                <div style={{ padding: '10px 14px', borderTop: '1px solid var(--qp-line-soft)' }}>
+                  <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 10, color: 'var(--qp-mut)' }}>{p.label}</span>
                 </div>
               </div>
             ))}
-          </motion.div>
-
-          {/* progress bar */}
-          <div style={{
-            position: 'absolute', bottom: 34, left: 56, right: 56,
-            height: 2, background: 'rgba(255,255,255,.07)', borderRadius: 2, zIndex: 2,
-          }}>
-            <motion.span style={{
-              display: 'block', height: '100%',
-              background: '#6f78e6', borderRadius: 2,
-              boxShadow: '0 0 10px rgba(111,120,230,.8)',
-              width: hProgWidth,
-            }} />
           </div>
         </div>
       </section>
 
       {/* ── HOSTING ── */}
-      <section style={{
-        borderTop: '1px solid rgba(255,255,255,.07)',
-        padding: 'clamp(4rem,8vw,7rem) 1.5rem',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
-        <div style={{ maxWidth: 960, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64', marginBottom: 12, textAlign: 'center' }}>
-            05 — hosting &amp; domains
-          </p>
-          <h2 style={{ fontSize: 'clamp(26px,4.4vw,42px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 14, textAlign: 'center' }}>
+      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-mint" style={{ top: -100, left: '10%' }} />
+          <span className="qp-blob qp-blob-accent" style={{ bottom: -140, right: '6%' }} />
+          <span className="qp-blob qp-blob-wide" style={{ top: 260, left: '50%', transform: 'translateX(-50%)' }} />
+        </div>
+        <div style={{ maxWidth: 520, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>05 — hosting &amp; domains</div>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
             Click Deploy. You&apos;re live.
           </h2>
-          <p style={{ fontSize: 15, color: '#8a8a93', maxWidth: 420, margin: '0 auto 56px', textAlign: 'center', lineHeight: 1.65 }}>
-            No servers to configure. No Vercel account needed. One click and your store is live on a real URL with SSL included.
+          <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', margin: '20px auto 0' }}>
+            No servers to configure, no Vercel account needed. One click and your store is live on a real URL with SSL included.
           </p>
+        </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))', gap: 16 }}>
-            {[
-              { icon: '⬆', title: 'One-click deploy', desc: 'Hit Deploy in the Studio. Quante handles the build, CDN and SSL certificate in about 3 minutes.' },
-              { icon: '🌐', title: 'Your own subdomain', desc: 'Every store gets a clean URL like my-store.stores.quantecode.com — live and shareable the moment it\'s ready.' },
-              { icon: '🔗', title: 'Custom domain', desc: 'Already own a domain? Point your CNAME and Quante verifies it automatically. No DNS nightmare.' },
-              { icon: '↓', title: 'Or take the code', desc: 'Prefer self-hosting? Export the full Next.js source as a ZIP and deploy anywhere you want.' },
-            ].map(({ icon, title, desc }) => (
-              <div key={title} style={{
-                background: 'rgba(12,12,16,.6)',
-                border: '1px solid rgba(255,255,255,.07)',
-                borderRadius: 14, padding: '22px 20px',
-              }}>
-                <span style={{ fontSize: 20, display: 'block', marginBottom: 12 }}>{icon}</span>
-                <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>{title}</p>
-                <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6 }}>{desc}</p>
-              </div>
+        <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <div className="qp-feature-grid">
+            {HOSTING_FEATURES.map(f => (
+              <FeatureCard key={f.title} icon={<f.icon />} variant={f.variant} title={f.title} desc={f.desc} />
             ))}
           </div>
+        </div>
 
-          {/* Live URL pill */}
-          <div style={{ marginTop: 44, display: 'flex', justifyContent: 'center' }}>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center',
-              background: 'rgba(52,211,153,.07)',
-              border: '1px solid rgba(52,211,153,.2)',
-              borderRadius: 99, padding: '8px 20px', maxWidth: '100%',
-            }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 8px rgba(52,211,153,.8)' }} />
-              <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 13, color: '#34d399' }}>
-                my-store.stores.quantecode.com
-              </span>
-              <span style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>
-                · live · ssl ✓
-              </span>
-            </div>
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 44, position: 'relative', zIndex: 2, padding: '0 1rem' }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--qp-mint-wash)',
+            border: '1px solid rgba(34,178,125,.28)', borderRadius: 99, padding: '9px 18px',
+            fontFamily: 'var(--qp-mono)', fontSize: 'clamp(10.5px,3vw,12.5px)', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden',
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--qp-mint)', boxShadow: '0 0 0 4px var(--qp-mint-wash)', flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>my-store.stores.quantecode.com</span>
+            <span style={{ opacity: 0.65, marginLeft: 2 }}>· live · ssl ✓</span>
           </div>
         </div>
       </section>
 
       {/* ── PRICING PREVIEW ── */}
-      <section style={{
-        borderTop: '1px solid rgba(255,255,255,.07)',
-        padding: 'clamp(4rem,8vw,7rem) 1.5rem',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
-        <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
-          <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.04em', color: '#5b5b64', marginBottom: 12 }}>
-            06 — pricing
-          </p>
-          <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 12 }}>
+      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-accent" style={{ top: -120, right: -100 }} />
+          <span className="qp-blob qp-blob-wide" style={{ top: 220, left: '50%', transform: 'translateX(-50%)' }} />
+        </div>
+        <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>06 — pricing</div>
+          <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
             Pay only when you create
           </h2>
-          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 48, maxWidth: 420, margin: '0 auto 48px' }}>
-            Credits for AI creation. Hosting from $9.99/month or $99/year — SSL, subdomain and CDN included. 25 free credits on signup, no card required.
+          <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', margin: '20px auto 0' }}>
+            Credits for AI creation. Hosting from $9.99/month, SSL and CDN included. 25 free credits on signup — no card required.
           </p>
+        </div>
 
+        <div style={{ maxWidth: 780, margin: 'var(--qp-sp-block) auto 0', position: 'relative', zIndex: 2, textAlign: 'center' }}>
           <div className="pricing-grid">
             {CREDIT_PACKS.map(pack => (
-              <div key={pack.id} style={{
-                background: pack.popular ? '#101016' : 'transparent',
-                border: `1px solid ${pack.popular ? 'rgba(111,120,230,.4)' : 'rgba(255,255,255,.07)'}`,
-                borderRadius: 14, padding: '24px 20px', textAlign: 'left', position: 'relative',
-                ...(pack.popular ? { boxShadow: '0 0 40px rgba(79,91,213,.15)' } : {}),
-              }}>
+              <GlassCard
+                key={pack.id}
+                strong={pack.popular}
+                className={`qp-feature-card${pack.popular ? ' qp-liquid-glass' : ''}`}
+                style={{ position: 'relative' }}
+              >
                 {pack.popular && (
                   <span style={{
                     position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)',
                     fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
-                    background: '#6f78e6', color: '#f4f4f6', padding: '2px 10px', borderRadius: 99,
+                    background: 'var(--qp-accent)', color: '#fff', padding: '3px 12px', borderRadius: 99,
                   }}>
                     Popular
                   </span>
                 )}
-                <p style={{ fontSize: 26, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', marginBottom: 4 }}>
+                <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1 }}>
                   {pack.priceDisplay}
                 </p>
-                <p style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>{pack.label}</p>
-                <p style={{ fontSize: 12, color: '#8a8a93', marginBottom: 10 }}>{pack.description}</p>
-                <p style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>
+                <p style={{ fontSize: 13.5, fontWeight: 600, margin: '0 0 6px' }}>{pack.label}</p>
+                <p style={{ fontSize: 12.5, color: 'var(--qp-sub)', margin: '0 0 14px', lineHeight: 1.5 }}>{pack.description}</p>
+                <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-mut)', margin: 0 }}>
                   {pack.perCreditDisplay}
                 </p>
-              </div>
+              </GlassCard>
             ))}
           </div>
 
-          <Link href="/pricing" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'underline', textUnderlineOffset: 3 }}>
+          <Link href="/pricing" style={{ display: 'inline-block', marginTop: 32, fontSize: 13, color: 'var(--qp-sub)', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Full pricing details →
           </Link>
         </div>
       </section>
 
       {/* ── CTA ── */}
-      <section style={{
-        minHeight: 560, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        textAlign: 'center', borderTop: '1px solid rgba(255,255,255,.07)',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
-        <div style={{ position: 'relative', zIndex: 2, padding: '0 1.5rem' }}>
-          <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-.03em', marginBottom: 16 }}>
+      <section style={{ padding: 'clamp(4.5rem,10vw,7.5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-accent" style={{ top: -160, left: '20%' }} />
+          <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: '20%' }} />
+        </div>
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <h2 style={{ fontSize: 'clamp(27px,4.6vw,42px)', fontWeight: 800, letterSpacing: '-.03em', margin: '0 0 14px' }}>
             Ready to try it?
           </h2>
-          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 32 }}>
+          <p style={{ fontSize: 15.5, color: 'var(--qp-sub)', margin: '0 0 30px' }}>
             Sign up in 30 seconds. 25 free credits included.
           </p>
           <Link href="/signup" style={{
-            fontSize: 14, fontWeight: 600, textDecoration: 'none',
-            color: '#070709', background: '#f4f4f6',
-            padding: '0.75rem 2rem', borderRadius: 8, display: 'inline-block',
+            fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
+            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            padding: '14px 26px', borderRadius: 99, display: 'inline-block',
           }}>
             Try it free →
           </Link>

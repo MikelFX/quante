@@ -1,82 +1,9 @@
 'use client'
 
-import { useRef } from 'react'
-import { motion, useScroll, useTransform } from 'framer-motion'
 import Link from 'next/link'
-
-const GRAIN_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"
-
-function cl(v: number, a = 0, b = 1) { return v < a ? a : v > b ? b : v }
-
-function Ambient() {
-  return (
-    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: 'none' }}>
-      <span className="blob-drift1" style={{
-        position: 'absolute', borderRadius: '50%', width: 520, height: 520,
-        background: 'radial-gradient(circle at center,rgba(79,91,213,.42),transparent 66%)',
-        top: -120, left: -60,
-      }} />
-      <span className="blob-drift2" style={{
-        position: 'absolute', borderRadius: '50%', width: 460, height: 460,
-        background: 'radial-gradient(circle at center,rgba(62,207,142,.16),transparent 66%)',
-        bottom: -150, right: -90,
-      }} />
-      <span className="blob-drift1r" style={{
-        position: 'absolute', borderRadius: '50%', width: 380, height: 380,
-        background: 'radial-gradient(circle at center,rgba(111,120,230,.3),transparent 68%)',
-        top: '38%', left: '54%',
-      }} />
-      {[
-        { left: '16%', top: '28%', delay: '0s' },
-        { left: '78%', top: '34%', delay: '1.4s' },
-        { left: '30%', top: '66%', delay: '2.6s' },
-        { left: '64%', top: '72%', delay: '0.8s' },
-      ].map((m, i) => (
-        <span key={i} className="mote-float" style={{
-          position: 'absolute', width: 3, height: 3, borderRadius: '50%',
-          background: 'rgba(184,192,255,.55)', left: m.left, top: m.top, animationDelay: m.delay,
-        }} />
-      ))}
-    </div>
-  )
-}
-
-function GrainVignette() {
-  return (
-    <>
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 6, pointerEvents: 'none',
-        opacity: 0.045, mixBlendMode: 'overlay',
-        backgroundImage: `url("${GRAIN_SVG}")`, backgroundSize: '160px 160px',
-      }} />
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none',
-        background: 'radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.6) 100%)',
-      }} />
-    </>
-  )
-}
-
-function LineReveal({ children, delay = 0, blue = false }: { children: string; delay?: number; blue?: boolean }) {
-  return (
-    <span style={{ display: 'block', overflow: 'hidden' }}>
-      <motion.span
-        initial={{ y: '112%', opacity: 0, filter: 'blur(8px)' }}
-        animate={{ y: 0, opacity: 1, filter: 'blur(0px)' }}
-        transition={{ duration: 1, delay, ease: [0.16, 0.84, 0.24, 1] }}
-        style={{
-          display: 'block',
-          fontSize: 'clamp(34px,6vw,54px)',
-          fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.07,
-          color: blue ? '#6f78e6' : '#f4f4f6',
-          ...(blue ? { textShadow: '0 0 26px rgba(79,91,213,.55),0 0 64px rgba(79,91,213,.28)' } : {}),
-        }}
-      >
-        {children}
-      </motion.span>
-    </span>
-  )
-}
+import { SiteFooter } from '@/components/SiteFooter'
+import { PublicNav } from '@/components/public/PublicNav'
+import { GlassCard } from '@/components/public/GlassCard'
 
 const LIVE_STORES = [
   {
@@ -86,7 +13,7 @@ const LIVE_STORES = [
     brief: 'A modern outdoor & technical gear brand. CZK currency. Clean, bold design with strong product focus.',
     url: 'https://axiom.stores.quantecode.com/',
     addressBar: 'axiom.stores.quantecode.com',
-    accent: '#6f78e6',
+    accent: '#5B54F0',
   },
   {
     n: '02',
@@ -99,301 +26,152 @@ const LIVE_STORES = [
   },
 ]
 
-export default function ShowcasePage() {
-  const heroRef = useRef<HTMLElement>(null)
-  const { scrollYProgress: heroP } = useScroll({ target: heroRef, offset: ['start start', 'end end'] })
+const STEPS = [
+  { n: '01', t: 'Describe', d: 'Tell Quante what kind of store you want. One sentence is enough.' },
+  { n: '02', t: 'Iterate', d: 'Live preview. Adjust copy, colors, layout in chat. Each tweak is 1 credit.' },
+  { n: '03', t: 'Export', d: 'Download a real Next.js project. Host anywhere. Yours forever.' },
+]
 
-  const heroCopyY = useTransform(heroP, p => -p * 60)
-  const heroCopyOp = useTransform(heroP, p => cl(1 - p * 0.92))
-  const heroCopyFilter = useTransform(heroP, p => `blur(${(p * 4).toFixed(2)}px)`)
-  const cueOp = useTransform(heroP, [0, 0.05], [1, 0])
-
+function SectionKicker({ n, label }: { n: string; label: string }) {
   return (
-    <div style={{ background: '#070709', color: '#f4f4f6', overflowX: 'clip' }}>
-      {/* Nav */}
-      <header style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
-        height: '3.5rem', display: 'flex', alignItems: 'center',
-        padding: '0 2rem', justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(255,255,255,.07)',
-        background: 'rgba(7,7,9,.88)', backdropFilter: 'blur(10px)',
-      }}>
-        <Link href="/" style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 14, fontWeight: 600, color: '#f4f4f6', textDecoration: 'none' }}>quante</Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Link href="/showcase" className="hidden sm:block" style={{ fontSize: 13, color: '#f4f4f6', textDecoration: 'none' }}>Showcase</Link>
-          <Link href="/pricing" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Pricing</Link>
-          <Link href="/about" className="hidden sm:block" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>About</Link>
-          <Link href="/login" style={{ fontSize: 13, color: '#8a8a93', textDecoration: 'none' }}>Log in</Link>
-          <Link href="/signup" style={{
-            fontSize: 13, fontWeight: 600, textDecoration: 'none',
-            color: '#070709', background: '#f4f4f6',
-            padding: '0.4rem 0.9rem', borderRadius: 6,
-          }}>Try free →</Link>
-        </div>
-      </header>
+    <div className="qp-kicker" style={{ justifyContent: 'center' }}>
+      <span className="qp-dot" /> {n} — {label}
+    </div>
+  )
+}
 
-      {/* HERO */}
-      <section ref={heroRef} style={{ height: 1400, position: 'relative' }}>
-        <div style={{
-          position: 'sticky', top: 0, height: '100vh', overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          padding: 44,
-        }}>
-          <Ambient />
-          <GrainVignette />
+export default function ShowcasePage() {
+  return (
+    <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <PublicNav />
 
-          <motion.div style={{
-            textAlign: 'center', position: 'relative', zIndex: 2, maxWidth: 820,
-            y: heroCopyY, opacity: heroCopyOp, filter: heroCopyFilter,
-          }}>
-            <motion.div
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.05 }}
-              style={{
-                fontFamily: 'var(--font-geist-mono)', fontSize: 11.5,
-                letterSpacing: '.06em', color: '#5b5b64',
-                display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 22,
-                textTransform: 'uppercase',
-              }}
-            >
-              <span className="dot-pulse-el" style={{
-                width: 7, height: 7, borderRadius: '50%', background: '#6f78e6', display: 'inline-block',
-              }} />
-              showcase
-            </motion.div>
-
-            <div style={{ position: 'relative' }} className="headline-sheen">
-              <LineReveal>Stores built</LineReveal>
-              <LineReveal delay={0.12} blue>from a sentence.</LineReveal>
-            </div>
-
-            <motion.p
-              initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              style={{ fontSize: 16, lineHeight: 1.7, color: '#a4a4ad', maxWidth: 520, margin: '24px auto 0' }}
-            >
-              Real stores, live on the web — each generated from a one-paragraph brief.
-              <br />Complete, styled, deployed. No manual design.
-            </motion.p>
-          </motion.div>
-
-          <motion.div className="bob-anim" style={{
-            position: 'absolute', bottom: 26, left: '50%', x: '-50%',
-            color: '#5b5b64', fontSize: 20, zIndex: 2, opacity: cueOp,
-          }}>↓</motion.div>
+      {/* ── HERO ── */}
+      <section style={{ padding: 'clamp(3rem,8vw,5.5rem) 1.5rem clamp(2rem,5vw,3rem)' }}>
+        <div style={{ maxWidth: 780, margin: '0 auto', textAlign: 'center' }}>
+          <SectionKicker n="showcase" label="real stores, live" />
+          <h1 style={{ fontSize: 'clamp(32px,6vw,54px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.1, margin: '0 0 20px' }}>
+            Stores built<br />
+            <span style={{
+              background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, #7A72FF)',
+              WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+            }}>
+              from a sentence.
+            </span>
+          </h1>
+          <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 520, margin: '0 auto' }}>
+            Real stores, live on the web — each generated from a one-paragraph brief. Complete, styled, deployed. No manual design.
+          </p>
         </div>
       </section>
 
-      {/* LIVE STORES */}
-      {LIVE_STORES.map((store) => (
-        <section key={store.name} style={{
-          position: 'relative', padding: '5rem 1.5rem',
-          borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
-        }}>
-          <Ambient />
-          <GrainVignette />
-
-          <div style={{ maxWidth: 1100, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-            <motion.div
-              initial={{ opacity: 0, y: 28 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.8 }}
-              style={{ marginBottom: 32 }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <span style={{
-                      fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.06em',
-                      color: '#5b5b64', textTransform: 'uppercase',
-                    }}>
-                      {store.n} — live store
-                    </span>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)',
-                    }}>
-                      <span className="dot-pulse-el" style={{
-                        width: 6, height: 6, borderRadius: '50%',
-                        background: '#3ecf8e', boxShadow: '0 0 8px rgba(62,207,142,.7)',
-                      }} />
-                      interactive
-                    </span>
-                  </div>
-                  <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 4 }}>
-                    {store.name}
-                  </h2>
-                  <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55 }}>
-                    {store.description}
-                  </p>
+      {/* ── LIVE STORES ── */}
+      {LIVE_STORES.map((store, i) => (
+        <section
+          key={store.name}
+          style={{
+            padding: 'clamp(3rem,6vw,4.5rem) 1.5rem',
+            borderTop: '1px solid var(--qp-line-soft)',
+            background: i % 2 === 1 ? 'var(--qp-bg-alt)' : undefined,
+          }}
+        >
+          <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, letterSpacing: '.06em', color: 'var(--qp-mut)', textTransform: 'uppercase' }}>
+                    {store.n} — live store
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--qp-mint)', fontFamily: 'var(--qp-mono)' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--qp-mint)', boxShadow: '0 0 0 3px var(--qp-mint-wash)' }} />
+                    interactive
+                  </span>
                 </div>
-                <a
-                  href={store.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    fontSize: 12, color: '#8a8a93', textDecoration: 'underline',
-                    textUnderlineOffset: 4, fontFamily: 'var(--font-geist-mono)',
-                  }}
-                >
-                  Open full screen ↗
-                </a>
+                <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', margin: '0 0 4px' }}>{store.name}</h2>
+                <p style={{ fontSize: 13, color: 'var(--qp-sub)', lineHeight: 1.55, margin: 0 }}>{store.description}</p>
               </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 40, scale: 0.96 }}
-              whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              viewport={{ once: true, amount: 0.2 }}
-              transition={{ duration: 1, ease: [0.16, 0.84, 0.24, 1] }}
-              style={{
-                borderRadius: 16, overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,.1)',
-                background: '#FAFAF8',
-                boxShadow: `0 30px 80px rgba(0,0,0,.5), 0 0 100px ${store.accent}26`,
-                height: 620,
-              }}
-            >
-              {/* browser chrome */}
-              <div style={{
-                height: 32, background: '#1a1a20',
-                display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px',
-                borderBottom: '1px solid rgba(255,255,255,.06)',
+              <a href={store.url} target="_blank" rel="noopener noreferrer" style={{
+                fontSize: 12, color: 'var(--qp-sub)', textDecoration: 'underline', textUnderlineOffset: 4, fontFamily: 'var(--qp-mono)',
               }}>
-                {['#ff5f57', '#febc2e', '#28c840'].map((c, i) => (
-                  <span key={i} style={{ width: 9, height: 9, borderRadius: '50%', background: c, opacity: 0.9 }} />
+                Open full screen ↗
+              </a>
+            </div>
+
+            <GlassCard strong style={{ overflow: 'hidden', height: 'min(620px, 70vh)', display: 'flex', flexDirection: 'column' }}>
+              <div style={{
+                height: 32, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '0 12px',
+                background: 'rgba(255,255,255,.35)', borderBottom: '1px solid var(--qp-glass-border)',
+              }}>
+                {['#ff5f57', '#febc2e', '#28c840'].map((c, ci) => (
+                  <span key={ci} style={{ width: 9, height: 9, borderRadius: '50%', background: c, opacity: 0.85 }} />
                 ))}
-                <span style={{
-                  marginLeft: 14, fontSize: 10.5, color: '#5b5b64',
-                  fontFamily: 'var(--font-geist-mono)',
-                }}>
+                <span style={{ marginLeft: 14, fontSize: 10.5, color: 'var(--qp-sub)', fontFamily: 'var(--qp-mono)' }}>
                   {store.addressBar}
                 </span>
               </div>
               <iframe
                 src={store.url}
-                style={{ width: '100%', height: 'calc(100% - 32px)', border: 'none', display: 'block' }}
+                style={{ width: '100%', flex: 1, border: 'none', display: 'block' }}
                 title={`${store.name} — live store built with Quante`}
                 loading="lazy"
               />
-            </motion.div>
+            </GlassCard>
 
-            <motion.p
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-              style={{
-                fontSize: 12, color: '#5b5b64', marginTop: 14,
-                fontStyle: 'italic', textAlign: 'center', maxWidth: 720, marginInline: 'auto',
-                lineHeight: 1.6,
-              }}
-            >
+            <p style={{ fontSize: 12, color: 'var(--qp-mut)', marginTop: 14, fontStyle: 'italic', textAlign: 'center', maxWidth: 720, marginInline: 'auto', lineHeight: 1.6 }}>
               Generated from brief: &ldquo;{store.brief}&rdquo;
-            </motion.p>
+            </p>
           </div>
         </section>
       ))}
 
-      {/* HOW IT WORKS strip */}
-      <section style={{
-        position: 'relative', padding: '6rem 1.5rem',
-        borderTop: '1px solid rgba(255,255,255,.07)', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
-
+      {/* ── HOW IT WORKS ── */}
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-accent" style={{ top: -120, right: '10%' }} />
+          <span className="qp-blob qp-blob-wide" style={{ top: 180, left: '50%', transform: 'translateX(-50%)' }} />
+        </div>
         <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
-          <p style={{
-            fontFamily: 'var(--font-geist-mono)', fontSize: 11.5, letterSpacing: '.06em',
-            color: '#5b5b64', marginBottom: 16, textTransform: 'uppercase',
-          }}>
-            03 — how it works
-          </p>
-          <h2 style={{
-            fontSize: 'clamp(26px,4vw,38px)', fontWeight: 700, letterSpacing: '-.025em',
-            marginBottom: 48, color: '#f4f4f6',
-          }}>
+          <SectionKicker n="03" label="how it works" />
+          <h2 style={{ fontSize: 'clamp(26px,4vw,38px)', fontWeight: 800, letterSpacing: '-.025em', margin: '0 0 var(--qp-sp-block)' }}>
             Three steps. No filler.
           </h2>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: 14,
-          }}>
-            {[
-              { n: '01', t: 'Describe', d: 'Tell Quante what kind of store you want. One sentence is enough.' },
-              { n: '02', t: 'Iterate', d: 'Live preview. Adjust copy, colors, layout in chat. Each tweak is 1 credit.' },
-              { n: '03', t: 'Export', d: 'Download a real Next.js project. Host anywhere. Yours forever.' },
-            ].map((s, i) => (
-              <motion.div
-                key={s.n}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.4 }}
-                transition={{ duration: 0.65, delay: i * 0.12 }}
-                style={{
-                  textAlign: 'left',
-                  padding: '24px 22px', borderRadius: 14,
-                  background: 'rgba(12,12,16,.6)',
-                  border: '1px solid rgba(255,255,255,.07)',
-                }}
-              >
-                <span style={{
-                  fontFamily: 'var(--font-geist-mono)', fontSize: 11,
-                  color: '#6f78e6', letterSpacing: '.06em',
-                }}>
-                  {s.n}
-                </span>
-                <p style={{ fontSize: 18, fontWeight: 700, marginTop: 10, marginBottom: 8, color: '#f4f4f6', letterSpacing: '-.015em' }}>
-                  {s.t}
-                </p>
-                <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6 }}>
-                  {s.d}
-                </p>
-              </motion.div>
+          <div className="qp-feature-grid" style={{ maxWidth: 900, textAlign: 'left', marginTop: 0 }}>
+            {STEPS.map(s => (
+              <GlassCard key={s.n} className="qp-feature-card">
+                <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-accent)', letterSpacing: '.06em' }}>{s.n}</span>
+                <p style={{ fontSize: 18, fontWeight: 700, margin: '10px 0 8px', letterSpacing: '-.015em' }}>{s.t}</p>
+                <p style={{ fontSize: 13, color: 'var(--qp-sub)', lineHeight: 1.6, margin: 0 }}>{s.d}</p>
+              </GlassCard>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section style={{
-        minHeight: 440, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        textAlign: 'center', borderTop: '1px solid rgba(255,255,255,.07)',
-        position: 'relative', overflow: 'hidden',
-      }}>
-        <Ambient />
-        <GrainVignette />
-        <div style={{ position: 'relative', zIndex: 2, padding: '0 1.5rem' }}>
-          <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-.03em', marginBottom: 14 }}>
+      {/* ── CTA ── */}
+      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div className="qp-ambient">
+          <span className="qp-blob qp-blob-mint" style={{ top: -140, left: '25%' }} />
+          <span className="qp-blob qp-blob-accent" style={{ bottom: -140, right: '25%' }} />
+        </div>
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <h2 style={{ fontSize: 'clamp(26px,4.4vw,40px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.03em', margin: '0 0 14px' }}>
             Build yours in minutes.
           </h2>
-          <p style={{ fontSize: 15, color: '#8a8a93', marginBottom: 30 }}>
+          <p style={{ fontSize: 15, color: 'var(--qp-sub)', margin: '0 0 30px' }}>
             25 free credits on signup. Describe your brand — Quante does the rest.
           </p>
           <Link href="/signup" style={{
-            fontSize: 14, fontWeight: 600, textDecoration: 'none',
-            color: '#070709', background: '#f4f4f6',
-            padding: '0.75rem 2rem', borderRadius: 8, display: 'inline-block',
+            fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
+            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            padding: '0.85rem 2rem', borderRadius: 99, display: 'inline-block',
           }}>
             Start for free →
           </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="landing-footer" style={{ borderTop: '1px solid rgba(255,255,255,.07)', padding: '1.5rem 1.25rem' }}>
-        <Link href="/" style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>quante</Link>
-        <div className="footer-links">
-          {[['Pricing', '/pricing'], ['Showcase', '/showcase'], ['About', '/about'], ['Log in', '/login']].map(([l, h]) => (
-            <Link key={h} href={h} style={{ fontSize: 12, color: '#5b5b64', textDecoration: 'none' }}>{l}</Link>
-          ))}
-        </div>
-        <p style={{ fontSize: 12, color: '#5b5b64', margin: 0 }}>© 2026 Quante</p>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }
