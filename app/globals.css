@@ -264,16 +264,44 @@
    and cut the blur way down — enough to still read as glass, not enough
    to obscure what's inside. The corner-glow pseudo-elements are dimmed to
    match so they read as a faint sheen instead of a wash over the preview.
-   !important beats both the base .qp-liquid-glass rule above and its
-   small-screen fallback, since this card should stay light on every
-   viewport, not just narrow ones. */
-.qnt-public .qp-hero-store-card {
-  backdrop-filter: blur(5px) saturate(130%) !important;
-  -webkit-backdrop-filter: blur(5px) saturate(130%) !important;
+   Uses the combined-class selector (.qp-liquid-glass.qp-hero-store-card,
+   both classes on the same element per the JSX) for higher specificity
+   than the base .qp-liquid-glass rule and its small-screen fallback, so
+   this card stays light on every viewport without needing !important.
+   (A first attempt at this fix used !important on backdrop-filter +
+   -webkit-backdrop-filter together and the production CSS build silently
+   dropped the whole declaration block -- confirmed via the served
+   stylesheet, which shipped an empty `.qp-hero-store-card { }` rule.
+   Root cause not fully pinned down, smells like a minifier edge case
+   around duplicate-value !important vendor-prefix pairs -- this version
+   avoids that shape entirely: no !important, declarations split into
+   separate rules instead of stacked in one block.) */
+.qnt-public .qp-liquid-glass.qp-hero-store-card {
+  -webkit-backdrop-filter: blur(5px) saturate(130%);
+}
+.qnt-public .qp-liquid-glass.qp-hero-store-card {
+  backdrop-filter: blur(5px) saturate(130%);
 }
 .qnt-public .qp-hero-store-card::before,
 .qnt-public .qp-hero-store-card::after {
   opacity: .4;
+}
+/* The small-screen/reduced-motion fallback above sets its plain-blur
+   backdrop-filter with !important, which would otherwise beat the
+   higher-specificity (but non-important) rule above regardless of
+   selector specificity -- important always outranks specificity. Match
+   it here at equal specificity plus !important, split into its own rule
+   (same reasoning as above: keep !important declarations one-per-rule,
+   not stacked, since stacking two backdrop-filter variants together
+   under !important is what got silently dropped by the build the first
+   time this was attempted). */
+@media (max-width: 600px), (prefers-reduced-motion: reduce) {
+  .qnt-public .qp-liquid-glass.qp-hero-store-card {
+    backdrop-filter: blur(5px) saturate(130%) !important;
+  }
+  .qnt-public .qp-liquid-glass.qp-hero-store-card {
+    -webkit-backdrop-filter: blur(5px) saturate(130%) !important;
+  }
 }
 
 /* ── Clay icon tiles — kept solid so colour pops against the glass ──── */
