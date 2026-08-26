@@ -249,6 +249,33 @@
   }
 }
 
+/* Hero store-card preview — reported unreadable on production: the
+   embedded live-store iframe underneath came out as a smudge, not just a
+   softly frosted panel. The other .qp-liquid-glass surfaces (pricing card,
+   the "Quante" comparison card) only frame plain React-rendered text sitting
+   in front of the glass, so a strong blur/feDisplacementMap backdrop is
+   harmless there. This card is different: it frames a real external page
+   (a cross-origin iframe) at a tiny size, and — confirmed visually, not
+   just in theory — browsers don't cleanly separate "behind the box" from
+   "the iframe's own composited layer" once backdrop-filter forces GPU
+   compositing, so the distortion/blur ends up visibly smearing the
+   preview itself, not just the page behind it. Fix: drop the SVG liquid-
+   distortion filter entirely for this card (no url(#qp-liquid-distort)),
+   and cut the blur way down — enough to still read as glass, not enough
+   to obscure what's inside. The corner-glow pseudo-elements are dimmed to
+   match so they read as a faint sheen instead of a wash over the preview.
+   !important beats both the base .qp-liquid-glass rule above and its
+   small-screen fallback, since this card should stay light on every
+   viewport, not just narrow ones. */
+.qnt-public .qp-hero-store-card {
+  backdrop-filter: blur(5px) saturate(130%) !important;
+  -webkit-backdrop-filter: blur(5px) saturate(130%) !important;
+}
+.qnt-public .qp-hero-store-card::before,
+.qnt-public .qp-hero-store-card::after {
+  opacity: .4;
+}
+
 /* ── Clay icon tiles — kept solid so colour pops against the glass ──── */
 .qnt-public .qp-clay {
   border-radius: 22px;
