@@ -52,6 +52,15 @@ function buildCodeGenScaffold(): GeneratedFile[] {
       next: '16.2.7',
       react: '19.2.4',
       'react-dom': '19.2.4',
+      // Only actually called from app/api/checkout/route.ts's self-hosted-mode
+      // branch (QUANTE_PROJECT_ID unset) — hosted stores never execute it. But
+      // Next's bundler still statically resolves the dynamic import('stripe')
+      // at build time regardless of which runtime branch is live, so without
+      // this listed as a real dependency the build fails outright with
+      // "Module not found: Can't resolve 'stripe'" -- confirmed live 2026-08-27
+      // on a Quante-hosted store stuck in a failed-build loop over this exact
+      // error. Keep in sync with the root package.json's stripe version.
+      stripe: '^22.2.0',
     },
     devDependencies: {
       '@tailwindcss/postcss': '^4',
@@ -1329,6 +1338,15 @@ export function buildStoreFiles(
       next: '16.2.7',
       react: '19.2.4',
       'react-dom': '19.2.4',
+      // Only actually called from app/api/checkout/route.ts's self-hosted-mode
+      // branch (QUANTE_PROJECT_ID unset) — hosted stores never execute it. But
+      // Next's bundler still statically resolves the dynamic import('stripe')
+      // at build time regardless of which runtime branch is live, so without
+      // this listed as a real dependency the build fails outright with
+      // "Module not found: Can't resolve 'stripe'" -- confirmed live 2026-08-27
+      // on a Quante-hosted store stuck in a failed-build loop over this exact
+      // error. Keep in sync with the root package.json's stripe version.
+      stripe: '^22.2.0',
     },
     devDependencies: {
       '@tailwindcss/postcss': '^4',

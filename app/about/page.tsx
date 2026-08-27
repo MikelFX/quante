@@ -142,7 +142,9 @@ export default function AboutPage() {
       </section>
 
       {/* ── ROADMAP ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      {/* id="roadmap": footer nav links here via /about#roadmap (lib/site-config.ts)
+          — was a dead anchor (no matching id anywhere on the page) until this fix. */}
+      <section id="roadmap" style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-mint" style={{ top: -140, right: -100 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 220, left: '50%', transform: 'translateX(-50%)' }} />
