@@ -778,7 +778,15 @@ export async function POST(request: Request) {
     // fail the build with "Unused '@ts-expect-error' directive" (confirmed live
     // 2026-08-27 on Nordwool right after the stripe-dependency fix shipped).
     const { default: Stripe } = await import('stripe')
-    const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
+    // apiVersion is cast to any (same pattern as lib/stripe.ts) instead of a
+    // literal string — the installed stripe package pins its TS types to
+    // whatever its OWN latest API version literal is, which drifts every time
+    // the dependency is bumped. A hardcoded literal string here breaks the
+    // build the moment it stops matching that literal, and Quante's auto-fix
+    // loop cannot converge on it (confirmed live 2026-08-27: it oscillated
+    // between adding/removing/changing this exact option across 5 attempts
+    // without resolving). Casting to any sidesteps the literal-type check.
+    const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' as any })
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: items.map((i) => ({
@@ -2232,7 +2240,9 @@ export async function POST(request: Request) {
       // fail the build with "Unused '@ts-expect-error' directive" (confirmed live
       // 2026-08-27 on Nordwool right after the stripe-dependency fix shipped).
       const { default: Stripe } = await import('stripe')
-      const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
+      // apiVersion cast to any — see the matching comment in the other
+      // checkout/route.ts generator above (buildCodeGenScaffold) for why.
+      const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' as any })
       const lineItems = [
         ...items.map((i) => ({
           price_data: { currency, product_data: { name: i.name }, unit_amount: Math.round(i.price * 100) },
