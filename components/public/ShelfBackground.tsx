@@ -61,6 +61,10 @@ export function ShelfBackground({ variant = 'a' }: { variant?: 'a' | 'b' }) {
           <linearGradient id="qpGRight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor="white" /><stop offset="1" stopColor="black" /></linearGradient>
         </defs>
         <g mask="url(#qpFadeMaskA)" stroke="var(--qp-shelf)" strokeWidth={2} fill="none">
+          {/* Three distinct shelf-unit shapes instead of one tile stamped
+              across the whole width — different box counts/sizes and, for
+              unit C, fewer shelf lines (a "gappier" bay) so the pattern
+              doesn't read as a uniform grid. */}
           <g id="qpShelfUnitA">
             <line x1="0" y1="120" x2="0" y2="700" />
             <line x1="150" y1="120" x2="150" y2="700" />
@@ -76,14 +80,41 @@ export function ShelfBackground({ variant = 'a' }: { variant?: 'a' | 'b' }) {
             <rect x="16" y="510" width="60" height="94" rx="4" fill="var(--qp-shelf-soft)" />
             <rect x="18" y="650" width="112" height="38" rx="4" fill="var(--qp-shelf-soft)" />
           </g>
-          <use href="#qpShelfUnitA" x="150" />
-          <use href="#qpShelfUnitA" x="300" />
-          <use href="#qpShelfUnitA" x="450" />
-          <use href="#qpShelfUnitA" x="600" />
-          <use href="#qpShelfUnitA" x="750" />
-          <use href="#qpShelfUnitA" x="900" />
-          <use href="#qpShelfUnitA" x="1050" />
-          <use href="#qpShelfUnitA" x="1200" />
+          <g id="qpShelfUnitB">
+            <line x1="0" y1="80" x2="0" y2="760" />
+            <line x1="150" y1="80" x2="150" y2="760" />
+            <line x1="0" y1="220" x2="150" y2="220" />
+            <line x1="0" y1="440" x2="150" y2="440" />
+            <line x1="0" y1="620" x2="150" y2="620" />
+            <rect x="16" y="106" width="118" height="94" rx="5" fill="var(--qp-shelf-soft)" />
+            <rect x="22" y="252" width="52" height="164" rx="5" fill="var(--qp-shelf-soft)" />
+            <rect x="86" y="270" width="46" height="146" rx="5" fill="var(--qp-shelf-soft)" />
+            <rect x="18" y="466" width="114" height="128" rx="5" fill="var(--qp-shelf-soft)" />
+            <rect x="24" y="646" width="102" height="88" rx="5" fill="var(--qp-shelf-soft)" />
+          </g>
+          <g id="qpShelfUnitC">
+            <line x1="0" y1="220" x2="0" y2="560" />
+            <line x1="150" y1="220" x2="150" y2="560" />
+            <line x1="0" y1="300" x2="150" y2="300" />
+            <line x1="0" y1="460" x2="150" y2="460" />
+            <rect x="20" y="246" width="44" height="38" rx="4" fill="var(--qp-shelf-soft)" />
+            <rect x="82" y="238" width="48" height="48" rx="4" fill="var(--qp-shelf-soft)" />
+            <rect x="26" y="326" width="98" height="112" rx="4" fill="var(--qp-shelf-soft)" />
+            <rect x="18" y="486" width="56" height="58" rx="4" fill="var(--qp-shelf-soft)" />
+          </g>
+          {[
+            { x: 0, ref: 'qpShelfUnitA', dy: 0, op: 1 },
+            { x: 150, ref: 'qpShelfUnitB', dy: -20, op: 0.7 },
+            { x: 300, ref: 'qpShelfUnitC', dy: 24, op: 0.5 },
+            { x: 450, ref: 'qpShelfUnitA', dy: 8, op: 0.85 },
+            { x: 600, ref: 'qpShelfUnitB', dy: -14, op: 0.6 },
+            { x: 750, ref: 'qpShelfUnitC', dy: 0, op: 0.9 },
+            { x: 900, ref: 'qpShelfUnitA', dy: -22, op: 0.65 },
+            { x: 1050, ref: 'qpShelfUnitB', dy: 14, op: 0.8 },
+            { x: 1200, ref: 'qpShelfUnitC', dy: -10, op: 0.55 },
+          ].map((u, i) => (
+            <use key={i} href={`#${u.ref}`} x={u.x} y={u.dy} opacity={u.op} />
+          ))}
         </g>
       </svg>
     </div>

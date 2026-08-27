@@ -318,6 +318,15 @@
   background: linear-gradient(155deg,var(--qp-mint-light),var(--qp-mint) 65%,#128F62);
   box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 -6px 14px rgba(0,0,0,.14) inset, var(--qp-shadow-clay-sm);
 }
+/* A 4th, dark variant — the hero's 4 floating badges previously cycled
+   through only 3 colour tiles (accent/mint/plain), with two of them
+   landing on the same "plain" look, so half the badges read as
+   duplicates. This one gives every badge its own colour instead of
+   repeating any. */
+.qnt-public .qp-clay-ink {
+  background: linear-gradient(155deg,#3A3846,var(--qp-ink) 65%,#100F16);
+  box-shadow: 0 1px 0 rgba(255,255,255,.16) inset, 0 -6px 14px rgba(0,0,0,.3) inset, var(--qp-shadow-clay-sm);
+}
 .qnt-public .qp-icon-tile {
   width: 52px; height: 52px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;

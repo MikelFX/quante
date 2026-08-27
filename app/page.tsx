@@ -147,21 +147,27 @@ export default function HomePage() {
           {/* hero visual */}
           <div className="qp-hero-visual" style={{ position: 'relative', margin: '56px auto 0', maxWidth: 960, height: 380 }}>
             {[
-              { top: '9%', left: '2%', rot: -8, bg: 'accent' as const },
-              { bottom: '13%', left: '9%', rot: 6, bg: 'plain' as const },
-              { top: '6%', right: '5%', rot: 10, bg: 'mint' as const },
-              { bottom: '8%', right: '2%', rot: -6, bg: 'plain' as const },
+              // Each badge previously reused the same checkmark icon and only
+              // 3 colour tiles existed, so two of the four landed on an
+              // identical "plain + checkmark" look. Now every badge has its
+              // own colour (accent/mint/plain/ink) and its own icon, plus a
+              // slight size variation so they don't read as four copies of
+              // one asset stamped around the card.
+              { top: '9%', left: '2%', rot: -8, size: 64, bg: 'accent' as const, icon: <Rocket /> },
+              { bottom: '13%', left: '9%', rot: 6, size: 56, bg: 'plain' as const, icon: <Globe2 /> },
+              { top: '6%', right: '5%', rot: 10, size: 64, bg: 'mint' as const, icon: <CheckCircle2 /> },
+              { bottom: '8%', right: '2%', rot: -6, size: 58, bg: 'ink' as const, icon: <Link2 /> },
             ].map((t, i) => (
               <div
                 key={i}
                 className="qp-hero-float qp-float-slow"
                 style={{
-                  position: 'absolute', width: 64, height: 64, borderRadius: 20,
+                  position: 'absolute', width: t.size, height: t.size, borderRadius: 20,
                   top: t.top, bottom: t.bottom, left: t.left, right: t.right,
                   transform: `rotate(${t.rot}deg)`,
                 }}
               >
-                <IconTile variant={t.bg} icon={<CheckCircle2 />} />
+                <IconTile variant={t.bg} icon={t.icon} size={t.size} />
               </div>
             ))}
 
