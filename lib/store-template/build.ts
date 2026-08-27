@@ -773,7 +773,10 @@ export async function POST(request: Request) {
     }, { status: 503 })
   }
   try {
-    // @ts-expect-error — install stripe with: npm install stripe
+    // stripe is a real listed dependency (see the dependencies block above) so
+    // this import is properly typed — do NOT add @ts-expect-error here, it will
+    // fail the build with "Unused '@ts-expect-error' directive" (confirmed live
+    // 2026-08-27 on Nordwool right after the stripe-dependency fix shipped).
     const { default: Stripe } = await import('stripe')
     const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
     const session = await stripe.checkout.sessions.create({
@@ -2224,7 +2227,10 @@ export async function POST(request: Request) {
       }, { status: 503 })
     }
     try {
-      // @ts-expect-error — install stripe with: npm install stripe
+      // stripe is a real listed dependency (see the dependencies block above) so
+      // this import is properly typed — do NOT add @ts-expect-error here, it will
+      // fail the build with "Unused '@ts-expect-error' directive" (confirmed live
+      // 2026-08-27 on Nordwool right after the stripe-dependency fix shipped).
       const { default: Stripe } = await import('stripe')
       const stripe = new Stripe(stripeKey, { apiVersion: '2025-04-30.basil' })
       const lineItems = [
