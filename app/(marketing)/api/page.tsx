@@ -10,8 +10,12 @@ export default function ApiPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // Stub: wire to a real email capture endpoint (e.g. POST /api/notify/waitlist) before launch.
     setDone(true)
+    fetch('/api/notify/waitlist', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }).catch(() => {})
   }
 
   return (

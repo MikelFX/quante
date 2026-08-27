@@ -26,10 +26,17 @@ export default function ContactPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setState('sending')
-    // Stub submit handler — wire to a real API route or form service before launching.
-    // Suggested: POST /api/contact with { name, email: from, message }
-    await new Promise(r => setTimeout(r, 600))
-    setState('sent')
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email: from, message }),
+      })
+      if (!res.ok) throw new Error('request failed')
+      setState('sent')
+    } catch {
+      setState('error')
+    }
   }
 
   return (
