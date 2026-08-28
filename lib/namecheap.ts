@@ -24,8 +24,18 @@ async function callApi(command: string, extra: Record<string, string>): Promise<
 // Parse <ApiResponse Status="ERROR"> and extract ErrCount/Errors
 function checkError(xml: string): void {
   if (xml.includes('Status="ERROR"') || xml.includes("Status='ERROR'")) {
-    const msgMatch = xml.match(/<Error Number="\d+">(.*?)<\/Error>/)
-    throw new Error(msgMatch ? msgMatch[1] : 'Namecheap API error')
+    const msgMatch = xml.match(/<Error Number="(\d+)">(.*?)<\/Error>/)
+    const errNumber = msgMatch?.[1] ?? 'unknown'
+    const errMessage = msgMatch?.[2] ?? 'Namecheap API error'
+    // Logged deliberately (not swallowed) — the caller in app/api/domains/search/route.ts
+    // uses Promise.allSettled and treats every rejection here as "just unavailable", so
+    // without this log line a real auth/whitelist/config problem on Namecheap's side is
+    // invisible end-to-end: the HTTP call to api.namecheap.com still returns 200, only the
+    // XML payload inside says ERROR. Common causes for Number 1011102 / 1010900 series:
+    // API access not enabled on the account, or the calling IP is not on the account's
+    // Namecheap whitelist (Profile > Tools > Business & Dev Tools > API Access).
+    console.error(`[namecheap] API error ${errNumber}: ${errMessage}`)
+    throw new Error(errMessage)
   }
 }
 

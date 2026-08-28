@@ -25,11 +25,14 @@ export async function GET(request: Request) {
   try {
     const results = await Promise.allSettled(domains.map((d) => checkDomainAvailability(d)))
     const available = results
-      .map((r, i) =>
-        r.status === 'fulfilled'
-          ? r.value
-          : { domain: domains[i]!, available: false, price: 0, currency: 'USD' as const },
-      )
+      .map((r, i) => {
+        if (r.status === 'fulfilled') return r.value
+        // Logged so a Namecheap-side failure (bad/missing credentials, IP not
+        // whitelisted, API access disabled) is visible in Vercel logs instead of
+        // silently rendering as "No results — try a different name" to the user.
+        console.error(`[domains/search] ${domains[i]} failed:`, r.reason?.message ?? r.reason)
+        return { domain: domains[i]!, available: false, price: 0, currency: 'USD' as const }
+      })
       .filter((r) => r.price > 0)
     return Response.json({ results: available })
   } catch (err) {
