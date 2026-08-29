@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { ShopManifest } from '@/types/manifest'
 import { CartIcon } from '@/components/storefront/CartIcon'
 import { useMotionConfig } from '@/components/storefront/motion/context'
+import { useScrollLockEffect } from '@/lib/scroll-lock'
 
 interface Props {
   manifest: ShopManifest
@@ -22,11 +23,10 @@ export function StoreNavbar({ manifest, basePath = '' }: Props) {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Lock body scroll when menu is open
-  useEffect(() => {
-    document.body.style.overflow = menuOpen ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [menuOpen])
+  // Lock body scroll when menu is open (shared, reference-counted lock — see
+  // lib/scroll-lock.ts; a plain overflow toggle here got stuck permanently whenever
+  // the cart drawer or the product lightbox was also open at some point).
+  useEffect(() => useScrollLockEffect(menuOpen), [menuOpen])
 
   return (
     <>

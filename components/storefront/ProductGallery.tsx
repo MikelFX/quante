@@ -12,6 +12,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffectiveMotion } from './motion/hooks'
 import { useMotionConfig } from './motion/context'
+import { lockScroll, unlockScroll } from '@/lib/scroll-lock'
 
 interface Props {
   images: string[]
@@ -33,7 +34,10 @@ export function ProductGallery({ images, name }: Props) {
   const prev = useCallback(() => setActiveIndex((i) => (i - 1 + images.length) % images.length), [images.length])
   const next = useCallback(() => setActiveIndex((i) => (i + 1) % images.length), [images.length])
 
-  // Keyboard navigation + body scroll lock for lightbox
+  // Keyboard navigation + body scroll lock for lightbox. Uses the shared,
+  // reference-counted lock (lib/scroll-lock.ts) — a plain overflow toggle here got
+  // stuck permanently whenever the cart drawer or mobile menu was also open at
+  // some point (whichever one closed last would wipe out the other's lock).
   useEffect(() => {
     if (!lightboxOpen) return
     const prev_ = prev, next_ = next
@@ -43,10 +47,10 @@ export function ProductGallery({ images, name }: Props) {
       if (e.key === 'ArrowRight') next_()
     }
     document.addEventListener('keydown', handler)
-    document.body.style.overflow = 'hidden'
+    lockScroll()
     return () => {
       document.removeEventListener('keydown', handler)
-      document.body.style.overflow = ''
+      unlockScroll()
     }
   }, [lightboxOpen, prev, next])
 

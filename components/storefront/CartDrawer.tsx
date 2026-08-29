@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCart } from '@/context/cart'
 import { useMotionConfig } from './motion/context'
+import { useScrollLockEffect } from '@/lib/scroll-lock'
 
 interface Props {
   basePath?: string
@@ -14,15 +16,10 @@ export function CartDrawer({ basePath = '', currency = '' }: Props) {
   const { items, updateQty, remove, total, count, cartOpen, closeCart } = useCart()
   const cfg = useMotionConfig()
 
-  // Lock body scroll while open
-  useEffect(() => {
-    if (cartOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [cartOpen])
+  // Lock body scroll while open (shared, reference-counted lock — see lib/scroll-lock.ts;
+  // a plain per-component overflow toggle here got stuck permanently whenever the mobile
+  // menu or the product lightbox was also open at some point).
+  useEffect(() => useScrollLockEffect(cartOpen), [cartOpen])
 
   // Close on Escape
   useEffect(() => {
@@ -242,8 +239,9 @@ export function CartDrawer({ basePath = '', currency = '' }: Props) {
                 <p style={{ fontSize: '0.8125rem', color: 'var(--s-muted)', fontFamily: 'var(--s-font-body)', margin: 0 }}>
                   Doprava a daně se vypočítají při pokladně.
                 </p>
-                <a
+                <Link
                   href={`${basePath}/checkout`}
+                  onClick={closeCart}
                   style={{
                     display: 'block', textAlign: 'center',
                     padding: '0.875rem 1.5rem',
@@ -257,7 +255,7 @@ export function CartDrawer({ basePath = '', currency = '' }: Props) {
                   onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                 >
                   Pokračovat k pokladně →
-                </a>
+                </Link>
               </div>
             )}
           </motion.div>
