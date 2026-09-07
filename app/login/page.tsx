@@ -1,52 +1,12 @@
 import { SignIn } from '@clerk/nextjs'
 import Link from 'next/link'
-import { ShelfBackground } from '@/components/public/ShelfBackground'
 
-// Light Clerk appearance for the public site only — this is a per-component
-// override layered on top of the root ClerkProvider's dark `appearance`
-// (see app/layout.tsx), which stays untouched so the app shell's own
-// Clerk surfaces (e.g. UserButton) remain dark as before.
-const clerkAppearance = {
-  variables: {
-    colorBackground: '#FFFFFF',
-    colorText: '#1B1A22',
-    colorPrimary: '#5B54F0',
-    colorInputBackground: '#FAF7F1',
-    colorInputText: '#1B1A22',
-    colorNeutral: '#57545F',
-    colorDanger: '#D6534A',
-    borderRadius: '14px',
-    fontFamily: 'var(--font-geist-sans)',
-    fontFamilyButtons: 'var(--font-geist-sans)',
-  },
-  elements: {
-    card: {
-      background: 'rgba(255,255,255,.72)',
-      backdropFilter: 'blur(20px) saturate(160%)',
-      border: '1px solid rgba(255,255,255,.75)',
-      boxShadow: '0 10px 34px -12px rgba(27,26,34,.16)',
-      borderRadius: '20px',
-    },
-    headerTitle: { color: '#1B1A22', fontWeight: '700' },
-    headerSubtitle: { color: '#57545F' },
-    socialButtonsBlockButton: {
-      background: 'rgba(27,26,34,.04)',
-      border: '1px solid rgba(27,26,34,.09)',
-      color: '#1B1A22',
-    },
-    formFieldInput: {
-      background: '#FAF7F1',
-      border: '1px solid rgba(27,26,34,.09)',
-      color: '#1B1A22',
-    },
-    footerActionLink: { color: '#5B54F0' },
-    identityPreviewText: { color: '#57545F' },
-    formButtonPrimary: { background: '#5B54F0', color: '#fff' },
-    dividerLine: { background: 'rgba(27,26,34,.08)' },
-    dividerText: { color: '#8C8996' },
-  },
-}
-
+// No per-page Clerk appearance override here anymore — the whole public
+// site is dark now (approved R1–R6 mockup port), which already matches the
+// root ClerkProvider's own dark `appearance` (see app/layout.tsx). Letting
+// <SignIn> fall back to that default keeps this page visually consistent
+// with the rest of the dark platform instead of carrying its own
+// (previously light-glass) theme.
 export default function LoginPage() {
   return (
     <div className="qnt-public" style={{
@@ -54,7 +14,8 @@ export default function LoginPage() {
       alignItems: 'center', justifyContent: 'center',
       padding: '2rem 1rem', position: 'relative', overflow: 'hidden',
     }}>
-      <ShelfBackground variant="a" />
+      <div className="qp-bg-grid" />
+      <div className="qp-bg-scan" />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
         <Link href="/" style={{
           display: 'block', marginBottom: 28, textAlign: 'center',
@@ -63,7 +24,7 @@ export default function LoginPage() {
         }}>
           quante
         </Link>
-        <SignIn routing="hash" appearance={clerkAppearance} />
+        <SignIn routing="hash" />
       </div>
     </div>
   )

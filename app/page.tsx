@@ -2,14 +2,14 @@
 
 import { useRef, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Rocket, Download, CheckCircle2, MessageSquareText, History, Upload, Globe2, Link2 } from 'lucide-react'
+import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2 } from 'lucide-react'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
-import { ShelfBackground } from '@/components/public/ShelfBackground'
 import { GlassCard } from '@/components/public/GlassCard'
 import { FeatureCard } from '@/components/public/FeatureCard'
 import { IconTile } from '@/components/public/IconTile'
+import { ZoomGallery } from '@/components/public/ZoomGallery'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -25,6 +25,127 @@ const STACK_CARDS = [
   { n: '04', icon: MessageSquareText, title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
   { n: '05', icon: History, title: 'Nothing gets lost', desc: 'Every change is saved automatically. Went too far? Jump back to any earlier version in one tap.' },
 ]
+
+const STEPS = [
+  { n: '01', title: 'Describe', desc: 'A few sentences about what you sell and who to.' },
+  { n: '02', title: 'Generate', desc: 'The AI builds design, copy, and catalog at once.', active: true },
+  { n: '03', title: 'Publish', desc: 'One click — your store is live on its own domain.' },
+]
+
+const TERMINAL_LINES = ['npx quante generate', 'designing storefront...', 'store is live → quantecode.com']
+
+// ─── Hero ambient background (grid + scanline + cursor glow) ──────────────────
+
+function HeroBgFX() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      document.documentElement.style.setProperty('--qp-mx', e.clientX + 'px')
+      document.documentElement.style.setProperty('--qp-my', e.clientY + 'px')
+    }
+    document.addEventListener('mousemove', onMove)
+    return () => document.removeEventListener('mousemove', onMove)
+  }, [])
+  return (
+    <div ref={ref}>
+      <div className="qp-bg-grid" />
+      <div className="qp-bg-scan" />
+      <div className="qp-bg-cursor" />
+    </div>
+  )
+}
+
+function TerminalTypewriter() {
+  const elRef = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const el = elRef.current
+    if (!el) return
+    let li = 0, ci = 0, deleting = false
+    let timer: ReturnType<typeof setTimeout>
+    function tick() {
+      const full = TERMINAL_LINES[li]
+      if (!deleting) {
+        ci++
+        el!.textContent = full.slice(0, ci)
+        if (ci === full.length) { deleting = true; timer = setTimeout(tick, 1400); return }
+      } else {
+        ci--
+        el!.textContent = full.slice(0, ci)
+        if (ci === 0) { deleting = false; li = (li + 1) % TERMINAL_LINES.length }
+      }
+      timer = setTimeout(tick, deleting ? 28 : 45)
+    }
+    tick()
+    return () => clearTimeout(timer)
+  }, [])
+  return (
+    <div className="qp-terminal">
+      <span className="qp-prompt">$</span><span ref={elRef} /><span className="qp-cursor">▍</span>
+    </div>
+  )
+}
+
+// ─── Step flow (3-step process with dashed connector + traveling dot) ─────────
+
+function StepFlow() {
+  const wrapRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('qp-reveal'); obs.disconnect() } },
+      { threshold: 0.3 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return (
+    <section style={{ padding: 'clamp(2.5rem,6vw,4rem) 1.5rem', position: 'relative' }}>
+      <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+        <div className="qp-steps-wrap" ref={wrapRef}>
+          <div className="qp-flow-line" />
+          <div className="qp-flow-dot" />
+          <div className="qp-steps">
+            {STEPS.map(s => (
+              <div key={s.n} className={`qp-step${s.active ? ' qp-step-active' : ''}`}>
+                <div className="qp-n">{s.n}</div>
+                <h3>{s.title}</h3>
+                <p>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ─── Studio-consistency demo panel ─────────────────────────────────────────────
+
+function StudioDemo() {
+  return (
+    <section style={{ padding: 'clamp(2.5rem,6vw,4rem) 1.5rem', position: 'relative' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+        <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 13, color: 'var(--qp-mut)', margin: '0 0 14px', textAlign: 'center' }}>
+          {'// the same system inside the Studio, where your store gets built'}
+        </p>
+        <div className="qp-studio-demo">
+          <div className="qp-sd-chat">
+            <div className="qp-sd-bubble">Make the hero section darker and add a looping background video</div>
+            <div className="qp-sd-bubble qp-me">Done — the hero now has a dark gradient with a looping background video.</div>
+          </div>
+          <div className="qp-sd-preview">
+            <div className="qp-sd-frame">
+              <div className="qp-zr-row qp-w70" style={{ marginTop: 0 }} />
+              <div className="qp-zr-row qp-w40" />
+              <div className="qp-zr-cardgrid" style={{ marginTop: 14 }}><div /><div /></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
 
 const SHOWCASE_PROJECTS = [
   {
@@ -47,13 +168,6 @@ const SHOWCASE_PROJECTS = [
     cta: 'Try it free →', bg: '#f0eeff', brandColor: '#1B1A22', accentBg: '#5B54F0', accentText: '#fff',
     brandFont: 'var(--qp-mono)', taglineSize: 14,
   },
-]
-
-const HOSTING_FEATURES = [
-  { icon: Upload, variant: 'accent' as const, title: 'One-click deploy', desc: 'Hit Deploy in the Studio. Quante handles the build, CDN and SSL certificate in about 3 minutes.' },
-  { icon: Globe2, variant: 'plain' as const, title: 'Your own subdomain', desc: "Every store gets a clean URL like my-store.stores.quantecode.com — live the moment it's ready." },
-  { icon: Link2, variant: 'mint' as const, title: 'Custom domain', desc: 'Already own a domain? Point your CNAME and Quante verifies it automatically. No DNS nightmare.' },
-  { icon: Download, variant: 'plain' as const, title: 'Or take the code', desc: 'Prefer self-hosting? Export the full Next.js source as a ZIP and deploy anywhere you want.' },
 ]
 
 // ─── Hero live storefront preview (lazy-loaded on intersection) ───────────────
@@ -98,18 +212,78 @@ function HeroStorefront() {
   )
 }
 
+// ─── Bento feature grid ("everything Quante gives you") ───────────────────────
+
+function BentoGrid() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('qp-reveal'); obs.disconnect() } },
+      { threshold: 0.2 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return (
+    <div className="qp-bento" ref={ref}>
+      <div className="qp-tile qp-t-export">
+        <div className="qp-t-head"><h3>Your code. Anytime.</h3><span className="qp-t-go">↗</span></div>
+        <span className="qp-t-badge">no vendor lock-in</span>
+        <p className="qp-t-desc">The full source is yours from the first generation. Export and leave our hosting in one click — no restrictions, no questions asked.</p>
+        <div className="qp-t-term"><span className="qp-prompt">$</span> npx quante export<br />→ <span className="qp-ok">✓</span> nextjs-project.zip downloaded</div>
+      </div>
+      <div className="qp-tile qp-t-admin">
+        <div className="qp-t-head"><h3>Admin panel</h3><span className="qp-t-go">↗</span></div>
+        <p className="qp-t-desc">Orders, products, customers — all in one place.</p>
+        <div className="qp-mini-rows">
+          <div className="qp-mini-row"><span>Automatic invoices</span><div className="qp-toggle" /></div>
+          <div className="qp-mini-row"><span>Low-stock alerts</span><div className="qp-toggle qp-off" /></div>
+        </div>
+      </div>
+      <div className="qp-tile qp-t-analytics">
+        <div className="qp-t-head"><h3>Analytics</h3><span className="qp-t-go">↗</span></div>
+        <p className="qp-t-desc">Revenue, traffic, and conversion in real time.</p>
+        <div className="qp-bar-chart"><span /><span /><span /><span /><span /><span /></div>
+      </div>
+      <div className="qp-tile qp-t-hosting">
+        <div className="qp-t-head"><h3>Hosting</h3><span className="qp-t-go">↗</span></div>
+        <div className="qp-big-num">99.9<span style={{ fontSize: 16 }}>%</span></div>
+        <div className="qp-big-cap">uptime SLA, global CDN</div>
+      </div>
+      <div className="qp-tile qp-t-checkout">
+        <div className="qp-t-head"><h3>Payments</h3><span className="qp-t-go">↗</span></div>
+        <p className="qp-t-desc">Stripe Checkout built in from day one.</p>
+        <div className="qp-mini-card"><span className="qp-dot-sq" /> Payment received — $49.00</div>
+      </div>
+      <div className="qp-tile qp-t-domains">
+        <div className="qp-t-head"><h3>Domains</h3><span className="qp-t-go">↗</span></div>
+        <p className="qp-t-desc">Bring your own domain in a couple of clicks.</p>
+        <div className="qp-mini-card"><span className="qp-url">yourstore.com</span><span className="qp-ssl">SSL active ✓</span></div>
+      </div>
+      <div className="qp-tile qp-t-ai">
+        <div className="qp-t-head"><h3>AI generation</h3><span className="qp-t-go">↗</span></div>
+        <p className="qp-t-desc">Describe it → done in a couple of minutes.</p>
+        <div className="qp-pulse-dot" />
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   return (
     <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <HeroBgFX />
       <PublicNav />
 
       {/* ── HERO ── */}
       <section style={{ padding: 'clamp(3rem,9vw,6rem) 1.5rem clamp(2rem,6vw,3.5rem)', position: 'relative' }}>
-        <ShelfBackground variant="a" />
         <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto' }}>
+            <TerminalTypewriter />
             <div className="qp-kicker"><span className="qp-dot" /> try free — 25 credits on us</div>
             <h1 style={{
               fontSize: 'clamp(34px,7vw,62px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.08,
@@ -117,7 +291,7 @@ export default function HomePage() {
             }}>
               Describe your store.<br />
               <span style={{
-                background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, #7A72FF)',
+                background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, var(--qp-accent-light))',
                 WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
               }}>
                 We build it.
@@ -130,7 +304,7 @@ export default function HomePage() {
               <Link href="/signup" style={{
                 fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
                 background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-                boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+                boxShadow: '0 1px 0 rgba(255,255,255,.2) inset, 0 -2px 6px rgba(0,0,0,.25) inset, 0 10px 22px -8px rgba(59,130,246,.55)',
                 padding: '14px 26px', borderRadius: 99,
               }}>
                 Try it free →
@@ -146,6 +320,7 @@ export default function HomePage() {
 
           {/* hero visual */}
           <div className="qp-hero-visual" style={{ position: 'relative', margin: '56px auto 0', maxWidth: 960, height: 380 }}>
+            <div className="qp-glow-ring" style={{ left: '50%', top: '50%', transform: 'translate(-50%,-50%)', width: 'min(560px,88%)', height: 320 }} />
             {[
               // Each badge previously reused the same checkmark icon and only
               // 3 colour tiles existed, so two of the four landed on an
@@ -178,10 +353,10 @@ export default function HomePage() {
             }}>
               <div style={{
                 height: 32, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', flexShrink: 0,
-                background: 'rgba(255,255,255,.35)', borderBottom: '1px solid var(--qp-glass-border)',
+                background: 'rgba(255,255,255,.05)', borderBottom: '1px solid var(--qp-line-soft)',
               }}>
                 {[0, 1, 2].map(i => (
-                  <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(27,26,34,.18)' }} />
+                  <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,.16)' }} />
                 ))}
                 <span style={{ marginLeft: 8, fontFamily: 'var(--qp-mono)', fontSize: 10.5, color: 'var(--qp-sub)' }}>
                   {HERO_SHOWCASE.label} · live preview
@@ -190,6 +365,22 @@ export default function HomePage() {
               <HeroStorefront />
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* ── STEP FLOW ── */}
+      <StepFlow />
+
+      {/* ── STUDIO CONSISTENCY DEMO ── */}
+      <StudioDemo />
+
+      {/* ── LIVING GALLERY (scroll-linked page zoom + accumulating chat) ── */}
+      <section style={{ padding: 'clamp(3rem,7vw,5rem) 1.5rem', position: 'relative' }}>
+        <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
+          <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 13, color: 'var(--qp-mut)', margin: '0 0 14px', textAlign: 'center' }}>
+            {'// scroll — one store, the AI zooms deeper into its pages as the chat grows alongside it'}
+          </p>
+          <ZoomGallery />
         </div>
       </section>
 
@@ -277,10 +468,10 @@ export default function HomePage() {
             {SHOWCASE_PROJECTS.map(p => (
               <div key={p.url} style={{
                 flex: '0 0 250px', scrollSnapAlign: 'start', borderRadius: 20, overflow: 'hidden',
-                background: '#fff', border: '1px solid var(--qp-line-soft)', boxShadow: 'var(--qp-shadow-card)',
+                background: 'var(--qp-surface)', border: '1px solid var(--qp-line-soft)', boxShadow: 'var(--qp-shadow-card)',
               }}>
-                <div style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: '#EFEAE0', flexShrink: 0 }}>
-                  {[0, 1, 2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(27,26,34,.18)' }} />)}
+                <div style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'rgba(255,255,255,.05)', flexShrink: 0 }}>
+                  {[0, 1, 2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,.16)' }} />)}
                   <span style={{ marginLeft: 6, fontFamily: 'var(--qp-mono)', fontSize: 9, color: 'var(--qp-mut)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {p.url}
                   </span>
@@ -314,38 +505,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── HOSTING ── */}
+      {/* ── EVERYTHING YOU GET (bento grid) ── */}
       <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-mint" style={{ top: -100, left: '10%' }} />
           <span className="qp-blob qp-blob-accent" style={{ bottom: -140, right: '6%' }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 260, left: '50%', transform: 'translateX(-50%)' }} />
         </div>
-        <div style={{ maxWidth: 520, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
-          <div className="qp-kicker" style={{ justifyContent: 'center' }}>05 — hosting &amp; domains</div>
+        <div style={{ maxWidth: 560, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>05 — everything you get</div>
           <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
             Click Deploy. You&apos;re live.
           </h2>
           <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', margin: '20px auto 0' }}>
-            No servers to configure, no Vercel account needed. One click and your store is live on a real URL with SSL included.
+            No servers to configure, no Vercel account needed — hosting, payments, and the full source code, all in one place.
           </p>
         </div>
 
         <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <div className="qp-feature-grid">
-            {HOSTING_FEATURES.map(f => (
-              <FeatureCard key={f.title} icon={<f.icon />} variant={f.variant} title={f.title} desc={f.desc} />
-            ))}
-          </div>
+          <BentoGrid />
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 44, position: 'relative', zIndex: 2, padding: '0 1rem' }}>
           <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--qp-mint-wash)',
-            border: '1px solid rgba(34,178,125,.28)', borderRadius: 99, padding: '9px 18px',
+            display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--qp-accent-wash)',
+            border: '1px solid rgba(59,130,246,.28)', borderRadius: 99, padding: '9px 18px',
             fontFamily: 'var(--qp-mono)', fontSize: 'clamp(10.5px,3vw,12.5px)', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden',
           }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--qp-mint)', boxShadow: '0 0 0 4px var(--qp-mint-wash)', flexShrink: 0 }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--qp-accent)', boxShadow: '0 0 0 4px var(--qp-accent-wash)', flexShrink: 0 }} />
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>my-store.stores.quantecode.com</span>
             <span style={{ opacity: 0.65, marginLeft: 2 }}>· live · ssl ✓</span>
           </div>

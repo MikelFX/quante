@@ -30,7 +30,7 @@ export function PublicNav() {
         // banner is dismissed, so this collapses back to a plain top:0.
         top: 'var(--banner-h, 0px)',
         zIndex: 100,
-        background: 'rgba(250,247,241,.75)',
+        background: 'rgba(10,10,11,.75)',
         WebkitBackdropFilter: 'blur(16px) saturate(160%)',
         backdropFilter: 'blur(16px) saturate(160%)',
         borderBottom: '1px solid var(--qp-line-soft)',
@@ -82,7 +82,7 @@ export function PublicNav() {
               textDecoration: 'none',
               color: '#fff',
               background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-              boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+              boxShadow: '0 1px 0 rgba(255,255,255,.2) inset, 0 -2px 6px rgba(0,0,0,.25) inset, 0 10px 22px -8px rgba(59,130,246,.55)',
               padding: '0.5rem 1.1rem',
               borderRadius: 99,
               whiteSpace: 'nowrap',
