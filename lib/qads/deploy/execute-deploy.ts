@@ -14,7 +14,8 @@
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { createAdChannel } from '../channels/registry'
-import { decryptSecret } from '@/lib/crypto'
+import { getConnectedAccessToken } from '../channels/access-token'
+import { writeQadsAuditLog } from '../audit'
 import type { ChannelDeployPayload } from './types'
 import type { AdChannelAdInput } from '../channels/types'
 
@@ -42,16 +43,9 @@ export async function executeLiveDeploy(campaignId: string, userId: string, payl
     .maybeSingle()
   if (!linkRow) return { ok: false, error: 'No channel link row found — build+save the dry-run payload first' }
 
-  const { data: adAccount } = await supabaseAdmin
-    .from('qads_ad_accounts')
-    .select('access_token_enc, status')
-    .eq('id', payload.adAccountRowId)
-    .maybeSingle()
-  if (!adAccount || adAccount.status !== 'connected') {
-    return { ok: false, error: 'Ad account is not connected — reconnect it before deploying' }
-  }
-  const accessToken = decryptSecret(adAccount.access_token_enc)
-  if (!accessToken) return { ok: false, error: 'Failed to decrypt stored ad-account access token' }
+  const tokenResult = await getConnectedAccessToken(payload.adAccountRowId)
+  if (!tokenResult.ok) return { ok: false, error: tokenResult.error }
+  const { accessToken } = tokenResult
 
   const adChannel = createAdChannel(payload.channel)
   const createdThisRun: Array<{ level: 'campaign' | 'ad_set' | 'ad'; externalId: string }> = []
@@ -69,7 +63,7 @@ export async function executeLiveDeploy(campaignId: string, userId: string, payl
         .from('qads_campaign_channel_links')
         .update({ external_campaign_id: externalCampaignId, external_status: result.status, dry_run: false, deployed_at: new Date().toISOString() })
         .eq('id', linkRow.id)
-      await writeAuditLog(userId, campaignId, 'deploy', 'campaign', externalCampaignId, null, { channel: payload.channel, status: result.status })
+      await writeQadsAuditLog({ userId, campaignId, action: 'deploy', entityType: 'campaign', entityId: externalCampaignId, afterJson: { channel: payload.channel, status: result.status } })
     }
 
     // Step 2..N: ad sets, each with their ads (creative upload -> creative -> ad).
@@ -143,32 +137,8 @@ export async function executeLiveDeploy(campaignId: string, userId: string, payl
       .from('qads_campaign_channel_links')
       .update({ external_status: 'deploy_failed' })
       .eq('id', linkRow.id)
-    await writeAuditLog(userId, campaignId, 'deploy', 'channel', payload.channel, null, { error: message, createdThisRun })
+    await writeQadsAuditLog({ userId, campaignId, action: 'deploy', entityType: 'channel', entityId: payload.channel, afterJson: { error: message, createdThisRun } })
 
     return { ok: false, error: message }
   }
-}
-
-async function writeAuditLog(
-  userId: string,
-  campaignId: string,
-  action: string,
-  entityType: string,
-  entityId: string,
-  beforeJson: unknown,
-  afterJson: unknown,
-): Promise<void> {
-  const { error } = await supabaseAdmin.from('qads_audit_log').insert({
-    user_id: userId,
-    campaign_id: campaignId,
-    action,
-    entity_type: entityType,
-    entity_id: entityId,
-    before_json: beforeJson,
-    after_json: afterJson,
-  })
-  // Audit logging is best-effort — a failed audit write must never block or roll back
-  // the actual deploy step it's describing (same posture as every other non-critical
-  // secondary write in this codebase, e.g. the callback route's last_error update).
-  if (error) console.error('[qads/execute-deploy] audit log write failed:', error.message)
 }
