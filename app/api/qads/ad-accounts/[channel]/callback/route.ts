@@ -21,8 +21,11 @@ const VALID_CHANNELS: AdChannelSlug[] = ['meta', 'tiktok']
 interface Params { params: Promise<{ channel: string }> }
 
 function studioRedirect(projectId: string, query: Record<string, string>): NextResponse {
+  // The ad-accounts connection UI lives on the Studio's dedicated Ads tab (step j:
+  // app/(app)/project/[id]/ads/), not the Studio's main Builder/Admin surface — redirect
+  // there so the merchant lands back exactly where they clicked "Connect".
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
-  const url = new URL(`${appUrl}/project/${projectId}`)
+  const url = new URL(`${appUrl}/project/${projectId}/ads`)
   for (const [k, v] of Object.entries(query)) url.searchParams.set(k, v)
   return NextResponse.redirect(url.toString())
 }

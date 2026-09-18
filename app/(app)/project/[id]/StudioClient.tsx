@@ -475,6 +475,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const sectionImageInputRef = useRef<HTMLInputElement>(null)
   const visionInputRef = useRef<HTMLInputElement>(null)
   const [pendingImageTarget, setPendingImageTarget] = useState<((url: string) => void) | null>(null)
+  // Chat image attach — lets the merchant drop a photo straight into an
+  // iteration prompt ("use this as the hero image for the candle product")
+  // instead of going through the separate Builder image-replace flow.
+  // Reuses the existing /api/upload endpoint (same one handleUploadImage
+  // already calls) purely for storage; placement itself is left to Claude
+  // via a [Attached image: URL] marker prepended to the instruction text
+  // (see handleSend) rather than any new backend contract.
+  const chatImageInputRef = useRef<HTMLInputElement>(null)
+  const [chatAttachedImage, setChatAttachedImage] = useState<{ name: string; previewUrl: string; uploadedUrl: string | null; uploading: boolean } | null>(null)
   // Vision (IMAGE→BRAND)
   const [isVisionAnalyzing, setIsVisionAnalyzing] = useState(false)
   const [visionResult, setVisionResult] = useState<{ palette: Record<string, string>; typography: { headingFont: string; bodyFont: string; scale: string }; radius: string; density: string; motion: string; voice: string; reasoning: string } | null>(null)
@@ -1279,12 +1288,25 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   async function handleSend(overrideText?: string) {
     const text = (overrideText ?? input).trim()
-    if (!text || isGenerating) return
+    // An attached chat image can carry a message on its own ("just drop the
+    // photo in, AI figures out where it goes") — only block sending when
+    // there's neither text nor a (fully uploaded) image.
+    const attachedImage = !overrideText ? chatAttachedImage : null
+    const hasUsableAttachment = !!attachedImage?.uploadedUrl && !attachedImage.uploading
+    if ((!text && !hasUsableAttachment) || isGenerating) return
 
-    if (!overrideText) setInput('')
+    if (!overrideText) {
+      setInput('')
+      if (attachedImage) clearChatAttachedImage()
+    }
     setMessages((prev) => [
       ...prev,
-      { role: 'user', content: text },
+      {
+        role: 'user',
+        content: hasUsableAttachment
+          ? `${text || 'Use this image.'}\n📎 ${attachedImage!.name}`
+          : text,
+      },
       { role: 'assistant', content: '…', type: 'status' },
     ])
     setIsGenerating(true)
@@ -1332,11 +1354,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       return
     }
 
-    // Iteration flow
+    // Iteration flow.
+    // When a chat image is attached, prepend a [Attached image: URL] marker
+    // the instruction — SYSTEM_PROMPT_CODE_ITERATION (lib/claude.ts) tells
+    // Claude to treat that URL as a real, already-hosted asset and use it
+    // verbatim at the described location, instead of inventing a placeholder.
+    const instruction = hasUsableAttachment
+      ? `[Attached image: ${attachedImage!.uploadedUrl}]\n${text || 'Place this image wherever it best fits based on the current store content.'}`
+      : text
     try {
       await consumeStream(
         '/api/quante/iterate',
-        { projectId, instruction: text },
+        { projectId, instruction },
         (reply, deploymentId, newPreviewUrl, versionId) => {
           setMessages((prev) => {
             const updated = [...prev]
@@ -2079,6 +2108,32 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       onDone(url)
     } catch { alert('Upload failed.') }
     finally { setIsUploadingImage(false) }
+  }
+
+  async function handleChatImageSelect(file: File) {
+    const previewUrl = URL.createObjectURL(file)
+    setChatAttachedImage({ name: file.name, previewUrl, uploadedUrl: null, uploading: true })
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('projectId', projectId)
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      if (!res.ok) {
+        alert('Image upload failed.')
+        setChatAttachedImage(null)
+        return
+      }
+      const { url } = await res.json()
+      setChatAttachedImage((prev) => (prev ? { ...prev, uploadedUrl: url, uploading: false } : prev))
+    } catch {
+      alert('Image upload failed.')
+      setChatAttachedImage(null)
+    }
+  }
+
+  function clearChatAttachedImage() {
+    if (chatAttachedImage) URL.revokeObjectURL(chatAttachedImage.previewUrl)
+    setChatAttachedImage(null)
   }
 
   function openImagePicker(onDone: (url: string) => void, ref: React.RefObject<HTMLInputElement | null>) {
@@ -2994,6 +3049,21 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </button>
         </div>
 
+        {/* Qads — deliberately a separate route (app/(app)/project/[id]/ads/), not a
+            third value of adminMode, since it's an unrelated surface (ad campaigns, not
+            storefront building or order management). This link is the only Studio-side
+            change step (j) makes to this file. */}
+        <Link
+          href={`/project/${projectId}/ads`}
+          style={{
+            fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 7,
+            border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
+            color: '#8a8a93', textDecoration: 'none', whiteSpace: 'nowrap',
+          }}
+        >
+          Ads
+        </Link>
+
         {/* Credit balance / Agency indicator */}
         {isAgency ? (
           <span style={{
@@ -3257,15 +3327,70 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </div>
         )}
 
+        {/* Attached chat image preview — only meaningful once there's a store
+            to iterate on; drop the photo, tell the AI where it goes, send. */}
+        {hasGeneratedOnce && chatAttachedImage && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+            padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)',
+          }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={chatAttachedImage.previewUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+            <span style={{ fontSize: 11.5, color: '#c7c4d6', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {chatAttachedImage.uploading ? `Uploading ${chatAttachedImage.name}…` : chatAttachedImage.name}
+            </span>
+            <button
+              onClick={clearChatAttachedImage}
+              title="Remove attached image"
+              style={{ background: 'none', border: 'none', color: '#8a8a93', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 }}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Textarea + send */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+          {hasGeneratedOnce && (
+            <>
+              <input
+                ref={chatImageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file) await handleChatImageSelect(file)
+                }}
+              />
+              <button
+                onClick={() => chatImageInputRef.current?.click()}
+                disabled={isGenerating}
+                title="Attach an image — the AI will place it where the prompt describes"
+                style={{
+                  flexShrink: 0, width: 36, height: 36, borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
+                  color: '#8a8a93', cursor: isGenerating ? 'not-allowed' : 'pointer', fontSize: 15,
+                }}
+              >
+                📎
+              </button>
+            </>
+          )}
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
             disabled={isGenerating}
-            placeholder={!hasGeneratedOnce ? 'Describe your store — we\'ll build the whole thing…' : 'Anything — new page, different design, rewrite copy, add products…'}
+            placeholder={
+              !hasGeneratedOnce
+                ? 'Describe your store — we\'ll build the whole thing…'
+                : chatAttachedImage
+                  ? 'Say where this image goes — e.g. "use as the hero image for the candle product"…'
+                  : 'Anything — new page, different design, rewrite copy, add products…'
+            }
             rows={3}
             style={{
               flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
@@ -3282,13 +3407,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
             <button
               onClick={() => handleSend()}
-              disabled={isGenerating || !input.trim()}
+              disabled={isGenerating || (!input.trim() && !(chatAttachedImage?.uploadedUrl && !chatAttachedImage.uploading))}
               style={{
                 padding: '8px 14px', fontSize: 13, fontWeight: 600,
                 borderRadius: 8, border: 'none',
-                cursor: isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
-                background: isGenerating || !input.trim() ? 'rgba(255,255,255,.06)' : '#6f78e6',
-                color: isGenerating || !input.trim() ? '#8a8a93' : '#fff',
+                cursor: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'not-allowed' : 'pointer',
+                background: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'rgba(255,255,255,.06)' : '#6f78e6',
+                color: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? '#8a8a93' : '#fff',
                 transition: 'background 0.12s',
               }}
             >
@@ -3300,7 +3425,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </div>
         </div>
         <p style={{ fontSize: 10, color: '#5b5b64', marginTop: 5 }}>
-          ↵ send · shift+↵ newline
+          ↵ send · shift+↵ newline{hasGeneratedOnce ? ' · 📎 attach a photo for the AI to place' : ''}
         </p>
       </div>
     </>

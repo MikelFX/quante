@@ -427,7 +427,15 @@ RULES:
 - LOCKED FILES — do NOT generate these (scaffold provides them, changes have no effect):
   app/layout.tsx, components/layout/Navbar.tsx, components/layout/Footer.tsx, components/layout/CartDrawer.tsx
 - To add a nav link: update config.nav in data/config.ts. To add a footer link: update config.footer.columns.
-- To add a new page (e.g. About Us): generate components/store/AboutPage.tsx + app/about/page.tsx (the page file just imports and renders the component). Then add the link to config.nav and config.footer.`
+- To add a new page (e.g. About Us): generate components/store/AboutPage.tsx + app/about/page.tsx (the page file just imports and renders the component). Then add the link to config.nav and config.footer.
+
+ATTACHED IMAGES:
+- The user instruction may start with one or more lines like: [Attached image: https://xxxxx.supabase.co/storage/v1/object/public/store-assets/...]
+- That URL is a REAL image the merchant just uploaded — it already exists and is publicly hosted. Never invent a different URL, never substitute a placeholder, stock photo, or Unsplash link, and never drop the image silently.
+- Use that exact URL verbatim as the image source (src) at the location the rest of the instruction describes (e.g. "use as the hero image for the candle product" → set that product's hero image field/src to this URL; "add to the gallery for X" → append it to X's gallery array/list).
+- If the instruction doesn't clearly say where the image goes, use your best judgment based on the current store content (e.g. the most recently discussed product, or the most obviously relevant section) and briefly say in <reply> where you placed it, so the merchant can correct you if you guessed wrong.
+- If multiple [Attached image: ...] markers are present, apply each one independently based on the instruction.
+- Write a sensible, specific alt text for the image based on the product/section it's attached to — never leave alt empty or generic ("image1").`
 
 export const SYSTEM_PROMPT_CODE_FIX = `You are Quante, an expert TypeScript and React engineer fixing a build error.
 
