@@ -8,9 +8,9 @@
 //                                       -> image prompts -> images -\
 //                                       -> video prompts -> video  -+-> assembly -> validation -> (approval gate) -> deploy -> metrics sync
 //
-// Phase 1 (this step) implements brand_context through ad copy. image/video/deploy nodes
-// are added in later steps (c, d, f) — listed here already so the graph shape is stable
-// and the UI doesn't need to change when they land.
+// Phase 1 implements brand_context through images (steps a/b/c). video/deploy nodes are
+// added in later steps (d, f) — listed here already so the graph shape is stable and the
+// UI doesn't need to change when they land.
 
 export type QadsNodeId =
   | 'brand_context'
@@ -41,8 +41,8 @@ export const QADS_PIPELINE_GRAPH: QadsNodeDef[] = [
   { id: 'angles', label: 'Writing angles', dependsOn: ['strategy'], implemented: true },
   { id: 'ad_sets', label: 'Building ad sets', dependsOn: ['angles'], implemented: true },
   { id: 'ad_copy', label: 'Writing ad copy', dependsOn: ['ad_sets'], implemented: true },
-  { id: 'image_prompts', label: 'Planning creative', dependsOn: ['ad_sets'], implemented: false },
-  { id: 'images', label: 'Generating images', dependsOn: ['image_prompts'], implemented: false },
+  { id: 'image_prompts', label: 'Planning creative', dependsOn: ['ad_sets'], implemented: true },
+  { id: 'images', label: 'Generating images', dependsOn: ['image_prompts'], implemented: true },
   { id: 'video_prompts', label: 'Planning video creative', dependsOn: ['ad_sets'], implemented: false },
   { id: 'video', label: 'Generating video', dependsOn: ['video_prompts'], implemented: false },
   { id: 'assembly', label: 'Assembling ads', dependsOn: ['ad_copy', 'images', 'video'], implemented: false },

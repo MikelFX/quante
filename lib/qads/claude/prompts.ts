@@ -115,3 +115,49 @@ Merchant's brief (raw, may be short): "${brief}"
 
 Produce the full campaign plan now as a single JSON object matching the schema.`
 }
+
+// ─── Image prompts (Qads step c) ────────────────────────────────────────────────────
+// One batched call covering every ad needing a static creative, rather than one Claude
+// call per ad — same "cheap, predictable credit cost" instinct as the rest of Qads.
+// Runs on the fast ITERATION_MODEL: writing an image-generation prompt from copy that
+// already exists is a much smaller task than the strategy call.
+
+export const ImagePromptOutputSchema = z.object({
+  prompts: z.array(z.object({
+    adId: z.string(),
+    // Sent verbatim as Marketing Studio Image's `prompt` field (1-5000 chars per its
+    // schema) — describes the SCENE/composition to generate around the product photo,
+    // never instructions to alter the product itself (product-fidelity requirement).
+    prompt: z.string().min(1).max(2000),
+  })),
+})
+
+export type ImagePromptOutput = z.infer<typeof ImagePromptOutputSchema>
+
+export const IMAGE_PROMPT_SYSTEM_PROMPT = `You are Qads, writing image-generation prompts for a Marketing Studio Image model that edits a product photo into a campaign-ready scene. Your ONLY output is a single valid JSON object matching the schema you're given — no prose, no markdown, no code fences.
+
+For each ad you're given (its copy, format, and which product it's for), write ONE prompt describing the SCENE, LIGHTING, and COMPOSITION to place around the product — never instructions that would change the product itself (its color, shape, label, materials). The model is given the actual product photo as a reference image and will keep the product faithful to it; your job is only the surrounding campaign scene.
+
+Guidelines:
+- Match the brand's voice and the ad's own angle/copy tone.
+- Reference the ad's format sensibly: 9:16 prompts should describe a vertical/full-bleed composition (e.g. story/reel style), 1:1 and 4:5 a centered product-hero composition, 16:9 a wider lifestyle scene.
+- Be concrete and visual (lighting, setting, color mood, camera angle) — avoid vague adjectives like "beautiful" or "amazing" with nothing else.
+- Keep each prompt under roughly 60 words.
+- Never invent claims about the product not present in its ad copy.`
+
+export function buildImagePromptUserMessage(params: {
+  brandContext: ShopAdBrandContext
+  ads: Array<{ adId: string; format: string; texts: { headline: string; primaryText: string }; productName: string; productDescription: string }>
+}): string {
+  const { brandContext, ads } = params
+  const adLines = ads.map((ad) =>
+    `- adId: ${ad.adId} | format: ${ad.format} | product: ${ad.productName} (${ad.productDescription.slice(0, 150)}) | headline: "${ad.texts.headline}" | body: "${ad.texts.primaryText}"`
+  ).join('\n')
+
+  return `BRAND: ${brandContext.brand.name} — voice: ${brandContext.voiceGuess} — palette accent ${brandContext.design.colors.accent} on ${brandContext.design.colors.bg}
+
+ADS NEEDING AN IMAGE PROMPT:
+${adLines}
+
+Produce one prompt per ad now as a single JSON object matching the schema.`
+}
