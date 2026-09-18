@@ -386,7 +386,17 @@
 .qnt-public .qp-studio-demo .qp-sd-frame { background: var(--qp-bg-alt); border: 1px solid var(--qp-line-soft); border-radius: 12px; padding: 14px; height: 100%; }
 
 /* ── Zoom gallery (one store, scroll-linked page-zoom + accumulating chat) */
-.qnt-public .qp-gallery-track { position: relative; height: 190vh; }
+/* Was 190vh. That gave the sticky-pinned zoom effect (see ZoomGallery.tsx
+   update()) far more scroll distance than the 3-region pan actually needs —
+   once raw clamps to 1 (all regions shown, exit animation finished), the
+   sticky card just sits there frozen against the black page background for
+   whatever scroll distance is left before the container's real bottom edge
+   is reached and it unpins. That leftover distance read as a long "dead"
+   black stretch on production (flagged in the full-site UI audit). Tightened
+   to 145vh so the pinned phase ends much closer to when the animation
+   actually finishes; the exit-fade window below was also widened/deepened
+   so the release reads as an intentional wipe rather than a frozen pause. */
+.qnt-public .qp-gallery-track { position: relative; height: 145vh; }
 .qnt-public .qp-gallery-sticky { position: sticky; top: calc(var(--banner-h,0px) + 76px); }
 .qnt-public .qp-gallery-progress { height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); margin-bottom: 14px; overflow: hidden; }
 .qnt-public .qp-gallery-progress .qp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--qp-accent), var(--qp-accent-light)); box-shadow: 0 0 8px rgba(59,130,246,0.6); }

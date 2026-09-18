@@ -79,9 +79,17 @@ export function ZoomGallery() {
       if (runnerRef.current) runnerRef.current.style.left = (progress / lastIndex) * 100 + '%'
       dotsRef.current.forEach((el, i) => el?.classList.toggle('qp-active', nearest === i))
 
-      const exitT = raw > 0.86 ? clamp01((raw - 0.86) / 0.14) : 0
-      sticky.style.transform = `translateY(${exitT * -8}px) scale(${1 - exitT * 0.03})`
-      sticky.style.opacity = String(1 - exitT * 0.12)
+      // Widened from 0.86-1.0 to 0.7-1.0 and made deeper (was -8px/0.97 scale/
+      // opacity floor 0.88) so the pinned card visibly wipes away as raw
+      // approaches 1, instead of sitting on screen at ~full size/opacity
+      // (previously only faded 12%) for the whole tail of the scroll-jacked
+      // track — that frozen-looking tail was the "dead black stretch" found
+      // in the full-site audit. Track height was also cut 190vh -> 145vh
+      // (see globals.css) so there's less unaccounted-for scroll distance
+      // after raw clamps to 1 in the first place.
+      const exitT = raw > 0.7 ? clamp01((raw - 0.7) / 0.3) : 0
+      sticky.style.transform = `translateY(${exitT * -28}px) scale(${1 - exitT * 0.08})`
+      sticky.style.opacity = String(1 - exitT * 0.85)
     }
 
     function onScroll() {
@@ -90,9 +98,16 @@ export function ZoomGallery() {
     window.addEventListener('scroll', onScroll, { passive: true })
     window.addEventListener('resize', update)
     update()
+    // Geometry (sticky.offsetHeight / track.offsetHeight) can still be off on
+    // first paint if webfonts or the region content reflow after mount —
+    // recompute once shortly after so `raw`'s clamp point actually lines up
+    // with the container's real bottom edge instead of drifting, which was
+    // part of what made the pinned tail feel longer than intended.
+    const settleTimer = window.setTimeout(update, 400)
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', update)
+      window.clearTimeout(settleTimer)
     }
   }, [])
 
