@@ -157,8 +157,18 @@ export function ZoomGallery() {
             {REGIONS.map((r, i) => (
               <span key={r.key} className={i === 0 ? 'qp-active' : ''} ref={(el) => { dotsRef.current[i] = el }} />
             ))}
+            {/* Nested inside .qp-gallery-dots (not -wrap) on purpose: this flex
+                row is exactly the padded-in track the dots sit on, so the
+                runner's JS-driven `left: X%` (in update()) resolves against
+                the same box the dots use. When it lived directly under
+                .qp-gallery-dots-wrap, its 0%/100% were measured against the
+                wrap's un-padded border box while the dots' 0%/100% were
+                measured after the wrap's 20%/40% padding — two different
+                coordinate systems — so the glowing runner drifted away from
+                the actual active dot instead of sitting on top of it
+                (visible on mobile as a stray extra "dot" near the left edge). */}
+            <div className="qp-gallery-dot-runner" ref={runnerRef} />
           </div>
-          <div className="qp-gallery-dot-runner" ref={runnerRef} />
         </div>
       </div>
     </div>

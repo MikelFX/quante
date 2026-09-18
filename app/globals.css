@@ -411,31 +411,43 @@
 @media (max-width: 640px) { .qnt-public .qp-zoom-page-label { top: 42px; right: 8px; font-size: 9.5px; padding: 3px 8px; } }
 .qnt-public .qp-zoom-window { position: relative; flex: 1; overflow: hidden; }
 .qnt-public .qp-zoom-canvas { position: absolute; top: 0; left: 0; width: 100%; will-change: transform; }
-.qnt-public .qp-zoom-region { height: 342px; padding: 24px 20px; }
-@media (max-width: 640px) { .qnt-public .qp-zoom-region { height: 262px; padding: 16px 12px; } }
+/* padding-top is taller than the other sides on purpose: .qp-zoom-page-label
+   floats absolutely over this content (see below) at roughly 14-33px into
+   the window's own coordinate space, so a plain 24px/16px top inset let the
+   region's first row sit directly under the label — the "checkout" pill
+   visibly overlapping the row that should read as an Add-to-cart button.
+   Pushing the first row below the label's floor fixes it at both sizes. */
+.qnt-public .qp-zoom-region { height: 342px; padding: 38px 20px 24px; }
+@media (max-width: 640px) { .qnt-public .qp-zoom-region { height: 262px; padding: 36px 12px 16px; } }
 /* Standalone (not scoped to .qp-zoom-region specifically) so the same mini
    browser-chrome placeholder rows/tiles can be reused in other preview
    frames — e.g. the Studio-consistency demo panel below. */
-.qnt-public .qp-zr-hero { height: 90px; border-radius: 12px; background: rgba(59,130,246,0.08); border: 1px solid var(--qp-line-soft); margin-bottom: 14px; }
-.qnt-public .qp-zr-row { height: 10px; border-radius: 4px; background: rgba(255,255,255,0.08); margin-bottom: 9px; }
+.qnt-public .qp-zr-hero { height: 90px; border-radius: 12px; background: rgba(59,130,246,0.14); border: 1px solid var(--qp-line-soft); margin-bottom: 14px; }
+.qnt-public .qp-zr-row { height: 10px; border-radius: 4px; background: rgba(255,255,255,0.14); margin-bottom: 9px; }
 .qnt-public .qp-zr-row.qp-w70 { width: 70%; }
 .qnt-public .qp-zr-row.qp-w40 { width: 40%; }
 .qnt-public .qp-zr-pill { display: inline-block; height: 26px; line-height: 26px; padding: 0 16px; border-radius: 99px; background: var(--qp-accent); color: #fff; font-size: 11px; font-weight: 600; margin-top: 10px; }
 .qnt-public .qp-zr-cardgrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 14px; }
-.qnt-public .qp-zr-cardgrid div { aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--qp-line-soft); }
-.qnt-public .qp-zr-form { height: 30px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 1px solid var(--qp-line-soft); margin-bottom: 10px; }
+.qnt-public .qp-zr-cardgrid div { aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid var(--qp-line-soft); }
+.qnt-public .qp-zr-form { height: 30px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid var(--qp-line-soft); margin-bottom: 10px; }
 .qnt-public .qp-zr-summary { border: 1px solid var(--qp-line-soft); border-radius: 10px; padding: 12px; margin-top: 14px; }
 
 .qnt-public .qp-chat-log {
-  height: 380px; overflow-y: auto; padding: 16px;
+  height: 380px; overflow-y: auto; overflow-x: hidden; padding: 16px;
   background: var(--qp-surface); border: 1px solid var(--qp-line-soft); border-radius: var(--qp-r-md);
   display: flex; flex-direction: column; gap: 10px;
 }
 @media (max-width: 640px) { .qnt-public .qp-chat-log { height: 300px; padding: 10px; gap: 7px; } }
-.qnt-public .qp-chat-pair { display: flex; flex-direction: column; gap: 8px; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .4s ease, opacity .3s ease; flex-shrink: 0; }
+.qnt-public .qp-chat-pair { display: flex; flex-direction: column; gap: 8px; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .4s ease, opacity .3s ease; flex-shrink: 0; min-width: 0; }
 .qnt-public .qp-chat-pair.qp-shown { max-height: 220px; opacity: 1; }
 @media (max-width: 640px) { .qnt-public .qp-chat-pair.qp-shown { max-height: 140px; } }
-.qnt-public .qp-chat-pair .qp-bubble { background: rgba(255,255,255,.05); border-radius: 12px; padding: 9px 12px; font-size: 12px; color: var(--qp-sub); }
+/* max-width/overflow-wrap/min-width:0 fix a real overflow: as flex children
+   of a column flex box these otherwise keep their content's intrinsic
+   (unwrapped) width, which let long lines like "Now add a checkout page
+   with an order summary." push past the panel's edge — clipped by the
+   chat-log's auto overflow-x instead of wrapping, worst on the narrow
+   mobile column. */
+.qnt-public .qp-chat-pair .qp-bubble { background: rgba(255,255,255,.05); border-radius: 12px; padding: 9px 12px; font-size: 12px; color: var(--qp-sub); max-width: 100%; overflow-wrap: break-word; word-break: break-word; min-width: 0; box-sizing: border-box; }
 @media (max-width: 640px) { .qnt-public .qp-chat-pair .qp-bubble { font-size: 10.5px; padding: 7px 9px; } }
 .qnt-public .qp-chat-pair .qp-bubble.qp-me { background: var(--qp-accent); color: #fff; }
 
@@ -447,6 +459,20 @@
 .qnt-public .qp-gallery-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--qp-line); display: block; }
 .qnt-public .qp-gallery-dots span.qp-active { background: var(--qp-accent); }
 .qnt-public .qp-gallery-dot-runner { position: absolute; top: -1.5px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--qp-accent); box-shadow: 0 0 10px 2px rgba(59,130,246,0.7); transform: translateX(-50%); }
+
+/* Every top-level homepage <section> carries its own inline clamp() vertical
+   padding (min bound roughly 40-56px per side, since 6vw/7vw/9vw all bottom
+   out below their rem floor on a ~400px-wide phone). Two back-to-back
+   sections each contributing their own top+bottom padding stacks into
+   100-140px of plain background between them — no border/seam anymore
+   since the one-continuous-page pass, but still a very visible dead patch
+   on a ~700-900px-tall phone viewport ("huge black gaps" bug report).
+   Knocking the floor down on mobile only, via higher-specificity media-query
+   rules that beat the inline style, fixes the stacking without touching
+   each section's individual clamp() value. */
+@media (max-width: 640px) {
+  .qp-home > section, .qp-home section { padding-top: 1.75rem !important; padding-bottom: 1.75rem !important; }
+}
 
 /* ── Bento feature grid ───────────────────────────────────────────────── */
 .qnt-public .qp-bento {

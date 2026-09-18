@@ -275,7 +275,7 @@ function BentoGrid() {
 
 export default function HomePage() {
   return (
-    <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="qnt-public qp-home" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <HeroBgFX />
       <PublicNav />
 
@@ -384,8 +384,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── MANIFESTO / REVEAL ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      {/* ── MANIFESTO / REVEAL ──
+          No borderTop/background band here on purpose — the whole page now
+          sits on one continuous --qp-bg with the fixed grid/scan/cursor
+          layers running underneath uninterrupted, per "one long page, not
+          separate boxed sections" feedback. Content is still visually
+          distinguished by spacing and scroll-reveal, just not by hard
+          seams (hairlines) or alternating background bands. */}
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: -100 }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: -90 }} />
@@ -426,7 +432,7 @@ export default function HomePage() {
       </section>
 
       {/* ── WHY IT'S DIFFERENT ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: '20%', right: -140 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 160, left: '50%', transform: 'translateX(-50%)' }} />
@@ -452,7 +458,7 @@ export default function HomePage() {
       </section>
 
       {/* ── SHOWCASE STRIP ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
         <div style={{ maxWidth: 1120, margin: '0 auto' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
             <div className="qp-kicker" style={{ justifyContent: 'center' }}>04 — built with quante</div>
@@ -506,7 +512,7 @@ export default function HomePage() {
       </section>
 
       {/* ── EVERYTHING YOU GET (bento grid) ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-mint" style={{ top: -100, left: '10%' }} />
           <span className="qp-blob qp-blob-accent" style={{ bottom: -140, right: '6%' }} />
@@ -540,7 +546,7 @@ export default function HomePage() {
       </section>
 
       {/* ── PRICING PREVIEW ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,7rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -120, right: -100 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 220, left: '50%', transform: 'translateX(-50%)' }} />
@@ -592,7 +598,7 @@ export default function HomePage() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: 'clamp(4.5rem,10vw,7.5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -160, left: '20%' }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: '20%' }} />
