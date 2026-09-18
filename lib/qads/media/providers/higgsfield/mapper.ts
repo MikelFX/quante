@@ -16,6 +16,7 @@
 
 import {
   submitMarketingStudioImage,
+  submitSeedanceReferenceToVideo,
   getRequestStatus,
   cancelRequest,
   type HiggsfieldCredentials,
@@ -55,13 +56,37 @@ export function buildMarketingStudioRequest(input: MediaGenerationInput, presetI
   }
 }
 
+// Seedance's aspect_ratio enum (16:9, 4:3, 1:1, 3:4, 9:16, 21:9) also has no native 4:5 —
+// same approximation as the image mapper, same reasoning: 3:4 (0.75) is the closest
+// supported value to 4:5 (0.8).
+const FORMAT_TO_VIDEO_ASPECT_RATIO: Record<MediaGenerationInput['format'], NonNullable<Parameters<typeof submitSeedanceReferenceToVideo>[1]['aspect_ratio']>> = {
+  '1:1': '1:1',
+  '4:5': '3:4',
+  '9:16': '9:16',
+  '16:9': '16:9',
+}
+
+export function buildSeedanceVideoRequest(input: MediaGenerationInput) {
+  return {
+    prompt: input.prompt,
+    image_urls: [input.referenceImageUrl, ...(input.modelImageUrl ? [input.modelImageUrl] : [])],
+    resolution: '720p' as const,
+    generate_audio: false, // ad creative audio is a separate, later decision (music/VO licensing) — silent by default
+    duration: 5, // shortest supported (4-30s) — a short product loop is the safe default for ad placements; longer is a Phase-2 UI choice
+    aspect_ratio: FORMAT_TO_VIDEO_ASPECT_RATIO[input.format],
+    output_format: 'mp4' as const,
+  }
+}
+
 export async function submitViaMapper(
   creds: HiggsfieldCredentials,
   input: MediaGenerationInput,
   presetId: string | undefined,
 ): Promise<MediaGenerationHandle> {
-  const body = buildMarketingStudioRequest(input, presetId)
-  const response = await submitMarketingStudioImage(creds, body, input.webhookUrl)
+  const response = input.kind === 'video'
+    ? await submitSeedanceReferenceToVideo(creds, buildSeedanceVideoRequest(input), input.webhookUrl)
+    : await submitMarketingStudioImage(creds, buildMarketingStudioRequest(input, presetId), input.webhookUrl)
+
   return {
     providerRequestId: response.request_id,
     statusUrl: response.status_url,

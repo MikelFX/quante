@@ -9,15 +9,24 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { runImagesNode } from '@/lib/qads/pipeline/nodes/images'
+import { runVideoNode } from '@/lib/qads/pipeline/nodes/video'
 import { reserveCredits, refundCredits, QADS_CREDIT_COSTS } from '@/lib/qads/credits'
 import type { ShopAdBrandContext } from '@/lib/qads/types'
 
 interface Params { params: Promise<{ id: string }> }
 
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   const { id: campaignId } = await params
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  let creativeType: 'static' | 'video' = 'static'
+  try {
+    const body = await request.json()
+    if (body?.type === 'video') creativeType = 'video'
+  } catch {
+    // No body / not JSON — default to 'static', same as before this param existed.
+  }
 
   const { data: campaign } = await supabaseAdmin
     .from('qads_campaigns')
@@ -48,7 +57,8 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ submitted: 0, failed: 0, message: 'Every ad already has a creative.' })
   }
 
-  const cost = ads.length * QADS_CREDIT_COSTS.static_creative
+  const perAssetCost = creativeType === 'video' ? QADS_CREDIT_COSTS.video_creative : QADS_CREDIT_COSTS.static_creative
+  const cost = ads.length * perAssetCost
   const reserveResult = await reserveCredits({ userId, amount: cost, campaignId })
   if (!reserveResult.ok) {
     return NextResponse.json(
@@ -57,14 +67,12 @@ export async function POST(_request: Request, { params }: Params) {
     )
   }
 
-  const result = await runImagesNode({
-    campaignId,
-    userId,
-    brandContext: campaign.brand_context as ShopAdBrandContext,
-    ads,
-  })
+  const brandContext = campaign.brand_context as ShopAdBrandContext
+  const result = creativeType === 'video'
+    ? await runVideoNode({ campaignId, userId, brandContext, ads })
+    : await runImagesNode({ campaignId, userId, brandContext, ads })
 
-  // runImagesNode already refunds per-asset failures individually (leaf-level, per
+  // Both nodes already refund per-asset failures individually (leaf-level, per
   // docs/qads-proposal.md §6) — this only refunds the gap between what we reserved
   // up front for `ads.length` assets and what actually got submitted, covering
   // whole-batch preconditions (no product photo, Higgsfield not configured) that fail
@@ -73,7 +81,7 @@ export async function POST(_request: Request, { params }: Params) {
   if (unaccountedFor > 0) {
     await refundCredits({
       userId,
-      amount: unaccountedFor * QADS_CREDIT_COSTS.static_creative,
+      amount: unaccountedFor * perAssetCost,
       campaignId,
       reason: 'qads_creatives_batch_refund',
     })

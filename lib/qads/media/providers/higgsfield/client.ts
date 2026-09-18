@@ -116,6 +116,33 @@ export async function cancelRequest(creds: HiggsfieldCredentials, cancelUrl: str
   }
 }
 
+// Seedance 2.5 Reference To Video — the confirmed model for Qads's product-photo-to-video
+// creative (see mapper.ts). Endpoint ID 'bytedance/seedance-2.5/reference-to-video' per
+// docs.higgsfield.ai/docs/models/seedance-2-5/reference-to-video. Distinct from
+// Marketing Studio Image's schema (own resolution/duration/aspect_ratio enums, no
+// preset concept) — kept as its own request type rather than force-fit into
+// MarketingStudioImageRequest.
+export interface SeedanceReferenceToVideoRequest {
+  prompt?: string
+  resolution?: '480p' | '720p'
+  generate_audio?: boolean
+  duration?: number // 4-30 seconds
+  aspect_ratio: '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | '21:9' // explicit value required for reference-to-video — no 'auto'/-1 per docs
+  output_format?: 'mp4' | 'mov'
+  image_urls?: string[] // 1-30 public URLs — at least one image/video/audio reference required
+}
+
+export async function submitSeedanceReferenceToVideo(
+  creds: HiggsfieldCredentials,
+  body: SeedanceReferenceToVideoRequest,
+  webhookUrl?: string,
+): Promise<HiggsfieldSubmitResponse> {
+  const url = webhookUrl
+    ? `${BASE_URL}/bytedance/seedance-2.5/reference-to-video?hf_webhook=${encodeURIComponent(webhookUrl)}`
+    : `${BASE_URL}/bytedance/seedance-2.5/reference-to-video`
+  return higgsfieldFetch<HiggsfieldSubmitResponse>(url, creds, { method: 'POST', body })
+}
+
 export interface HiggsfieldUploadTarget {
   public_url: string
   upload_url: string

@@ -161,3 +161,38 @@ ${adLines}
 
 Produce one prompt per ad now as a single JSON object matching the schema.`
 }
+
+// ─── Video prompts (Qads step d) ────────────────────────────────────────────────────
+// Same batched-call, same-schema shape as image prompts — reuses ImagePromptOutputSchema
+// ({adId, prompt}) since the output shape is identical; only the system prompt (motion/
+// camera language instead of static composition) and the model this feeds
+// (Seedance 2.5 Reference To Video, see media/providers/higgsfield) differ.
+
+export const VIDEO_PROMPT_SYSTEM_PROMPT = `You are Qads, writing short video-generation prompts for a reference-to-video model that animates a product photo into a 5-second campaign clip. Your ONLY output is a single valid JSON object matching the schema you're given — no prose, no markdown, no code fences.
+
+For each ad you're given (its copy, format, and which product it's for), write ONE prompt describing CAMERA MOVEMENT, MOTION, and SCENE for a short clip built around the product photo — never instructions that would change the product itself (its color, shape, label, materials). The model is given the actual product photo as a reference and will keep the product faithful to it; your job is only the motion and surrounding scene.
+
+Guidelines:
+- Describe a simple, clear camera move (e.g. slow push-in, gentle orbit, static shot with subject motion) — avoid describing multiple unrelated shots, this is one continuous 5-second clip.
+- Match the brand's voice and the ad's own angle/copy tone.
+- Reference the ad's format: 9:16 should read as a vertical story/reel-style clip, 1:1/4:5 a centered product-hero clip, 16:9 a wider lifestyle scene.
+- Be concrete and visual (lighting, setting, camera move) — avoid vague adjectives with nothing else.
+- Keep each prompt under roughly 50 words.
+- Never invent claims about the product not present in its ad copy.`
+
+export function buildVideoPromptUserMessage(params: {
+  brandContext: ShopAdBrandContext
+  ads: Array<{ adId: string; format: string; texts: { headline: string; primaryText: string }; productName: string; productDescription: string }>
+}): string {
+  const { brandContext, ads } = params
+  const adLines = ads.map((ad) =>
+    `- adId: ${ad.adId} | format: ${ad.format} | product: ${ad.productName} (${ad.productDescription.slice(0, 150)}) | headline: "${ad.texts.headline}" | body: "${ad.texts.primaryText}"`
+  ).join('\n')
+
+  return `BRAND: ${brandContext.brand.name} — voice: ${brandContext.voiceGuess} — palette accent ${brandContext.design.colors.accent} on ${brandContext.design.colors.bg}
+
+ADS NEEDING A VIDEO PROMPT (5-second clips):
+${adLines}
+
+Produce one prompt per ad now as a single JSON object matching the schema.`
+}
