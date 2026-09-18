@@ -8,7 +8,7 @@ export const operator: {
   address: string
   ico: string          // [TO FILL IN] — Czech business registration number (IČO)
   dic: string          // [TO FILL IN IF VAT REGISTERED] — VAT number (DIČ)
-  contactEmail: string // [TO FILL IN — e.g. hello@quantecode.com]
+  contactEmail: string // [TO FILL IN — e.g. support@quantecode.com]
 } = {
   name: 'Michal Svoboda',
   role: 'Founder & Developer of Quante',
@@ -34,6 +34,7 @@ export const footerNav = {
     { label: 'Domains',    href: '/domains' },
     { label: 'Changelog',  href: '/changelog' },
     { label: 'Roadmap',    href: '/about#roadmap' },
+    { label: 'Qads',       href: '/qads' },
     { label: 'API',        href: '/api', badge: 'Soon' as const },
   ],
   company: [
