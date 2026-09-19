@@ -1,31 +1,35 @@
 'use client'
 
 import Link from 'next/link'
-import { CREDIT_PACKS } from '@/lib/credit-packs'
-import { AGENCY_MONTHLY_USD } from '@/lib/config'
+import {
+  CREDIT_PACKS,
+  ACTION_COSTS,
+  AGENCY_MONTHLY_USD,
+  formatHostingBoth,
+  formatHostingAnnual,
+  formatHostingMonthly,
+  getPerCreditDisplay,
+  getGenerationsCaption,
+  getPackDescription,
+} from '@/lib/pricing'
+import { PRICING_FAQ } from '@/lib/faq'
 import { AgencyCheckoutButton } from '@/components/AgencyCheckoutButton'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
 
-const COSTS = [
-  { action: 'Build a store from scratch', cost: '10', unit: 'credits' },
-  { action: 'Make a change in chat', cost: '1', unit: 'credit' },
-  { action: 'Redo one section', cost: '2', unit: 'credits' },
-  { action: 'Add a custom component', cost: '3', unit: 'credits' },
-  { action: 'Download your store (ZIP)', cost: '5', unit: 'credits' },
-  { action: 'Deploy to Quante hosting', cost: '5', unit: 'credits' },
-  { action: 'Quante Hosting Plan', cost: '$99', unit: '/year or $9.99/mo' },
-  { action: 'Welcome bonus on signup', cost: '+25', unit: 'free' },
-]
-
+// Hosting details row list — everything numeric pulls from lib/pricing so the
+// captions stay honest if a helper changes. "Cost per deploy" reads directly
+// off the ACTION_COSTS deploy row, which lib/pricing labels "Free with hosting"
+// (backed by the CREDIT_COSTS.deploy = 0 change + the hosting-plan gate in
+// /api/deploy).
 const HOSTING_ROWS = [
-  { label: 'Hosting plan', value: '$99 / year · or $9.99 / month', mono: true },
-  { label: 'URL format', value: 'my-store.stores.quantecode.com', mono: true },
-  { label: 'Custom domain', value: 'Bring your own — CNAME verified automatically', mono: false },
-  { label: 'SSL certificate', value: 'Included, auto-renewed', mono: false },
-  { label: 'Cost per deploy', value: '5 credits · charged on success only', mono: true },
-  { label: 'Re-deploy after edits', value: 'Same URL, same domain — just updated', mono: false },
+  { label: 'Hosting plan',      value: formatHostingBoth(),                                          mono: true  },
+  { label: 'URL format',        value: 'my-store.stores.quantecode.com',                             mono: true  },
+  { label: 'Custom domain',     value: 'Bring your own — CNAME verified automatically',              mono: false },
+  { label: 'SSL certificate',   value: 'Included, auto-renewed',                                     mono: false },
+  { label: 'Cost per deploy',   value: ACTION_COSTS.find(c => c.action.startsWith('Deploy'))!.costLabel + ' · unlimited', mono: true },
+  { label: 'Re-deploy after edits', value: 'Same URL, same domain — just updated',                   mono: false },
 ]
 
 const AGENCY_FEATURES = [
@@ -43,17 +47,6 @@ const AGENCY_DETAILS: [string, string][] = [
   ['Client gets', 'Fully portable Next.js project'],
   ['Payments', "Client's own Stripe keys"],
   ['Hosting', 'Anywhere — Vercel, Railway, VPS'],
-]
-
-const FAQ = [
-  { q: 'Do credits expire?', a: 'No. Credits never expire. Buy once and use them whenever you feel like it.' },
-  { q: 'What if something goes wrong during generation?', a: "Credits are only taken on success. If a generation fails and we can't auto-fix it, nothing is charged." },
-  { q: 'Can I export the same store more than once?', a: 'Yes — each export costs 5 credits. Useful when you want to grab the latest version after iterating.' },
-  { q: 'What does "Deploy to Quante hosting" mean?', a: 'One click in the Studio and your store goes live on a URL like my-store.stores.quantecode.com — SSL, CDN and subdomain included, no server setup. Each deploy costs 5 credits. Your store stays live as long as your hosting plan is active.' },
-  { q: 'Can I self-host instead?', a: "Yes. Export the ZIP (5 credits) and deploy anywhere — Vercel's free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency. No hosting plan needed." },
-  { q: 'Is hosting a subscription?', a: 'Yes — $99/year (billed annually) or $9.99/month. This covers hosting, SSL, your quantecode.com subdomain, CDN, and unlimited deploys (each deploy costs 5 credits on top). Cancel anytime; your store stays live until the period ends.' },
-  { q: 'What does the hosting plan cover?', a: 'Everything needed to keep your store online: managed hosting, automatic SSL renewal, a quantecode.com subdomain (or your own custom domain), global CDN, and 24/7 uptime monitoring. You only pay credits on top when you generate, iterate, or deploy.' },
-  { q: 'What happens if my hosting expires?', a: 'Your store is paused and visitors see a maintenance page — nothing is ever deleted. Your products, orders and design are kept safe for at least 90 days. Resubscribe and your store goes back online automatically.' },
 ]
 
 function SectionKicker({ n, label }: { n: string; label: string }) {
@@ -74,24 +67,24 @@ export default function PricingPage() {
         <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
           <SectionKicker n="pricing" label="credits · hosting plan · transparent" />
           <h1 style={{ fontSize: 'clamp(32px,6vw,54px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.1, margin: '0 0 20px' }}>
-            Credits for AI.<br />
+            No subscription to build.<br />
             <span style={{
               background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, var(--qp-accent-light))',
               WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
             }}>
-              $99/year hosting.
+              Optional hosting.
             </span>
           </h1>
-          <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 520, margin: '0 auto' }}>
-            Pay only for what you create. Hosting is one simple subscription — $99/year or $9.99/month, everything included.
-            Start with <strong style={{ color: 'var(--qp-mint)' }}>25 free credits</strong>. No card required.
+          <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 560, margin: '0 auto' }}>
+            You only pay credits when you generate or iterate. Hosting on Quante is optional ({formatHostingBoth()}) — or export the source and host it anywhere.
+            Start with <strong style={{ color: 'var(--qp-ink)' }}>25 free credits</strong>. No card required.
           </p>
 
           <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
             {[
-              { value: '$99', label: 'hosting / year' },
-              { value: '25', label: 'free credits' },
-              { value: '∞', label: 'never expire' },
+              { value: '25',                            label: 'free credits' },
+              { value: '∞',                             label: 'never expire' },
+              { value: formatHostingAnnual().split(' ')[0], label: 'optional hosting' },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center' }}>
                 <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 28, fontWeight: 700, letterSpacing: '-.02em', margin: 0 }}>{s.value}</p>
@@ -140,9 +133,9 @@ export default function PricingPage() {
                   <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 30, fontWeight: 700, letterSpacing: '-.02em', margin: '0 0 6px' }}>
                     {pack.priceDisplay}
                   </p>
-                  <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{pack.label}</p>
-                  <p style={{ fontSize: 13, color: 'var(--qp-sub)', lineHeight: 1.55, margin: '0 0 10px' }}>{pack.description}</p>
-                  <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-mut)', margin: 0 }}>{pack.perCreditDisplay}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{pack.label} · {pack.credits} credits</p>
+                  <p style={{ fontSize: 13, color: 'var(--qp-sub)', lineHeight: 1.55, margin: '0 0 10px' }}>{getGenerationsCaption(pack)}</p>
+                  <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-mut)', margin: 0 }}>{getPerCreditDisplay(pack)}</p>
                 </div>
                 <Link href="/signup" style={{
                   display: 'block', textAlign: 'center', textDecoration: 'none',
@@ -167,19 +160,24 @@ export default function PricingPage() {
           </h2>
 
           <GlassCard strong style={{ overflow: 'hidden' }}>
-            {COSTS.map((c, i) => (
+            {ACTION_COSTS.map((c, i) => (
               <div key={c.action} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px',
-                borderBottom: i < COSTS.length - 1 ? '1px solid var(--qp-line-soft)' : 'none',
+                display: 'flex', flexDirection: 'column', gap: 4, padding: '14px 22px',
+                borderBottom: i < ACTION_COSTS.length - 1 ? '1px solid var(--qp-line-soft)' : 'none',
               }}>
-                <span style={{ fontSize: 14 }}>{c.action}</span>
-                <span style={{
-                  fontFamily: 'var(--qp-mono)', fontSize: 13, fontWeight: 600,
-                  color: c.unit === 'free' ? 'var(--qp-mint)' : c.unit === '/year' ? 'var(--qp-accent)' : 'var(--qp-sub)',
-                  display: 'flex', alignItems: 'center', gap: 6,
-                }}>
-                  {c.cost}<span style={{ fontSize: 11, color: c.unit === '/year' ? 'var(--qp-accent)' : 'var(--qp-mut)' }}>{c.unit}</span>
-                </span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+                  <span style={{ fontSize: 14 }}>{c.action}</span>
+                  <span style={{
+                    fontFamily: 'var(--qp-mono)', fontSize: 13, fontWeight: 600,
+                    color: c.cost === 0 ? 'var(--qp-accent)' : 'var(--qp-sub)',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {c.costLabel}
+                  </span>
+                </div>
+                {c.freeReason && (
+                  <span style={{ fontSize: 12, color: 'var(--qp-mut)', lineHeight: 1.5 }}>{c.freeReason}</span>
+                )}
               </div>
             ))}
           </GlassCard>
@@ -213,7 +211,7 @@ export default function PricingPage() {
           </GlassCard>
 
           <p style={{ fontSize: 12, color: 'var(--qp-mut)', textAlign: 'center', marginTop: 16 }}>
-            Prefer self-hosting? Export the ZIP (5 credits) and deploy anywhere.
+            Prefer self-hosting? Export the ZIP (free) and deploy anywhere.
           </p>
         </div>
       </section>
@@ -293,7 +291,7 @@ export default function PricingPage() {
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {FAQ.map(item => (
+            {PRICING_FAQ.map(item => (
               <GlassCard key={item.q} style={{ padding: '20px 24px' }}>
                 <p style={{ fontSize: 14, fontWeight: 600, margin: '0 0 6px' }}>{item.q}</p>
                 <p style={{ fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.65, margin: 0 }}>{item.a}</p>
@@ -318,8 +316,8 @@ export default function PricingPage() {
           </p>
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
-            background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            background: 'var(--qp-accent)',
+            boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
             padding: '0.85rem 2rem', borderRadius: 99, display: 'inline-block',
           }}>
             Start for free →

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CreditPack } from '@/lib/stripe'
+import { getGenerationsCaption, getPerCreditDisplay } from '@/lib/pricing'
 
 interface Props {
   packs: CreditPack[]
@@ -63,7 +64,7 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
               <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>credits</p>
             </div>
 
-            <p style={{ fontSize: 12, color: '#8a8a93', flex: 1, lineHeight: 1.45, margin: 0 }}>{pack.description}</p>
+            <p style={{ fontSize: 12, color: '#8a8a93', flex: 1, lineHeight: 1.45, margin: 0 }}>{getGenerationsCaption(pack)} · {getPerCreditDisplay(pack)}</p>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6' }}>{pack.priceDisplay}</span>

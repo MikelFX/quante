@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
+import { formatHostingBoth } from '@/lib/pricing'
 import type { ShopManifest, Section } from '@/types/manifest'
 import type { StoreProduct } from '@/types/store-code'
 import type { StoreHealthResult, HealthCheckItem } from '@/lib/store-health'
@@ -1570,7 +1571,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         setIsDeploying(false)
         setDeployStatus('error')
         const msg = data.code === 'SUBSCRIPTION_REQUIRED'
-          ? `Trial ended — subscribe to keep hosting ($99/year or $9.99/month). Click **Subscribe** below.`
+          ? `Trial ended — subscribe to keep hosting (${formatHostingBoth()}). Click **Subscribe** below.`
           : (data.error ?? 'Deployment failed.')
         setMessages((prev) => {
           const updated = [...prev]
@@ -4050,7 +4051,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <button
                 onClick={handleDeploy}
                 disabled={isDeploying || isPreviewDeploying}
-                title="Production redeploy — 5 credits"
+                title="Production redeploy — included in your hosting plan"
                 style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
               >
                 {isDeploying ? '…' : '⟳ Prod'}

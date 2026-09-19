@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2, Play } from 'lucide-react'
-import { CREDIT_PACKS } from '@/lib/credit-packs'
+import { CREDIT_PACKS, getPerCreditDisplay, getGenerationsCaption, formatHostingMonthly } from '@/lib/pricing'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
@@ -535,10 +535,10 @@ export default function HomePage() {
         <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
           <div className="qp-kicker" style={{ justifyContent: 'center' }}>06 — pricing</div>
           <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
-            Pay only when you create
+            No subscription to build.
           </h2>
           <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', margin: '20px auto 0' }}>
-            Credits for AI creation. Hosting from $9.99/month, SSL and CDN included. 25 free credits on signup — no card required.
+            Credits for AI creation. Optional hosting from {formatHostingMonthly()} with SSL and CDN. 25 free credits on signup — no card required.
           </p>
         </div>
 
@@ -563,10 +563,10 @@ export default function HomePage() {
                 <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 26, fontWeight: 700, margin: '0 0 6px', lineHeight: 1 }}>
                   {pack.priceDisplay}
                 </p>
-                <p style={{ fontSize: 13.5, fontWeight: 600, margin: '0 0 6px' }}>{pack.label}</p>
-                <p style={{ fontSize: 12.5, color: 'var(--qp-sub)', margin: '0 0 14px', lineHeight: 1.5 }}>{pack.description}</p>
+                <p style={{ fontSize: 13.5, fontWeight: 600, margin: '0 0 6px' }}>{pack.label} · {pack.credits} credits</p>
+                <p style={{ fontSize: 12.5, color: 'var(--qp-sub)', margin: '0 0 14px', lineHeight: 1.5 }}>{getGenerationsCaption(pack)}</p>
                 <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-mut)', margin: 0 }}>
-                  {pack.perCreditDisplay}
+                  {getPerCreditDisplay(pack)}
                 </p>
               </GlassCard>
             ))}

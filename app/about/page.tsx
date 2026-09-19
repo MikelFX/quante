@@ -131,7 +131,7 @@ export default function AboutPage() {
               <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--qp-mint)', margin: '0 0 14px' }}>
                 Quante
               </p>
-              {['Pay only when you create', 'Export ships day one', 'Your code, in your hands', 'Host anywhere, forever'].map(t => (
+              {['No subscription to build', 'Export ships day one, free', 'Your code, in your hands', 'Host anywhere, forever'].map(t => (
                 <p key={t} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.5, margin: '0 0 10px' }}>
                   <span style={{ color: 'var(--qp-mint)' }}>✓</span> {t}
                 </p>
