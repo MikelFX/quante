@@ -147,29 +147,6 @@ function StudioDemo() {
   )
 }
 
-const SHOWCASE_PROJECTS = [
-  {
-    url: 'Alegant.eu', label: 'fashion · CZ/SK', brand: 'ALEGANT', tagline: 'Dress with intention.',
-    cta: 'Shop collection', bg: '#f7f4ef', brandColor: '#1a1714', accentBg: '#b8955a', accentText: '#fff',
-    brandFont: 'Georgia,serif', taglineSize: 15,
-  },
-  {
-    url: 'FromageBox.cz', label: 'food · subscription', brand: 'FromageBox', tagline: "The world's finest cheeses, curated monthly.",
-    cta: 'Start your box', bg: '#faf5ec', brandColor: '#2d1f0e', accentBg: '#c9913a', accentText: '#fff',
-    brandFont: 'Georgia,serif', taglineSize: 13,
-  },
-  {
-    url: 'DocThink.app', label: 'SaaS · medtech', brand: 'DocThink', tagline: 'Think clearer. Decide faster.',
-    cta: 'Try for free', bg: '#f0f5ff', brandColor: '#0f1729', accentBg: '#2563eb', accentText: '#fff',
-    brandFont: 'system-ui,sans-serif', taglineSize: 15,
-  },
-  {
-    url: 'quantecode.com', label: 'AI builder · meta', brand: 'quante', tagline: 'Describe your store.\nWe build it.',
-    cta: 'Try it free →', bg: '#f0eeff', brandColor: '#1B1A22', accentBg: '#5B54F0', accentText: '#fff',
-    brandFont: 'var(--qp-mono)', taglineSize: 14,
-  },
-]
-
 // ─── Hero live storefront preview (lazy-loaded on intersection) ───────────────
 
 function HeroStorefront() {
@@ -510,60 +487,6 @@ export default function HomePage() {
                 title={card.title}
                 desc={card.desc}
               />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── SHOWCASE STRIP ── */}
-      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
-        <div style={{ maxWidth: 1120, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
-            <div className="qp-kicker" style={{ justifyContent: 'center' }}>04 — built with quante</div>
-            <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
-              Real stores, built in minutes.
-            </h2>
-          </div>
-
-          <div style={{
-            display: 'flex', gap: 18, overflowX: 'auto', padding: '8px 4px 20px', marginTop: 'var(--qp-sp-block)',
-            scrollSnapType: 'x proximity',
-          }}>
-            {SHOWCASE_PROJECTS.map(p => (
-              <div key={p.url} style={{
-                flex: '0 0 250px', scrollSnapAlign: 'start', borderRadius: 20, overflow: 'hidden',
-                background: 'var(--qp-surface)', border: '1px solid var(--qp-line-soft)', boxShadow: 'var(--qp-shadow-card)',
-              }}>
-                <div style={{ height: 26, display: 'flex', alignItems: 'center', gap: 5, padding: '0 10px', background: 'rgba(255,255,255,.05)', flexShrink: 0 }}>
-                  {[0, 1, 2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,.16)' }} />)}
-                  <span style={{ marginLeft: 6, fontFamily: 'var(--qp-mono)', fontSize: 9, color: 'var(--qp-mut)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {p.url}
-                  </span>
-                </div>
-                <div style={{ height: 184, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: 20, background: p.bg }}>
-                  <div style={{
-                    fontFamily: p.brandFont, fontWeight: 700, letterSpacing: p.brandFont.includes('mono') ? '-.01em' : '.14em',
-                    fontSize: 12.5, color: p.brandColor, marginBottom: 12,
-                  }}>
-                    {p.brand}
-                  </div>
-                  <div style={{
-                    fontFamily: p.brandFont, fontSize: p.taglineSize, color: p.brandColor, lineHeight: 1.4,
-                    marginBottom: 18, whiteSpace: 'pre-line',
-                  }}>
-                    {p.tagline}
-                  </div>
-                  <div style={{
-                    fontSize: 10, fontWeight: 600, padding: '7px 16px', borderRadius: 99,
-                    background: p.accentBg, color: p.accentText,
-                  }}>
-                    {p.cta}
-                  </div>
-                </div>
-                <div style={{ padding: '10px 14px', borderTop: '1px solid var(--qp-line-soft)' }}>
-                  <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 10, color: 'var(--qp-mut)' }}>{p.label}</span>
-                </div>
-              </div>
             ))}
           </div>
         </div>
