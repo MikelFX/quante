@@ -542,7 +542,27 @@
 }
 @media (max-width: 640px) { .qnt-public .qp-zoom-page-label { top: 42px; right: 8px; font-size: 9.5px; padding: 3px 8px; } }
 .qnt-public .qp-zoom-window { position: relative; flex: 1; overflow: hidden; }
-.qnt-public .qp-zoom-canvas { position: absolute; top: 0; left: 0; width: 100%; will-change: transform; }
+/* Transition on transform smooths the frame-to-frame stepping from scroll-
+   wheel input (discrete deltas, not momentum) — without it the canvas
+   snaps 12–24px per wheel click which reads as jittery even at 60fps. A
+   120ms ease-out is short enough that the animation still tracks the
+   scroll wheel closely (never feels laggy) but long enough that each
+   wheel step visibly interpolates instead of teleporting. Same treatment
+   is applied to .qp-gallery-sticky (transform + opacity) below so the
+   exit fade uses the same eased curve. */
+.qnt-public .qp-zoom-canvas {
+  position: absolute; top: 0; left: 0; width: 100%; will-change: transform;
+  transition: transform 120ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.qnt-public .qp-gallery-sticky {
+  will-change: transform, opacity;
+  transition: transform 120ms cubic-bezier(0.22, 0.61, 0.36, 1),
+              opacity 120ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qnt-public .qp-zoom-canvas,
+  .qnt-public .qp-gallery-sticky { transition: none; }
+}
 /* padding-top is taller than the other sides on purpose: .qp-zoom-page-label
    floats absolutely over this content (see below) at roughly 14-33px into
    the window's own coordinate space, so a plain 24px/16px top inset let the
