@@ -17,8 +17,11 @@ export function isStripeConfigured(): boolean {
 //   $9.99  / month  → STRIPE_HOSTING_MONTHLY_PRICE_ID
 export const HOSTING_PRICE_ID = process.env.STRIPE_HOSTING_PRICE_ID ?? ''
 export const HOSTING_MONTHLY_PRICE_ID = process.env.STRIPE_HOSTING_MONTHLY_PRICE_ID ?? ''
-export const HOSTING_ANNUAL_USD = 99
-export const HOSTING_MONTHLY_USD = 9.99
+// Numeric constants moved to lib/config so client components (SubscribeButton,
+// StudioClient error paths) can display prices without dragging the Stripe SDK
+// into the browser bundle. Re-exported here for backwards compatibility with
+// existing server-side call sites that already import them from this module.
+export { HOSTING_ANNUAL_USD, HOSTING_MONTHLY_USD } from './config'
 
 // Agency subscription — create a recurring Price ($699/month, USD, monthly)
 // and paste the Price ID into STRIPE_AGENCY_PRICE_ID
