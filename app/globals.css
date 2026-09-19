@@ -482,7 +482,18 @@
 .qnt-public .qp-gallery-progress { height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); margin-bottom: 14px; overflow: hidden; }
 .qnt-public .qp-gallery-progress .qp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--qp-accent), var(--qp-accent-light)); box-shadow: 0 0 8px rgba(59,130,246,0.6); }
 .qnt-public .qp-gallery-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
-@media (max-width: 640px) { .qnt-public .qp-gallery-grid { grid-template-columns: 1.15fr 1fr; gap: 8px; } }
+/* Mobile: stack viewport + chat log vertically instead of squeezing both
+   into ~155px-wide columns on a 375px screen. Two wins for the price of
+   one — (a) each panel gets full width, so the mini browser mock is
+   actually legible and the chat bubbles no longer wrap mid-word every
+   line; (b) the taller sticky element eats a good chunk of the pinned
+   scroll window's "dead" bottom stripe that used to sit below the panel
+   after the exit-fade completed, because dead height = viewport - top
+   offset - sticky element height, and doubling the sticky's height
+   roughly halves the leftover empty column visible during release. */
+@media (max-width: 640px) {
+  .qnt-public .qp-gallery-grid { grid-template-columns: 1fr; grid-auto-rows: min-content; gap: 10px; }
+}
 
 .qnt-public .qp-zoom-viewport {
   position: relative; height: 380px; overflow: hidden;
@@ -528,7 +539,15 @@
   background: var(--qp-surface); border: 1px solid var(--qp-line-soft); border-radius: var(--qp-r-md);
   display: flex; flex-direction: column; gap: 10px;
 }
-@media (max-width: 640px) { .qnt-public .qp-chat-log { height: 300px; padding: 10px; gap: 7px; } }
+@media (max-width: 640px) {
+  /* Chat log shrunk 300 -> 200 now that it stacks below the viewport (see
+     .qp-gallery-grid mobile rule): full width means less vertical space is
+     needed to show 2 pairs at once, and the log's own overflow-y auto +
+     the JS auto-scroll to newest bubble means older pairs remain
+     reachable without needing the whole log visible at once. Also keeps
+     the sticky element well under viewport height so it can actually pin. */
+  .qnt-public .qp-chat-log { height: 200px; padding: 10px; gap: 7px; }
+}
 .qnt-public .qp-chat-pair { display: flex; flex-direction: column; gap: 8px; max-height: 0; opacity: 0; overflow: hidden; transition: max-height .4s ease, opacity .3s ease; flex-shrink: 0; min-width: 0; }
 .qnt-public .qp-chat-pair.qp-shown { max-height: 220px; opacity: 1; }
 @media (max-width: 640px) { .qnt-public .qp-chat-pair.qp-shown { max-height: 140px; } }

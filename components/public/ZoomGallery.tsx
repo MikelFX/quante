@@ -99,17 +99,27 @@ export function ZoomGallery() {
       if (runnerRef.current) runnerRef.current.style.left = (progress / lastIndex) * 100 + '%'
       dotsRef.current.forEach((el, i) => el?.classList.toggle('qp-active', nearest === i))
 
-      // Widened from 0.86-1.0 to 0.7-1.0 and made deeper (was -8px/0.97 scale/
-      // opacity floor 0.88) so the pinned card visibly wipes away as raw
-      // approaches 1, instead of sitting on screen at ~full size/opacity
-      // (previously only faded 12%) for the whole tail of the scroll-jacked
-      // track — that frozen-looking tail was the "dead black stretch" found
-      // in the full-site audit. Track height was also cut 190vh -> 145vh
-      // (see globals.css) so there's less unaccounted-for scroll distance
-      // after raw clamps to 1 in the first place.
-      const exitT = raw > 0.7 ? clamp01((raw - 0.7) / 0.3) : 0
-      sticky.style.transform = `translateY(${exitT * -28}px) scale(${1 - exitT * 0.08})`
-      sticky.style.opacity = String(1 - exitT * 0.85)
+      // Exit-fade window (0.62 -> 0.95) and full opacity 0 target — a small
+      // number of specific field-report symptoms all come from the SAME
+      // choice about how this ends. The prior version landed at opacity
+      // ~0.15 by raw=1 and stopped scaling at 0.92, so the pinned card and
+      // (crucially) each qp-chat-pair inside it were still 15% visible
+      // during the whole tail of the scroll-jacked track after animation
+      // was "done". That's exactly what showed up on production as (a)
+      // ghost chat bubbles floating over the dead scroll region, and (b)
+      // a persistent half-visible frame sitting there while the next
+      // section fought to become visible below it. Landing at opacity 0
+      // by raw=0.95 (with a slightly earlier start so it wipes smoothly
+      // rather than snapping) removes both, and the deeper translateY /
+      // scale keeps the exit reading as a "the demo is releasing you back
+      // to the page" motion instead of a fade-out only. The final 0.05
+      // headroom (0.95 -> 1) exists on purpose: sticky-unpin is a
+      // container-scroll event, not a raw-progress event, so the exit
+      // animation needs to be visually done BEFORE unpin lands to avoid
+      // a snap. */
+      const exitT = raw > 0.62 ? clamp01((raw - 0.62) / 0.33) : 0
+      sticky.style.transform = `translateY(${exitT * -48}px) scale(${1 - exitT * 0.12})`
+      sticky.style.opacity = String(1 - exitT)
     }
 
     // Ticking guard: without it, a burst of scroll events inside one frame
