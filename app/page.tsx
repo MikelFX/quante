@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2 } from 'lucide-react'
+import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2, Play } from 'lucide-react'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
@@ -271,6 +271,61 @@ function BentoGrid() {
   )
 }
 
+// ─── Qads homepage teaser (2nd section, right after the hero) ─────────────────
+// Video is a placeholder until the user supplies the real clip — see the
+// comment inside .qp-tilt-frame below for exactly what to swap in.
+
+function QadsTeaser() {
+  const frameRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = frameRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('qp-reveal'); obs.disconnect() } },
+      { threshold: 0.25 },
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+
+  return (
+    <section style={{ padding: 'clamp(2.5rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <div className="qp-ambient">
+        <span className="qp-blob qp-blob-accent" style={{ top: -160, left: '50%', transform: 'translateX(-50%)' }} />
+      </div>
+      <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
+        <div className="qp-kicker" style={{ justifyContent: 'center' }}><span className="qp-dot" /> new — qads</div>
+        <h2 style={{ fontSize: 'clamp(24px,4.4vw,38px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.18, margin: '0 0 14px' }}>
+          Now Quante builds your <span style={{ color: 'var(--qp-accent)' }}>ad campaigns</span> too.
+        </h2>
+        <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', maxWidth: 520, margin: '0 auto' }}>
+          Same store, one more description away from a full Meta and TikTok campaign — strategy, copy, creatives, and video, drafted and paused for your review.
+        </p>
+        <Link href="/qads" className="qp-glass qp-glass-strong" style={{
+          display: 'inline-block', marginTop: 22, fontSize: 13.5, fontWeight: 600, textDecoration: 'none',
+          color: 'var(--qp-ink)', padding: '11px 22px', borderRadius: 99,
+        }}>
+          See how Qads works →
+        </Link>
+      </div>
+
+      <div className="qp-tilt-stage" style={{ marginTop: 'clamp(2.5rem,6vw,3.5rem)' }}>
+        <div className="qp-tilt-frame" ref={frameRef}>
+          {/* Placeholder — replace this <div className="qp-tilt-placeholder">...</div>
+              with: <video src="/qads-preview.mp4" autoPlay muted loop playsInline />
+              The .qp-tilt-frame wrapper (perspective/tilt/shadow/rounded corners)
+              applies to whatever's inside it, so a dropped-in <video> picks up the
+              same "3D canvas" framing automatically — no other change needed. */}
+          <div className="qp-tilt-placeholder">
+            <div className="qp-tilt-play"><Play size={22} fill="currentColor" style={{ marginLeft: 3 }} /></div>
+            <span>campaign preview — video coming soon</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -367,6 +422,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── QADS TEASER (2nd section — right after hero) ── */}
+      <QadsTeaser />
 
       {/* ── STEP FLOW ── */}
       <StepFlow />

@@ -49,17 +49,37 @@ export function ZoomGallery() {
     const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
     const lastIndex = REGIONS.length - 1
 
+    // Geometry cache: stickyTopOffset/scrollableRange/regionH only change on
+    // resize or content reflow (webfont load, etc.), never from scrolling
+    // itself — yet the old version re-read all three (via getComputedStyle +
+    // two offsetHeight reads, each a forced synchronous layout) on every
+    // single scroll-driven update(), on top of the one read that IS
+    // genuinely scroll-dependent (track.getBoundingClientRect()). That's 4
+    // forced layout reads/frame where only 1 is necessary — cheap on a
+    // desktop but a real source of scroll jank on mobile CPUs, and the
+    // direct cause of the "scroll-linked text doesn't track smoothly"
+    // report: the pan/zoom + chat-reveal are driven by this same per-frame
+    // math, so extra layout cost here shows up as visible stutter there.
+    // recomputeGeometry() runs once up front and again on resize/settle —
+    // update() itself now only does the one read it actually needs.
+    let stickyTopOffset = 0
+    let scrollableRange = 0
+    let regionH = 342
+    function recomputeGeometry() {
+      if (!track || !sticky) return
+      stickyTopOffset = parseInt(getComputedStyle(sticky).top, 10) || 0
+      scrollableRange = track.offsetHeight - sticky.offsetHeight
+      const region0 = regionRefs.current[0]
+      regionH = region0 ? region0.offsetHeight : 342
+    }
+
     function update() {
       if (!track || !sticky || !canvas) return
       const rect = track.getBoundingClientRect()
-      const stickyTopOffset = parseInt(getComputedStyle(sticky).top, 10) || 0
-      const scrollableRange = track.offsetHeight - sticky.offsetHeight
       let raw = -rect.top / (scrollableRange - stickyTopOffset)
       raw = clamp01(raw)
 
       const progress = raw * lastIndex
-      const region0 = regionRefs.current[0]
-      const regionH = region0 ? region0.offsetHeight : 342
 
       const localT = progress - Math.floor(progress)
       const zoomPulse = Math.sin(localT * Math.PI) * 0.035
@@ -92,21 +112,35 @@ export function ZoomGallery() {
       sticky.style.opacity = String(1 - exitT * 0.85)
     }
 
+    // Ticking guard: without it, a burst of scroll events inside one frame
+    // (common on mobile — touch-driven scroll can fire more scroll events
+    // than there are frames) queues one requestAnimationFrame per event, and
+    // they all run back-to-back once the frame is free, doing the same
+    // layout-read + style-write work multiple times for no visual benefit.
+    // At most one update() is now in flight per frame.
+    let ticking = false
     function onScroll() {
-      requestAnimationFrame(update)
+      if (ticking) return
+      ticking = true
+      requestAnimationFrame(() => { update(); ticking = false })
+    }
+    function onResize() {
+      recomputeGeometry()
+      update()
     }
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', update)
+    window.addEventListener('resize', onResize)
+    recomputeGeometry()
     update()
     // Geometry (sticky.offsetHeight / track.offsetHeight) can still be off on
     // first paint if webfonts or the region content reflow after mount —
     // recompute once shortly after so `raw`'s clamp point actually lines up
     // with the container's real bottom edge instead of drifting, which was
     // part of what made the pinned tail feel longer than intended.
-    const settleTimer = window.setTimeout(update, 400)
+    const settleTimer = window.setTimeout(() => { recomputeGeometry(); update() }, 400)
     return () => {
       window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', update)
+      window.removeEventListener('resize', onResize)
       window.clearTimeout(settleTimer)
     }
   }, [])

@@ -322,6 +322,64 @@
   .qnt-public .qp-bg-grid, .qnt-public .qp-bg-scan { animation: none; }
 }
 
+/* ── Qads homepage teaser — tilted "3D canvas" video frame ───────────────
+   perspective on the outer stage, rotateX/rotateY on the frame itself so
+   the video/placeholder reads as a physical panel angled in space rather
+   than a flat rectangle with rounded corners. Reveal (not continuous
+   scroll-parallax) on purpose: ZoomGallery already owns the page's one
+   continuous scroll listener, and a second one here would double the exact
+   jank risk that was just fixed there — a one-shot IntersectionObserver
+   settling the tilt in reads as motion without that cost. */
+.qnt-public .qp-tilt-stage { perspective: 1400px; display: flex; justify-content: center; position: relative; z-index: 2; }
+.qnt-public .qp-tilt-frame {
+  position: relative; width: min(760px, 100%); aspect-ratio: 16 / 10;
+  border-radius: var(--qp-r-lg);
+  transform: rotateX(10deg) rotateY(-12deg) scale(.92) translateY(28px);
+  opacity: 0;
+  transition: transform .9s cubic-bezier(.16,.8,.2,1), opacity .9s ease;
+  box-shadow:
+    0 50px 90px -35px rgba(0,0,0,.65),
+    0 0 0 1px var(--qp-glass-border),
+    0 0 70px -15px rgba(59,130,246,.4);
+  overflow: hidden;
+  transform-style: preserve-3d;
+}
+.qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(6deg) rotateY(-9deg) scale(1) translateY(0); opacity: 1; }
+.qnt-public .qp-tilt-frame:hover { transform: rotateX(2deg) rotateY(-4deg) scale(1.015) translateY(0); }
+.qnt-public .qp-tilt-frame video {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.qnt-public .qp-tilt-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(59,130,246,.3), transparent 55%),
+    radial-gradient(circle at 80% 90%, rgba(59,130,246,.16), transparent 60%),
+    linear-gradient(160deg, #131318, #0a0a0c);
+}
+.qnt-public .qp-tilt-play {
+  width: 60px; height: 60px; border-radius: 50%;
+  background: var(--qp-glass-bg-strong); border: 1px solid var(--qp-glass-border);
+  -webkit-backdrop-filter: blur(var(--qp-glass-blur)); backdrop-filter: blur(var(--qp-glass-blur));
+  display: flex; align-items: center; justify-content: center; color: var(--qp-ink);
+  box-shadow: var(--qp-glass-shadow);
+}
+.qnt-public .qp-tilt-placeholder span { font-family: var(--qp-mono); font-size: 12px; color: var(--qp-mut); letter-spacing: .02em; }
+/* Faint sheen crossing the panel diagonally — sells the "glass/canvas"
+   read at rest, not just via the shadow. */
+.qnt-public .qp-tilt-frame::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, rgba(255,255,255,.08) 0%, transparent 24%, transparent 76%, rgba(255,255,255,.04) 100%);
+}
+@media (max-width: 640px) {
+  /* Same treatment, shallower angle — a full desktop tilt reads as "broken
+     layout" rather than "3D panel" on a narrow phone viewport. */
+  .qnt-public .qp-tilt-frame { transform: rotateX(6deg) rotateY(-6deg) scale(.92) translateY(20px); aspect-ratio: 4 / 5; }
+  .qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(3deg) rotateY(-4deg) scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qnt-public .qp-tilt-frame { transition: none; }
+}
+
 /* ── Terminal typewriter line (hero) ──────────────────────────────────── */
 .qnt-public .qp-terminal {
   position: relative; z-index: 2; display: inline-flex; align-items: center;
