@@ -34,7 +34,7 @@ export const footerNav = {
     { label: 'Domains',    href: '/domains' },
     { label: 'Changelog',  href: '/changelog' },
     { label: 'Roadmap',    href: '/about#roadmap' },
-    { label: 'Qads',       href: '/qads' },
+    { label: 'Qads',       href: '/qads', badge: 'New' as const },
     { label: 'API',        href: '/api', badge: 'Soon' as const },
   ],
   company: [
