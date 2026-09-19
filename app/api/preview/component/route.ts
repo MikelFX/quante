@@ -100,7 +100,16 @@ ${comp.code}
   }
 })();
 
-// Report scroll height to parent so the iframe can auto-size
+// Report scroll height to parent so the iframe can auto-size. Previously
+// this used setTimeout(reportHeight, 200) as a "settle" fallback next to
+// the MutationObserver and load handler — same class of latent bug that
+// bit ZoomGallery on production: a fixed 200ms guess is not a signal
+// that layout has stabilized, and on slower connections a webfont swap
+// or late image decode landing after 200ms would leave the parent
+// iframe stuck at the pre-settle height (visible as a preview panel
+// clipping the last row of the custom component). ResizeObserver on the
+// documentElement fires exactly when the real box size changes, however
+// late that happens, so no timeout guess is needed.
 function reportHeight() {
   var h = document.documentElement.scrollHeight;
   if (h > 0) window.parent.postMessage({ type: '__qcc_height', height: h }, '*');
@@ -108,7 +117,11 @@ function reportHeight() {
 var mo = new MutationObserver(reportHeight);
 mo.observe(document.body, { childList: true, subtree: true, attributes: true });
 window.addEventListener('load', reportHeight);
-setTimeout(reportHeight, 200);
+if (typeof ResizeObserver !== 'undefined') {
+  var ro = new ResizeObserver(reportHeight);
+  ro.observe(document.documentElement);
+}
+reportHeight();
 </script>
 </body>
 </html>`
