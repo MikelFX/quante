@@ -132,16 +132,38 @@ export function ZoomGallery() {
     window.addEventListener('resize', onResize)
     recomputeGeometry()
     update()
-    // Geometry (sticky.offsetHeight / track.offsetHeight) can still be off on
-    // first paint if webfonts or the region content reflow after mount —
-    // recompute once shortly after so `raw`'s clamp point actually lines up
-    // with the container's real bottom edge instead of drifting, which was
-    // part of what made the pinned tail feel longer than intended.
-    const settleTimer = window.setTimeout(() => { recomputeGeometry(); update() }, 400)
+
+    // CONFIRMED REGRESSION (found via live production testing after this
+    // file's per-frame optimization shipped): a fixed 400ms "settle" timer is
+    // not a reliable signal that layout has actually stabilized. On the real
+    // site, webfont swap / late reflow can land after 400ms, so the cached
+    // stickyTopOffset/scrollableRange/regionH stayed wrong for the entire
+    // session — verified live by forcing a resize event well after page load,
+    // which snapped `raw` from an incorrectly-clamped ~1 (canvas jumped to the
+    // last region, label stuck on "checkout", chat log fully revealed, sticky
+    // already mid-exit-fade — all at scrollY equal to the track's own top,
+    // i.e. before the user had scrolled into the pinned section at all) back
+    // to the correct ~0. That one bug explained every symptom reported: the
+    // "empty blue box" (canvas landing on the wrong region), the "ghost chat
+    // bubbles" (opacity/exit-fade math run against a bogus `raw`), and the
+    // "scroll-linked text doesn't work" complaint predating this file's perf
+    // pass too.
+    //
+    // Fix: a ResizeObserver on the three elements that actually determine the
+    // cached geometry. It fires whenever their real box size changes for any
+    // reason (webfont swap, image decode, orientation change, content
+    // change) instead of guessing a timeout — recompute happens exactly when
+    // it needs to, however long that takes, with no reliance on a guessed
+    // delay.
+    const resizeObserver = new ResizeObserver(() => { recomputeGeometry(); update() })
+    resizeObserver.observe(track)
+    resizeObserver.observe(sticky)
+    if (regionRefs.current[0]) resizeObserver.observe(regionRefs.current[0])
+
     return () => {
       window.removeEventListener('scroll', onScroll)
       window.removeEventListener('resize', onResize)
-      window.clearTimeout(settleTimer)
+      resizeObserver.disconnect()
     }
   }, [])
 

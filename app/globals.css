@@ -357,11 +357,28 @@
     linear-gradient(160deg, #131318, #0a0a0c);
 }
 .qnt-public .qp-tilt-play {
+  position: relative;
   width: 60px; height: 60px; border-radius: 50%;
   background: var(--qp-glass-bg-strong); border: 1px solid var(--qp-glass-border);
   -webkit-backdrop-filter: blur(var(--qp-glass-blur)); backdrop-filter: blur(var(--qp-glass-blur));
   display: flex; align-items: center; justify-content: center; color: var(--qp-ink);
   box-shadow: var(--qp-glass-shadow);
+}
+/* Slow pulse ring — a correctly-centered icon on a lot of plain gradient
+   still reads as "dead" at a glance; one subtle looping cue is enough to
+   signal "this spot is alive, waiting for media" without competing with the
+   grid/scan ambient layers already running site-wide. */
+.qnt-public .qp-tilt-play::before {
+  content: ''; position: absolute; inset: -14px; border-radius: 50%;
+  border: 1px solid rgba(59,130,246,.35);
+  animation: qp-tilt-pulse 2.6s ease-out infinite;
+}
+@keyframes qp-tilt-pulse {
+  0% { transform: scale(.85); opacity: .8; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qnt-public .qp-tilt-play::before { animation: none; }
 }
 .qnt-public .qp-tilt-placeholder span { font-family: var(--qp-mono); font-size: 12px; color: var(--qp-mut); letter-spacing: .02em; }
 /* Faint sheen crossing the panel diagonally — sells the "glass/canvas"
@@ -372,8 +389,14 @@
 }
 @media (max-width: 640px) {
   /* Same treatment, shallower angle — a full desktop tilt reads as "broken
-     layout" rather than "3D panel" on a narrow phone viewport. */
-  .qnt-public .qp-tilt-frame { transform: rotateX(6deg) rotateY(-6deg) scale(.92) translateY(20px); aspect-ratio: 4 / 5; }
+     layout" rather than "3D panel" on a narrow phone viewport. Aspect ratio
+     was originally 4/5 (portrait) here — on a ~330px-wide phone that's a
+     ~410px-tall box holding one small centered icon+label, which reads as a
+     large dead/empty area even though the content IS correctly centered
+     (verified: not a positioning bug, just too much box for too little
+     content). 4/3 keeps it landscape — the natural shape for "a video" —
+     and roughly halves the empty margin around the play icon. */
+  .qnt-public .qp-tilt-frame { transform: rotateX(6deg) rotateY(-6deg) scale(.92) translateY(20px); aspect-ratio: 4 / 3; }
   .qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(3deg) rotateY(-4deg) scale(1) translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
