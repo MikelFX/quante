@@ -4,6 +4,6 @@
     { "path": "/api/cron/fulfillment-tracking", "schedule": "0 3 * * *" },
     { "path": "/api/cron/fulfillment-reconcile", "schedule": "15 3 * * *" },
     { "path": "/api/cron/fulfillment-stock", "schedule": "30 3 * * *" },
-    { "path": "/api/qads/cron/sync-metrics", "schedule": "0 */4 * * *" }
+    { "path": "/api/qads/cron/sync-metrics", "schedule": "45 3 * * *" }
   ]
 }

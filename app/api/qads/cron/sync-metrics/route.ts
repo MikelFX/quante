@@ -2,6 +2,13 @@
 // of insights (today + 2 days back, to catch late-attributed conversions) for every
 // live-deployed campaign, across every connected channel. Read-only against Meta/TikTok
 // (getInsights only) — safe to run regardless of QADS_LIVE_DEPLOY.
+//
+// SCHEDULE NOTE: vercel.json currently runs this once/day ("45 3 * * *"), not the
+// originally designed every-4-hours cadence ("0 */4 * * *") — Vercel's Hobby plan only
+// allows daily-or-coarser cron schedules, and this project is on Hobby. The 3-day
+// lookback window above already covers the gap fine (a day's spend/impressions just
+// land ~20h later than they ideally would on a same-day dashboard check). Revert the
+// vercel.json schedule to "0 */4 * * *" once the project is on a Pro plan.
 
 import { NextResponse } from 'next/server'
 import { syncAllCampaignMetrics } from '@/lib/qads/metrics/sync'
