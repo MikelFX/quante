@@ -43,10 +43,21 @@ function NavLink({ href, label, badge }: { href: string; label: string; badge?: 
   )
 }
 
+// `TODO(michal):` prefix on any operator field means "not yet filled in" —
+// the audit brief mandates a company block (QuanteCode s.r.o.) with the
+// legal fields deferred to a real fill-in pass. Any TODO field is
+// silently omitted from the rendered footer so a placeholder never leaks
+// to the public site. Also detects the older "[TO FILL IN]" convention
+// used in the previous config so an in-flight edit doesn't regress.
+function isFilled(v: string | undefined | null): v is string {
+  return !!v && !v.startsWith('TODO(michal)') && !v.includes('[TO')
+}
+
 export function SiteFooter() {
-  const icoFilled   = operator.ico  && !operator.ico.includes('[TO')
-  const dicFilled   = operator.dic  && !operator.dic.includes('[TO')
-  const emailFilled = operator.contactEmail && !operator.contactEmail.includes('[TO')
+  const addressFilled = isFilled(operator.address)
+  const icoFilled     = isFilled(operator.ico)
+  const dicFilled     = isFilled(operator.dic)
+  const emailFilled   = isFilled(operator.contactEmail)
 
   return (
     <footer style={{
@@ -108,18 +119,27 @@ export function SiteFooter() {
           </div>
         )}
 
-        {/* ── Impressum ── */}
+        {/* ── Legal entity block (Impressum) ──────────────────────────
+           Company block first, then a secondary line naming the
+           founder. Placeholder fields (still marked TODO(michal)) are
+           silently dropped so an unfilled config never surfaces a
+           "TODO" string to the public. */}
         <div style={{
           borderTop: '1px solid var(--qp-line-soft)',
           paddingTop: 24,
           marginBottom: 20,
         }}>
-          <p style={{ fontSize: 11.5, color: muted, lineHeight: 1.7 }}>
-            {operator.name} · {operator.role}
+          <p style={{ fontSize: 11.5, color: subtle, lineHeight: 1.7, fontWeight: 500 }}>
+            {operator.companyName}
           </p>
           <p style={{ fontSize: 11.5, color: muted, lineHeight: 1.7 }}>
-            {operator.address}
+            {operator.founderRole}: {operator.founderName}
           </p>
+          {addressFilled && (
+            <p style={{ fontSize: 11.5, color: muted, lineHeight: 1.7 }}>
+              {operator.address}
+            </p>
+          )}
           {icoFilled && (
             <p style={{ fontSize: 11.5, color: muted, lineHeight: 1.7 }}>
               IČO: {operator.ico}
@@ -146,7 +166,7 @@ export function SiteFooter() {
           gap: 8,
         }}>
           <p style={{ fontSize: 11.5, color: muted, margin: 0 }}>
-            © {new Date().getFullYear()} Quante
+            © {new Date().getFullYear()} {operator.companyName}
           </p>
           <div style={{ display: 'flex', gap: 16 }}>
             {[

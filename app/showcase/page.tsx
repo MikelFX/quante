@@ -5,6 +5,19 @@ import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
 
+// Data-driven list of live showcase stores. Every entry MUST resolve to a
+// real, deployed store — the audit brief's honesty rule (2.2). Anything
+// that isn't a real store yet stays out of this array; parking it in a
+// comment isn't enough, since a JSX .map() would render nothing without
+// an entry anyway.
+//
+// TODO(michal): add external customer stores. The two entries below are
+// both Quante-operated demo stores on stores.quantecode.com subdomains,
+// which is honest but not the strongest signal. When a customer ships a
+// live store on their own domain and is happy to be featured, drop an
+// entry here with their real URL and one line of copy. Every card links
+// out via target="_blank" rel="noopener noreferrer" (see the anchor
+// below) so their site opens cleanly, without a referrer leak.
 const LIVE_STORES = [
   {
     n: '01',
@@ -162,8 +175,8 @@ export default function ShowcasePage() {
           </p>
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
-            background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            background: 'var(--qp-accent)',
+            boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
             padding: '0.85rem 2rem', borderRadius: 99, display: 'inline-block',
           }}>
             Start for free →

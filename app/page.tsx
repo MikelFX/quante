@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2, Play } from 'lucide-react'
+import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2 } from 'lucide-react'
 import { CREDIT_PACKS, getPerCreditDisplay, getGenerationsCaption, formatHostingMonthly } from '@/lib/pricing'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
@@ -21,7 +21,7 @@ const HERO_SHOWCASE = {
 const STACK_CARDS = [
   { n: '01', icon: Rocket, title: 'Live in 3 minutes', desc: 'Click Deploy. Quante provisions hosting, SSL, and your subdomain automatically. Zero server setup, zero DevOps.' },
   { n: '02', icon: Download, title: "It's yours to keep", desc: 'Download the source, host it anywhere, change whatever you want. No lock-in, no strings attached.' },
-  { n: '03', icon: CheckCircle2, title: 'It just works', desc: 'The AI handles your design and copy. The code underneath is solid — it builds and runs without issues every time.' },
+  { n: '03', icon: CheckCircle2, title: 'It just works', desc: 'The AI handles your design and copy. Every build is compiled and checked before you’re charged — nothing lands broken.' },
   { n: '04', icon: MessageSquareText, title: 'Change anything in seconds', desc: '"Make it warmer." "Try a split layout." One message, one credit — and you see it update live.' },
   { n: '05', icon: History, title: 'Nothing gets lost', desc: 'Every change is saved automatically. Went too far? Jump back to any earlier version in one tap.' },
 ]
@@ -227,7 +227,7 @@ function BentoGrid() {
       <div className="qp-tile qp-t-hosting">
         <div className="qp-t-head"><h3>Hosting</h3><span className="qp-t-go">↗</span></div>
         <div className="qp-big-num">99.9<span style={{ fontSize: 16 }}>%</span></div>
-        <div className="qp-big-cap">uptime SLA, global CDN</div>
+        <div className="qp-big-cap">uptime target, global CDN</div>
       </div>
       <div className="qp-tile qp-t-checkout">
         <div className="qp-t-head"><h3>Payments</h3><span className="qp-t-go">↗</span></div>
@@ -251,6 +251,15 @@ function BentoGrid() {
 // ─── Qads homepage teaser (2nd section, right after the hero) ─────────────────
 // Video is a placeholder until the user supplies the real clip — see the
 // comment inside .qp-tilt-frame below for exactly what to swap in.
+
+// Feature-flag for the Qads teaser video panel. NEXT_PUBLIC_QADS_TEASER_VIDEO
+// is a public env var (baked into the client bundle at build time) that
+// holds the src URL of the real preview clip. If unset, the tilted video
+// panel is not rendered at all — the title + copy + CTA stay so the
+// section still tells a first-time visitor what Qads is and links out
+// to /qads, but no "coming soon" placeholder is shown on production.
+// Audit brief 2.3.
+const QADS_TEASER_VIDEO_SRC = process.env.NEXT_PUBLIC_QADS_TEASER_VIDEO ?? ''
 
 function QadsTeaser() {
   const frameRef = useRef<HTMLDivElement>(null)
@@ -286,19 +295,15 @@ function QadsTeaser() {
         </Link>
       </div>
 
-      <div className="qp-tilt-stage" style={{ marginTop: 'clamp(2.5rem,6vw,3.5rem)' }}>
-        <div className="qp-tilt-frame" ref={frameRef}>
-          {/* Placeholder — replace this <div className="qp-tilt-placeholder">...</div>
-              with: <video src="/qads-preview.mp4" autoPlay muted loop playsInline />
-              The .qp-tilt-frame wrapper (perspective/tilt/shadow/rounded corners)
-              applies to whatever's inside it, so a dropped-in <video> picks up the
-              same "3D canvas" framing automatically — no other change needed. */}
-          <div className="qp-tilt-placeholder">
-            <div className="qp-tilt-play"><Play size={22} fill="currentColor" style={{ marginLeft: 3 }} /></div>
-            <span>campaign preview — video coming soon</span>
+      {QADS_TEASER_VIDEO_SRC && (
+        <div className="qp-tilt-stage" style={{ marginTop: 'clamp(2.5rem,6vw,3.5rem)' }}>
+          <div className="qp-tilt-frame" ref={frameRef}>
+            {/* The .qp-tilt-frame wrapper carries the tilt/shadow/rounded-
+                corner treatment; the <video> inside just needs to fill it. */}
+            <video src={QADS_TEASER_VIDEO_SRC} autoPlay muted loop playsInline />
           </div>
         </div>
-      </div>
+      )}
     </section>
   )
 }
@@ -400,14 +405,17 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── QADS TEASER (2nd section — right after hero) ── */}
-      <QadsTeaser />
-
       {/* ── STEP FLOW ── */}
       <StepFlow />
 
       {/* ── STUDIO CONSISTENCY DEMO ── */}
       <StudioDemo />
+
+      {/* ── QADS TEASER — moved from directly under the hero so a first-time
+          visitor understands the core product (describe → generate → publish
+          via the Studio) before being pitched an add-on capability. Audit
+          brief 2.4. */}
+      <QadsTeaser />
 
       {/* ── LIVING GALLERY (scroll-linked page zoom + accumulating chat) ── */}
       <section style={{ padding: 'clamp(3rem,7vw,5rem) 1.5rem', position: 'relative' }}>

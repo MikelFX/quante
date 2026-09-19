@@ -12,6 +12,12 @@ const TRAP_CARDS = [
   { n: '04', title: 'Time spent learning their UI', desc: "Every locked builder has its own quirks. Hours invested learning a tool you can't take with you. Skills that evaporate when you switch." },
 ]
 
+// Public roadmap restricted to the e-commerce product line per audit brief
+// 2.5 (Quante's roadmap on this page was jumping from e-commerce to games
+// to stock-market analysis, which reads as unfocused for a v1 marketing
+// site). QuanteCreate and QuanteMarket are parked below in a comment
+// block, not deleted — Michal's copy is preserved verbatim so it can be
+// restored if / when the roadmap re-expands, without a git-history dig.
 const ROADMAP = [
   {
     code: 'I', name: 'QuanteCode', status: 'shipping now', statusColor: 'var(--qp-mint)',
@@ -21,20 +27,43 @@ const ROADMAP = [
     accent: 'var(--qp-accent)',
   },
   {
-    code: 'II', name: 'QuanteCreate', status: 'in research', statusColor: '#C9913A',
-    headline: 'Games. Apps. Anything complex.',
-    desc: 'The same philosophy applied to richer projects — multiplayer games, internal tools, simulations. Describe the system, own the source.',
-    bullets: ['Multi-file project graphs', 'Stateful backends included', 'Game-engine adapters', 'Same export-first promise'],
-    accent: '#C2569E',
+    code: 'II', name: 'Qads', status: 'new', statusColor: 'var(--qp-accent)',
+    headline: 'Your store, turned into a campaign.',
+    desc: 'Same store, one more description away from a full Meta and TikTok campaign — strategy, copy, creatives and video, drafted and paused for your review.',
+    bullets: ['Reads your live catalog + brand kit', 'Claude drafts strategy and copy', 'Higgsfield generates ad video', 'Nothing goes live without your approval'],
+    accent: 'var(--qp-accent)',
   },
   {
-    code: 'III', name: 'QuanteMarket', status: 'on the horizon', statusColor: 'var(--qp-mut)',
-    headline: 'Stock-market analysis that thinks.',
-    desc: 'Describe a thesis, a signal, a portfolio. Quante reasons about markets in real time — and gives you the workbook, not just the answer.',
-    bullets: ['Live multi-source ingestion', 'Custom signal generation', 'Backtests as code', 'Exportable strategy files'],
-    accent: 'var(--qp-mint)',
+    code: 'III', name: 'API', status: 'planned', statusColor: 'var(--qp-mut)',
+    headline: 'Programmatic access to the same engine.',
+    desc: 'Generate, iterate and export stores directly from your own tooling — the same manifest pipeline the Studio uses, exposed as a stable HTTP API.',
+    bullets: ['Same generation quality as the Studio', 'Metered per credit, no separate plan', 'Webhook + polling paths', 'Full manifest read/write'],
+    accent: 'var(--qp-mut)',
   },
 ]
+
+// ── Parked roadmap entries (not currently rendered) ─────────────────────────
+//   Restored on request by editing the ROADMAP array above and either
+//   dropping one of the current items or lengthening the section. Do
+//   not delete the copy below — it's the authored source, not fill.
+//
+// { code: 'II', name: 'QuanteCreate', status: 'in research', statusColor: '#C9913A',
+//   headline: 'Games. Apps. Anything complex.',
+//   desc: 'The same philosophy applied to richer projects — multiplayer games,
+//         internal tools, simulations. Describe the system, own the source.',
+//   bullets: ['Multi-file project graphs', 'Stateful backends included',
+//             'Game-engine adapters', 'Same export-first promise'],
+//   accent: '#C2569E' },
+//
+// { code: 'III', name: 'QuanteMarket', status: 'on the horizon',
+//   statusColor: 'var(--qp-mut)',
+//   headline: 'Stock-market analysis that thinks.',
+//   desc: 'Describe a thesis, a signal, a portfolio. Quante reasons about
+//         markets in real time — and gives you the workbook, not just the
+//         answer.',
+//   bullets: ['Live multi-source ingestion', 'Custom signal generation',
+//             'Backtests as code', 'Exportable strategy files'],
+//   accent: 'var(--qp-mint)' }
 
 const LOOP = [
   { label: 'Describe', deg: 0, color: 'var(--qp-accent)' },
@@ -61,16 +90,16 @@ export default function AboutPage() {
         <div style={{ maxWidth: 780, margin: '0 auto', textAlign: 'center' }}>
           <SectionKicker n="about quante" label="why we built this" />
           <h1 style={{ fontSize: 'clamp(32px,6vw,54px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.1, margin: '0 0 20px' }}>
-            Not a tool.<br />
+            You build the work.<br />
             <span style={{
               background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, var(--qp-accent-light))',
               WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
             }}>
-              A path.
+              They keep the keys.
             </span>
           </h1>
           <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 540, margin: '0 auto' }}>
-            Most AI builders rent you access. We hand you the keys. Quante is a project that builds projects — and the next one always goes further than the last.
+            Most AI builders rent you access. Quante hands you the source. What you generate here is a real Next.js project you own outright — export it any time, host it anywhere, keep it running long after we stop existing.
           </p>
         </div>
       </section>
@@ -84,7 +113,7 @@ export default function AboutPage() {
         <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
           <SectionKicker n="01" label="the problem with AI builders today" />
           <h2 style={{ fontSize: 'clamp(22px,3.4vw,32px)', fontWeight: 800, letterSpacing: '-.025em', lineHeight: 1.2, margin: 0 }}>
-            You build the work. They keep the keys.
+            Four ways builders pin you down.
           </h2>
 
           <div className="qp-feature-grid" style={{ textAlign: 'left' }}>

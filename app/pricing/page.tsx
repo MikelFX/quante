@@ -12,6 +12,7 @@ import {
   getGenerationsCaption,
   getPackDescription,
 } from '@/lib/pricing'
+import { AGENCY_PROJECT_LIMIT } from '@/lib/config'
 import { PRICING_FAQ } from '@/lib/faq'
 import { AgencyCheckoutButton } from '@/components/AgencyCheckoutButton'
 import { SiteFooter } from '@/components/SiteFooter'
@@ -32,10 +33,16 @@ const HOSTING_ROWS = [
   { label: 'Re-deploy after edits', value: 'Same URL, same domain — just updated',                   mono: false },
 ]
 
+// AGENCY_PROJECT_LIMIT is enforced server-side (see lib/tier.ts and the
+// Stripe webhook that sets project_limit on the user row). The marketing
+// bullet used to read "Unlimited projects — no active-store cap", which
+// contradicts the enforced limit. Bullet re-worded to match the code;
+// bump AGENCY_PROJECT_LIMIT in lib/config.ts if the intent is actually
+// unlimited. Audit brief 2.1.
 const AGENCY_FEATURES = [
   'Batch-generate up to 20 stores in one prompt',
   'Each store gets its own name, niche & design',
-  'Unlimited projects — no active-store cap',
+  `Up to ${AGENCY_PROJECT_LIMIT} active projects — no active-store cap`,
   'Full ZIP export on every project',
   'White-label: zero platform traces',
   'Priority generation queue',
