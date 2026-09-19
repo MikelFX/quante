@@ -34,9 +34,11 @@ export async function POST(request: Request) {
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  // Credits check (skip for agency)
+  // Credits check (skip for agency; skip when cost is 0 — regular export is
+  // free per audit brief 1.4, so the balance read and 402 gate below don't
+  // run for it. includeAdmin is still 10 credits and still gated).
   let balance = 0
-  if (!agency) {
+  if (!agency && cost > 0) {
     const { data: ledger } = await supabase
       .from('credit_ledger')
       .select('balance_after')
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
       .select('id')
       .single()
 
-    if (!agency) {
+    if (!agency && cost > 0) {
       await supabase.from('credit_ledger').insert({
         user_id: userId,
         delta: -cost,
@@ -165,7 +167,7 @@ export async function POST(request: Request) {
       .select('id')
       .single()
 
-    if (!agency) {
+    if (!agency && cost > 0) {
       await supabase.from('credit_ledger').insert({
         user_id: userId,
         delta: -cost,

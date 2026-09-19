@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
-import { stripe, CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
+import { stripe, isStripeConfigured } from '@/lib/stripe'
+import { CREDIT_PACKS, getPackDescription } from '@/lib/pricing'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     line_items: [{
       price_data: {
         currency: 'usd',
-        product_data: { name: `${pack.credits} Quante Credits`, description: pack.description },
+        product_data: { name: `${pack.credits} Quante Credits`, description: getPackDescription(pack) },
         unit_amount: pack.priceCents,
       },
       quantity: 1,

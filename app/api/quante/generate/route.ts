@@ -16,9 +16,11 @@ import type { GenerationPhase } from '@/lib/generation-poll'
 // `after()`'s callback runs within this SAME budget — it does not grant extra time beyond it.
 export const maxDuration = 300
 
+import { CREDIT_COSTS } from '@/lib/config'
+
 const PRIMARY_MODEL = MODELS.generation
 const FALLBACK_MODEL = MODELS.fallback
-const GENERATE_COST = 10
+const GENERATE_COST = CREDIT_COSTS.generate
 const GENERATE_RATE_LIMIT = 5
 // Sized for the previously-planned 128k-output primary. Opus 4.7 may reject
 // this — if the API 400s on max_tokens, drop back to 64000 (current Claude 4

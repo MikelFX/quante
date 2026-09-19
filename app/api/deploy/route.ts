@@ -18,7 +18,14 @@ import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 60
 
-const DEPLOY_COST = 5
+// Deploy is gated on an active hosting plan (30-day trial after first
+// successful deploy, then a hosting_subscriptions row with status
+// 'active' or 'trialing'), not on a credit balance — see the check at
+// hostingTrialEndsAt below. Users without a plan hit the existing 402
+// SUBSCRIPTION_REQUIRED upsell path; users with a plan pay 0 credits
+// per deploy. Preview deploy stays at 2 credits (short-lived preview
+// URL, no subdomain, used for validation without touching the live
+// store).
 const PREVIEW_DEPLOY_COST = CREDIT_COSTS.preview_deploy
 
 // ─── POST /api/deploy ─────────────────────────────────────────────────────────
@@ -150,22 +157,11 @@ export async function POST(request: Request) {
     }
   }
 
-  // Credits check
-  const { data: ledger } = await supabase
-    .from('credit_ledger')
-    .select('balance_after')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const balance = ledger?.balance_after ?? 0
-  if (balance < DEPLOY_COST) {
-    return NextResponse.json(
-      { error: `Insufficient credits. Need ${DEPLOY_COST}, have ${balance}.` },
-      { status: 402 },
-    )
-  }
+  // Production deploy no longer costs credits — hosting-plan-gated (see
+  // trial/subscription check above). The debit block on the GET status
+  // handler is removed too so no ledger row is written for a successful
+  // production deploy. Preview deploy still charges 2 credits and is
+  // handled entirely in the type === 'preview' branch above.
 
   // Load latest code version
   const { data: version } = await supabase
@@ -389,10 +385,15 @@ export async function GET(request: Request) {
     // fix, and by the 2-credit manual "Preview deploy"). Only a real "Push to Live"
     // production deploy — the one that went through the POST branch above with
     // type !== 'preview' — sets `domain`. Free/preview deployment rows always have
-    // domain = null. Trial-start and the 5-credit debit must only fire for the real
-    // production deploy; gating on `domain` prevents silently starting the 30-day trial
-    // clock or charging credits when a free validation/preview build happens to finish
-    // while this same status route is being polled for it.
+    // domain = null. Trial-start must only fire for the real production deploy;
+    // gating on `domain` prevents silently starting the 30-day trial clock when a
+    // free validation / preview build happens to finish while this same status
+    // route is being polled for it.
+    //
+    // Deploy credit debit removed (audit round: pricing consistency). Production
+    // deploys are covered by the active hosting plan (trial or subscription); no
+    // per-deploy ledger row is written. Preview deploys still debit 2 credits in
+    // the type === 'preview' POST branch above.
     if (domain) {
       // Start 30-day trial on the project if this is the first successful deploy
       await supabaseAdmin
@@ -400,26 +401,6 @@ export async function GET(request: Request) {
         .update({ hosting_trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() })
         .eq('id', row.project_id)
         .is('hosting_trial_ends_at', null)
-
-      // Debit credits (after row update — user only charged on confirmed success)
-      const { data: ledger } = await supabaseAdmin
-        .from('credit_ledger')
-        .select('balance_after')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const balance = ledger?.balance_after ?? 0
-      if (balance >= DEPLOY_COST) {
-        await supabaseAdmin.from('credit_ledger').insert({
-          user_id: userId,
-          delta: -DEPLOY_COST,
-          reason: 'deploy',
-          ref_id: row.id,
-          balance_after: balance - DEPLOY_COST,
-        })
-      }
     }
 
     return NextResponse.json({ status: 'ready', url: finalUrl, domain })
