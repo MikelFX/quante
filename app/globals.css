@@ -573,7 +573,16 @@
 }
 @media (max-width: 640px) {
   .qnt-public .qp-bento {
-    grid-template-columns: 1fr 1fr; grid-template-rows: repeat(6, 120px);
+    /* Rows were repeat(6, 120px) — a hard fixed height that clipped the
+       Payments and Domains tiles on real phones: at 375px each column is
+       ~170px wide, so `Stripe Checkout built in from day one.` and the
+       mini-card below it wrap to a total > 120px, and .qp-tile's
+       overflow: hidden cut the mini-card in half (visible in the field
+       report as a "Payment" text sliver bleeding below the frame). Using
+       minmax lets each row grow to whichever tile in it is tallest while
+       keeping 120px as a visual floor for the single-content tiles
+       (analytics/hosting/ai). */
+    grid-template-columns: 1fr 1fr; grid-template-rows: repeat(6, minmax(120px, auto));
     grid-template-areas: "export export" "export export" "admin admin" "analytics hosting" "checkout domains" "ai ai";
   }
 }
