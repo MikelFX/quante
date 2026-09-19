@@ -36,22 +36,21 @@ export function AnnouncementBanner() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(90deg,rgba(79,91,213,.15) 0%,rgba(111,120,230,.10) 50%,rgba(79,91,213,.15) 100%)',
-        borderBottom: '1px solid rgba(111,120,230,.22)',
-        backdropFilter: 'blur(8px)',
+        background: '#0A0A0A',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
         fontSize: 13,
-        color: '#b8b8cc',
+        color: '#FFFFFF',
         padding: '0 56px',
         gap: 6,
       }}
     >
-      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10.5, letterSpacing: '.09em', color: '#6f78e6', marginRight: 6 }}>
+      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10.5, letterSpacing: '.09em', color: 'rgba(255,255,255,.65)', marginRight: 6 }}>
         NEW
       </span>
       Connect your own domain to your store, powered by {domainProvider.name}{' '}
       <Link
         href="/domains"
-        style={{ color: '#a5abf0', textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap' }}
+        style={{ color: '#FFFFFF', textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap' }}
       >
         Learn more →
       </Link>
@@ -64,7 +63,7 @@ export function AnnouncementBanner() {
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          color: '#5b5b64',
+          color: 'rgba(255,255,255,.65)',
           fontSize: 18,
           lineHeight: 1,
           padding: '4px 6px',

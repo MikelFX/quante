@@ -63,7 +63,7 @@ export default function AboutPage() {
           <h1 style={{ fontSize: 'clamp(32px,6vw,54px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.1, margin: '0 0 20px' }}>
             Not a tool.<br />
             <span style={{
-              background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, #7A72FF)',
+              background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, var(--qp-accent-light))',
               WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
             }}>
               A path.
@@ -90,7 +90,7 @@ export default function AboutPage() {
           <div className="qp-feature-grid" style={{ textAlign: 'left' }}>
             {TRAP_CARDS.map(card => (
               <GlassCard key={card.n} className="qp-feature-card">
-                <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 12, color: '#D6534A' }}>{card.n}</span>
+                <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 12, color: '#B8443A' }}>{card.n}</span>
                 <p style={{ display: 'block', margin: '10px 0 8px', fontSize: 16.5, fontWeight: 700, letterSpacing: '-.015em' }}>{card.title}</p>
                 <p style={{ margin: 0, fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.55 }}>{card.desc}</p>
               </GlassCard>
@@ -118,12 +118,12 @@ export default function AboutPage() {
 
           <div className="qp-feature-grid manifesto-compare" style={{ maxWidth: 760, textAlign: 'left' }}>
             <GlassCard className="qp-feature-card">
-              <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: '#D6534A', margin: '0 0 14px' }}>
+              <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 10.5, letterSpacing: '.08em', textTransform: 'uppercase', color: '#B8443A', margin: '0 0 14px' }}>
                 Other AI builders
               </p>
               {['Monthly subscription forever', 'Export is a premium add-on', 'Your code lives in their cloud', 'Pricing changes = held hostage'].map(t => (
                 <p key={t} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.5, margin: '0 0 10px' }}>
-                  <span style={{ color: '#D6534A' }}>✕</span> {t}
+                  <span style={{ color: '#B8443A' }}>✕</span> {t}
                 </p>
               ))}
             </GlassCard>

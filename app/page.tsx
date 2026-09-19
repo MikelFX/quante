@@ -358,8 +358,8 @@ export default function HomePage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 30, flexWrap: 'wrap' }}>
               <Link href="/signup" style={{
                 fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
-                background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-                boxShadow: '0 1px 0 rgba(255,255,255,.2) inset, 0 -2px 6px rgba(0,0,0,.25) inset, 0 10px 22px -8px rgba(59,130,246,.55)',
+                background: 'var(--qp-accent)',
+                boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
                 padding: '14px 26px', borderRadius: 99,
               }}>
                 Try it free →
@@ -471,7 +471,7 @@ export default function HomePage() {
               </p>
               {['Set up a server or Vercel account', 'Configure DNS and SSL yourself', 'DevOps before your first sale', 'Hours before you can share a link'].map(t => (
                 <p key={t} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, fontSize: 13.5, color: 'var(--qp-sub)', lineHeight: 1.5, margin: '0 0 10px' }}>
-                  <span style={{ color: '#D6534A' }}>✕</span> {t}
+                  <span style={{ color: '#B8443A' }}>✕</span> {t}
                 </p>
               ))}
             </GlassCard>
@@ -593,7 +593,7 @@ export default function HomePage() {
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: 44, position: 'relative', zIndex: 2, padding: '0 1rem' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--qp-accent-wash)',
-            border: '1px solid rgba(59,130,246,.28)', borderRadius: 99, padding: '9px 18px',
+            border: '1px solid var(--qp-line)', borderRadius: 99, padding: '9px 18px',
             fontFamily: 'var(--qp-mono)', fontSize: 'clamp(10.5px,3vw,12.5px)', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden',
           }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--qp-accent)', boxShadow: '0 0 0 4px var(--qp-accent-wash)', flexShrink: 0 }} />
@@ -670,8 +670,8 @@ export default function HomePage() {
           </p>
           <Link href="/signup" style={{
             fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
-            background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            background: 'var(--qp-accent)',
+            boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
             padding: '14px 26px', borderRadius: 99, display: 'inline-block',
           }}>
             Try it free →

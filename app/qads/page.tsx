@@ -41,7 +41,7 @@ export default function QadsPage() {
           <h1 style={{ fontSize: 'clamp(32px,6vw,54px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.1, margin: '0 0 20px' }}>
             Your store, turned into a{' '}
             <span style={{
-              background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, #7A72FF)',
+              background: 'linear-gradient(100deg,var(--qp-accent-deep),var(--qp-accent) 45%, var(--qp-accent-light))',
               WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
             }}>
               campaign.

@@ -102,67 +102,83 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════════
-   Public site theme — dark, technical, one accent (blue).
-   REPLACES the earlier light + glassmorphism theme wholesale (approved
-   R1–R6 mockup port). Scoped entirely under `.qnt-public` so it can never
-   leak into the app shell / Studio, which already run their own dark
-   :root tokens above — those two dark palettes are now siblings in the
-   same family rather than a light/dark split. Applied by wrapping every
-   public/marketing page's root element in `.qnt-public` (done once, in
-   PublicNav's parent wrapper per page).
+   Public site theme — light, minimal, black as the one accent.
+   REPLACES the earlier dark-cyberpunk palette wholesale (round-3 direction
+   change). Scoped entirely under `.qnt-public` so it can never leak into
+   the app shell / Studio, which are still driven by the dark `:root`
+   tokens above — those two are now genuinely a light-vs-dark pair (light
+   marketing / dark tool), not two shades of the same dark theme.
    The `qp-*` variable NAMES are kept as-is on purpose even though the
-   values are now dark — every consumer (GlassCard, IconTile, FeatureCard,
-   ShelfBackground, SiteFooter, PublicNav, every page under app/) already
-   reads these variables, so repointing the values here cascades the whole
-   site to the new palette without having to touch each call site.
+   values are now light — every consumer (GlassCard, IconTile, FeatureCard,
+   SiteFooter, PublicNav, every page under app/(marketing) and the public
+   roots) already reads these variables, so repointing the values here
+   cascades the whole marketing site to the new palette without having
+   to touch each call site individually. Downstream tweaks in this file
+   (glass utilities, clay tiles, ambient FX, terminal, hero visuals) are
+   handled in the sibling rule blocks below.
+   Design language: Linear / Vercel-tier minimalism — white surfaces,
+   near-black text, a single black accent for CTAs / focus states, no
+   competing colours, no gradients-as-decoration, tiny hairlines, tiny
+   shadows, small radii, no ambient glow.
    ════════════════════════════════════════════════════════════════════════ */
 .qnt-public {
-  --qp-bg: #0A0A0B;
-  --qp-bg-alt: #0d0d10;
-  --qp-surface: #131316;
-  --qp-ink: #F5F5F7;
-  --qp-sub: #A8A8B0;
+  --qp-bg: #FFFFFF;
+  --qp-bg-alt: #F7F7F8;
+  --qp-surface: #FFFFFF;
+  --qp-ink: #0A0A0A;
+  --qp-sub: #52525A;
   --qp-mut: #8A8A92;
-  --qp-line: rgba(255,255,255,.10);
-  --qp-line-soft: rgba(255,255,255,.08);
+  --qp-line: rgba(0,0,0,.09);
+  --qp-line-soft: rgba(0,0,0,.06);
 
-  --qp-accent: #3B82F6;
-  --qp-accent-light: #7db2ff;
-  --qp-accent-deep: #2563EB;
-  --qp-accent-wash: rgba(59,130,246,.14);
-  /* The former "mint" (success/positive) tone is kept as a variable so the
-     comparison-card / checkmark-list usages don't need touching, but it's
-     no longer a second accent — it's just a slightly cooler-desaturated
-     read of the one blue accent, so the "exactly one accent colour"
-     constraint from the design brief still holds. */
-  --qp-mint: #3B82F6;
-  --qp-mint-light: #7db2ff;
-  --qp-mint-wash: rgba(59,130,246,.14);
+  /* One accent, black. `--qp-accent-*` names kept so no call site changes;
+     the "light/deep" scale is just charcoal shades so any gradient built
+     from these degrades gracefully to a monochrome shade-of-black wash
+     rather than pretending to be a hue transition. */
+  --qp-accent: #0A0A0A;
+  --qp-accent-light: #3A3A40;
+  --qp-accent-deep: #000000;
+  --qp-accent-wash: rgba(0,0,0,.05);
+  /* "mint" (positive/Quante-side) kept as a variable so the comparison-card
+     checkmark list doesn't need touching, but folded into the one black
+     accent — no green anywhere in the minimal direction. */
+  --qp-mint: #0A0A0A;
+  --qp-mint-light: #3A3A40;
+  --qp-mint-wash: rgba(0,0,0,.05);
 
-  --qp-shelf: rgba(59,130,246,.10);
-  --qp-shelf-soft: rgba(59,130,246,.05);
-  --qp-shelf-b: rgba(59,130,246,.16);
-  --qp-shelf-b-soft: rgba(59,130,246,.07);
+  /* "shelf" (was blue tint band behind hero) — now transparent so the
+     ShelfBackground element (still rendered on some pages) doesn't paint
+     a coloured stripe over the clean white; can be re-tinted later if a
+     subtle grey band is wanted. */
+  --qp-shelf: transparent;
+  --qp-shelf-soft: transparent;
+  --qp-shelf-b: transparent;
+  --qp-shelf-b-soft: transparent;
 
-  /* Glassmorphism doesn't read the same way on a near-black background —
-     translucent light panels over dark just look like grey smudges. Ported
-     surfaces use a solid dark card + hairline border instead (matching the
-     mockup's `.screen`/`.tile`/`.gallery-scene` treatment); these glass
-     variables stay defined (nothing consuming them needs to change) but
-     now describe a dark glass — a faint lightening wash, not a white blur. */
-  --qp-glass-bg: rgba(255,255,255,.05);
-  --qp-glass-bg-strong: rgba(255,255,255,.08);
-  --qp-glass-border: rgba(255,255,255,.14);
-  --qp-glass-blur: 16px;
-  --qp-glass-shadow: 0 12px 34px -12px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  /* Glass utility is now a solid white card + hairline border + tiny
+     shadow, not a translucent backdrop-blur panel — glassmorphism was a
+     dark-theme readability workaround, over pure white it just adds
+     noise. Blur is set to 0 so any leftover backdrop-filter rules are
+     effectively no-ops without needing to strip every rule. */
+  --qp-glass-bg: #FFFFFF;
+  --qp-glass-bg-strong: #FAFAFB;
+  --qp-glass-border: rgba(0,0,0,.09);
+  --qp-glass-blur: 0px;
+  --qp-glass-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px -14px rgba(0,0,0,.08);
 
-  --qp-shadow-clay: 0 1px 1px rgba(0,0,0,.3), 0 8px 20px -6px rgba(0,0,0,.5), 0 24px 48px -20px rgba(59,130,246,.25);
-  --qp-shadow-clay-sm: 0 1px 1px rgba(0,0,0,.3), 0 6px 14px -6px rgba(0,0,0,.45);
-  --qp-shadow-card: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.5);
+  /* Shadows scaled way down — a minimal site is defined by hairlines and
+     air, not dramatic drop shadows. Enough elevation to separate a card
+     from the page, nothing more. */
+  --qp-shadow-clay:    0 1px 2px rgba(0,0,0,.04), 0 8px 20px -10px rgba(0,0,0,.08);
+  --qp-shadow-clay-sm: 0 1px 1px rgba(0,0,0,.04), 0 4px 12px -6px rgba(0,0,0,.06);
+  --qp-shadow-card:    0 1px 2px rgba(0,0,0,.04), 0 8px 24px -14px rgba(0,0,0,.08);
 
-  --qp-r-lg: 28px;
-  --qp-r-md: 20px;
-  --qp-r-sm: 14px;
+  /* Radii scaled slightly tighter — Linear/Vercel-style is closer to
+     12–14 than to 20+ on cards; hero-scale surfaces still get 20 as a
+     visual anchor. */
+  --qp-r-lg: 20px;
+  --qp-r-md: 12px;
+  --qp-r-sm: 8px;
   --qp-sp-kicker: 14px;
   --qp-sp-lead: 20px;
   --qp-sp-block: 52px;
@@ -184,95 +200,95 @@
   background: var(--qp-accent); box-shadow: 0 0 0 4px var(--qp-accent-wash); flex-shrink: 0;
 }
 
-/* ── Glass utility — the primary panel style ─────────────────────────── */
+/* ── Glass utility — was translucent-blur, now a plain white card + tiny
+   hairline + tiny shadow. Same class name so call sites don't move; the
+   backdrop-filter with a 0px blur is a no-op that leaves any inline
+   backdrop-filter overrides working without needing a separate rule. */
 .qnt-public .qp-glass {
   background: var(--qp-glass-bg);
-  -webkit-backdrop-filter: blur(var(--qp-glass-blur)) saturate(160%);
-  backdrop-filter: blur(var(--qp-glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--qp-glass-blur));
+  backdrop-filter: blur(var(--qp-glass-blur));
   border: 1px solid var(--qp-glass-border);
   box-shadow: var(--qp-glass-shadow);
   border-radius: var(--qp-r-md);
 }
 .qnt-public .qp-glass-strong { background: var(--qp-glass-bg-strong); }
 
-/* ── "Liquid glass" — RETIRED as an effect. Translucent, SVG-refracted
-   panels were tuned for a light background; over near-black they just read
-   as a grey smudge, and the feDisplacementMap distortion (still defined in
-   <LiquidGlassDefs>, now unused) bought nothing once the underlying content
-   is a solid dark card. Same class names are kept so no call site needs
-   touching — every prominent surface (hero store card, comparison card,
-   popular pricing card) now gets a solid dark card with a bright hairline
-   rim + soft blue corner glow instead, matching the mockup's `.screen` /
-   `.tile` treatment. */
+/* ── "Liquid glass" — kept as class name for the JSX call sites (hero store
+   card, comparison card, popular pricing card). Under the light minimal
+   theme it's just a white card with the same hairline + shadow as .qp-glass;
+   the ::before / ::after radial-gradient washes that painted a blue-glow
+   corner over the old dark cards are killed (they don't read on white),
+   and .qp-tint-mint (former positive/Quante side) collapses to the same
+   plain-white card since the whole site now has one accent (black), not
+   two hue variants. */
 .qnt-public .qp-liquid-glass {
   position: relative;
   background: var(--qp-surface);
   border: 1px solid var(--qp-line);
   box-shadow: var(--qp-glass-shadow);
 }
-.qnt-public .qp-liquid-glass::before {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  background: radial-gradient(ellipse 55% 38% at 20% 16%, rgba(59,130,246,.14), transparent 62%);
-  pointer-events: none;
-}
-.qnt-public .qp-liquid-glass::after {
-  content: ''; position: absolute; inset: 0; border-radius: inherit;
-  background: radial-gradient(ellipse 42% 32% at 82% 88%, rgba(59,130,246,.10), transparent 65%);
-  pointer-events: none;
-}
-/* Former "mint" (positive/Quante side) tint — same blue glow, kept as a
-   separate class since JSX still applies .qp-tint-mint on those cards. */
-.qnt-public .qp-liquid-glass.qp-tint-mint::before {
-  background: radial-gradient(ellipse 55% 38% at 20% 16%, rgba(59,130,246,.18), transparent 62%);
-}
+.qnt-public .qp-liquid-glass::before,
+.qnt-public .qp-liquid-glass::after,
+.qnt-public .qp-liquid-glass.qp-tint-mint::before,
 .qnt-public .qp-liquid-glass.qp-tint-mint::after {
-  background: radial-gradient(ellipse 42% 32% at 82% 88%, rgba(59,130,246,.14), transparent 65%);
-}
-.qnt-public .qp-hero-store-card::before,
-.qnt-public .qp-hero-store-card::after {
-  opacity: .5;
+  content: none;
 }
 
-/* ── Clay icon tiles — now dark tiles with a blue-gradient accent variant,
-   rather than solid-white tiles meant to pop against a light glass panel. */
+/* ── Icon tiles — light-minimal versions. The former dark gradients are
+   replaced by four monochromatic treatments so hero badges read as
+   distinct-but-not-noisy shapes on white:
+     .qp-clay        → light off-white tile with a hairline (the default
+                       "plain" variant)
+     .qp-clay-accent → solid black tile with white glyph — the primary CTA
+                       badge, replaces the previous blue gradient
+     .qp-clay-mint   → same solid black as accent (one accent colour rule)
+     .qp-clay-ink    → charcoal tile as a secondary black variant for the
+                       occasional 4-badge cluster where two solid blacks
+                       would clump
+   Glyph colour is set per-tile via the base rule + variant overrides so a
+   .qp-icon-tile inside .qp-clay-accent gets white glyphs, and one inside
+   plain .qp-clay gets near-black glyphs. */
 .qnt-public .qp-clay {
-  border-radius: 22px;
-  background: linear-gradient(155deg,#1c1c21,#101013 70%);
-  border: 1px solid var(--qp-line-soft);
+  border-radius: 16px;
+  background: #FAFAFB;
+  border: 1px solid var(--qp-line);
   box-shadow: var(--qp-shadow-clay-sm);
 }
 .qnt-public .qp-clay-accent {
-  background: linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 60%,var(--qp-accent-deep));
-  box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 -6px 14px rgba(0,0,0,.25) inset, var(--qp-shadow-clay-sm);
+  background: var(--qp-accent);
+  border: 1px solid var(--qp-accent);
+  box-shadow: var(--qp-shadow-clay-sm);
 }
 .qnt-public .qp-clay-mint {
-  background: linear-gradient(155deg,var(--qp-mint-light),var(--qp-mint) 65%,var(--qp-accent-deep));
-  box-shadow: 0 1px 0 rgba(255,255,255,.25) inset, 0 -6px 14px rgba(0,0,0,.25) inset, var(--qp-shadow-clay-sm);
+  background: var(--qp-accent);
+  border: 1px solid var(--qp-accent);
+  box-shadow: var(--qp-shadow-clay-sm);
 }
-/* A 4th, neutral-dark variant for icon badges that shouldn't compete with
-   the one accent colour — no longer built from --qp-ink (that variable is
-   now the off-white text colour, not a dark tone). */
 .qnt-public .qp-clay-ink {
-  background: linear-gradient(155deg,#2a2a33,#0d0d10 65%,#050506);
-  box-shadow: 0 1px 0 rgba(255,255,255,.12) inset, 0 -6px 14px rgba(0,0,0,.4) inset, var(--qp-shadow-clay-sm);
+  background: #2A2A30;
+  border: 1px solid #2A2A30;
+  box-shadow: var(--qp-shadow-clay-sm);
 }
 .qnt-public .qp-icon-tile {
-  width: 52px; height: 52px; border-radius: 16px;
+  width: 52px; height: 52px; border-radius: 14px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-  margin-bottom: 16px; color: #fff;
+  margin-bottom: 16px; color: var(--qp-ink);
+}
+.qnt-public .qp-clay-accent .qp-icon-tile,
+.qnt-public .qp-clay-mint .qp-icon-tile,
+.qnt-public .qp-clay-ink .qp-icon-tile {
+  color: #FFFFFF;
 }
 .qnt-public .qp-icon-tile svg { width: 24px; height: 24px; }
 
-/* ── Ambient background blobs — one accent colour only now (previously
-   accent + mint as two distinct hues; the "wide" blob blended both). ──── */
+/* ── Ambient background blobs — hidden on the light-minimal theme.
+   Blurred blue radials were section-atmosphere on the dark palette; on
+   white they'd read as smudges. Kept .qp-ambient as an empty positioned
+   wrapper so JSX call sites keep their overflow-hidden clipping context;
+   the blob children collapse to 0 so they don't occupy layout space. */
 .qnt-public .qp-ambient { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
-.qnt-public .qp-ambient .qp-blob { position: absolute; border-radius: 50%; filter: blur(50px); }
-.qnt-public .qp-ambient .qp-blob-accent { width: 620px; height: 620px; background: radial-gradient(circle,rgba(59,130,246,.20),transparent 72%); }
-.qnt-public .qp-ambient .qp-blob-mint { width: 560px; height: 560px; background: radial-gradient(circle,rgba(59,130,246,.16),transparent 72%); }
-.qnt-public .qp-ambient .qp-blob-wide {
-  width: 900px; height: 420px; border-radius: 50%;
-  background: radial-gradient(ellipse,rgba(59,130,246,.16),rgba(59,130,246,.08) 55%,transparent 75%);
-}
+.qnt-public .qp-ambient .qp-blob { display: none; }
 
 /* ── Feature grid — auto-fit collapses to 1 column on mobile with no
    breakpoint/specificity fights (this is what the mockup's round-3
@@ -295,8 +311,21 @@
    `qp-` and scoped under `.qnt-public` per the convention above.
    ════════════════════════════════════════════════════════════════════════ */
 
-/* ── Ambient background FX (fixed, behind everything, whole page) ────── */
-.qnt-public .qp-bg-grid {
+/* ── Ambient background FX — killed on the light-minimal theme.
+   Grid, scanline and cursor glow were all built from rgba(blue) on a
+   near-black background. Same shapes over white either vanish (too faint)
+   or read as dirty smudges (too strong). The clean route is: remove
+   them entirely on public. The elements are still rendered by HeroBgFX
+   in app/page.tsx — display: none on all three keeps the DOM intact
+   without visual noise. */
+.qnt-public .qp-bg-grid,
+.qnt-public .qp-bg-scan,
+.qnt-public .qp-bg-cursor { display: none; }
+
+/* Original grid rule kept commented in the file for future re-enablement
+   if a subtle grey grid over white is wanted later — replaced by the
+   display: none above. */
+.qnt-public .qp-bg-grid-DISABLED {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image:
     linear-gradient(rgba(59,130,246,0.09) 1px, transparent 1px),
@@ -349,28 +378,25 @@
 .qnt-public .qp-tilt-frame video {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
 }
+/* The tilt placeholder deliberately stays dark — it stands in for a video
+   (once the real clip lands the <video> replaces it and inherits the same
+   tilted frame). Rewritten to a neutral charcoal gradient — no blue —
+   with the play button now a plain white button so it's readable on top
+   of the dark video frame from the surrounding white page. */
 .qnt-public .qp-tilt-placeholder {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(59,130,246,.3), transparent 55%),
-    radial-gradient(circle at 80% 90%, rgba(59,130,246,.16), transparent 60%),
-    linear-gradient(160deg, #131318, #0a0a0c);
+  background: linear-gradient(160deg, #1a1a1e, #0a0a0c);
 }
 .qnt-public .qp-tilt-play {
   position: relative;
   width: 60px; height: 60px; border-radius: 50%;
-  background: var(--qp-glass-bg-strong); border: 1px solid var(--qp-glass-border);
-  -webkit-backdrop-filter: blur(var(--qp-glass-blur)); backdrop-filter: blur(var(--qp-glass-blur));
-  display: flex; align-items: center; justify-content: center; color: var(--qp-ink);
-  box-shadow: var(--qp-glass-shadow);
+  background: #FFFFFF; border: 1px solid #FFFFFF;
+  display: flex; align-items: center; justify-content: center; color: #0A0A0A;
+  box-shadow: 0 6px 18px -6px rgba(0,0,0,.35);
 }
-/* Slow pulse ring — a correctly-centered icon on a lot of plain gradient
-   still reads as "dead" at a glance; one subtle looping cue is enough to
-   signal "this spot is alive, waiting for media" without competing with the
-   grid/scan ambient layers already running site-wide. */
 .qnt-public .qp-tilt-play::before {
   content: ''; position: absolute; inset: -14px; border-radius: 50%;
-  border: 1px solid rgba(59,130,246,.35);
+  border: 1px solid rgba(255,255,255,.35);
   animation: qp-tilt-pulse 2.6s ease-out infinite;
 }
 @keyframes qp-tilt-pulse {
@@ -380,9 +406,12 @@
 @media (prefers-reduced-motion: reduce) {
   .qnt-public .qp-tilt-play::before { animation: none; }
 }
-.qnt-public .qp-tilt-placeholder span { font-family: var(--qp-mono); font-size: 12px; color: var(--qp-mut); letter-spacing: .02em; }
-/* Faint sheen crossing the panel diagonally — sells the "glass/canvas"
-   read at rest, not just via the shadow. */
+.qnt-public .qp-tilt-placeholder span { font-family: var(--qp-mono); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .02em; }
+/* Sheen kept but re-scoped to only tint over the dark placeholder (its
+   inset covers whatever <video> lands inside the frame; against a real
+   video clip a diagonal white streak reads as glare, which is the intended
+   "canvas" cue). Unchanged from prior — the values were already white
+   rgba, they just now sit against a monochrome dark background. */
 .qnt-public .qp-tilt-frame::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
   background: linear-gradient(115deg, rgba(255,255,255,.08) 0%, transparent 24%, transparent 76%, rgba(255,255,255,.04) 100%);
@@ -403,37 +432,38 @@
   .qnt-public .qp-tilt-frame { transition: none; }
 }
 
-/* ── Terminal typewriter line (hero) ──────────────────────────────────── */
+/* ── Terminal typewriter line (hero) — light minimal restyle. Blue tint
+   bg → very-soft grey wash; blue text → near-black. Still reads as a
+   terminal because the mono font + prompt caret + blinking cursor
+   carry the metaphor without needing colour cues. */
 .qnt-public .qp-terminal {
   position: relative; z-index: 2; display: inline-flex; align-items: center;
-  font-family: var(--qp-mono); font-size: 12.5px; color: var(--qp-accent);
-  background: rgba(59,130,246,0.08); border: 1px solid var(--qp-line); border-radius: 8px;
+  font-family: var(--qp-mono); font-size: 12.5px; color: var(--qp-ink);
+  background: rgba(0,0,0,0.04); border: 1px solid var(--qp-line); border-radius: 8px;
   padding: 7px 12px; margin: 0 0 18px; white-space: nowrap; overflow: hidden;
 }
 .qnt-public .qp-terminal .qp-prompt { color: var(--qp-mut); margin-right: 7px; }
 .qnt-public .qp-terminal .qp-cursor { display: inline-block; width: 6px; animation: qp-blink 1s step-end infinite; }
 @keyframes qp-blink { 50% { opacity: 0; } }
 
-/* ── Rotating conic glow behind the hero store-preview card ──────────── */
-.qnt-public .qp-glow-ring {
-  position: absolute; inset: -60px; z-index: 0; pointer-events: none;
-  background: conic-gradient(from 0deg, transparent 0%, rgba(59,130,246,0.5) 12%, transparent 26%, transparent 100%);
-  filter: blur(30px); animation: qp-spin 6s linear infinite;
-}
-@keyframes qp-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .qnt-public .qp-glow-ring { animation: none; } }
+/* ── Rotating conic glow behind the hero store-preview card — killed on
+   the light-minimal theme. A blurred rotating blue conic gradient is a
+   dark-theme signal ("ambient life"); on a white page it reads as fog.
+   The `qp-glow-ring` div is still rendered in JSX; display: none keeps
+   the DOM structure without any visible artifact. */
+.qnt-public .qp-glow-ring { display: none; }
 
 /* ── Step flow (3-step process, dashed connector + traveling dot) ────── */
 .qnt-public .qp-steps-wrap { position: relative; }
 .qnt-public .qp-flow-line {
   position: absolute; top: 27px; left: 8%; right: 8%; height: 2px; z-index: 0;
-  background: repeating-linear-gradient(90deg, rgba(59,130,246,0.5) 0 6px, transparent 6px 12px);
+  background: repeating-linear-gradient(90deg, rgba(0,0,0,0.35) 0 6px, transparent 6px 12px);
   background-size: 0% 100%; background-repeat: no-repeat; transition: background-size 1.4s ease;
 }
 .qnt-public .qp-steps-wrap.qp-reveal .qp-flow-line { background-size: 100% 100%; }
 .qnt-public .qp-flow-dot {
   position: absolute; top: 23px; left: 8%; width: 8px; height: 8px; border-radius: 50%;
-  background: var(--qp-accent); box-shadow: 0 0 10px 2px rgba(59,130,246,0.8); opacity: 0; z-index: 1;
+  background: var(--qp-accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.06); opacity: 0; z-index: 1;
   animation: qp-flowmove 3s ease-in-out 1.6s infinite;
 }
 .qnt-public .qp-steps-wrap.qp-reveal .qp-flow-dot { opacity: 1; }
@@ -445,7 +475,7 @@
   background: var(--qp-surface); border: 1px solid var(--qp-line-soft); border-radius: var(--qp-r-sm);
   padding: 20px 18px; transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
 }
-.qnt-public .qp-step:hover { transform: translateY(-4px); border-color: var(--qp-accent); box-shadow: 0 0 26px rgba(59,130,246,0.18); }
+.qnt-public .qp-step:hover { transform: translateY(-4px); border-color: var(--qp-accent); box-shadow: 0 8px 24px -14px rgba(0,0,0,0.14); }
 .qnt-public .qp-step.qp-step-active { border-color: var(--qp-accent); box-shadow: 0 0 0 1px var(--qp-accent-wash); }
 .qnt-public .qp-step .qp-n { font-family: var(--qp-mono); font-size: 12px; color: var(--qp-accent); font-weight: 700; margin-bottom: 10px; }
 .qnt-public .qp-step h3 { font-size: 15px; font-weight: 700; margin: 0 0 6px; color: var(--qp-ink); }
@@ -457,11 +487,11 @@
   display: grid; grid-template-columns: 1fr 1.2fr; overflow: hidden; position: relative;
   transition: box-shadow .3s ease, border-color .3s ease;
 }
-.qnt-public .qp-studio-demo:hover { border-color: var(--qp-accent); box-shadow: 0 0 30px rgba(59,130,246,0.16); }
+.qnt-public .qp-studio-demo:hover { border-color: var(--qp-line); box-shadow: 0 8px 24px -14px rgba(0,0,0,0.10); }
 @media (max-width: 640px) { .qnt-public .qp-studio-demo { grid-template-columns: 1fr; } }
 .qnt-public .qp-studio-demo .qp-sd-chat { padding: 18px; border-right: 1px solid var(--qp-line-soft); }
 @media (max-width: 640px) { .qnt-public .qp-studio-demo .qp-sd-chat { border-right: none; border-bottom: 1px solid var(--qp-line-soft); } }
-.qnt-public .qp-sd-bubble { background: rgba(255,255,255,.05); border-radius: 12px; padding: 10px 12px; font-size: 12.5px; color: var(--qp-sub); margin-bottom: 10px; max-width: 88%; }
+.qnt-public .qp-sd-bubble { background: rgba(0,0,0,0.045); border-radius: 12px; padding: 10px 12px; font-size: 12.5px; color: var(--qp-sub); margin-bottom: 10px; max-width: 88%; }
 .qnt-public .qp-sd-bubble.qp-me { background: var(--qp-accent); color: #fff; margin-left: auto; }
 .qnt-public .qp-studio-demo .qp-sd-preview { padding: 18px; }
 .qnt-public .qp-studio-demo .qp-sd-frame { background: var(--qp-bg-alt); border: 1px solid var(--qp-line-soft); border-radius: 12px; padding: 14px; height: 100%; }
@@ -479,8 +509,8 @@
    so the release reads as an intentional wipe rather than a frozen pause. */
 .qnt-public .qp-gallery-track { position: relative; height: 145vh; }
 .qnt-public .qp-gallery-sticky { position: sticky; top: calc(var(--banner-h,0px) + 76px); }
-.qnt-public .qp-gallery-progress { height: 3px; border-radius: 99px; background: rgba(255,255,255,0.08); margin-bottom: 14px; overflow: hidden; }
-.qnt-public .qp-gallery-progress .qp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--qp-accent), var(--qp-accent-light)); box-shadow: 0 0 8px rgba(59,130,246,0.6); }
+.qnt-public .qp-gallery-progress { height: 3px; border-radius: 99px; background: rgba(0,0,0,0.08); margin-bottom: 14px; overflow: hidden; }
+.qnt-public .qp-gallery-progress .qp-fill { height: 100%; width: 0%; background: var(--qp-accent); }
 .qnt-public .qp-gallery-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; }
 /* Mobile: stack viewport + chat log vertically instead of squeezing both
    into ~155px-wide columns on a 375px screen. Two wins for the price of
@@ -501,14 +531,14 @@
   display: flex; flex-direction: column;
 }
 @media (max-width: 640px) { .qnt-public .qp-zoom-viewport { height: 300px; } }
-.qnt-public .qp-zoom-viewport .qp-zv-bar { display: flex; align-items: center; gap: 5px; padding: 12px 14px; border-bottom: 1px solid var(--qp-line-soft); flex-shrink: 0; }
-.qnt-public .qp-zoom-viewport .qp-zv-bar span { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.16); }
+.qnt-public .qp-zoom-viewport .qp-zv-bar { display: flex; align-items: center; gap: 5px; padding: 12px 14px; border-bottom: 1px solid var(--qp-line-soft); flex-shrink: 0; background: #FAFAFB; }
+.qnt-public .qp-zoom-viewport .qp-zv-bar span { width: 7px; height: 7px; border-radius: 50%; background: rgba(0,0,0,0.14); }
 .qnt-public .qp-zoom-viewport .qp-zv-bar .qp-zv-name { margin-left: 8px; font-family: var(--qp-mono); font-size: 11px; color: var(--qp-mut); }
 .qnt-public .qp-zoom-page-label {
   position: absolute; top: 46px; right: 14px; z-index: 5;
-  font-family: var(--qp-mono); font-size: 10.5px; color: var(--qp-accent);
-  background: rgba(10,10,11,0.75); border: 1px solid var(--qp-line); border-radius: 99px;
-  padding: 4px 11px; backdrop-filter: blur(4px);
+  font-family: var(--qp-mono); font-size: 10.5px; color: var(--qp-ink);
+  background: #FFFFFF; border: 1px solid var(--qp-line); border-radius: 99px;
+  padding: 4px 11px;
 }
 @media (max-width: 640px) { .qnt-public .qp-zoom-page-label { top: 42px; right: 8px; font-size: 9.5px; padding: 3px 8px; } }
 .qnt-public .qp-zoom-window { position: relative; flex: 1; overflow: hidden; }
@@ -524,14 +554,14 @@
 /* Standalone (not scoped to .qp-zoom-region specifically) so the same mini
    browser-chrome placeholder rows/tiles can be reused in other preview
    frames — e.g. the Studio-consistency demo panel below. */
-.qnt-public .qp-zr-hero { height: 90px; border-radius: 12px; background: rgba(59,130,246,0.14); border: 1px solid var(--qp-line-soft); margin-bottom: 14px; }
-.qnt-public .qp-zr-row { height: 10px; border-radius: 4px; background: rgba(255,255,255,0.14); margin-bottom: 9px; }
+.qnt-public .qp-zr-hero { height: 90px; border-radius: 12px; background: rgba(0,0,0,0.06); border: 1px solid var(--qp-line-soft); margin-bottom: 14px; }
+.qnt-public .qp-zr-row { height: 10px; border-radius: 4px; background: rgba(0,0,0,0.08); margin-bottom: 9px; }
 .qnt-public .qp-zr-row.qp-w70 { width: 70%; }
 .qnt-public .qp-zr-row.qp-w40 { width: 40%; }
 .qnt-public .qp-zr-pill { display: inline-block; height: 26px; line-height: 26px; padding: 0 16px; border-radius: 99px; background: var(--qp-accent); color: #fff; font-size: 11px; font-weight: 600; margin-top: 10px; }
 .qnt-public .qp-zr-cardgrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 14px; }
-.qnt-public .qp-zr-cardgrid div { aspect-ratio: 1; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid var(--qp-line-soft); }
-.qnt-public .qp-zr-form { height: 30px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid var(--qp-line-soft); margin-bottom: 10px; }
+.qnt-public .qp-zr-cardgrid div { aspect-ratio: 1; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--qp-line-soft); }
+.qnt-public .qp-zr-form { height: 30px; border-radius: 8px; background: rgba(0,0,0,0.05); border: 1px solid var(--qp-line-soft); margin-bottom: 10px; }
 .qnt-public .qp-zr-summary { border: 1px solid var(--qp-line-soft); border-radius: 10px; padding: 12px; margin-top: 14px; }
 
 .qnt-public .qp-chat-log {
@@ -557,7 +587,7 @@
    with an order summary." push past the panel's edge — clipped by the
    chat-log's auto overflow-x instead of wrapping, worst on the narrow
    mobile column. */
-.qnt-public .qp-chat-pair .qp-bubble { background: rgba(255,255,255,.05); border-radius: 12px; padding: 9px 12px; font-size: 12px; color: var(--qp-sub); max-width: 100%; overflow-wrap: break-word; word-break: break-word; min-width: 0; box-sizing: border-box; }
+.qnt-public .qp-chat-pair .qp-bubble { background: rgba(0,0,0,.045); border-radius: 12px; padding: 9px 12px; font-size: 12px; color: var(--qp-sub); max-width: 100%; overflow-wrap: break-word; word-break: break-word; min-width: 0; box-sizing: border-box; }
 @media (max-width: 640px) { .qnt-public .qp-chat-pair .qp-bubble { font-size: 10.5px; padding: 7px 9px; } }
 .qnt-public .qp-chat-pair .qp-bubble.qp-me { background: var(--qp-accent); color: #fff; }
 
@@ -568,7 +598,7 @@
 .qnt-public .qp-gallery-dots { position: relative; display: flex; justify-content: space-between; }
 .qnt-public .qp-gallery-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--qp-line); display: block; }
 .qnt-public .qp-gallery-dots span.qp-active { background: var(--qp-accent); }
-.qnt-public .qp-gallery-dot-runner { position: absolute; top: -1.5px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--qp-accent); box-shadow: 0 0 10px 2px rgba(59,130,246,0.7); transform: translateX(-50%); }
+.qnt-public .qp-gallery-dot-runner { position: absolute; top: -1.5px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--qp-accent); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); transform: translateX(-50%); }
 
 /* Every top-level homepage <section> carries its own inline clamp() vertical
    padding (min bound roughly 40-56px per side, since 6vw/7vw/9vw all bottom
@@ -610,7 +640,7 @@
   padding: 16px 18px; display: flex; flex-direction: column; overflow: hidden;
   transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
 }
-.qnt-public .qp-tile:hover { transform: translateY(-3px); border-color: var(--qp-accent); box-shadow: 0 0 24px rgba(59,130,246,0.2); }
+.qnt-public .qp-tile:hover { transform: translateY(-3px); border-color: var(--qp-accent); box-shadow: 0 10px 30px -18px rgba(0,0,0,0.18); }
 .qnt-public .qp-tile .qp-t-head { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
 .qnt-public .qp-tile h3 { font-size: 14px; font-weight: 700; margin: 0; color: var(--qp-ink); }
 .qnt-public .qp-tile .qp-t-go {
@@ -622,18 +652,18 @@
 .qnt-public .qp-tile p.qp-t-desc { font-size: 12px; color: var(--qp-sub); line-height: 1.45; margin: 0 0 10px; }
 .qnt-public .qp-t-export { grid-area: export; justify-content: space-between; }
 .qnt-public .qp-t-export .qp-t-badge { font-family: var(--qp-mono); font-size: 10.5px; color: var(--qp-accent); border: 1px solid var(--qp-line); border-radius: 99px; padding: 3px 9px; display: inline-block; margin-bottom: 10px; align-self: flex-start; }
-.qnt-public .qp-t-export .qp-t-term { font-family: var(--qp-mono); font-size: 11px; color: var(--qp-sub); background: rgba(59,130,246,0.06); border: 1px solid var(--qp-line-soft); border-radius: 8px; padding: 8px 10px; margin-top: auto; }
+.qnt-public .qp-t-export .qp-t-term { font-family: var(--qp-mono); font-size: 11px; color: var(--qp-sub); background: rgba(0,0,0,0.035); border: 1px solid var(--qp-line-soft); border-radius: 8px; padding: 8px 10px; margin-top: auto; }
 .qnt-public .qp-t-export .qp-t-term .qp-ok { color: var(--qp-accent); }
 .qnt-public .qp-t-admin { grid-area: admin; }
 .qnt-public .qp-t-admin .qp-mini-rows { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .qnt-public .qp-t-admin .qp-mini-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--qp-sub); }
 .qnt-public .qp-t-admin .qp-toggle { width: 26px; height: 14px; border-radius: 99px; background: var(--qp-accent); position: relative; flex-shrink: 0; }
 .qnt-public .qp-t-admin .qp-toggle::after { content: ''; position: absolute; top: 2px; right: 2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; }
-.qnt-public .qp-t-admin .qp-toggle.qp-off { background: rgba(255,255,255,0.12); }
+.qnt-public .qp-t-admin .qp-toggle.qp-off { background: rgba(0,0,0,0.12); }
 .qnt-public .qp-t-admin .qp-toggle.qp-off::after { left: 2px; right: auto; }
 .qnt-public .qp-t-analytics { grid-area: analytics; justify-content: flex-end; }
 .qnt-public .qp-bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 70px; margin-top: auto; }
-.qnt-public .qp-bar-chart span { flex: 1; background: linear-gradient(to top, var(--qp-accent), rgba(59,130,246,0.35)); border-radius: 3px 3px 0 0; transform: scaleY(0); transform-origin: bottom; transition: transform .6s cubic-bezier(.2,.7,.2,1); }
+.qnt-public .qp-bar-chart span { flex: 1; background: linear-gradient(to top, var(--qp-accent), rgba(0,0,0,0.35)); border-radius: 3px 3px 0 0; transform: scaleY(0); transform-origin: bottom; transition: transform .6s cubic-bezier(.2,.7,.2,1); }
 .qnt-public .qp-bento.qp-reveal .qp-bar-chart span { transform: scaleY(1); }
 .qnt-public .qp-bar-chart span:nth-child(1) { height: 40%; transition-delay: .05s; }
 .qnt-public .qp-bar-chart span:nth-child(2) { height: 65%; transition-delay: .12s; }
@@ -652,8 +682,8 @@
 .qnt-public .qp-t-domains .qp-mini-card .qp-url { color: var(--qp-ink); font-family: var(--qp-mono); font-size: 11px; }
 .qnt-public .qp-t-domains .qp-ssl { color: var(--qp-accent); font-size: 10.5px; margin-top: 4px; display: block; }
 .qnt-public .qp-t-ai { grid-area: ai; }
-.qnt-public .qp-t-ai .qp-pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--qp-accent); margin-top: auto; box-shadow: 0 0 0 0 rgba(59,130,246,0.6); animation: qp-dotpulse2 1.8s ease-in-out infinite; }
-@keyframes qp-dotpulse2 { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.6); } 70% { box-shadow: 0 0 0 8px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }
+.qnt-public .qp-t-ai .qp-pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--qp-accent); margin-top: auto; box-shadow: 0 0 0 0 rgba(0,0,0,0.4); animation: qp-dotpulse2 1.8s ease-in-out infinite; }
+@keyframes qp-dotpulse2 { 0% { box-shadow: 0 0 0 0 rgba(0,0,0,0.35); } 70% { box-shadow: 0 0 0 8px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
 
 /* ── Shelving background (hero + optional secondary sections) ───────── */
 .qnt-public .qp-shelf-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
