@@ -310,7 +310,7 @@ function QadsTeaser() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function HomePage() {
+export function HomePageClient() {
   return (
     <div className="qnt-public qp-home" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <HeroBgFX />

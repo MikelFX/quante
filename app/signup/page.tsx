@@ -1,9 +1,16 @@
 import { SignUp } from '@clerk/nextjs'
 import Link from 'next/link'
+import { buildMetadata } from '@/lib/seo'
 
-// No per-page Clerk appearance override here anymore — see app/login/page.tsx
-// for why: the whole public site is dark now, matching the root
-// ClerkProvider's own dark `appearance` by default.
+// Signup indexable — this is the "convert" landing for the free-credits
+// hook, so search visitors on brand-adjacent queries ("quante signup")
+// should land here directly rather than bounce through /.
+export const metadata = buildMetadata({
+  title: 'Sign up for Quante — 25 free credits',
+  description: 'Create a Quante account and get 25 free credits — no card required. Start describing your store and Quante ships the code.',
+  path: '/signup',
+})
+
 export default function SignUpPage() {
   return (
     <div className="qnt-public" style={{

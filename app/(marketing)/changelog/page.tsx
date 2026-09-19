@@ -14,7 +14,6 @@
 // one less class of bug. For visitors who already have the tab open, see
 // <ChangelogLiveRefresh> below, which polls in the background.
 
-import type { Metadata } from 'next'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import fallbackEntries from '@/content/changelog.json'
 import { TAG_BG, TAG_FG, isChangelogTag } from '@/lib/changelog'
@@ -22,10 +21,13 @@ import { ChangelogLiveRefresh } from './ChangelogLiveRefresh'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = {
-  title: 'Changelog — Quante',
-  description: 'What\'s new in Quante — release notes and product updates.',
-}
+import { buildMetadata } from '@/lib/seo'
+
+export const metadata = buildMetadata({
+  title: 'Changelog — what\'s new in Quante',
+  description: 'Release notes and product updates from the Quante team — new features, fixes and behind-the-scenes work.',
+  path: '/changelog',
+})
 
 interface Entry {
   id?: string

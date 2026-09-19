@@ -6,13 +6,14 @@
 // Also confirm whether the "hosted-store" hosting subscription is refundable,
 // and update Section 3 accordingly.
 
-import type { Metadata } from 'next'
 import { operator } from '@/lib/site-config'
+import { buildMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Refund Policy — Quante',
-  description: 'Quante refund policy for credits and hosting subscriptions.',
-}
+export const metadata = buildMetadata({
+  title: 'Refund Policy',
+  description: 'When Quante refunds credits and hosting subscriptions, when it doesn\'t, and how to request a refund.',
+  path: '/refund',
+})
 
 const EFFECTIVE = '1 July 2026'
 // BUSINESS DECISION: adjust the refund window before going live.

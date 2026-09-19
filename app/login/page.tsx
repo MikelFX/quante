@@ -1,12 +1,18 @@
 import { SignIn } from '@clerk/nextjs'
 import Link from 'next/link'
+import { buildMetadata } from '@/lib/seo'
 
-// No per-page Clerk appearance override here anymore — the whole public
-// site is dark now (approved R1–R6 mockup port), which already matches the
-// root ClerkProvider's own dark `appearance` (see app/layout.tsx). Letting
-// <SignIn> fall back to that default keeps this page visually consistent
-// with the rest of the dark platform instead of carrying its own
-// (previously light-glass) theme.
+// noindex on purpose — auth pages have no search-intent value and can
+// confuse SERPs into ranking a sign-in over the actual landing page.
+// Every marketing route Google should rank is enumerated in sitemap.ts;
+// this one isn't.
+export const metadata = buildMetadata({
+  title: 'Log in to Quante',
+  description: 'Sign in to your Quante account to generate, iterate and deploy stores.',
+  path: '/login',
+  robots: 'noindex',
+})
+
 export default function LoginPage() {
   return (
     <div className="qnt-public" style={{

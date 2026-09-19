@@ -70,7 +70,7 @@ const FAQS = [
   },
 ]
 
-export default function DomainsPage() {
+export function DomainsClient() {
   const [query, setQuery] = useState('')
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)

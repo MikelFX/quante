@@ -1,13 +1,14 @@
 // DRAFT — must be reviewed by a qualified lawyer before relying on this in
 // production, especially given cross-border Stripe Connect payments and GDPR obligations.
 
-import type { Metadata } from 'next'
 import { operator } from '@/lib/site-config'
+import { buildMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Cookie Policy — Quante',
-  description: 'How Quante uses cookies and browser storage.',
-}
+export const metadata = buildMetadata({
+  title: 'Cookie Policy',
+  description: 'How Quante uses cookies and browser storage — essential, analytics and marketing categories plus consent controls.',
+  path: '/cookies',
+})
 
 const EFFECTIVE = '1 July 2026'
 

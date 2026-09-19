@@ -29,7 +29,7 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
-export default function QadsPage() {
+export function QadsClient() {
   return (
     <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <PublicNav />

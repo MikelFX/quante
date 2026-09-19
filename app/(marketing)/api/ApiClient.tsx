@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 const mono = 'var(--font-geist-mono)'
 
-export default function ApiPage() {
+export function ApiClient() {
   const [email, setEmail] = useState('')
   const [done,  setDone]  = useState(false)
 

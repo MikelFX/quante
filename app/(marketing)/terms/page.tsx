@@ -1,13 +1,14 @@
 // DRAFT — must be reviewed by a qualified lawyer before relying on this in
 // production, especially given cross-border Stripe Connect payments and GDPR obligations.
 
-import type { Metadata } from 'next'
 import { operator } from '@/lib/site-config'
+import { buildMetadata } from '@/lib/seo'
 
-export const metadata: Metadata = {
-  title: 'Terms of Service — Quante',
-  description: 'Terms governing use of the Quante platform.',
-}
+export const metadata = buildMetadata({
+  title: 'Terms of Service',
+  description: 'Terms governing use of the Quante platform — accounts, credits, hosting, generated code ownership, prohibited use.',
+  path: '/terms',
+})
 
 const EFFECTIVE = '1 July 2026'
 

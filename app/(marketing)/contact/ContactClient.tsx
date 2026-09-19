@@ -17,7 +17,7 @@ const mono = 'var(--font-geist-mono)'
 
 type FormState = 'idle' | 'sending' | 'sent' | 'error'
 
-export default function ContactPage() {
+export function ContactClient() {
   const [name,    setName]    = useState('')
   const [from,    setFrom]    = useState('')
   const [message, setMessage] = useState('')
