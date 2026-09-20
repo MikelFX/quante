@@ -431,13 +431,15 @@
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover;
   /* Landscape frame + portrait 9:16 source = cover crops ~65% of the
-     video's height. `50% 6%` shifts the visible window near the top of
-     the clip (default 50% 50% cut the Studio nav in half), so the
-     dashboard + first content beat sit inside the frame and the dead
-     tail of the video is what gets cropped past the bottom. Tweak the
-     Y value if the clip's opening frames get re-edited: smaller = show
-     more top, larger = show more centre. */
-  object-position: 50% 6%;
+     video's height. Field report on `50% 6%` (near-top anchor): "ted
+     je to zase az moc nahore" — the visible window was landing inside
+     the clip's own dark reveal / intro sequence, so the frame filled
+     with black while the dashboard beat sat below the cropped area.
+     `50% 40%` drops the anchor down through the intro so the visible
+     window lands on the middle chunk of the video where the dashboard
+     content actually is. Tweak the Y value if a re-edited clip lands:
+     smaller = shifts crop up, larger = shifts crop down. */
+  object-position: 50% 40%;
   display: block;
 }
 /* The tilt placeholder deliberately stays dark — it stands in for a video
