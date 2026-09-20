@@ -63,8 +63,17 @@
   --muted-text: #8a8a93;
   --dim: #5b5b64;
 
-  /* ── Accent ───────────────────────────────────────────────────── */
-  --accent-indigo: #6f78e6;
+  /* ── Accent ─────────────────────────────────────────────────────
+     Vivid green swap (was indigo #6f78e6 / oklch(0.60 0.18 270)) —
+     the platform-side (Studio, Qads, Qails) now reads as dark surface
+     + high-vibrance green accent, matching the approved mockup. The
+     variable NAME `--accent-indigo` is kept because a lot of downstream
+     Studio styles reference it directly; renaming would require a
+     mass find-and-replace and give no readability win. */
+  --accent-indigo: #22C55E;
+  --accent-indigo-light: #4ADE80;
+  --accent-indigo-deep:  #16A34A;
+  --accent-indigo-wash:  rgba(34,197,94,.14);
 
   /* ── Semantic ─────────────────────────────────────────────────── */
   --live: #3ecf8e;
@@ -84,21 +93,25 @@
   --secondary-foreground: #f4f4f6;
   --muted: #121218;
   --muted-foreground: #8a8a93;
-  --accent: oklch(0.60 0.18 270);
-  --accent-foreground: #f4f4f6;
+  /* oklch(0.75 0.19 145) ≈ #22C55E — high-vibrance green picked to stay
+     legible on the near-black surface tokens above. Chroma 0.19 keeps
+     it saturated without going neon; lightness 0.75 lifts it clear of
+     the surface without the "washed-out mint" read at 0.60. */
+  --accent: oklch(0.75 0.19 145);
+  --accent-foreground: #08080a;
   --destructive: #e0564f;
   --border: rgba(255,255,255,.07);
   --input: rgba(255,255,255,.09);
-  --ring: oklch(0.60 0.18 270);
+  --ring: oklch(0.75 0.19 145);
   --radius: 0.5rem;
   --sidebar: #0d0d11;
   --sidebar-foreground: #f4f4f6;
-  --sidebar-primary: oklch(0.60 0.18 270);
-  --sidebar-primary-foreground: #f4f4f6;
+  --sidebar-primary: oklch(0.75 0.19 145);
+  --sidebar-primary-foreground: #08080a;
   --sidebar-accent: #121218;
   --sidebar-accent-foreground: #f4f4f6;
   --sidebar-border: rgba(255,255,255,.07);
-  --sidebar-ring: oklch(0.60 0.18 270);
+  --sidebar-ring: oklch(0.75 0.19 145);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -117,9 +130,11 @@
    (glass utilities, clay tiles, ambient FX, terminal, hero visuals) are
    handled in the sibling rule blocks below.
    Design language: Linear / Vercel-tier minimalism — white surfaces,
-   near-black text, a single black accent for CTAs / focus states, no
-   competing colours, no gradients-as-decoration, tiny hairlines, tiny
-   shadows, small radii, no ambient glow.
+   near-black text, a single VIVID GREEN accent for CTAs / focus states.
+   (Previous pass used black-as-accent; the round-4 direction swaps that
+   for green #22C55E so the marketing site and the dark platform share
+   one hue at different lightness, instead of two unrelated palettes.
+   Same tokens, same call sites — only the values here shift.)
    ════════════════════════════════════════════════════════════════════════ */
 .qnt-public {
   --qp-bg: #FFFFFF;
@@ -131,20 +146,25 @@
   --qp-line: rgba(0,0,0,.09);
   --qp-line-soft: rgba(0,0,0,.06);
 
-  /* One accent, black. `--qp-accent-*` names kept so no call site changes;
-     the "light/deep" scale is just charcoal shades so any gradient built
-     from these degrades gracefully to a monochrome shade-of-black wash
-     rather than pretending to be a hue transition. */
-  --qp-accent: #0A0A0A;
-  --qp-accent-light: #3A3A40;
-  --qp-accent-deep: #000000;
-  --qp-accent-wash: rgba(0,0,0,.05);
-  /* "mint" (positive/Quante-side) kept as a variable so the comparison-card
-     checkmark list doesn't need touching, but folded into the one black
-     accent — no green anywhere in the minimal direction. */
-  --qp-mint: #0A0A0A;
-  --qp-mint-light: #3A3A40;
-  --qp-mint-wash: rgba(0,0,0,.05);
+  /* One accent, a vivid green — Tailwind green-500 (#22C55E) as the
+     "primary" tone, green-400 (#4ADE80) as the highlight, green-600
+     (#16A34A) as the pressed/deep tone. Gradients built from
+     `light → base → deep` render as a clean green→dark-green wash;
+     wash is used behind badges + focus rings. Same variable names as
+     the earlier black-accent pass, so every consumer (CTA buttons,
+     "Popular" pricing badge, ZoomGallery progress bar, IconTile
+     `.qp-clay-accent`, bar-chart bars, terminal cursor, dot pulses)
+     re-tints automatically. */
+  --qp-accent: #22C55E;
+  --qp-accent-light: #4ADE80;
+  --qp-accent-deep: #16A34A;
+  --qp-accent-wash: rgba(34,197,94,.10);
+  /* "mint" alias folded into the same accent so the comparison-card
+     checkmark list + any legacy .qp-mint consumers keep working; the
+     one-accent-only design rule still holds. */
+  --qp-mint: #22C55E;
+  --qp-mint-light: #4ADE80;
+  --qp-mint-wash: rgba(34,197,94,.10);
 
   /* "shelf" (was blue tint band behind hero) — now transparent so the
      ShelfBackground element (still rendered on some pages) doesn't paint

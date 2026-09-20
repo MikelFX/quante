@@ -63,7 +63,7 @@ export default async function DashboardPage() {
       {archived.length > 0 && (
         <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', fontSize: 13, color: '#8a8a93' }}>
           {archived.length} project{archived.length > 1 ? 's' : ''} archived due to plan downgrade.{' '}
-          <Link href="/billing" style={{ color: '#6f78e6' }}>Reactivate your Agency plan</Link> to restore them.
+          <Link href="/billing" style={{ color: '#22C55E' }}>Reactivate your Agency plan</Link> to restore them.
         </div>
       )}
 

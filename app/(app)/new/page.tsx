@@ -440,7 +440,7 @@ export default function NewProjectPage() {
             Building your store
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#22C55E', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#e0e0e8' }}>{statusText}</h2>
           </div>
         </div>
@@ -454,14 +454,14 @@ export default function NewProjectPage() {
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
                 {/* Indicator */}
                 <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: done ? '#3ecf8e' : active ? 'rgba(111,120,230,.15)' : 'rgba(255,255,255,.04)',
-                  border: done ? 'none' : active ? '1.5px solid #6f78e6' : '1px solid rgba(255,255,255,.08)',
+                  background: done ? '#3ecf8e' : active ? 'rgba(34,197,94,.15)' : 'rgba(255,255,255,.04)',
+                  border: done ? 'none' : active ? '1.5px solid #22C55E' : '1px solid rgba(255,255,255,.08)',
                   transition: 'all .4s ease',
                 }}>
                   {done ? (
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#0a0a0e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   ) : active ? (
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#6f78e6', animation: 'pulse 1.4s ease infinite' }} />
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', animation: 'pulse 1.4s ease infinite' }} />
                   ) : null}
                 </div>
                 <span style={{ fontSize: 13, color: done ? '#3ecf8e' : active ? '#d0d0da' : '#4a4a55', fontFamily: 'var(--font-geist-mono)', transition: 'color .4s ease' }}>
@@ -471,7 +471,7 @@ export default function NewProjectPage() {
                   <span style={{ marginLeft: 'auto', fontSize: 10, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>done</span>
                 )}
                 {active && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#6f78e6', fontFamily: 'var(--font-geist-mono)', animation: 'blink 1.2s ease infinite' }}>…</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#22C55E', fontFamily: 'var(--font-geist-mono)', animation: 'blink 1.2s ease infinite' }}>…</span>
                 )}
               </div>
             )
@@ -488,7 +488,7 @@ export default function NewProjectPage() {
           </div>
           <pre style={{
             margin: 0, padding: '12px 14px', fontSize: 11,
-            fontFamily: 'var(--font-geist-mono)', color: '#6f78e6',
+            fontFamily: 'var(--font-geist-mono)', color: '#22C55E',
             lineHeight: 1.6, overflowX: 'auto', overflowY: 'hidden',
             maxHeight: 220, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
             minHeight: 52,
@@ -516,10 +516,10 @@ export default function NewProjectPage() {
 
   const avatarSt: React.CSSProperties = {
     width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-    background: 'rgba(111,120,230,.14)',
-    border: '1px solid rgba(111,120,230,.22)',
+    background: 'rgba(34,197,94,.14)',
+    border: '1px solid rgba(34,197,94,.22)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 10, fontWeight: 700, color: '#6f78e6',
+    fontSize: 10, fontWeight: 700, color: '#22C55E',
     fontFamily: 'var(--font-geist-mono)', letterSpacing: '.02em',
     marginTop: 1,
   }
@@ -544,15 +544,15 @@ export default function NewProjectPage() {
         return (
         <div style={{
           marginBottom: 24, padding: '14px 16px', borderRadius: 12,
-          border: `1px solid ${resumeError ? 'rgba(248,113,113,.3)' : 'rgba(111,120,230,.28)'}`,
-          background: resumeError ? 'rgba(248,113,113,.05)' : 'rgba(111,120,230,.06)',
+          border: `1px solid ${resumeError ? 'rgba(248,113,113,.3)' : 'rgba(34,197,94,.28)'}`,
+          background: resumeError ? 'rgba(248,113,113,.05)' : 'rgba(34,197,94,.06)',
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             {isLive ? (
-              <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#6f78e6', animation: 'spin 0.9s linear infinite', flexShrink: 0, marginTop: 2 }} />
+              <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#22C55E', animation: 'spin 0.9s linear infinite', flexShrink: 0, marginTop: 2 }} />
             ) : (
-              <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${resumeError ? '#f87171' : '#6f78e6'}`, flexShrink: 0, marginTop: 2 }} />
+              <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${resumeError ? '#f87171' : '#22C55E'}`, flexShrink: 0, marginTop: 2 }} />
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>
@@ -601,7 +601,7 @@ export default function NewProjectPage() {
                   router.push(buildProjectUrl(resumeFoundProjectId, resumeDeploymentId, resumeVersionId, resumePreviewUrl, resumeDeployError))
                 }}
                 style={{
-                  fontSize: 12, fontWeight: 600, color: '#fff', background: '#6f78e6',
+                  fontSize: 12, fontWeight: 600, color: '#fff', background: '#22C55E',
                   border: 'none', borderRadius: 7, cursor: 'pointer', padding: '7px 14px',
                 }}
               >
@@ -651,8 +651,8 @@ export default function NewProjectPage() {
               ...(msg.role === 'user' ? {
                 padding: '9px 13px',
                 borderRadius: 12,
-                background: 'rgba(111,120,230,.09)',
-                border: '1px solid rgba(111,120,230,.16)',
+                background: 'rgba(34,197,94,.09)',
+                border: '1px solid rgba(34,197,94,.16)',
               } : {}),
               fontSize: 14,
               lineHeight: 1.65,
@@ -663,7 +663,7 @@ export default function NewProjectPage() {
               {msg.streaming && (
                 <span style={{
                   display: 'inline-block', width: 5, height: 14,
-                  background: '#6f78e6', marginLeft: 2, borderRadius: 1,
+                  background: '#22C55E', marginLeft: 2, borderRadius: 1,
                   verticalAlign: 'middle',
                   animation: 'blink .75s step-end infinite',
                 }} />
@@ -695,14 +695,14 @@ export default function NewProjectPage() {
         <div style={{
           marginTop: 28,
           borderRadius: 12,
-          border: '1px solid rgba(111,120,230,.22)',
-          background: 'rgba(111,120,230,.04)',
+          border: '1px solid rgba(34,197,94,.22)',
+          background: 'rgba(34,197,94,.04)',
           overflow: 'hidden',
         }}>
           {/* Brief header */}
           <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
             <p style={{
-              fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#6f78e6',
+              fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#22C55E',
               textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 10px',
             }}>
               ✦ Store brief
@@ -738,7 +738,7 @@ export default function NewProjectPage() {
                   border: '1px solid rgba(255,255,255,.09)', background: '#0a0a0e',
                   color: '#f4f4f6', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(111,120,230,.45)')}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(34,197,94,.45)')}
                 onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.09)')}
               />
             </div>
@@ -770,12 +770,12 @@ export default function NewProjectPage() {
                   style={{
                     padding: '9px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8,
                     border: 'none', cursor: brief.trim() ? 'pointer' : 'not-allowed',
-                    background: brief.trim() ? '#6f78e6' : 'rgba(255,255,255,.06)',
+                    background: brief.trim() ? '#22C55E' : 'rgba(255,255,255,.06)',
                     color: brief.trim() ? '#fff' : '#5b5b64',
                     transition: 'background .12s, opacity .12s',
                   }}
                   onMouseEnter={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = '#5d66d4' }}
-                  onMouseLeave={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = '#6f78e6' }}
+                  onMouseLeave={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = '#22C55E' }}
                 >
                   Generate store
                 </button>
@@ -798,7 +798,7 @@ export default function NewProjectPage() {
           padding: '10px 10px 10px 14px',
           transition: 'border-color .15s',
         }}
-          onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(111,120,230,.35)')}
+          onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(34,197,94,.35)')}
           onBlurCapture={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.09)')}
         >
           <textarea
@@ -828,7 +828,7 @@ export default function NewProjectPage() {
             disabled={!input.trim() || thinking}
             style={{
               flexShrink: 0, width: 36, height: 36, borderRadius: 8,
-              background: input.trim() && !thinking ? '#6f78e6' : 'rgba(255,255,255,.06)',
+              background: input.trim() && !thinking ? '#22C55E' : 'rgba(255,255,255,.06)',
               border: 'none', cursor: input.trim() && !thinking ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background .12s',
@@ -836,7 +836,7 @@ export default function NewProjectPage() {
               fontSize: 15, lineHeight: 1,
             }}
             onMouseEnter={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = '#5d66d4' }}
-            onMouseLeave={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = '#6f78e6' }}
+            onMouseLeave={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = '#22C55E' }}
           >
             ↑
           </button>

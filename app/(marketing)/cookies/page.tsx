@@ -84,7 +84,7 @@ export default function CookiesPage() {
                 <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 12.5, color: 'var(--qp-sub)', fontWeight: 600, margin: 0 }}>{c.name}</p>
                 <span style={{
                   fontFamily: 'var(--font-geist-mono)', fontSize: 10, letterSpacing: '.06em',
-                  background: 'rgba(111,120,230,.15)', color: 'var(--qp-accent-deep)',
+                  background: 'rgba(34,197,94,.15)', color: 'var(--qp-accent-deep)',
                   padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap',
                 }}>
                   {c.type}

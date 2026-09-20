@@ -390,7 +390,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         disabled={isSavingPayShip}
         style={{
           padding: '0.5rem 0.75rem',
-          background: '#6f78e6',
+          background: '#22C55E',
           color: '#fff',
           border: 'none',
           borderRadius: 6,
@@ -497,10 +497,10 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
                   disabled={aresLoading || form.taxId.length < 8}
                   style={{
                     padding: '0 8px',
-                    background: 'rgba(111,120,230,0.15)',
-                    border: '1px solid rgba(111,120,230,0.3)',
+                    background: 'rgba(34,197,94,0.15)',
+                    border: '1px solid rgba(34,197,94,0.3)',
                     borderRadius: 6,
-                    color: '#6f78e6',
+                    color: '#22C55E',
                     fontSize: 10,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -600,7 +600,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           disabled={isSaving || !form.taxId || !form.name}
           style={{
             padding: '0.5rem 0.75rem',
-            background: '#6f78e6',
+            background: '#22C55E',
             color: '#fff',
             border: 'none',
             borderRadius: 6,
@@ -700,7 +700,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         </div>
 
         {/* Stripe — always available via Quante */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(111,120,230,0.04)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(34,197,94,0.04)' }}>
           <span style={{ fontSize: 10, width: 14, textAlign: 'center', color: '#34d399' }}>✓</span>
           <span style={{ fontSize: 11, flex: 1 }}>Stripe — card, Apple Pay, Google Pay</span>
           <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>

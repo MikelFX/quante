@@ -112,7 +112,7 @@ export function MarketplaceBrowser({
                   <button
                     onClick={() => handleBuy(listing.id)}
                     disabled={!selectedProjectId || isBuying}
-                    style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px 10px', borderRadius: 6, border: 'none', background: '#6f78e6', color: '#fff', cursor: selectedProjectId ? 'pointer' : 'not-allowed', opacity: isBuying ? 0.6 : 1 }}
+                    style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px 10px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', cursor: selectedProjectId ? 'pointer' : 'not-allowed', opacity: isBuying ? 0.6 : 1 }}
                   >
                     {isBuying ? 'Installing…' : 'Confirm'}
                   </button>
@@ -127,7 +127,7 @@ export function MarketplaceBrowser({
             ) : (
               <button
                 onClick={() => { setActiveListingId(listing.id); setSelectedProjectId(''); setBuyError(null) }}
-                style={{ fontSize: 12, fontWeight: 600, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(111,120,230,.35)', background: 'rgba(111,120,230,.08)', color: '#a5b4fc', cursor: 'pointer' }}
+                style={{ fontSize: 12, fontWeight: 600, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(34,197,94,.35)', background: 'rgba(34,197,94,.08)', color: '#86efac', cursor: 'pointer' }}
               >
                 Buy & install
               </button>

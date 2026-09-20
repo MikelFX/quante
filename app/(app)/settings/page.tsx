@@ -74,7 +74,7 @@ export default async function SettingsPage() {
         <p style={cardHeaderSt}>Credits</p>
         <div className="q-settings-row">
           <div>
-            <p style={{ fontSize: 'clamp(32px, 8.5vw, 48px)', fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 4px', textShadow: '0 0 40px rgba(111,120,230,.4)' }}>{balance}</p>
+            <p style={{ fontSize: 'clamp(32px, 8.5vw, 48px)', fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 4px', textShadow: '0 0 40px rgba(34,197,94,.4)' }}>{balance}</p>
             <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>credits remaining</p>
             {balance < 10 && (
               <p style={{ fontSize: 11, color: '#e0a04f', marginTop: 5 }}>Low balance</p>
@@ -84,8 +84,8 @@ export default async function SettingsPage() {
             href="/billing"
             style={{
               fontSize: 12, fontWeight: 600, padding: '10px 16px', borderRadius: 8,
-              border: '1px solid rgba(111,120,230,.3)', background: 'rgba(111,120,230,.08)',
-              color: '#6f78e6', textDecoration: 'none', flexShrink: 0,
+              border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.08)',
+              color: '#22C55E', textDecoration: 'none', flexShrink: 0,
               transition: 'background 0.12s',
             }}
           >
@@ -134,7 +134,7 @@ export default async function SettingsPage() {
           </button>
         </div>
         <p style={{ fontSize: 11, color: '#5b5b64', padding: '0 18px 14px', margin: 0 }}>
-          To delete your account, contact <a href="mailto:support@quantecode.com" style={{ color: '#6f78e6', textDecoration: 'none' }}>support@quantecode.com</a>.
+          To delete your account, contact <a href="mailto:support@quantecode.com" style={{ color: '#22C55E', textDecoration: 'none' }}>support@quantecode.com</a>.
         </p>
       </div>
 

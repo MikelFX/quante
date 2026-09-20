@@ -80,7 +80,7 @@ export default async function BillingPage({ searchParams }: Props) {
       active: '#3ecf8e',
       past_due: '#e0a04f',
       canceled: '#8a8a93',
-      trialing: '#6f78e6',
+      trialing: '#22C55E',
     }
     const statusColor = statusColors[record.subscription_status ?? ''] ?? '#8a8a93'
 
@@ -100,7 +100,7 @@ export default async function BillingPage({ searchParams }: Props) {
         )}
 
         {/* Subscription card */}
-        <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0c0c10', boxShadow: '0 0 60px rgba(79,91,213,.08)', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0c0c10', boxShadow: '0 0 60px rgba(34,197,94,.08)', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -231,15 +231,15 @@ export default async function BillingPage({ searchParams }: Props) {
       )}
 
       {/* Balance hero */}
-      <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0c0c10', boxShadow: '0 0 60px rgba(79,91,213,.08)', padding: '20px 22px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
+      <div style={{ borderRadius: 14, border: '1px solid rgba(255,255,255,.07)', background: '#0c0c10', boxShadow: '0 0 60px rgba(34,197,94,.08)', padding: '20px 22px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 20 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 12 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: isLow ? '#e0a04f' : '#6f78e6', boxShadow: isLow ? '0 0 8px rgba(224,160,79,.6)' : '0 0 8px rgba(111,120,230,.6)', flexShrink: 0, animation: 'dot-pulse 2.4s ease-in-out infinite' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: isLow ? '#e0a04f' : '#22C55E', boxShadow: isLow ? '0 0 8px rgba(224,160,79,.6)' : '0 0 8px rgba(34,197,94,.6)', flexShrink: 0, animation: 'dot-pulse 2.4s ease-in-out infinite' }} />
             <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#8a8a93', margin: 0 }}>
               Credit balance
             </p>
           </div>
-          <div style={{ textShadow: '0 0 40px rgba(111,120,230,.4)' }}>
+          <div style={{ textShadow: '0 0 40px rgba(34,197,94,.4)' }}>
             <p style={{ fontSize: 'clamp(40px, 10.7vw, 64px)', fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', lineHeight: 1, margin: '0 0 6px' }}>
               {balance}
             </p>
@@ -262,7 +262,7 @@ export default async function BillingPage({ searchParams }: Props) {
                 style={{
                   width: 8, borderRadius: 3,
                   height: val === 0 ? 4 : Math.max(4, Math.round((val / sparkMax) * 36)),
-                  background: val === 0 ? 'rgba(255,255,255,.07)' : 'rgba(111,120,230,.55)',
+                  background: val === 0 ? 'rgba(255,255,255,.07)' : 'rgba(34,197,94,.55)',
                   transition: 'height 0.3s',
                 }}
               />

@@ -236,7 +236,7 @@ export function AboutClient() {
           </p>
 
           <div style={{ position: 'relative', width: 'min(340px, 100%)', aspectRatio: '1', margin: '0 auto' }}>
-            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '1px dashed rgba(91,84,240,.28)', animation: 'spin 60s linear infinite' }} />
+            <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '1px dashed rgba(34,197,94,.28)', animation: 'spin 60s linear infinite' }} />
             <span style={{ position: 'absolute', inset: 22, borderRadius: '50%', border: '1px dashed rgba(34,178,125,.28)', animation: 'spin 80s linear infinite reverse' }} />
             {LOOP.map(({ label, deg, color }) => {
               const x = 50 + 44 * Math.cos((deg - 90) * Math.PI / 180)
@@ -274,7 +274,7 @@ export function AboutClient() {
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
             background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(91,84,240,.55)',
+            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(34,197,94,.55)',
             padding: '0.85rem 2rem', borderRadius: 99, display: 'inline-block',
           }}>
             Try it free →
