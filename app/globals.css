@@ -527,6 +527,22 @@
 .qnt-public .qp-sd-bubble.qp-me { background: var(--qp-accent); color: #fff; margin-left: auto; }
 .qnt-public .qp-studio-demo .qp-sd-preview { padding: 18px; }
 .qnt-public .qp-studio-demo .qp-sd-frame { background: var(--qp-bg-alt); border: 1px solid var(--qp-line-soft); border-radius: 12px; padding: 14px; height: 100%; }
+/* Video variant — the outer frame stays as the matte card but padding
+   shrinks from 14 → 8 so the clip fills more of the box, and overflow:
+   hidden clips the video's outer corners to the frame radius. The
+   `.qp-sd-video` inside carries a radial-fade mask so the visible edge
+   of the clip melts into the matte instead of stopping at a hard
+   rounded rectangle — same "embedded" trick used on the Qads teaser,
+   scaled down for the smaller preview box. */
+.qnt-public .qp-studio-demo .qp-sd-frame-video {
+  padding: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center;
+}
+.qnt-public .qp-sd-video {
+  display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 8px;
+  -webkit-mask-image: radial-gradient(ellipse 102% 105% at center, black 74%, transparent 100%);
+          mask-image: radial-gradient(ellipse 102% 105% at center, black 74%, transparent 100%);
+}
 
 /* ── Zoom gallery (one store, scroll-linked page-zoom + accumulating chat) */
 /* Was 190vh. That gave the sticky-pinned zoom effect (see ZoomGallery.tsx

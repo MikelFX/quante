@@ -135,10 +135,19 @@ function StudioDemo() {
             <div className="qp-sd-bubble qp-me">Done — the hero now has a dark gradient with a looping background video.</div>
           </div>
           <div className="qp-sd-preview">
-            <div className="qp-sd-frame">
-              <div className="qp-zr-row qp-w70" style={{ marginTop: 0 }} />
-              <div className="qp-zr-row qp-w40" />
-              <div className="qp-zr-cardgrid" style={{ marginTop: 14 }}><div /><div /></div>
+            <div className="qp-sd-frame qp-sd-frame-video">
+              {/* Real preview clip — a hero section morphing dark + looping
+                  background video, which is exactly what the chat bubble
+                  on the left is asking Quante to do. Drop a new file at
+                  the same path to swap the cut. The .qp-sd-video class
+                  softens the video's outer rim via radial mask so it
+                  reads as embedded in the mock-Studio card instead of
+                  a hard rectangle pasted inside it. */}
+              <video
+                className="qp-sd-video"
+                src="/quante-hero-change.mp4"
+                autoPlay muted loop playsInline preload="metadata"
+              />
             </div>
           </div>
         </div>
