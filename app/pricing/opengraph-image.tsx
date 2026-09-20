@@ -79,7 +79,7 @@ export default function OpengraphImage() {
               maxWidth: 900,
             }}
           >
-            {`Credits pay per action. Hosting $${HOSTING_ANNUAL_USD}/year or $${HOSTING_MONTHLY_USD}/month. 25 free credits on signup.`}
+            {`Credits pay per action. Hosting $${HOSTING_ANNUAL_USD}/year or $${HOSTING_MONTHLY_USD}/month. 12 free credits on signup.`}
           </div>
         </div>
       </div>

@@ -68,7 +68,7 @@ export default function TermsPage() {
           <li>Production deploy: 5 credits</li>
         </ul>
         <p style={{ marginTop: 10 }}>All prices are in EUR unless otherwise stated and include applicable VAT where required. Credit costs may change; we will provide at least 14 days' notice before any change takes effect.</p>
-        <p style={{ marginTop: 10 }}>New accounts receive a complimentary grant of 25 credits. These credits are non-refundable.</p>
+        <p style={{ marginTop: 10 }}>New accounts receive a complimentary grant of 12 credits. These credits are non-refundable.</p>
       </Section>
 
       <Section title="5. Acceptable use">

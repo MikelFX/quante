@@ -329,7 +329,7 @@ export function HomePageClient() {
         <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto' }}>
             <TerminalTypewriter />
-            <div className="qp-kicker"><span className="qp-dot" /> try free — 25 credits on us</div>
+            <div className="qp-kicker"><span className="qp-dot" /> try free — 12 credits on us</div>
             <h1 style={{
               fontSize: 'clamp(34px,7vw,62px)', fontWeight: 800, letterSpacing: '-.035em', lineHeight: 1.08,
               margin: '0 0 18px',
@@ -554,7 +554,7 @@ export function HomePageClient() {
             No subscription to build.
           </h2>
           <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', margin: '20px auto 0' }}>
-            Credits for AI creation. Optional hosting from {formatHostingMonthly()} with SSL and CDN. 25 free credits on signup — no card required.
+            Credits for AI creation. Optional hosting from {formatHostingMonthly()} with SSL and CDN. 12 free credits on signup — no card required.
           </p>
         </div>
 
@@ -605,7 +605,7 @@ export function HomePageClient() {
             Ready to try it?
           </h2>
           <p style={{ fontSize: 15.5, color: 'var(--qp-sub)', margin: '0 0 30px' }}>
-            Sign up in 30 seconds. 25 free credits included.
+            Sign up in 30 seconds. 12 free credits included.
           </p>
           <Link href="/signup" style={{
             fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#08080a',

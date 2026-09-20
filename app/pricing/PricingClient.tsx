@@ -84,7 +84,7 @@ export function PricingClient() {
           </h1>
           <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 560, margin: '0 auto' }}>
             You only pay credits when you generate or iterate. Hosting on Quante is optional ({formatHostingBoth()}) — or export the source and host it anywhere.
-            Start with <strong style={{ color: 'var(--qp-ink)' }}>25 free credits</strong>. No card required.
+            Start with <strong style={{ color: 'var(--qp-ink)' }}>12 free credits</strong>. No card required.
           </p>
 
           <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
@@ -319,7 +319,7 @@ export function PricingClient() {
             Give it a try.
           </h2>
           <p style={{ fontSize: 15, color: 'var(--qp-sub)', margin: '0 0 30px' }}>
-            25 free credits included. No card needed.
+            12 free credits included. No card needed.
           </p>
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',

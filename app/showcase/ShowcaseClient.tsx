@@ -171,7 +171,7 @@ export function ShowcaseClient() {
             Build yours in minutes.
           </h2>
           <p style={{ fontSize: 15, color: 'var(--qp-sub)', margin: '0 0 30px' }}>
-            25 free credits on signup. Describe your brand — Quante does the rest.
+            12 free credits on signup. Describe your brand — Quante does the rest.
           </p>
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',

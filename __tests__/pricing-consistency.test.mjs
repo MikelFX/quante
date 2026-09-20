@@ -110,8 +110,8 @@ test('preview_deploy still costs credits (kept as short-lived validation)', () =
   assert.ok(CREDIT_COSTS.preview_deploy > 0, 'Preview deploy is a paid convenience action, not free.')
 })
 
-test('welcome_grant is 25 credits (marketing "25 free credits" claim)', () => {
-  assert.equal(CREDIT_COSTS.welcome_grant, 25, 'Welcome grant must be 25 — marketing site advertises this number.')
+test('welcome_grant is 12 credits (marketing "12 free credits" claim)', () => {
+  assert.equal(CREDIT_COSTS.welcome_grant, 12, 'Welcome grant must be 12 — marketing site advertises this number.')
 })
 
 test('generate cost is the same on server route and config', () => {

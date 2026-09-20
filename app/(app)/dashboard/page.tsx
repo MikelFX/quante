@@ -11,8 +11,9 @@ async function ensureWelcomeGrant(userId: string, supabase: Awaited<ReturnType<t
   const { data } = await supabase
     .from('credit_ledger').select('id').eq('user_id', userId).limit(1).maybeSingle()
   if (!data) {
+    const grant = CREDIT_COSTS.welcome_grant
     await supabase.from('credit_ledger').insert({
-      user_id: userId, delta: 25, reason: 'welcome_grant', ref_id: null, balance_after: 25,
+      user_id: userId, delta: grant, reason: 'welcome_grant', ref_id: null, balance_after: grant,
     })
   }
 }

@@ -269,7 +269,7 @@ export function AboutClient() {
             Start with QuanteCode today.
           </h2>
           <p style={{ fontSize: 15, color: 'var(--qp-sub)', margin: '0 0 30px' }}>
-            25 free credits when you sign up. No card. No subscription.
+            12 free credits when you sign up. No card. No subscription.
           </p>
           <Link href="/signup" style={{
             fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',

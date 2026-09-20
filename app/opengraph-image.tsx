@@ -81,7 +81,7 @@ export default function OpengraphImage() {
               maxWidth: 900,
             }}
           >
-            25 free credits · export any time · no lock-in
+            12 free credits · export any time · no lock-in
           </div>
         </div>
       </div>

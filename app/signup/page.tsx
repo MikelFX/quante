@@ -6,8 +6,8 @@ import { buildMetadata } from '@/lib/seo'
 // hook, so search visitors on brand-adjacent queries ("quante signup")
 // should land here directly rather than bounce through /.
 export const metadata = buildMetadata({
-  title: 'Sign up for Quante — 25 free credits',
-  description: 'Create a Quante account and get 25 free credits — no card required. Start describing your store and Quante ships the code.',
+  title: 'Sign up for Quante — 12 free credits',
+  description: 'Create a Quante account and get 12 free credits — no card required. Start describing your store and Quante ships the code.',
   path: '/signup',
 })
 

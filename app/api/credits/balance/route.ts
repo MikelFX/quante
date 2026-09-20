@@ -1,9 +1,13 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserRecord } from '@/lib/tier'
+import { CREDIT_COSTS } from '@/lib/config'
 import { NextResponse } from 'next/server'
 
-const WELCOME_CREDITS = 25
+// Read from CREDIT_COSTS so a config bump can't drift out of sync with the
+// marketing site's "N free credits" pitch. Admin emails still bypass this
+// (they get 1000 to smoke-test the flow, unchanged).
+const WELCOME_CREDITS = CREDIT_COSTS.welcome_grant
 const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
 
 export async function GET() {

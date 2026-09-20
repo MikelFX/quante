@@ -5,7 +5,7 @@ import { PRICING_FAQ } from '@/lib/faq'
 export const metadata = buildMetadata({
   title: 'Pricing — credits and optional hosting',
   description:
-    'Pay only for what you create. Credits never expire. Optional hosting from $9.99/month with SSL and CDN. 25 free credits on signup.',
+    'Pay only for what you create. Credits never expire. Optional hosting from $9.99/month with SSL and CDN. 12 free credits on signup.',
   path: '/pricing',
 })
 

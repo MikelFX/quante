@@ -303,7 +303,7 @@ export function DomainsClient() {
           <h2 style={{ fontSize: 'clamp(22px,4vw,36px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 14 }}>
             Ready to build your store?
           </h2>
-          <p style={{ fontSize: 15, color: 'var(--qp-sub)', marginBottom: 28 }}>25 free credits. No credit card required.</p>
+          <p style={{ fontSize: 15, color: 'var(--qp-sub)', marginBottom: 28 }}>12 free credits. No credit card required.</p>
           <a href="/signup" style={{
             display: 'inline-block', fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',
             background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',

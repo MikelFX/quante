@@ -11,7 +11,7 @@ import { HOSTING_ANNUAL_USD } from '@/lib/config'
 export const metadata = buildMetadata({
   title: 'Describe your online store. Get real Next.js code',
   description:
-    'Describe an online store — Quante generates a real Next.js project you can export and own outright. 25 free credits, no card required.',
+    'Describe an online store — Quante generates a real Next.js project you can export and own outright. 12 free credits, no card required.',
   path: '/',
 })
 

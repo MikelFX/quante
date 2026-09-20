@@ -58,7 +58,7 @@ export const CREDIT_COSTS = {
   preview_deploy:    2,  // preview deploy (unique URL, no subdomain) — kept
   fix:               0,  // fixes repair a paid generation — always free
   vision:            1,
-  welcome_grant:    25,
+  welcome_grant:    12,
 } as const
 
 // ─── Self-healing deploy loop ─────────────────────────────────────────────────

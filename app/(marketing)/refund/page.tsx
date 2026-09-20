@@ -47,7 +47,7 @@ export default function RefundPage() {
         <p><strong style={{ color: 'var(--qp-ink)' }}>Unused purchased credits.</strong> If you have purchased a credit pack and have not spent those credits, you may request a full refund within {REFUND_WINDOW_DAYS} days of the original purchase. To request a refund, contact us using the details in Section 5 and include the email address on your account and the approximate date of purchase. We will process the refund to your original payment method within 10 business days.</p>
         <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Partially used credit packs.</strong> If you have spent some but not all credits from a pack, only the value of the remaining (unspent) credits is eligible for a pro-rata refund, subject to the {REFUND_WINDOW_DAYS}-day window above.</p>
         <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Credits already spent on generation.</strong> Credits that have been consumed to generate, iterate, or export a store are non-refundable, regardless of whether you are satisfied with the output. This is because the underlying AI API costs are incurred at the point of generation.</p>
-        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Complimentary starter credits.</strong> The 25 credits granted to new accounts at sign-up are complimentary and non-refundable in all circumstances.</p>
+        <p style={{ marginTop: 10 }}><strong style={{ color: 'var(--qp-ink)' }}>Complimentary starter credits.</strong> The 12 credits granted to new accounts at sign-up are complimentary and non-refundable in all circumstances.</p>
       </Section>
 
       <Section title="2. Domain purchases">
