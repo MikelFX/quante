@@ -394,7 +394,18 @@
    reads as motion without that cost. */
 .qnt-public .qp-tilt-stage { perspective: 2000px; display: flex; justify-content: center; position: relative; z-index: 2; }
 .qnt-public .qp-tilt-frame {
-  position: relative; width: min(920px, 100%); aspect-ratio: 16 / 10;
+  /* Frame retuned twice. First swap was 16:10 → 9:16 to match the source
+     clip's real 1080×1920 aspect, which stopped cover-cropping the dashboard
+     off the top. But the clip itself carries built-in letterbox-style dark
+     bands above the Studio header and below the "Tvůj e-shop. Tvoje
+     produkty." tail, so an exact 9:16 frame still showed a big empty
+     black strip at the very top and bottom of the visible box (field
+     report "dole moc prazdneho mista a nahore veci co nejsou videt").
+     3:4 is the compromise: still portrait-ish (reads as "phone showing
+     the Studio"), narrow enough to sit tidily in the section, and short
+     enough that the cover crop eats the inherent dark bands the source
+     has at its own top+bottom instead of the actual UI content. */
+  position: relative; width: min(340px, 92%); aspect-ratio: 3 / 4;
   border-radius: 24px;
   transform: rotateX(4deg) scale(.96) translateY(20px);
   opacity: 0;
@@ -418,7 +429,15 @@
 .qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(2deg) scale(1) translateY(0); opacity: 1; }
 .qnt-public .qp-tilt-frame:hover { transform: rotateX(1deg) scale(1.008) translateY(0); }
 .qnt-public .qp-tilt-frame video {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
+  /* Frame aspect ratio now matches the source clip's 9:16, so object-fit
+     could be either contain or cover — cover is kept because a 1-pixel
+     rounding mismatch during the tilt transform used to leave a hairline
+     of page background around the video, and cover safely oversubscribes
+     the box so that never happens. */
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
 }
 /* The tilt placeholder deliberately stays dark — it stands in for a video
    (once the real clip lands the <video> replaces it and inherits the same
@@ -458,7 +477,9 @@
      that fills the column. The desktop 2° tilt reads as skewed layout
      at phone widths; a flat rectangle with the same feathered mask
      already sits in the page well without needing rotation. */
-  .qnt-public .qp-tilt-frame { transform: scale(.96) translateY(16px); aspect-ratio: 4 / 3; border-radius: 20px; }
+  /* Mobile mirrors the desktop 3:4 phone-shape at slightly smaller max
+     width so it fits inside the phone column without dominating. */
+  .qnt-public .qp-tilt-frame { transform: scale(.96) translateY(16px); aspect-ratio: 3 / 4; border-radius: 20px; width: min(300px, 88%); }
   .qnt-public .qp-tilt-frame.qp-reveal { transform: scale(1) translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
