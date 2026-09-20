@@ -252,14 +252,13 @@ function BentoGrid() {
 // Video is a placeholder until the user supplies the real clip — see the
 // comment inside .qp-tilt-frame below for exactly what to swap in.
 
-// Feature-flag for the Qads teaser video panel. NEXT_PUBLIC_QADS_TEASER_VIDEO
-// is a public env var (baked into the client bundle at build time) that
-// holds the src URL of the real preview clip. If unset, the tilted video
-// panel is not rendered at all — the title + copy + CTA stay so the
-// section still tells a first-time visitor what Qads is and links out
-// to /qads, but no "coming soon" placeholder is shown on production.
-// Audit brief 2.3.
-const QADS_TEASER_VIDEO_SRC = process.env.NEXT_PUBLIC_QADS_TEASER_VIDEO ?? ''
+// Real preview clip lives in /public/qads-preview.mp4. The audit brief
+// 2.3 temporarily hid the tilted panel behind a feature flag while the
+// clip was missing; now that the real asset ships in the repo, the
+// panel renders unconditionally. Swap the src below (or drop a new
+// file at the same path) whenever a fresh cut lands — no other change
+// needed, the surrounding .qp-tilt-frame styling handles the rest.
+const QADS_TEASER_VIDEO_SRC = '/qads-preview.mp4'
 
 function QadsTeaser() {
   const frameRef = useRef<HTMLDivElement>(null)
@@ -295,15 +294,15 @@ function QadsTeaser() {
         </Link>
       </div>
 
-      {QADS_TEASER_VIDEO_SRC && (
-        <div className="qp-tilt-stage" style={{ marginTop: 'clamp(2.5rem,6vw,3.5rem)' }}>
-          <div className="qp-tilt-frame" ref={frameRef}>
-            {/* The .qp-tilt-frame wrapper carries the tilt/shadow/rounded-
-                corner treatment; the <video> inside just needs to fill it. */}
-            <video src={QADS_TEASER_VIDEO_SRC} autoPlay muted loop playsInline />
-          </div>
+      <div className="qp-tilt-stage" style={{ marginTop: 'clamp(2.5rem,6vw,3.5rem)' }}>
+        <div className="qp-tilt-frame" ref={frameRef}>
+          {/* The .qp-tilt-frame wrapper carries the radius / soft shadow /
+              feathered-edge mask so the clip reads as embedded in the
+              page rather than pasted on top of it. The <video> just
+              needs to fill the frame. */}
+          <video src={QADS_TEASER_VIDEO_SRC} autoPlay muted loop playsInline preload="metadata" poster="" />
         </div>
-      )}
+      </div>
     </section>
   )
 }

@@ -379,30 +379,43 @@
   .qnt-public .qp-bg-grid, .qnt-public .qp-bg-scan { animation: none; }
 }
 
-/* ── Qads homepage teaser — tilted "3D canvas" video frame ───────────────
-   perspective on the outer stage, rotateX/rotateY on the frame itself so
-   the video/placeholder reads as a physical panel angled in space rather
-   than a flat rectangle with rounded corners. Reveal (not continuous
-   scroll-parallax) on purpose: ZoomGallery already owns the page's one
-   continuous scroll listener, and a second one here would double the exact
-   jank risk that was just fixed there — a one-shot IntersectionObserver
-   settling the tilt in reads as motion without that cost. */
-.qnt-public .qp-tilt-stage { perspective: 1400px; display: flex; justify-content: center; position: relative; z-index: 2; }
+/* ── Qads homepage teaser — embedded video panel ──────────────────────────
+   The previous pass used an aggressive rotateX(10)/rotateY(-12) tilt so
+   the panel read as a physical 3D canvas hanging in space. On the light
+   marketing surface the sharp rectangular clip looked stuck onto the
+   page rather than part of it, so the tilt is now much more subtle
+   (2–3° max), the border-radius is bumped a step up (24px), the outer
+   shadow is spread wider + softer, and a radial mask fades the very
+   edge of the video into the page background so there's no hard boundary
+   between the two. Reveal (not continuous scroll-parallax) on purpose:
+   ZoomGallery already owns the page's one continuous scroll listener,
+   and a second one here would double the exact jank risk that was
+   fixed there — a one-shot IntersectionObserver settling the panel in
+   reads as motion without that cost. */
+.qnt-public .qp-tilt-stage { perspective: 2000px; display: flex; justify-content: center; position: relative; z-index: 2; }
 .qnt-public .qp-tilt-frame {
-  position: relative; width: min(760px, 100%); aspect-ratio: 16 / 10;
-  border-radius: var(--qp-r-lg);
-  transform: rotateX(10deg) rotateY(-12deg) scale(.92) translateY(28px);
+  position: relative; width: min(920px, 100%); aspect-ratio: 16 / 10;
+  border-radius: 24px;
+  transform: rotateX(4deg) scale(.96) translateY(20px);
   opacity: 0;
-  transition: transform .9s cubic-bezier(.16,.8,.2,1), opacity .9s ease;
+  transition: transform 1s cubic-bezier(.16,.8,.2,1), opacity 1s ease;
   box-shadow:
-    0 50px 90px -35px rgba(0,0,0,.65),
-    0 0 0 1px var(--qp-glass-border),
-    0 0 70px -15px rgba(59,130,246,.4);
+    0 6px 16px -8px rgba(0,0,0,.10),
+    0 40px 90px -40px rgba(0,0,0,.18);
   overflow: hidden;
   transform-style: preserve-3d;
+  /* Feathered edges — two-stop radial fade so the outer ~15% of the
+     video visibly softens to transparent instead of stopping at a hard
+     rounded rectangle. `ellipse 100% 100%` sits the mask flush with the
+     box; `black 60%` locks the fully-opaque core (nothing in the middle
+     of the video ever gets touched); `transparent 100%` melts the rim
+     into whatever background sits behind. The result reads as a clip
+     that "sinks into" the page rather than being pasted on top. */
+  -webkit-mask-image: radial-gradient(ellipse 100% 100% at center, black 60%, transparent 100%);
+          mask-image: radial-gradient(ellipse 100% 100% at center, black 60%, transparent 100%);
 }
-.qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(6deg) rotateY(-9deg) scale(1) translateY(0); opacity: 1; }
-.qnt-public .qp-tilt-frame:hover { transform: rotateX(2deg) rotateY(-4deg) scale(1.015) translateY(0); }
+.qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(2deg) scale(1) translateY(0); opacity: 1; }
+.qnt-public .qp-tilt-frame:hover { transform: rotateX(1deg) scale(1.008) translateY(0); }
 .qnt-public .qp-tilt-frame video {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block;
 }
@@ -435,26 +448,17 @@
   .qnt-public .qp-tilt-play::before { animation: none; }
 }
 .qnt-public .qp-tilt-placeholder span { font-family: var(--qp-mono); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .02em; }
-/* Sheen kept but re-scoped to only tint over the dark placeholder (its
-   inset covers whatever <video> lands inside the frame; against a real
-   video clip a diagonal white streak reads as glare, which is the intended
-   "canvas" cue). Unchanged from prior — the values were already white
-   rgba, they just now sit against a monochrome dark background. */
-.qnt-public .qp-tilt-frame::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(115deg, rgba(255,255,255,.08) 0%, transparent 24%, transparent 76%, rgba(255,255,255,.04) 100%);
-}
+/* The diagonal sheen the previous version added was designed to sell a
+   "physical canvas" read against a dark placeholder; over a real video
+   it registers as glare on the recorded content, which conflicts with
+   the "embedded, don't call attention to the frame" goal. Removed. */
 @media (max-width: 640px) {
-  /* Same treatment, shallower angle — a full desktop tilt reads as "broken
-     layout" rather than "3D panel" on a narrow phone viewport. Aspect ratio
-     was originally 4/5 (portrait) here — on a ~330px-wide phone that's a
-     ~410px-tall box holding one small centered icon+label, which reads as a
-     large dead/empty area even though the content IS correctly centered
-     (verified: not a positioning bug, just too much box for too little
-     content). 4/3 keeps it landscape — the natural shape for "a video" —
-     and roughly halves the empty margin around the play icon. */
-  .qnt-public .qp-tilt-frame { transform: rotateX(6deg) rotateY(-6deg) scale(.92) translateY(20px); aspect-ratio: 4 / 3; }
-  .qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(3deg) rotateY(-4deg) scale(1) translateY(0); }
+  /* Mobile: kill the tilt entirely and switch to a landscape (4/3) box
+     that fills the column. The desktop 2° tilt reads as skewed layout
+     at phone widths; a flat rectangle with the same feathered mask
+     already sits in the page well without needing rotation. */
+  .qnt-public .qp-tilt-frame { transform: scale(.96) translateY(16px); aspect-ratio: 4 / 3; border-radius: 20px; }
+  .qnt-public .qp-tilt-frame.qp-reveal { transform: scale(1) translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .qnt-public .qp-tilt-frame { transition: none; }
