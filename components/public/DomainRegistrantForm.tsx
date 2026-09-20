@@ -44,7 +44,7 @@ export default function DomainRegistrantForm({
   const c = dark
     ? {
         text: '#e0e0e8', sub: '#8a8a93', border: 'rgba(255,255,255,.08)',
-        bg: 'rgba(255,255,255,.04)', accent: '#22C55E', danger: '#f87171',
+        bg: 'rgba(255,255,255,.04)', accent: '#D4FF3F', danger: '#f87171',
         label: '#a8a8b3',
       }
     : {

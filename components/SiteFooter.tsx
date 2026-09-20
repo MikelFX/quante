@@ -33,7 +33,7 @@ function NavLink({ href, label, badge }: { href: string; label: string; badge?: 
         <span style={{
           fontFamily: mono, fontSize: 9, letterSpacing: '.06em',
           background: 'var(--qp-accent-wash)', color: 'var(--qp-accent-deep)',
-          border: '1px solid rgba(34,197,94,.25)',
+          border: '1px solid rgba(212,255,63,.25)',
           padding: '1px 5px', borderRadius: 4,
         }}>
           {badge}

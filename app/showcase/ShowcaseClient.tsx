@@ -174,7 +174,7 @@ export function ShowcaseClient() {
             25 free credits on signup. Describe your brand — Quante does the rest.
           </p>
           <Link href="/signup" style={{
-            fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',
             background: 'var(--qp-accent)',
             boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
             padding: '0.85rem 2rem', borderRadius: 99, display: 'inline-block',

@@ -21,7 +21,7 @@ export function isChangelogTag(value: unknown): value is ChangelogTag {
 export const TAG_BG: Record<ChangelogTag, string> = {
   feature:     'rgba(52,211,153,.18)',
   bugfix:      'rgba(248,113,113,.15)',
-  platform:    'rgba(34,197,94,.18)',
+  platform:    'rgba(212,255,63,.18)',
   ai:          'rgba(99,102,241,.18)',
   design:      'rgba(251,191,36,.15)',
   domains:     'rgba(34,211,238,.15)',
@@ -32,7 +32,7 @@ export const TAG_FG: Record<ChangelogTag, string> = {
   feature:     '#34d399',
   bugfix:      '#f87171',
   platform:    '#7a82e8',
-  ai:          '#86efac',
+  ai:          '#E8FF9E',
   design:      '#fbbf24',
   domains:     '#22d3ee',
   reliability: '#34d399',

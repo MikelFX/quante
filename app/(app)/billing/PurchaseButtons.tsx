@@ -41,8 +41,8 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
             style={{
               position: 'relative',
               borderRadius: 12,
-              border: pack.popular ? '1px solid rgba(34,197,94,.4)' : '1px solid rgba(255,255,255,.07)',
-              background: pack.popular ? 'rgba(34,197,94,.06)' : '#0d0d11',
+              border: pack.popular ? '1px solid rgba(212,255,63,.4)' : '1px solid rgba(255,255,255,.07)',
+              background: pack.popular ? 'rgba(212,255,63,.06)' : '#0d0d11',
               padding: '16px 18px',
               display: 'flex', flexDirection: 'column', gap: 12,
             }}
@@ -51,7 +51,7 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
               <span style={{
                 position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
                 padding: '2px 10px', borderRadius: 20,
-                background: '#22C55E', color: '#fff',
+                background: '#D4FF3F', color: '#fff',
                 fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em',
                 whiteSpace: 'nowrap',
               }}>
@@ -74,8 +74,8 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
                 style={{
                   fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none',
                   cursor: !stripeReady || loading !== null ? 'not-allowed' : 'pointer',
-                  background: pack.popular ? '#22C55E' : '#f4f4f6',
-                  color: pack.popular ? '#fff' : '#08080a',
+                  background: pack.popular ? '#D4FF3F' : '#f4f4f6',
+                  color: '#08080a',
                   opacity: !stripeReady || loading !== null ? 0.5 : 1,
                   transition: 'opacity 0.12s',
                   flexShrink: 0,

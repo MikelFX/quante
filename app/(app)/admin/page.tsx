@@ -63,7 +63,7 @@ export default async function AdminPage() {
     active: '#3ecf8e',
     past_due: '#e0a04f',
     canceled: '#8a8a93',
-    trialing: '#22C55E',
+    trialing: '#D4FF3F',
   }
 
   return (

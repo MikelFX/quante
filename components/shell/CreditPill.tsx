@@ -69,24 +69,24 @@ export function CreditPill({ compact = false }: { compact?: boolean }) {
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: compact ? '3px 8px' : '5px 10px',
         borderRadius: 6,
-        background: 'rgba(34,197,94,.08)',
-        border: '1px solid rgba(34,197,94,.18)',
+        background: 'rgba(212,255,63,.08)',
+        border: '1px solid rgba(212,255,63,.18)',
         cursor: 'pointer',
         transition: 'background 0.15s, border-color 0.15s',
       }}
         onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(34,197,94,.13)'
-          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(34,197,94,.3)'
+          ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(212,255,63,.13)'
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,255,63,.3)'
         }}
         onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(34,197,94,.08)'
-          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(34,197,94,.18)'
+          ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(212,255,63,.08)'
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,255,63,.18)'
         }}
       >
         <span style={{
           width: 6, height: 6, borderRadius: '50%',
-          background: '#22C55E',
-          boxShadow: '0 0 6px rgba(34,197,94,.65)',
+          background: '#D4FF3F',
+          boxShadow: '0 0 6px rgba(212,255,63,.65)',
           flexShrink: 0,
           animation: 'dot-pulse 2.4s ease-in-out infinite',
         }} />

@@ -152,7 +152,7 @@ export function ContactClient() {
               alignSelf: 'flex-start',
               height: 42, padding: '0 24px',
               background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-              color: '#fff',
+              color: '#08080a',
               border: 'none', borderRadius: 99,
               fontSize: 14, fontWeight: 600, cursor: 'pointer',
               opacity: state === 'sending' ? 0.6 : 1,

@@ -45,7 +45,7 @@ export default function OpengraphImage() {
               width: 14,
               height: 14,
               borderRadius: 4,
-              background: '#22C55E',
+              background: '#D4FF3F',
             }}
           />
           {SITE_NAME.toLowerCase()} · pricing

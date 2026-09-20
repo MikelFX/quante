@@ -37,7 +37,7 @@ export default function RootLayout({
         variables: {
           colorBackground: '#101016',
           colorText: '#f4f4f6',
-          colorPrimary: '#22C55E',
+          colorPrimary: '#D4FF3F',
           colorInputBackground: '#0c0c12',
           colorInputText: '#f4f4f6',
           colorNeutral: '#8a8a93',
@@ -71,11 +71,11 @@ export default function RootLayout({
             color: '#f4f4f6',
           },
           footerActionLink: {
-            color: '#22C55E',
+            color: '#D4FF3F',
           },
           identityPreviewText: { color: '#8a8a93' },
           formButtonPrimary: {
-            background: '#22C55E',
+            background: '#D4FF3F',
             color: '#fff',
           },
           dividerLine: { background: 'rgba(255,255,255,0.08)' },

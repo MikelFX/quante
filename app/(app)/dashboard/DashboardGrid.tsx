@@ -20,13 +20,13 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'rgba(34,197,94,.2)',
+  draft: 'rgba(212,255,63,.2)',
   generating: 'rgba(251,189,59,.2)',
   ready: 'rgba(52,199,89,.2)',
   archived: 'rgba(255,255,255,.08)',
 }
 const STATUS_DOT: Record<string, string> = {
-  draft: '#22C55E',
+  draft: '#D4FF3F',
   generating: '#fbbf3b',
   ready: '#34c759',
   archived: '#5b5b64',
@@ -201,7 +201,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
         {visibleProjects.map((project, i) => {
           const isSelected = isAgency && selected.has(project.id)
           const isConfirmingDelete = deletingId === project.id
-          const dotColor = STATUS_DOT[project.status] ?? '#22C55E'
+          const dotColor = STATUS_DOT[project.status] ?? '#D4FF3F'
 
           return (
             <motion.div
@@ -215,7 +215,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                 setHoveredCardId(project.id)
                 if (!isSelected && !isConfirmingDelete) {
                   ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,.14)'
-                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 32px rgba(34,197,94,.12)'
+                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 32px rgba(212,255,63,.12)'
                 }
               }}
               onMouseLeave={(e) => {

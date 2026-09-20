@@ -148,7 +148,7 @@ export function DomainsClient() {
       {/* Hero */}
       <section style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(5rem,10vw,9rem) 1.5rem clamp(4rem,7vw,7rem)' }}>
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none', overflow: 'hidden' }}>
-          <span style={{ position: 'absolute', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,.38),transparent 66%)', top: -180, left: -80 }} />
+          <span style={{ position: 'absolute', width: 560, height: 560, borderRadius: '50%', background: 'radial-gradient(circle,rgba(212,255,63,.38),transparent 66%)', top: -180, left: -80 }} />
           <span style={{ position: 'absolute', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle,rgba(52,211,153,.14),transparent 66%)', bottom: -120, right: -60 }} />
         </div>
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 720, margin: '0 auto', textAlign: 'center' }}>
@@ -181,11 +181,11 @@ export function DomainsClient() {
             />
             <button type="submit" disabled={searching || !query.trim()} style={{
               height: 44, padding: '0 22px',
-              background: accent, color: '#fff',
+              background: accent, color: '#08080a',
               border: 'none', borderRadius: 8,
               fontSize: 14, fontWeight: 600, cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
               opacity: searching || !query.trim() ? 0.6 : 1,
-              boxShadow: '0 0 28px rgba(34,197,94,.35)',
+              boxShadow: '0 0 28px rgba(212,255,63,.35)',
             }}>
               {searching ? 'Searching…' : 'Search'}
             </button>
@@ -205,7 +205,7 @@ export function DomainsClient() {
                 Domain registration is tied to your Quante account so we can attach it to a store and keep it renewed.
               </p>
               <Link href="/signup" style={{
-                display: 'inline-block', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: '#fff',
+                display: 'inline-block', fontSize: 13, fontWeight: 600, textDecoration: 'none', color: '#08080a',
                 background: accent, padding: '0.6rem 1.4rem', borderRadius: 99,
               }}>
                 Sign up free →
@@ -236,7 +236,7 @@ export function DomainsClient() {
                       <span style={{ fontFamily: mono, fontSize: 13, color: 'var(--qp-sub)' }}>${r.price.toFixed(2)}/yr</span>
                       <button
                         onClick={() => setPendingBuy({ domain: r.domain, price: r.price })}
-                        style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 6, background: accent, color: '#fff', border: 'none', cursor: 'pointer' }}
+                        style={{ fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 6, background: accent, color: '#08080a', border: 'none', cursor: 'pointer' }}
                       >
                         Buy
                       </button>
@@ -297,7 +297,7 @@ export function DomainsClient() {
       {/* CTA */}
       <section style={{ borderTop: '1px solid var(--qp-line-soft)', padding: 'clamp(4rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <span style={{ position: 'absolute', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,.25),transparent 66%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+          <span style={{ position: 'absolute', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(212,255,63,.25),transparent 66%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
         </div>
         <div style={{ position: 'relative', zIndex: 1 }}>
           <h2 style={{ fontSize: 'clamp(22px,4vw,36px)', fontWeight: 700, letterSpacing: '-.03em', marginBottom: 14 }}>
@@ -305,9 +305,9 @@ export function DomainsClient() {
           </h2>
           <p style={{ fontSize: 15, color: 'var(--qp-sub)', marginBottom: 28 }}>25 free credits. No credit card required.</p>
           <a href="/signup" style={{
-            display: 'inline-block', fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            display: 'inline-block', fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',
             background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(34,197,94,.55)',
+            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(212,255,63,.55)',
             padding: '0.75rem 2rem', borderRadius: 99,
           }}>
             Try it free →

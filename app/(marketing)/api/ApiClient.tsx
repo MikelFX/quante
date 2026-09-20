@@ -23,15 +23,15 @@ export function ApiClient() {
 
       {/* ambient orb */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-        <span style={{ position: 'absolute', width: 640, height: 640, borderRadius: '50%', background: 'radial-gradient(circle,rgba(34,197,94,.28),transparent 66%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
+        <span style={{ position: 'absolute', width: 640, height: 640, borderRadius: '50%', background: 'radial-gradient(circle,rgba(212,255,63,.28),transparent 66%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
       </div>
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 580 }}>
         <span style={{
           display: 'inline-block',
           fontFamily: mono, fontSize: 10, letterSpacing: '.12em',
-          background: 'rgba(34,197,94,.18)', color: 'var(--qp-accent-deep)',
-          border: '1px solid rgba(34,197,94,.28)',
+          background: 'rgba(212,255,63,.18)', color: 'var(--qp-accent-deep)',
+          border: '1px solid rgba(212,255,63,.28)',
           padding: '4px 12px', borderRadius: 99, marginBottom: 24,
         }}>
           COMING SOON
@@ -100,7 +100,7 @@ Authorization: Bearer qnt_••••••••••••
               style={{
                 height: 44, padding: '0 22px',
                 background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-                color: '#fff',
+                color: '#08080a',
                 border: 'none', borderRadius: 99,
                 fontSize: 14, fontWeight: 600, cursor: 'pointer',
               }}

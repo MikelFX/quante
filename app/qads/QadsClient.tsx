@@ -131,9 +131,9 @@ export function QadsClient() {
             Build a store first, then generate its first campaign in minutes.
           </p>
           <Link href="/dashboard" style={{
-            fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            fontSize: 14, fontWeight: 600, textDecoration: 'none', color: '#08080a',
             background: 'linear-gradient(155deg,var(--qp-accent-light),var(--qp-accent) 55%,var(--qp-accent-deep))',
-            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(34,197,94,.55)',
+            boxShadow: '0 1px 0 rgba(255,255,255,.35) inset, 0 -2px 6px rgba(0,0,0,.12) inset, 0 10px 22px -8px rgba(212,255,63,.55)',
             padding: '0.85rem 2rem', borderRadius: 99, display: 'inline-block',
           }}>
             Go to your Studio →

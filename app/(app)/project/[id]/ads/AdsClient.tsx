@@ -5,7 +5,7 @@
 // 1:1 to a route built in steps (a)-(i); this file adds no new server logic of its own.
 //
 // Design language: same dark/editorial-technical tokens as StudioClient.tsx (CLAUDE.md
-// §12) — #22C55E accent, #f4f4f6 text, #8a8a93 muted, rgba(255,255,255,.0x) surfaces —
+// §12) — #D4FF3F accent, #f4f4f6 text, #8a8a93 muted, rgba(255,255,255,.0x) surfaces —
 // kept as plain inline styles to match that file's convention rather than introducing a
 // second styling approach for one corner of the Studio.
 
@@ -20,8 +20,8 @@ const COLORS = {
   border: 'rgba(255,255,255,.1)',
   text: '#f4f4f6',
   muted: '#8a8a93',
-  accent: '#22C55E',
-  accentSoft: 'rgba(34,197,94,.18)',
+  accent: '#D4FF3F',
+  accentSoft: 'rgba(212,255,63,.18)',
   accentText: '#a8afff',
   danger: '#e5686b',
   success: '#3ecf8e',

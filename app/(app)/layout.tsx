@@ -68,7 +68,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 position: 'absolute',
                 width: 560, height: 560,
                 top: -80, left: 60,
-                background: 'radial-gradient(circle,rgba(34,197,94,.14),transparent 66%)',
+                background: 'radial-gradient(circle,rgba(212,255,63,.14),transparent 66%)',
                 borderRadius: '50%',
               }} />
               {/* Blob 2 */}
@@ -84,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 position: 'absolute',
                 width: 360, height: 360,
                 top: '45%', left: '55%',
-                background: 'radial-gradient(circle,rgba(34,197,94,.10),transparent 68%)',
+                background: 'radial-gradient(circle,rgba(212,255,63,.10),transparent 68%)',
                 borderRadius: '50%',
               }} />
               {/* Grain overlay */}
@@ -193,8 +193,8 @@ function SidebarLink({
         padding: '8px 12px', borderRadius: 8,
         textDecoration: 'none', fontSize: 13,
         fontWeight: active ? 550 : 400,
-        color: active ? '#22C55E' : '#8a8a93',
-        background: active ? 'rgba(34,197,94,.1)' : 'transparent',
+        color: active ? '#D4FF3F' : '#8a8a93',
+        background: active ? 'rgba(212,255,63,.1)' : 'transparent',
         transition: 'color 0.12s, background 0.12s',
         position: 'relative',
       }}
@@ -215,8 +215,8 @@ function SidebarLink({
         <span style={{
           position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
           width: 3, height: 16, borderRadius: '0 2px 2px 0',
-          background: '#22C55E',
-          boxShadow: '0 0 8px rgba(34,197,94,.5)',
+          background: '#D4FF3F',
+          boxShadow: '0 0 8px rgba(212,255,63,.5)',
         }} />
       )}
       <Icon size={15} strokeWidth={active ? 2.2 : 1.7} />
@@ -249,8 +249,8 @@ function BottomNavItem({
         <span style={{
           position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
           width: 28, height: 2, borderRadius: '0 0 2px 2px',
-          background: '#22C55E',
-          boxShadow: '0 0 8px rgba(34,197,94,.7)',
+          background: '#D4FF3F',
+          boxShadow: '0 0 8px rgba(212,255,63,.7)',
         }} />
       )}
       <Icon size={19} strokeWidth={active ? 2.2 : 1.6} />

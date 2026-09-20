@@ -64,16 +64,17 @@
   --dim: #5b5b64;
 
   /* ── Accent ─────────────────────────────────────────────────────
-     Vivid green swap (was indigo #6f78e6 / oklch(0.60 0.18 270)) —
-     the platform-side (Studio, Qads, Qails) now reads as dark surface
-     + high-vibrance green accent, matching the approved mockup. The
-     variable NAME `--accent-indigo` is kept because a lot of downstream
-     Studio styles reference it directly; renaming would require a
-     mass find-and-replace and give no readability win. */
-  --accent-indigo: #22C55E;
-  --accent-indigo-light: #4ADE80;
-  --accent-indigo-deep:  #16A34A;
-  --accent-indigo-wash:  rgba(34,197,94,.14);
+     Electric chartreuse (was grass-green #22C55E, and originally
+     indigo #6f78e6). Matches the reference Instagram screenshot —
+     a very bright, almost yellow, yellow-green. Reads as "high-
+     energy signal" on the near-black platform surface. Legacy
+     variable name `--accent-indigo` kept because a lot of Studio
+     styles reference it directly; mass rename would churn dozens
+     of call sites for zero readability gain. */
+  --accent-indigo: #D4FF3F;
+  --accent-indigo-light: #E8FF6F;
+  --accent-indigo-deep:  #B4D831;
+  --accent-indigo-wash:  rgba(212,255,63,.14);
 
   /* ── Semantic ─────────────────────────────────────────────────── */
   --live: #3ecf8e;
@@ -93,25 +94,27 @@
   --secondary-foreground: #f4f4f6;
   --muted: #121218;
   --muted-foreground: #8a8a93;
-  /* oklch(0.75 0.19 145) ≈ #22C55E — high-vibrance green picked to stay
-     legible on the near-black surface tokens above. Chroma 0.19 keeps
-     it saturated without going neon; lightness 0.75 lifts it clear of
-     the surface without the "washed-out mint" read at 0.60. */
-  --accent: oklch(0.75 0.19 145);
+  /* oklch(0.94 0.22 118) ≈ #D4FF3F — electric chartreuse. High
+     lightness (0.94) is what makes it pop off the near-black
+     surface; chroma 0.22 keeps it saturated without going pure
+     yellow; hue 118 sits on the yellow-green edge that the reference
+     art calls for. accent-foreground stays near-black (chartreuse
+     against black is the highest-contrast pairing in the palette). */
+  --accent: oklch(0.94 0.22 118);
   --accent-foreground: #08080a;
   --destructive: #e0564f;
   --border: rgba(255,255,255,.07);
   --input: rgba(255,255,255,.09);
-  --ring: oklch(0.75 0.19 145);
+  --ring: oklch(0.94 0.22 118);
   --radius: 0.5rem;
   --sidebar: #0d0d11;
   --sidebar-foreground: #f4f4f6;
-  --sidebar-primary: oklch(0.75 0.19 145);
+  --sidebar-primary: oklch(0.94 0.22 118);
   --sidebar-primary-foreground: #08080a;
   --sidebar-accent: #121218;
   --sidebar-accent-foreground: #f4f4f6;
   --sidebar-border: rgba(255,255,255,.07);
-  --sidebar-ring: oklch(0.75 0.19 145);
+  --sidebar-ring: oklch(0.94 0.22 118);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -146,25 +149,30 @@
   --qp-line: rgba(0,0,0,.09);
   --qp-line-soft: rgba(0,0,0,.06);
 
-  /* One accent, a vivid green — Tailwind green-500 (#22C55E) as the
-     "primary" tone, green-400 (#4ADE80) as the highlight, green-600
-     (#16A34A) as the pressed/deep tone. Gradients built from
-     `light → base → deep` render as a clean green→dark-green wash;
-     wash is used behind badges + focus rings. Same variable names as
-     the earlier black-accent pass, so every consumer (CTA buttons,
-     "Popular" pricing badge, ZoomGallery progress bar, IconTile
-     `.qp-clay-accent`, bar-chart bars, terminal cursor, dot pulses)
-     re-tints automatically. */
-  --qp-accent: #22C55E;
-  --qp-accent-light: #4ADE80;
-  --qp-accent-deep: #16A34A;
-  --qp-accent-wash: rgba(34,197,94,.10);
-  /* "mint" alias folded into the same accent so the comparison-card
-     checkmark list + any legacy .qp-mint consumers keep working; the
-     one-accent-only design rule still holds. */
-  --qp-mint: #22C55E;
-  --qp-mint-light: #4ADE80;
-  --qp-mint-wash: rgba(34,197,94,.10);
+  /* One accent — electric chartreuse. Matches the brand reference:
+     bright, almost-yellow yellow-green that reads as "high-signal"
+     against the white marketing surface. Base #D4FF3F, highlight
+     #E8FF6F (softer, for gradient light stops), deep #B4D831
+     (for gradient dark stops / pressed states). Wash rgba is used
+     behind badges + focus rings. On chartreuse, every CTA button
+     needs BLACK text — pairing chartreuse with white text falls
+     below WCAG contrast; every downstream call site already sets
+     text explicitly, and the ones that don't inherit --qp-ink
+     (near-black). Same variable names as the earlier green pass,
+     so every consumer (CTA buttons, "Popular" pricing badge,
+     ZoomGallery progress bar, IconTile `.qp-clay-accent`, bar-
+     chart bars, terminal cursor, dot pulses) re-tints
+     automatically. */
+  --qp-accent: #D4FF3F;
+  --qp-accent-light: #E8FF6F;
+  --qp-accent-deep: #B4D831;
+  --qp-accent-wash: rgba(212,255,63,.14);
+  /* "mint" alias folded onto the same chartreuse so the
+     comparison-card checkmark list + any legacy .qp-mint consumers
+     keep working; the one-accent-only design rule still holds. */
+  --qp-mint: #D4FF3F;
+  --qp-mint-light: #E8FF6F;
+  --qp-mint-wash: rgba(212,255,63,.14);
 
   /* "shelf" (was blue tint band behind hero) — now transparent so the
      ShelfBackground element (still rendered on some pages) doesn't paint

@@ -339,7 +339,7 @@ export function HomePageClient() {
             </p>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 30, flexWrap: 'wrap' }}>
               <Link href="/signup" style={{
-                fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
+                fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#08080a',
                 background: 'var(--qp-accent)',
                 boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
                 padding: '14px 26px', borderRadius: 99,
@@ -563,7 +563,7 @@ export function HomePageClient() {
                   <span style={{
                     position: 'absolute', top: -11, left: '50%', transform: 'translateX(-50%)',
                     fontSize: 10, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase',
-                    background: 'var(--qp-accent)', color: '#fff', padding: '3px 12px', borderRadius: 99,
+                    background: 'var(--qp-accent)', color: '#08080a', padding: '3px 12px', borderRadius: 99,
                   }}>
                     Popular
                   </span>
@@ -600,7 +600,7 @@ export function HomePageClient() {
             Sign up in 30 seconds. 25 free credits included.
           </p>
           <Link href="/signup" style={{
-            fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#fff',
+            fontSize: 14.5, fontWeight: 600, textDecoration: 'none', color: '#08080a',
             background: 'var(--qp-accent)',
             boxShadow: '0 1px 2px rgba(0,0,0,.06), 0 8px 20px -10px rgba(0,0,0,.35)',
             padding: '14px 26px', borderRadius: 99, display: 'inline-block',

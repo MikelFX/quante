@@ -44,7 +44,7 @@ export function AnnouncementBanner() {
         gap: 6,
       }}
     >
-      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10.5, letterSpacing: '.09em', color: '#4ADE80', marginRight: 6 }}>
+      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10.5, letterSpacing: '.09em', color: '#E8FF6F', marginRight: 6 }}>
         NEW
       </span>
       Connect your own domain to your store, powered by {domainProvider.name}{' '}

@@ -80,7 +80,7 @@ export function PublicNav() {
               fontSize: 13.5,
               fontWeight: 600,
               textDecoration: 'none',
-              color: '#fff',
+              color: '#08080a',
               background: 'var(--qp-accent)',
               padding: '0.5rem 1.1rem',
               borderRadius: 99,

@@ -2614,7 +2614,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <button
               onClick={handleImageSuggest}
               disabled={isSuggestingImages || !productDraft.name.trim()}
-              style={{ marginTop: 8, width: '100%', fontSize: 11, padding: '5px', borderRadius: 7, border: '1px dashed rgba(34,197,94,.35)', background: 'rgba(34,197,94,.05)', color: isSuggestingImages ? '#8a8a93' : '#86efac', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+              style={{ marginTop: 8, width: '100%', fontSize: 11, padding: '5px', borderRadius: 7, border: '1px dashed rgba(212,255,63,.35)', background: 'rgba(212,255,63,.05)', color: isSuggestingImages ? '#8a8a93' : '#E8FF9E', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
             >
               {isSuggestingImages ? '✦ Finding images…' : '✦ Find product images · 1 credit'}
             </button>
@@ -2634,7 +2634,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       }}
                       title={`Photo by ${img.credit} on Unsplash`}
                       style={{ padding: 0, border: '2px solid transparent', borderRadius: 6, overflow: 'hidden', cursor: 'pointer', background: 'none', aspectRatio: '1', transition: 'border-color 0.1s' }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#22C55E')}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#D4FF3F')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2699,7 +2699,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               )}
               <button
                 onClick={() => setProductDraft(emptyProduct())}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(34,197,94,.4)', background: 'rgba(34,197,94,.1)', color: '#22C55E', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(212,255,63,.4)', background: 'rgba(212,255,63,.1)', color: '#D4FF3F', cursor: 'pointer' }}
               >
                 <Plus size={11} /> Add product
               </button>
@@ -2711,18 +2711,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 8 }}>
               <Package size={28} style={{ color: '#5b5b64' }} />
               <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center' }}>No products yet.</p>
-              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
+              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
             </div>
           ) : currentManifest.catalog.products.map(p => {
             const isSelected = selectedProductIds.has(p.id)
             return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(34,197,94,.05)' : 'transparent', transition: 'background 0.1s' }}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(212,255,63,.05)' : 'transparent', transition: 'background 0.1s' }}>
                 {/* Checkbox */}
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => setSelectedProductIds(prev => { const next = new Set(prev); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); return next })}
-                  style={{ width: 14, height: 14, accentColor: '#22C55E', flexShrink: 0, cursor: 'pointer' }}
+                  style={{ width: 14, height: 14, accentColor: '#D4FF3F', flexShrink: 0, cursor: 'pointer' }}
                 />
 
                 {/* Thumbnail */}
@@ -2744,7 +2744,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.5 }}>{p.compareAtPrice}</span>
                     )}
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
-                      <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>SALE</span>
+                      <span style={{ marginLeft: 6, color: '#D4FF3F', fontWeight: 600 }}>SALE</span>
                     )}
                     {!p.available && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
                   </p>
@@ -2803,7 +2803,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               )}
               <button
                 onClick={() => setProductDraft(emptyProduct())}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(34,197,94,.4)', background: 'rgba(34,197,94,.1)', color: '#22C55E', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(212,255,63,.4)', background: 'rgba(212,255,63,.1)', color: '#D4FF3F', cursor: 'pointer' }}
               >
                 <Plus size={11} /> Add product
               </button>
@@ -2822,17 +2822,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 8 }}>
               <Package size={28} style={{ color: '#5b5b64' }} />
               <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center' }}>No products yet.</p>
-              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
+              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
             </div>
           ) : codeProducts.map(p => {
             const isSelected = selectedProductIds.has(p.id)
             return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(34,197,94,.05)' : 'transparent', transition: 'background 0.1s' }}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(212,255,63,.05)' : 'transparent', transition: 'background 0.1s' }}>
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => setSelectedProductIds(prev => { const next = new Set(prev); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); return next })}
-                  style={{ width: 14, height: 14, accentColor: '#22C55E', flexShrink: 0, cursor: 'pointer' }}
+                  style={{ width: 14, height: 14, accentColor: '#D4FF3F', flexShrink: 0, cursor: 'pointer' }}
                 />
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -2850,7 +2850,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.5 }}>{p.compareAtPrice}</span>
                     )}
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
-                      <span style={{ marginLeft: 6, color: '#22c55e', fontWeight: 600 }}>SALE</span>
+                      <span style={{ marginLeft: 6, color: '#D4FF3F', fontWeight: 600 }}>SALE</span>
                     )}
                     {p.sku && <span style={{ marginLeft: 6, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64' }}>{p.sku}</span>}
                     {p.available === false && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
@@ -2865,7 +2865,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 <button
                   onClick={() => editProductWithQuante(p.name)}
                   title="Edit with Quante (AI chat)"
-                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.06)', color: '#86efac', cursor: 'pointer', flexShrink: 0 }}
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.06)', color: '#E8FF9E', cursor: 'pointer', flexShrink: 0 }}
                 >
                   ✦ Quante
                 </button>
@@ -2914,7 +2914,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <button
         onClick={() => handleHostingSubscribe('year')}
         disabled={isSubscribing}
-        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#22C55E', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
+        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
       >
         {isSubscribing ? '…' : '$99/year'}
       </button>
@@ -2996,7 +2996,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       display: 'flex', alignItems: 'flex-start', gap: 10,
                       padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.04)',
                     }}>
-                      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10, color: '#22C55E', flexShrink: 0, marginTop: 2 }}>v{v.version_no}</span>
+                      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10, color: '#D4FF3F', flexShrink: 0, marginTop: 2 }}>v{v.version_no}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: 12, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.prompt || 'Generated'}
@@ -3004,7 +3004,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         <p style={{ fontSize: 10, color: '#8a8a93', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
                       </div>
                       {versions[0]?.id !== v.id ? (
-                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 0' }}>
+                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 0' }}>
                           Restore
                         </button>
                       ) : (
@@ -3030,7 +3030,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             style={{
               fontSize: 11, fontWeight: 500, padding: '4px 10px',
               border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-              background: !adminMode ? 'rgba(34,197,94,.18)' : 'transparent',
+              background: !adminMode ? 'rgba(212,255,63,.18)' : 'transparent',
               color: !adminMode ? '#a8afff' : '#8a8a93',
             }}
           >
@@ -3042,7 +3042,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               fontSize: 11, fontWeight: 500, padding: '4px 10px',
               border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
               cursor: 'pointer', transition: 'all 0.12s',
-              background: adminMode ? 'rgba(34,197,94,.18)' : 'transparent',
+              background: adminMode ? 'rgba(212,255,63,.18)' : 'transparent',
               color: adminMode ? '#a8afff' : '#8a8a93',
             }}
           >
@@ -3095,7 +3095,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               style={{
                 fontSize: 11, fontWeight: 500, padding: '4px 9px',
                 border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-                background: rightPanel === 'preview' ? 'rgba(34,197,94,.18)' : 'transparent',
+                background: rightPanel === 'preview' ? 'rgba(212,255,63,.18)' : 'transparent',
                 color: rightPanel === 'preview' ? '#a8afff' : '#8a8a93',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
@@ -3108,7 +3108,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 fontSize: 11, fontWeight: 500, padding: '4px 9px',
                 border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
                 cursor: 'pointer', transition: 'all 0.12s',
-                background: rightPanel === 'logs' ? 'rgba(34,197,94,.18)' : 'transparent',
+                background: rightPanel === 'logs' ? 'rgba(212,255,63,.18)' : 'transparent',
                 color: rightPanel === 'logs' ? '#a8afff' : '#8a8a93',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
@@ -3186,8 +3186,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 6px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <MessageCircle size={15} color="#22C55E" />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(212,255,63,.15)', border: '1px solid rgba(212,255,63,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <MessageCircle size={15} color="#D4FF3F" />
             </div>
             <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 4 }}>
               {hasGeneratedOnce ? 'Store ready — iterate freely' : 'Describe your store'}
@@ -3219,9 +3219,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {hasGeneratedOnce && !currentManifest && !isGenerating && (
           <div style={{
             marginBottom: 10, padding: '8px 10px', borderRadius: 8,
-            border: '1px solid rgba(34,197,94,.18)', background: 'rgba(34,197,94,.05)',
+            border: '1px solid rgba(212,255,63,.18)', background: 'rgba(212,255,63,.05)',
           }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#86efac', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: '#E8FF9E', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 4 }}>
               ✦ Design quick actions
             </p>
             <input
@@ -3242,9 +3242,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   disabled={isVisionAnalyzing}
                   style={{
                     fontSize: 11, padding: '3px 9px', borderRadius: 20,
-                    border: '1px solid rgba(34,197,94,.3)',
-                    background: 'rgba(34,197,94,.08)',
-                    color: isVisionAnalyzing ? '#8a8a93' : '#86efac',
+                    border: '1px solid rgba(212,255,63,.3)',
+                    background: 'rgba(212,255,63,.08)',
+                    color: isVisionAnalyzing ? '#8a8a93' : '#E8FF9E',
                     cursor: isVisionAnalyzing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
                   }}
                 >
@@ -3284,7 +3284,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     onClick={handleApplyVision}
                     style={{
                       fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                      border: 'none', background: '#22C55E', color: '#fff', cursor: 'pointer',
+                      border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer',
                     }}
                   >
                     Apply to store
@@ -3402,7 +3402,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               opacity: isGenerating ? 0.5 : 1,
               transition: 'border-color 0.12s',
             }}
-            onFocus={e => (e.target.style.borderColor = 'rgba(34,197,94,.4)')}
+            onFocus={e => (e.target.style.borderColor = 'rgba(212,255,63,.4)')}
             onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,.1)')}
           />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -3413,7 +3413,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 padding: '8px 14px', fontSize: 13, fontWeight: 600,
                 borderRadius: 8, border: 'none',
                 cursor: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'not-allowed' : 'pointer',
-                background: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'rgba(255,255,255,.06)' : '#22C55E',
+                background: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'rgba(255,255,255,.06)' : '#D4FF3F',
                 color: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? '#8a8a93' : '#fff',
                 transition: 'background 0.12s',
               }}
@@ -3456,8 +3456,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                border: '1px solid rgba(34,197,94,.4)',
-                background: 'rgba(34,197,94,.1)', color: '#22C55E', cursor: 'pointer',
+                border: '1px solid rgba(212,255,63,.4)',
+                background: 'rgba(212,255,63,.1)', color: '#D4FF3F', cursor: 'pointer',
               }}
             >
               <Plus size={11} /> Add section
@@ -3469,7 +3469,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {homeSections.length === 0 ? (
               <div style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
                 <p style={{ fontSize: 13, color: '#8a8a93' }}>No sections yet.</p>
-                <button onClick={() => setShowSectionPicker(true)} style={{ marginTop: 8, fontSize: 12, color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <button onClick={() => setShowSectionPicker(true)} style={{ marginTop: 8, fontSize: 12, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer' }}>
                   Add your first section →
                 </button>
               </div>
@@ -3489,9 +3489,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   onDragOver={e => { e.preventDefault(); setDragOverIndex(i) }}
                   onDragLeave={() => setDragOverIndex(null)}
                   style={{
-                    borderBottom: isDragOver ? '2px solid #22C55E' : '1px solid rgba(255,255,255,.05)',
+                    borderBottom: isDragOver ? '2px solid #D4FF3F' : '1px solid rgba(255,255,255,.05)',
                     opacity: isDraggingThis ? 0.4 : isHidden ? 0.45 : 1,
-                    background: isDragOver ? 'rgba(34,197,94,.04)' : 'transparent',
+                    background: isDragOver ? 'rgba(212,255,63,.04)' : 'transparent',
                     transition: 'opacity 0.12s, background 0.12s',
                   }}
                 >
@@ -3532,7 +3532,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                           if (isEditingDirect) { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }
                           else { setEditingSection(i); setSectionDraft(JSON.parse(JSON.stringify(homeSections[i]))); setSectionEditMode('direct'); setExpandedSection(null); setSectionInput('') }
                         }}
-                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingDirect ? 'rgba(34,197,94,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingDirect ? 'rgba(34,197,94,.12)' : 'transparent', color: isEditingDirect ? '#22C55E' : '#8a8a93', cursor: 'pointer' }}
+                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingDirect ? 'rgba(212,255,63,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingDirect ? 'rgba(212,255,63,.12)' : 'transparent', color: isEditingDirect ? '#D4FF3F' : '#8a8a93', cursor: 'pointer' }}
                       >
                         Edit
                       </button>
@@ -3544,7 +3544,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                           else { setExpandedSection(i); setSectionInput(''); setSectionEditMode('ai'); setEditingSection(null); setSectionDraft(null) }
                         }}
                         disabled={isGenerating}
-                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingAI ? 'rgba(34,197,94,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingAI ? 'rgba(34,197,94,.12)' : 'transparent', color: isEditingAI ? '#22C55E' : '#8a8a93', cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1 }}
+                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingAI ? 'rgba(212,255,63,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingAI ? 'rgba(212,255,63,.12)' : 'transparent', color: isEditingAI ? '#D4FF3F' : '#8a8a93', cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1 }}
                       >
                         {regeneratingSection === i ? '…' : 'AI'}
                       </button>
@@ -3633,8 +3633,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             onClick={() => visionInputRef.current?.click()}
             disabled={isVisionAnalyzing}
             style={{
-              width: '100%', padding: '10px', borderRadius: 8, border: '1px dashed rgba(34,197,94,.4)',
-              background: 'rgba(34,197,94,.05)', color: isVisionAnalyzing ? '#8a8a93' : '#86efac',
+              width: '100%', padding: '10px', borderRadius: 8, border: '1px dashed rgba(212,255,63,.4)',
+              background: 'rgba(212,255,63,.05)', color: isVisionAnalyzing ? '#8a8a93' : '#E8FF9E',
               fontSize: 12, cursor: isVisionAnalyzing ? 'not-allowed' : 'pointer', display: 'flex',
               alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
@@ -3649,7 +3649,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               ))}
             </div>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>{visionResult.reasoning}</p>
-            <p style={{ fontSize: 11, color: '#86efac', margin: 0 }}>
+            <p style={{ fontSize: 11, color: '#E8FF9E', margin: 0 }}>
               {visionResult.typography.headingFont} + {visionResult.typography.bodyFont} · {visionResult.voice} · {visionResult.radius} radius
             </p>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -3796,8 +3796,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               disabled={domainSearching || !domainQuery.trim()}
               style={{
                 padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.12)',
-                color: '#22C55E', cursor: domainSearching || !domainQuery.trim() ? 'not-allowed' : 'pointer',
+                border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.12)',
+                color: '#D4FF3F', cursor: domainSearching || !domainQuery.trim() ? 'not-allowed' : 'pointer',
                 opacity: domainSearching || !domainQuery.trim() ? 0.5 : 1,
                 flexShrink: 0,
               }}
@@ -3938,12 +3938,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               </button>
             </div>
             {domainConnectResult && (
-              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: 'rgba(34,197,94,.06)', border: '1px solid rgba(34,197,94,.15)' }}>
-                <p style={{ margin: '0 0 8px', fontSize: 11, color: '#22C55E', fontFamily: 'var(--font-geist-mono)', fontWeight: 600 }}>Add this DNS record:</p>
+              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: 'rgba(212,255,63,.06)', border: '1px solid rgba(212,255,63,.15)' }}>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: '#D4FF3F', fontFamily: 'var(--font-geist-mono)', fontWeight: 600 }}>Add this DNS record:</p>
                 <pre style={{ margin: 0, fontSize: 11, color: '#d0d0da', fontFamily: 'var(--font-geist-mono)', whiteSpace: 'pre-wrap' }}>{domainConnectResult.instructions}</pre>
                 <button
                   onClick={() => navigator.clipboard.writeText(domainConnectResult!.dnsValue)}
-                  style={{ marginTop: 8, fontSize: 11, color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  style={{ marginTop: 8, fontSize: 11, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
                   Copy DNS value
                 </button>
@@ -3992,7 +3992,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   {!item.ok && builderMode && (
                     <button
                       onClick={() => { setDesktopTab(builderMode); setActiveTab(builderMode) }}
-                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
                     >
                       Fix →
                     </button>
@@ -4000,7 +4000,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   {!item.ok && settingsMode && (
                     <button
                       onClick={() => { setSettingsTab(settingsMode); setAdminTab('settings'); setAdminMode(true) }}
-                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#22C55E', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
                     >
                       Fix →
                     </button>
@@ -4147,13 +4147,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               disabled={!hasGeneratedOnce || isExportingAdmin}
               style={{
                 flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
-                border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.07)',
-                color: hasGeneratedOnce && !isExportingAdmin ? '#22C55E' : '#5b5b64',
+                border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.07)',
+                color: hasGeneratedOnce && !isExportingAdmin ? '#D4FF3F' : '#5b5b64',
                 cursor: hasGeneratedOnce && !isExportingAdmin ? 'pointer' : 'not-allowed',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => { if (hasGeneratedOnce && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,.13)' }}
-              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,.07)'}
+              onMouseEnter={e => { if (hasGeneratedOnce && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.13)' }}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.07)'}
             >
               {isExportingAdmin ? '…' : '↓ ZIP + Admin'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
             </button>
@@ -4217,8 +4217,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <Terminal size={13} color="#8a8a93" />
           <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>Build logs</span>
           {logEventSourceRef.current && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#22C55E' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22C55E', animation: 'blink 1s ease-in-out infinite' }} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#D4FF3F' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D4FF3F', animation: 'blink 1s ease-in-out infinite' }} />
               live
             </span>
           )}
@@ -4265,8 +4265,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   display: 'flex', alignItems: 'center', gap: 6,
                   fontSize: 12, fontWeight: 600,
                   padding: '6px 14px', borderRadius: 7,
-                  border: '1px solid rgba(34,197,94,.4)',
-                  background: isFixing ? 'transparent' : 'rgba(34,197,94,.12)',
+                  border: '1px solid rgba(212,255,63,.4)',
+                  background: isFixing ? 'transparent' : 'rgba(212,255,63,.12)',
                   color: isFixing ? '#5b5b64' : '#a8afff',
                   cursor: isFixing ? 'not-allowed' : 'pointer',
                 }}
@@ -4279,8 +4279,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         </div>
       )}
       {isFixing && (
-        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#22C55E', fontFamily: 'var(--font-geist-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(34,197,94,.3)', borderTopColor: '#22C55E', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#D4FF3F', fontFamily: 'var(--font-geist-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(212,255,63,.3)', borderTopColor: '#D4FF3F', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
           Auto-fixing error (attempt {autoFixAttempts}/{MAX_AUTO_FIX})…
         </div>
       )}
@@ -4394,8 +4394,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   onClick={() => triggerRedeploy()}
                   style={{
                     marginTop: 12, fontSize: 12, fontWeight: 600, padding: '7px 16px',
-                    borderRadius: 7, border: '1px solid rgba(34,197,94,.3)',
-                    background: 'rgba(34,197,94,.08)', color: '#22C55E', cursor: 'pointer',
+                    borderRadius: 7, border: '1px solid rgba(212,255,63,.3)',
+                    background: 'rgba(212,255,63,.08)', color: '#D4FF3F', cursor: 'pointer',
                   }}
                 >
                   ⟳ Rebuild preview
@@ -4427,7 +4427,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       ) : done ? (
                         <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34c759', fontSize: 13, flexShrink: 0 }}>✓</span>
                       ) : active ? (
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#22C55E', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#D4FF3F', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
                       ) : (
                         <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', flexShrink: 0 }} />
                       )}
@@ -4446,8 +4446,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       onClick={() => triggerRedeploy()}
                       style={{
                         marginTop: 4, fontSize: 12, fontWeight: 600, padding: '7px 16px',
-                        borderRadius: 7, border: '1px solid rgba(34,197,94,.3)',
-                        background: 'rgba(34,197,94,.08)', color: '#22C55E', cursor: 'pointer',
+                        borderRadius: 7, border: '1px solid rgba(212,255,63,.3)',
+                        background: 'rgba(212,255,63,.08)', color: '#D4FF3F', cursor: 'pointer',
                       }}
                     >
                       ⟳ Rebuild preview
@@ -4495,7 +4495,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <div style={{ textAlign: 'center' }}>
               <div style={{
                 width: 30, height: 30, borderRadius: '50%',
-                border: '2px solid rgba(255,255,255,.1)', borderTopColor: '#22C55E',
+                border: '2px solid rgba(255,255,255,.1)', borderTopColor: '#D4FF3F',
                 animation: 'spin 0.7s linear infinite', margin: '0 auto 10px',
               }} />
               <p style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>
@@ -4524,7 +4524,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   const INSIGHT_SEVERITY: Record<InsightCard['severity'], { border: string; bg: string; color: string; label: string }> = {
     good:       { border: 'rgba(62,207,142,.3)',  bg: 'rgba(62,207,142,.05)',  color: '#3ecf8e', label: 'Good'       },
-    suggestion: { border: 'rgba(34,197,94,.3)', bg: 'rgba(34,197,94,.05)', color: '#86efac', label: 'Suggestion' },
+    suggestion: { border: 'rgba(212,255,63,.3)', bg: 'rgba(212,255,63,.05)', color: '#E8FF9E', label: 'Suggestion' },
     warning:    { border: 'rgba(245,158,11,.3)',  bg: 'rgba(245,158,11,.05)',  color: '#f59e0b', label: 'Warning'    },
   }
 
@@ -4532,12 +4532,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', maxWidth: 680 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Sparkles size={16} style={{ color: '#86efac' }} /> AI Insights
+          <Sparkles size={16} style={{ color: '#E8FF9E' }} /> AI Insights
         </h2>
         <button
           onClick={handleInsightsRefresh}
           disabled={insightsRefreshing}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(34,197,94,.4)', background: 'rgba(34,197,94,.1)', color: insightsRefreshing ? '#8a8a93' : '#86efac', cursor: insightsRefreshing ? 'wait' : 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(212,255,63,.4)', background: 'rgba(212,255,63,.1)', color: insightsRefreshing ? '#8a8a93' : '#E8FF9E', cursor: insightsRefreshing ? 'wait' : 'pointer' }}
         >
           <RefreshCw size={11} style={insightsRefreshing ? { animation: 'spin 1s linear infinite' } : undefined} />
           {insightsRefreshing ? 'Analyzing…' : '✦ Refresh · 1 credit'}
@@ -4635,7 +4635,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: '0 0 2px' }}>Store not live yet</p>
             <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy in the Builder to go live and start selling.</p>
           </div>
-          <button onClick={() => setAdminMode(false)} style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <button onClick={() => setAdminMode(false)} style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
             Go to Builder
           </button>
         </div>
@@ -4669,7 +4669,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,.06)', overflow: 'hidden', marginBottom: 14 }}>
               <div style={{
                 height: '100%', width: `${healthData.score}%`, borderRadius: 3,
-                background: healthData.score === 100 ? 'var(--live)' : '#22C55E',
+                background: healthData.score === 100 ? 'var(--live)' : '#D4FF3F',
                 transition: 'width 0.3s ease',
               }} />
             </div>
@@ -4697,8 +4697,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       disabled={item.id === 'legal_pages' && isGeneratingLegal}
                       style={{
                         fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                        border: '1px solid rgba(34,197,94,.35)', background: 'rgba(34,197,94,.08)',
-                        color: '#86efac', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                        border: '1px solid rgba(212,255,63,.35)', background: 'rgba(212,255,63,.08)',
+                        color: '#E8FF9E', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                       }}
                     >
                       {item.id === 'legal_pages' && isGeneratingLegal ? '…' : item.actionLabel}
@@ -4716,8 +4716,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {[
           { label: 'Revenue', value: orderRevenue > 0 ? `${currency} ${orderRevenue.toFixed(2)}` : null, empty: 'No sales yet', icon: TrendingUp, color: 'var(--live)' },
           { label: 'Orders',  value: orders.length > 0 ? String(orders.length) : null, empty: '0', icon: ClipboardList, color: '#e0a04f' },
-          { label: 'Customers', value: customers.length > 0 ? String(customers.length) : null, empty: '0', icon: Users, color: '#86efac' },
-          { label: 'Products', value: productCount > 0 ? String(productCount) : null, empty: '0', icon: ShoppingBag, color: '#22C55E' },
+          { label: 'Customers', value: customers.length > 0 ? String(customers.length) : null, empty: '0', icon: Users, color: '#E8FF9E' },
+          { label: 'Products', value: productCount > 0 ? String(productCount) : null, empty: '0', icon: ShoppingBag, color: '#D4FF3F' },
         ].map(({ label, value, empty, icon: Icon, color }) => (
           <div key={label} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -4769,7 +4769,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         </div>
         {!hostingInfo.subscribed && hostingInfo.trialEndsAt && (
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#22C55E', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+            <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
               {isSubscribing ? '…' : '$99/year'}
             </button>
             <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
@@ -4902,7 +4902,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         {o.paymentMethod}
                       </span>
                       {isZasilkovna && (
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(34,197,94,.12)', color: '#86efac' }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(212,255,63,.12)', color: '#E8FF9E' }}>
                           📦 {o.zasilkovnaBranchCountry && o.zasilkovnaBranchCountry !== 'cz'
                             ? `Packeta International · ${o.zasilkovnaBranchCountry.toUpperCase()}`
                             : 'Packeta'}
@@ -4945,7 +4945,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                               </span>
                               {trackUrl && (
                                 <a href={trackUrl} target="_blank" rel="noopener noreferrer"
-                                  style={{ fontSize: 10, color: '#22C55E', textDecoration: 'none' }}>
+                                  style={{ fontSize: 10, color: '#D4FF3F', textDecoration: 'none' }}>
                                   Track →
                                 </a>
                               )}
@@ -4960,14 +4960,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                             </div>
                           ) : byrdRef ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#86efac' }}>
+                              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#E8FF9E' }}>
                                 byrd · {byrdStatus} · {byrdRef}
                               </span>
                               <button
                                 onClick={() => handleRefreshByrd(o.id)}
                                 disabled={refreshingByrd === o.id}
                                 title="Check byrd for the current status and tracking number"
-                                style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.08)', color: '#86efac', cursor: refreshingByrd === o.id ? 'wait' : 'pointer' }}
+                                style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.08)', color: '#E8FF9E', cursor: refreshingByrd === o.id ? 'wait' : 'pointer' }}
                               >
                                 {refreshingByrd === o.id ? 'Checking…' : '↻ Refresh tracking'}
                               </button>
@@ -5006,7 +5006,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                                   }}
                                   disabled={creatingAny || !paid}
                                   title={!paid ? 'Order must be paid first' : 'Create shipment with the selected carrier'}
-                                  style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.08)', color: '#86efac', cursor: creatingAny || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.08)', color: '#E8FF9E', cursor: creatingAny || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
                                 >
                                   {creatingAny ? (carrier === 'byrd' ? 'Sending…' : 'Creating…') : shipErr ? '↻ Retry' : carrier === 'byrd' ? '🏭 Send to fulfillment' : '📦 Create shipment'}
                                 </button>
@@ -5038,13 +5038,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           // per-project Stripe key to add, so this used to link to a Settings
           // field that never existed. This tab only has data for the rare
           // project with its own connected Stripe account.
-          <div style={{ borderRadius: 12, border: '1px solid rgba(34,197,94,.25)', background: 'rgba(34,197,94,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <div style={{ borderRadius: 12, border: '1px solid rgba(212,255,63,.25)', background: 'rgba(212,255,63,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
             <Settings2 size={32} style={{ color: '#5b5b64' }} />
             <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No Stripe orders here</p>
             <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
               Card payments run through Quante&apos;s managed Stripe account, not a key you configure — check the &quot;Other methods&quot; tab for all orders.
             </p>
-            <button onClick={() => setOrdersTab('store')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#22C55E', color: '#fff', cursor: 'pointer' }}>
+            <button onClick={() => setOrdersTab('store')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer' }}>
               View other methods
             </button>
           </div>
@@ -5185,8 +5185,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {customers.map((c) => (
             <div key={c.email} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               {/* Avatar */}
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(34,197,94,.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(34,197,94,.25)' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#86efac' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(212,255,63,.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(212,255,63,.25)' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#E8FF9E' }}>
                   {(c.name || c.email).charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -5273,14 +5273,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="shipping" />
 
       {/* Zásilkovna */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(34,197,94,.2)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(34,197,94,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgba(212,255,63,.2)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(212,255,63,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>📦</span>
           <div>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Zásilkovna / Packeta</p>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
               API keys for the pickup-point widget and shipment creation. Find both in your
-              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: '#86efac', textDecoration: 'none' }}>Packeta client zone</a>.
+              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>Packeta client zone</a>.
             </p>
           </div>
         </div>
@@ -5313,7 +5313,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleSaveZasilkovna}
             disabled={isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#22C55E', color: '#fff', opacity: isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword) ? 0.5 : 1 }}
           >
             {isSavingZasilkovna ? 'Saving…' : 'Save Packeta keys'}
           </button>
@@ -5333,7 +5333,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>DHL Express — worldwide shipping</p>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
               Find your credentials at{' '}
-              <a href="https://developer.dhl.com" target="_blank" rel="noopener noreferrer" style={{ color: '#86efac', textDecoration: 'none' }}>developer.dhl.com</a>
+              <a href="https://developer.dhl.com" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>developer.dhl.com</a>
               {' '}→ MyDHL+ API.
             </p>
           </div>
@@ -5360,7 +5360,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleSaveDhl}
             disabled={isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#22C55E', color: '#fff', opacity: isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) ? 0.5 : 1 }}
           >
             {isSavingDhl ? 'Saving…' : 'Save DHL keys'}
           </button>
@@ -5380,7 +5380,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>GLS — parcel delivery</p>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
               Use your MyGLS account credentials from the{' '}
-              <a href="https://www.mygls.cz" target="_blank" rel="noopener noreferrer" style={{ color: '#86efac', textDecoration: 'none' }}>MyGLS client zone</a>.
+              <a href="https://www.mygls.cz" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>MyGLS client zone</a>.
             </p>
           </div>
         </div>
@@ -5423,7 +5423,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleSaveGls}
             disabled={isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#22C55E', color: '#fff', opacity: isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber) ? 0.5 : 1 }}
           >
             {isSavingGls ? 'Saving…' : 'Save GLS credentials'}
           </button>
@@ -5443,7 +5443,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>byrd — fulfillment warehouse</p>
             <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
               byrd stores your products and ships orders for you. Request API credentials at{' '}
-              <a href="https://developers.getbyrd.com" target="_blank" rel="noopener noreferrer" style={{ color: '#86efac', textDecoration: 'none' }}>developers.getbyrd.com</a>.
+              <a href="https://developers.getbyrd.com" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>developers.getbyrd.com</a>.
               Product SKUs must match the ones registered in your byrd account.
             </p>
           </div>
@@ -5464,7 +5464,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleSaveByrd}
             disabled={isSavingByrd || (!byrdApiKey && !byrdApiSecret)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#22C55E', color: '#fff', opacity: isSavingByrd || (!byrdApiKey && !byrdApiSecret) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingByrd || (!byrdApiKey && !byrdApiSecret) ? 0.5 : 1 }}
           >
             {isSavingByrd ? 'Saving…' : 'Save byrd credentials'}
           </button>
@@ -5500,18 +5500,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <input value={customDomainInput} onChange={e => setCustomDomainInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddDomain()} placeholder="yourdomain.com" style={{ ...inpSt, flex: 1 }} />
-            <button onClick={handleAddDomain} disabled={isAddingDomain || !customDomainInput.trim()} style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#22C55E', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}>
+            <button onClick={handleAddDomain} disabled={isAddingDomain || !customDomainInput.trim()} style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}>
               {isAddingDomain ? '…' : 'Connect'}
             </button>
           </div>
           {domainResult && (
-            <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(62,207,142,.07)' : 'rgba(34,197,94,.07)', border: `1px solid ${domainResult.verified ? 'rgba(62,207,142,.2)' : 'rgba(34,197,94,.2)'}`, padding: '10px 12px' }}>
+            <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(62,207,142,.07)' : 'rgba(212,255,63,.07)', border: `1px solid ${domainResult.verified ? 'rgba(62,207,142,.2)' : 'rgba(212,255,63,.2)'}`, padding: '10px 12px' }}>
               {domainResult.verified ? (
                 <p style={{ fontSize: 12, color: 'var(--live)', fontWeight: 600, margin: 0 }}>✓ Domain connected and live!</p>
               ) : (
                 <>
                   <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>Add this DNS record at your registrar:</p>
-                  <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#86efac', marginBottom: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#E8FF9E', marginBottom: 6 }}>
                     {domainResult.dnsInstructions ?? `CNAME  @  →  cname.vercel-dns.com`}
                   </div>
                   <p style={{ fontSize: 10, color: '#8a8a93', margin: 0 }}>DNS changes can take up to 48 hours. Click Connect again to re-check.</p>
@@ -5559,7 +5559,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <button
                 onClick={() => handleHostingSubscribe('year')}
                 disabled={isSubscribing}
-                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#22C55E', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
               >
                 {isSubscribing ? '…' : 'Subscribe · $99/year'}
               </button>
@@ -5624,7 +5624,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <button
                 onClick={handleRequestPayout}
                 disabled={isRequestingPayout}
-                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#22C55E', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
+                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#D4FF3F', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
               >
                 {isRequestingPayout ? '…' : 'Request payout'}
               </button>
@@ -5814,7 +5814,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     width: '100%', textAlign: 'left', padding: '8px 12px 8px 14px', borderRadius: 8,
                     border: 'none', cursor: 'pointer', fontSize: 13,
                     fontWeight: active ? 550 : 400,
-                    background: active ? 'rgba(34,197,94,.1)' : 'transparent',
+                    background: active ? 'rgba(212,255,63,.1)' : 'transparent',
                     color: active ? '#f4f4f6' : '#8a8a93',
                     display: 'flex', alignItems: 'center', gap: 9,
                     position: 'relative', transition: 'background 0.12s, color 0.12s',
@@ -5823,9 +5823,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
                 >
                   {active && (
-                    <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: '#22C55E', boxShadow: '0 0 8px rgba(34,197,94,.5)' }} />
+                    <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: '#D4FF3F', boxShadow: '0 0 8px rgba(212,255,63,.5)' }} />
                   )}
-                  <Icon size={14} strokeWidth={active ? 2.2 : 1.7} color={active ? '#22C55E' : undefined} />
+                  <Icon size={14} strokeWidth={active ? 2.2 : 1.7} color={active ? '#D4FF3F' : undefined} />
                   {label}
                   {id === 'publish' && currentManifest && !checklistAllOk && (
                     <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f87171', marginLeft: 'auto', flexShrink: 0 }} />
@@ -5916,13 +5916,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               fontWeight: activeTab === tab ? 600 : 400,
               background: 'none', border: 'none', cursor: 'pointer',
               color: activeTab === tab ? '#f4f4f6' : '#8a8a93',
-              borderBottom: activeTab === tab ? '2px solid #22C55E' : '2px solid transparent',
+              borderBottom: activeTab === tab ? '2px solid #D4FF3F' : '2px solid transparent',
               transition: 'color 0.12s', position: 'relative', whiteSpace: 'nowrap',
             }}
           >
             {label}
             {tab === 'preview' && isGenerating && (
-              <span style={{ marginLeft: 3, fontSize: 8, color: '#22C55E' }}>●</span>
+              <span style={{ marginLeft: 3, fontSize: 8, color: '#D4FF3F' }}>●</span>
             )}
             {tab === 'publish' && deployStatus === 'ready' && (
               <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: '#3ecf8e' }} />
@@ -5968,8 +5968,8 @@ function StreamingView({ text }: { text: string }) {
   return (
     <div style={{
       borderRadius: 8,
-      background: 'rgba(34,197,94,.06)',
-      border: '1px solid rgba(34,197,94,.15)',
+      background: 'rgba(212,255,63,.06)',
+      border: '1px solid rgba(212,255,63,.15)',
       padding: '10px 12px',
       overflow: 'hidden',
     }}>
@@ -5978,12 +5978,12 @@ function StreamingView({ text }: { text: string }) {
       }}>
         <span style={{
           width: 5, height: 5, borderRadius: '50%',
-          background: '#22C55E',
-          boxShadow: '0 0 6px rgba(34,197,94,.8)',
+          background: '#D4FF3F',
+          boxShadow: '0 0 6px rgba(212,255,63,.8)',
           animation: 'pulse 1.5s ease-in-out infinite',
           flexShrink: 0,
         }} />
-        <span style={{ fontSize: 10, color: 'rgba(34,197,94,.7)', fontFamily: 'var(--font-geist-mono)', letterSpacing: '.04em' }}>
+        <span style={{ fontSize: 10, color: 'rgba(212,255,63,.7)', fontFamily: 'var(--font-geist-mono)', letterSpacing: '.04em' }}>
           AI writing
         </span>
       </div>
@@ -5994,7 +5994,7 @@ function StreamingView({ text }: { text: string }) {
         display: '-webkit-box', WebkitLineClamp: 4,
         WebkitBoxOrient: 'vertical', overflow: 'hidden',
       }}>
-        {text}<span style={{ animation: 'blink 1s step-end infinite', opacity: 1, color: 'rgba(34,197,94,.6)' }}>▋</span>
+        {text}<span style={{ animation: 'blink 1s step-end infinite', opacity: 1, color: 'rgba(212,255,63,.6)' }}>▋</span>
       </p>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
@@ -6032,8 +6032,8 @@ function ChatMessage({ message, onUndo }: { message: Message; onUndo?: () => voi
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7,
-            border: '1px solid rgba(34,197,94,.3)', background: 'rgba(34,197,94,.08)',
-            color: '#22C55E', textDecoration: 'none',
+            border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.08)',
+            color: '#D4FF3F', textDecoration: 'none',
           }}
         >
           Buy credits →
@@ -6159,7 +6159,7 @@ function SectionPickerModal({ onPick, onClose }: { onPick: (type: string) => voi
                   background: 'transparent', cursor: 'pointer', textAlign: 'left',
                   transition: 'background 0.12s, border-color 0.12s',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(34,197,94,.08)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(34,197,94,.3)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.08)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(212,255,63,.3)' }}
                 onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.07)' }}
               >
                 <span style={{ fontSize: 20, lineHeight: 1 }}>{emoji}</span>
@@ -6321,7 +6321,7 @@ function CommandPalette({
                       style={{
                         width: '100%', display: 'flex', alignItems: 'center',
                         padding: '7px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
-                        background: active ? 'rgba(34,197,94,.12)' : 'transparent',
+                        background: active ? 'rgba(212,255,63,.12)' : 'transparent',
                         transition: 'background 0.08s',
                       }}
                     >
