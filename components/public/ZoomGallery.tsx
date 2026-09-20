@@ -99,25 +99,18 @@ export function ZoomGallery() {
       if (runnerRef.current) runnerRef.current.style.left = (progress / lastIndex) * 100 + '%'
       dotsRef.current.forEach((el, i) => el?.classList.toggle('qp-active', nearest === i))
 
-      // Exit-fade window (0.62 -> 0.95) and full opacity 0 target — a small
-      // number of specific field-report symptoms all come from the SAME
-      // choice about how this ends. The prior version landed at opacity
-      // ~0.15 by raw=1 and stopped scaling at 0.92, so the pinned card and
-      // (crucially) each qp-chat-pair inside it were still 15% visible
-      // during the whole tail of the scroll-jacked track after animation
-      // was "done". That's exactly what showed up on production as (a)
-      // ghost chat bubbles floating over the dead scroll region, and (b)
-      // a persistent half-visible frame sitting there while the next
-      // section fought to become visible below it. Landing at opacity 0
-      // by raw=0.95 (with a slightly earlier start so it wipes smoothly
-      // rather than snapping) removes both, and the deeper translateY /
-      // scale keeps the exit reading as a "the demo is releasing you back
-      // to the page" motion instead of a fade-out only. The final 0.05
-      // headroom (0.95 -> 1) exists on purpose: sticky-unpin is a
-      // container-scroll event, not a raw-progress event, so the exit
-      // animation needs to be visually done BEFORE unpin lands to avoid
-      // a snap. */
-      const exitT = raw > 0.62 ? clamp01((raw - 0.62) / 0.33) : 0
+      // Exit-fade window pushed later (0.85 -> 1.0) so the visitor has
+      // real time on the third region (checkout) before the panel starts
+      // to release. Prior window was 0.62 -> 0.95, which meant the fade
+      // started at raw 0.62 — inside the SECOND region — so the third
+      // Svit shot (checkout) began fading in halfway to invisible and
+      // the field report called it out ("cele to mizi moc brzo kdyz
+      // uzivatel scrolluje dolu"). New window keeps the fade duration
+      // similar (~0.15 of raw) but centred where the third region has
+      // finished landing on-screen. Opacity still lands at 0 by raw=1
+      // to avoid the ghost-chat bubble tail, and the translateY/scale
+      // exit keeps the "release" motion cue.
+      const exitT = raw > 0.85 ? clamp01((raw - 0.85) / 0.15) : 0
       sticky.style.transform = `translateY(${exitT * -48}px) scale(${1 - exitT * 0.12})`
       sticky.style.opacity = String(1 - exitT)
     }
@@ -186,33 +179,24 @@ export function ZoomGallery() {
           <div className="qp-zoom-viewport">
             <div className="qp-zv-bar">
               <span /><span /><span />
-              <span className="qp-zv-name">yourstore.stores.quantecode.com</span>
+              <span className="qp-zv-name">svit.stores.quantecode.com</span>
             </div>
             <div className="qp-zoom-page-label" ref={labelRef}>home</div>
             <div className="qp-zoom-window">
               <div className="qp-zoom-canvas" ref={canvasRef}>
+                {/* Regions are real screenshots of the Svit demo store — the
+                    same store the chat log on the right is asking Quante to
+                    build. `.qp-zr-photo` fills the region box with
+                    object-fit: cover / object-position: top so a mid-length
+                    shot doesn't get letterboxed or squashed at the header. */}
                 <div className="qp-zoom-region" ref={(el) => { regionRefs.current[0] = el }}>
-                  <div className="qp-zr-hero" />
-                  <div className="qp-zr-row qp-w70" />
-                  <div className="qp-zr-row qp-w40" />
-                  <div className="qp-zr-cardgrid"><div /><div /><div /></div>
+                  <img src="/zoom-home.png" alt="Svit demo store — homepage with the hero candle shot" className="qp-zr-photo" />
                 </div>
                 <div className="qp-zoom-region" ref={(el) => { regionRefs.current[1] = el }}>
-                  <div className="qp-zr-row qp-w40" />
-                  <div className="qp-zr-hero" style={{ height: 130 }} />
-                  <div className="qp-zr-row qp-w70" />
-                  <div className="qp-zr-row qp-w40" />
-                  <span className="qp-zr-pill">Add to cart</span>
+                  <img src="/zoom-product.png" alt="Svit demo store — product page for Ranní Med" className="qp-zr-photo" />
                 </div>
                 <div className="qp-zoom-region" ref={(el) => { regionRefs.current[2] = el }}>
-                  <div className="qp-zr-row qp-w40" />
-                  <div className="qp-zr-form" />
-                  <div className="qp-zr-form" />
-                  <div className="qp-zr-form" style={{ width: '60%' }} />
-                  <div className="qp-zr-summary">
-                    <div className="qp-zr-row qp-w70" />
-                    <div className="qp-zr-row qp-w40" />
-                  </div>
+                  <img src="/zoom-checkout.png" alt="Svit demo store — shopping-cart checkout with delivery form" className="qp-zr-photo" />
                 </div>
               </div>
             </div>

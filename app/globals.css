@@ -404,15 +404,16 @@
     0 40px 90px -40px rgba(0,0,0,.18);
   overflow: hidden;
   transform-style: preserve-3d;
-  /* Feathered edges — two-stop radial fade so the outer ~15% of the
-     video visibly softens to transparent instead of stopping at a hard
-     rounded rectangle. `ellipse 100% 100%` sits the mask flush with the
-     box; `black 60%` locks the fully-opaque core (nothing in the middle
-     of the video ever gets touched); `transparent 100%` melts the rim
-     into whatever background sits behind. The result reads as a clip
-     that "sinks into" the page rather than being pasted on top. */
-  -webkit-mask-image: radial-gradient(ellipse 100% 100% at center, black 60%, transparent 100%);
-          mask-image: radial-gradient(ellipse 100% 100% at center, black 60%, transparent 100%);
+  /* Feathered edges — same radial fade idea but tighter: `black 82%`
+     locks a much larger opaque core (previous 60% turned the corners
+     into a very visible white halo on desktop, which the field report
+     called out). Only the outermost ~18% of the ellipse fades, so the
+     video is unmistakably a rectangle-ish shape yet its four corners
+     still dissolve softly into the page bg. Same values on desktop
+     and mobile; the mobile card is smaller so 18% reads as slight
+     rounding, and the desktop card no longer looks vignetted. */
+  -webkit-mask-image: radial-gradient(ellipse 100% 100% at center, black 82%, transparent 100%);
+          mask-image: radial-gradient(ellipse 100% 100% at center, black 82%, transparent 100%);
 }
 .qnt-public .qp-tilt-frame.qp-reveal { transform: rotateX(2deg) scale(1) translateY(0); opacity: 1; }
 .qnt-public .qp-tilt-frame:hover { transform: rotateX(1deg) scale(1.008) translateY(0); }
@@ -555,7 +556,16 @@
    to 145vh so the pinned phase ends much closer to when the animation
    actually finishes; the exit-fade window below was also widened/deepened
    so the release reads as an intentional wipe rather than a frozen pause. */
-.qnt-public .qp-gallery-track { position: relative; height: 145vh; }
+/* Track height bumped 145vh → 190vh so the visitor has real scroll
+   time on each of the three Svit screenshots. The animation formula
+   already ties `raw` to a fraction of scroll through the track, so a
+   longer track slows the pan through the canvas without changing the
+   feel — every 20vh of extra height buys about one region worth of
+   "sit and look" time. Paired with the exit-fade window that starts
+   at raw=0.85 (see ZoomGallery.tsx update()), the checkout shot now
+   has ~15% of the track (~28vh) fully on-screen before the fade
+   begins, which was the missing thing on the earlier field report. */
+.qnt-public .qp-gallery-track { position: relative; height: 190vh; }
 .qnt-public .qp-gallery-sticky { position: sticky; top: calc(var(--banner-h,0px) + 76px); }
 .qnt-public .qp-gallery-progress { height: 3px; border-radius: 99px; background: rgba(0,0,0,0.08); margin-bottom: 14px; overflow: hidden; }
 .qnt-public .qp-gallery-progress .qp-fill { height: 100%; width: 0%; background: var(--qp-accent); }
@@ -617,8 +627,18 @@
    region's first row sit directly under the label — the "checkout" pill
    visibly overlapping the row that should read as an Add-to-cart button.
    Pushing the first row below the label's floor fixes it at both sizes. */
-.qnt-public .qp-zoom-region { height: 342px; padding: 38px 20px 24px; }
-@media (max-width: 640px) { .qnt-public .qp-zoom-region { height: 262px; padding: 36px 12px 16px; } }
+/* Region now holds a full-bleed <img.qp-zr-photo> instead of skeleton
+   rows/cardgrids, so padding drops to 0 — the image fills the region
+   edge-to-edge, and the .qp-zoom-page-label floats over it as a
+   backdrop-blurred chip (its z-index + backdrop-filter come from
+   further up in this file). The region height is unchanged so the
+   canvas transform math in ZoomGallery.tsx keeps working. */
+.qnt-public .qp-zoom-region { height: 342px; padding: 0; overflow: hidden; }
+@media (max-width: 640px) { .qnt-public .qp-zoom-region { height: 262px; padding: 0; } }
+.qnt-public .qp-zr-photo {
+  display: block; width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+}
 /* Standalone (not scoped to .qp-zoom-region specifically) so the same mini
    browser-chrome placeholder rows/tiles can be reused in other preview
    frames — e.g. the Studio-consistency demo panel below. */
