@@ -12,7 +12,7 @@ import {
   getGenerationsCaption,
   getPackDescription,
 } from '@/lib/pricing'
-import { AGENCY_PROJECT_LIMIT } from '@/lib/config'
+import { AGENCY_PROJECT_LIMIT, CREDIT_COSTS } from '@/lib/config'
 import { PRICING_FAQ } from '@/lib/faq'
 import { AgencyCheckoutButton } from '@/components/AgencyCheckoutButton'
 import { SiteFooter } from '@/components/SiteFooter'
@@ -89,7 +89,7 @@ export function PricingClient() {
 
           <div style={{ marginTop: 40, display: 'flex', justifyContent: 'center', gap: 32, flexWrap: 'wrap' }}>
             {[
-              { value: '25',                            label: 'free credits' },
+              { value: String(CREDIT_COSTS.welcome_grant), label: 'free credits' },
               { value: '∞',                             label: 'never expire' },
               { value: formatHostingAnnual().split(' ')[0], label: 'optional hosting' },
             ].map(s => (

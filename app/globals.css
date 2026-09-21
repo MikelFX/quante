@@ -476,16 +476,18 @@
    it registers as glare on the recorded content, which conflicts with
    the "embedded, don't call attention to the frame" goal. Removed. */
 @media (max-width: 640px) {
-  /* Mobile: kill the tilt entirely and switch to a landscape (4/3) box
-     that fills the column. The desktop 2° tilt reads as skewed layout
-     at phone widths; a flat rectangle with the same feathered mask
-     already sits in the page well without needing rotation. */
   /* Mobile: kill the tilt entirely and use a landscape (4/3) box that
-     fills the column. Same object-position anchor from the desktop
-     rule applies here — the video sits at its natural pixel density
-     across sizes and the phone doesn't have to resample a 1080p
-     source through the 3D transform stack. */
-  .qnt-public .qp-tilt-frame { transform: scale(.96) translateY(16px); aspect-ratio: 4 / 3; border-radius: 20px; width: auto; }
+     fills the column. Same object-position anchor as desktop.
+     `width: auto` (the previous value) collapsed the box to zero at
+     phone widths because .qp-tilt-stage is a flex container without
+     an explicit height on its child — a flex item with auto width
+     and only an `aspect-ratio` for sizing hint falls to 0 in that
+     context, which is why the field report said the video wasn't
+     showing at all on mobile ("na mobilnich zarizeni video neni
+     videt vubec"). Explicit `width: min(560px, 100%)` gives the box
+     an intrinsic size the aspect-ratio can hook onto, so it renders
+     at column width on every phone. */
+  .qnt-public .qp-tilt-frame { transform: scale(.96) translateY(16px); aspect-ratio: 4 / 3; border-radius: 20px; width: min(560px, 100%); }
   .qnt-public .qp-tilt-frame.qp-reveal { transform: scale(1) translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserRecord } from '@/lib/tier'
 import { CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
-import { AGENCY_MONTHLY_USD } from '@/lib/config'
+import { AGENCY_MONTHLY_USD, CREDIT_COSTS } from '@/lib/config'
 import { PurchaseButtons } from './PurchaseButtons'
 import { AgencyPortalButton } from './AgencyPortalButton'
 
@@ -299,12 +299,12 @@ export default async function BillingPage({ searchParams }: Props) {
         <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', marginBottom: 12 }}>What costs what</p>
         <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
           {[
-            ['Full generation', '10 cr'],
-            ['Iteration / patch', '1 cr'],
-            ['Regenerate section', '2 cr'],
-            ['Custom component', '3 cr'],
-            ['Export ZIP', '5 cr'],
-            ['Welcome grant', '+25 cr free'],
+            ['Full generation',   `${CREDIT_COSTS.generate} cr`],
+            ['Iteration / patch', `${CREDIT_COSTS.iterate} cr`],
+            ['Regenerate section', `${CREDIT_COSTS.section} cr`],
+            ['Custom component',  `${CREDIT_COSTS.custom_component} cr`],
+            ['Export ZIP',        CREDIT_COSTS.export === 0 ? 'free' : `${CREDIT_COSTS.export} cr`],
+            ['Welcome grant',     `+${CREDIT_COSTS.welcome_grant} cr free`],
           ].map(([action, cost], i, arr) => (
             <div key={action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,.05)' : 'none' }}>
               <span style={{ fontSize: 13, color: '#f4f4f6' }}>{action}</span>
