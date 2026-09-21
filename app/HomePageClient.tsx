@@ -10,6 +10,7 @@ import { GlassCard } from '@/components/public/GlassCard'
 import { FeatureCard } from '@/components/public/FeatureCard'
 import { IconTile } from '@/components/public/IconTile'
 import { ZoomGallery } from '@/components/public/ZoomGallery'
+import HomeStudioDemo from '@/components/public/HomeStudioDemo'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -113,42 +114,6 @@ function StepFlow() {
                 <p>{s.desc}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ─── Studio-consistency demo panel ─────────────────────────────────────────────
-
-function StudioDemo() {
-  return (
-    <section style={{ padding: 'clamp(2.5rem,6vw,4rem) 1.5rem', position: 'relative' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-        <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 13, color: 'var(--qp-mut)', margin: '0 0 14px', textAlign: 'center' }}>
-          {'// the same system inside the Studio, where your store gets built'}
-        </p>
-        <div className="qp-studio-demo">
-          <div className="qp-sd-chat">
-            <div className="qp-sd-bubble">Make the hero section darker and add a looping background video</div>
-            <div className="qp-sd-bubble qp-me">Done — the hero now has a dark gradient with a looping background video.</div>
-          </div>
-          <div className="qp-sd-preview">
-            <div className="qp-sd-frame qp-sd-frame-video">
-              {/* Real preview clip — a hero section morphing dark + looping
-                  background video, which is exactly what the chat bubble
-                  on the left is asking Quante to do. Drop a new file at
-                  the same path to swap the cut. The .qp-sd-video class
-                  softens the video's outer rim via radial mask so it
-                  reads as embedded in the mock-Studio card instead of
-                  a hard rectangle pasted inside it. */}
-              <video
-                className="qp-sd-video"
-                src="/quante-hero-change.mp4"
-                autoPlay muted loop playsInline preload="metadata"
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -416,9 +381,6 @@ export function HomePageClient() {
       {/* ── STEP FLOW ── */}
       <StepFlow />
 
-      {/* ── STUDIO CONSISTENCY DEMO ── */}
-      <StudioDemo />
-
       {/* ── QADS TEASER — moved from directly under the hero so a first-time
           visitor understands the core product (describe → generate → publish
           via the Studio) before being pitched an add-on capability. Audit
@@ -507,6 +469,13 @@ export function HomePageClient() {
           </div>
         </div>
       </section>
+
+      {/* ── INSIDE THE STUDIO — animated demo of the actual iteration loop.
+          Replaces the previous "// the same system inside the Studio" chat
+          + video panel (which was flagged as template-y in the brief).
+          Numbered 04 so it slots between "why it's different" (03) and
+          "everything you get" (05). */}
+      <HomeStudioDemo sectionNumber="04" />
 
       {/* ── EVERYTHING YOU GET (bento grid) ── */}
       <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
