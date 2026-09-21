@@ -3,7 +3,7 @@ import { PublicNav } from '@/components/public/PublicNav'
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="qnt-public qp-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <PublicNav />
 
       <main style={{ flex: 1 }}>

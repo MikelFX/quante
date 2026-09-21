@@ -31,7 +31,7 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
 
 export function QadsClient() {
   return (
-    <div className="qnt-public" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="qnt-public qp-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <PublicNav />
 
       {/* ── HERO ── */}

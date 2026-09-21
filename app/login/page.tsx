@@ -15,7 +15,7 @@ export const metadata = buildMetadata({
 
 export default function LoginPage() {
   return (
-    <div className="qnt-public" style={{
+    <div className="qnt-public qp-dark" style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       padding: '2rem 1rem', position: 'relative', overflow: 'hidden',
