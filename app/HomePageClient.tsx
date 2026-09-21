@@ -9,7 +9,6 @@ import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
 import { FeatureCard } from '@/components/public/FeatureCard'
 import { IconTile } from '@/components/public/IconTile'
-import { ZoomGallery } from '@/components/public/ZoomGallery'
 import HomeStudioDemo from '@/components/public/HomeStudioDemo'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -387,15 +386,14 @@ export function HomePageClient() {
           brief 2.4. */}
       <QadsTeaser />
 
-      {/* ── LIVING GALLERY (scroll-linked page zoom + accumulating chat) ── */}
-      <section style={{ padding: 'clamp(3rem,7vw,5rem) 1.5rem', position: 'relative' }}>
-        <div style={{ maxWidth: 1120, margin: '0 auto', position: 'relative', zIndex: 2 }}>
-          <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 13, color: 'var(--qp-mut)', margin: '0 0 14px', textAlign: 'center' }}>
-            {'// scroll — one store, the AI zooms deeper into its pages as the chat grows alongside it'}
-          </p>
-          <ZoomGallery />
-        </div>
-      </section>
+      {/* ── INSIDE THE STUDIO — animated demo of the actual iteration loop.
+          Was placed lower in the page as section 04; user moved it up to
+          replace the ZoomGallery slot and made it section 01 because they
+          want this pattern (dark strip + Studio-window + scenario tabs)
+          to be the site's primary product-story moment. Numbering below
+          cascades: manifesto stays 02, why it's different stays 03,
+          everything-you-get shifts 05 → 04, pricing shifts 06 → 05. */}
+      <HomeStudioDemo sectionNumber="01" />
 
       {/* ── MANIFESTO / REVEAL ──
           No borderTop/background band here on purpose — the whole page now
@@ -470,13 +468,6 @@ export function HomePageClient() {
         </div>
       </section>
 
-      {/* ── INSIDE THE STUDIO — animated demo of the actual iteration loop.
-          Replaces the previous "// the same system inside the Studio" chat
-          + video panel (which was flagged as template-y in the brief).
-          Numbered 04 so it slots between "why it's different" (03) and
-          "everything you get" (05). */}
-      <HomeStudioDemo sectionNumber="04" />
-
       {/* ── EVERYTHING YOU GET (bento grid) ── */}
       <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
         <div className="qp-ambient">
@@ -485,7 +476,7 @@ export function HomePageClient() {
           <span className="qp-blob qp-blob-wide" style={{ top: 260, left: '50%', transform: 'translateX(-50%)' }} />
         </div>
         <div style={{ maxWidth: 560, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
-          <div className="qp-kicker" style={{ justifyContent: 'center' }}>05 — everything you get</div>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>04 — everything you get</div>
           <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
             Click Deploy. You&apos;re live.
           </h2>
@@ -518,7 +509,7 @@ export function HomePageClient() {
           <span className="qp-blob qp-blob-wide" style={{ top: 220, left: '50%', transform: 'translateX(-50%)' }} />
         </div>
         <div style={{ maxWidth: 480, margin: '0 auto', position: 'relative', zIndex: 2, textAlign: 'center' }}>
-          <div className="qp-kicker" style={{ justifyContent: 'center' }}>06 — pricing</div>
+          <div className="qp-kicker" style={{ justifyContent: 'center' }}>05 — pricing</div>
           <h2 style={{ fontSize: 'clamp(26px,4vw,40px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.15, margin: 0 }}>
             No subscription to build.
           </h2>
