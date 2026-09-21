@@ -284,7 +284,7 @@ function QadsTeaser() {
 
 export function HomePageClient() {
   return (
-    <div className="qnt-public qp-home" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="qnt-public qp-dark qp-home" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <HeroBgFX />
       <PublicNav />
 

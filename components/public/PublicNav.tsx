@@ -30,7 +30,14 @@ export function PublicNav() {
         // banner is dismissed, so this collapses back to a plain top:0.
         top: 'var(--banner-h, 0px)',
         zIndex: 100,
-        background: 'rgba(255,255,255,.82)',
+        // Translucent shade of the page bg — light and dark public roots
+        // both live under `.qnt-public`, and the parent may or may not
+        // carry `.qp-dark`. Instead of hardcoding either colour, read the
+        // current --qp-bg from the CSS variable so the nav re-tints with
+        // the theme automatically. The alpha is layered as a separate
+        // linear-gradient overlay so the backdrop-filter blur still gets
+        // real background to work against.
+        background: 'color-mix(in oklab, var(--qp-bg) 82%, transparent)',
         WebkitBackdropFilter: 'blur(16px) saturate(160%)',
         backdropFilter: 'blur(16px) saturate(160%)',
         borderBottom: '1px solid var(--qp-line-soft)',
