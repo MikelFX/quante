@@ -18,6 +18,7 @@ import { AgencyCheckoutButton } from '@/components/AgencyCheckoutButton'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
+import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 // Hosting details row list — everything numeric pulls from lib/pricing so the
 // captions stay honest if a helper changes. "Cost per deploy" reads directly
@@ -64,6 +65,86 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
+// Product-preview panels used by the StudioMiniPanel above — a minimal
+// cream-toned coffee product page before/after adding the size picker.
+// Hand-rolled DOM (no image) so text stays crisp at any zoom.
+function PricingProductBefore() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#faf8f3 0%,#efeae0 100%)',
+        padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center',
+      }}
+    >
+      <div style={{ aspectRatio: '1', borderRadius: 6, background: 'linear-gradient(135deg,#c9a97c 0%,#8c6d47 60%,#3a2b18 100%)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: '30% 25%', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.24)' }} />
+      </div>
+      <div>
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+          COFFEE · 250 G
+        </div>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, fontWeight: 700, color: '#141212', letterSpacing: '-.01em', marginBottom: 2 }}>
+          Slow Roast · Dark
+        </div>
+        <div style={{ fontFamily: 'inherit', fontSize: 9, color: 'rgba(0,0,0,0.6)', marginBottom: 8 }}>329 CZK</div>
+        <div style={{ display: 'inline-block', padding: '4px 9px', borderRadius: 99, background: '#141212', color: '#f5f2ec', fontFamily: 'inherit', fontSize: 8, fontWeight: 600 }}>
+          Add to cart
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PricingProductAfter() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#faf8f3 0%,#efeae0 100%)',
+        padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center',
+      }}
+    >
+      <div style={{ aspectRatio: '1', borderRadius: 6, background: 'linear-gradient(135deg,#c9a97c 0%,#8c6d47 60%,#3a2b18 100%)', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: '30% 25%', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.24)' }} />
+      </div>
+      <div>
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
+          COFFEE · 250 G
+        </div>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, fontWeight: 700, color: '#141212', letterSpacing: '-.01em', marginBottom: 2 }}>
+          Slow Roast · Dark
+        </div>
+        <div style={{ fontFamily: 'inherit', fontSize: 9, color: 'rgba(0,0,0,0.6)', marginBottom: 6 }}>329 CZK</div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontFamily: 'ui-monospace', fontSize: 7, color: 'rgba(0,0,0,0.45)', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 3 }}>
+            Grind
+          </div>
+          <div style={{ display: 'flex', gap: 3 }}>
+            {['XS', 'S', 'M', 'L', 'XL'].map((chip, i) => (
+              <span
+                key={chip}
+                style={{
+                  padding: '2px 5px', borderRadius: 3,
+                  fontFamily: 'ui-monospace', fontSize: 7.5,
+                  color: i === 2 ? '#f5f2ec' : '#141212',
+                  background: i === 2 ? '#141212' : 'transparent',
+                  border: `1px solid ${i === 2 ? '#141212' : 'rgba(0,0,0,0.2)'}`,
+                }}
+              >
+                {chip}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div style={{ display: 'inline-block', padding: '4px 9px', borderRadius: 99, background: '#141212', color: '#f5f2ec', fontFamily: 'inherit', fontSize: 8, fontWeight: 600 }}>
+          Add to cart
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function PricingClient() {
   return (
     <div className="qnt-public qp-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -101,6 +182,29 @@ export function PricingClient() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* ── One-shot mini demo — "1 edit = 1 credit" ──
+            Sits directly under the hero stat row so a visitor scanning
+            the price page immediately sees the unit of value: an edit
+            gets typed → builds → deploys → toast confirms 1 credit
+            spent. Auto-plays once when scrolled into view. */}
+        <div style={{ maxWidth: 640, margin: '48px auto 0', padding: '0 0.5rem' }}>
+          <StudioMiniPanel
+            scenario={{
+              url: 'dulpra.quantecode.com',
+              prompt: 'Add a size picker to the product page',
+              logSteps: [
+                { text: 'Reading product/[slug].tsx', state: 'running' },
+                { text: 'Adding SizePicker',          state: 'running' },
+                { text: 'Build passed',               state: 'pass'    },
+                { text: 'Deployed',                   state: 'pass'    },
+              ],
+              toastLabel: 'Deployed · 1 credit',
+            }}
+            previewBefore={<PricingProductBefore />}
+            previewAfter={<PricingProductAfter />}
+          />
         </div>
       </section>
 

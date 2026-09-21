@@ -5,6 +5,7 @@ import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
 import { FeatureCard } from '@/components/public/FeatureCard'
+import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 import { Target, PenLine, Image as ImageIcon, Video, ShieldCheck, LineChart } from 'lucide-react'
 
 const GENERATES = [
@@ -25,6 +26,89 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   return (
     <div className="qp-kicker" style={{ justifyContent: 'center' }}>
       <span className="qp-dot" /> {n} — {label}
+    </div>
+  )
+}
+
+// Meta-Ads-Manager-style panels used by the hero StudioMiniPanel. The
+// "before" state shows a blank campaign form ready to receive Qads's
+// output; the "after" state shows the drafted campaign, paused, with
+// three ad rows visible — the specific hook the qads page copy makes.
+function QadsCampaignBefore() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#f5f7fa 0%,#e8ecf0 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 18, height: 18, borderRadius: 4, background: '#1877F2' }} />
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 9.5, color: '#1c1e21', fontWeight: 600, letterSpacing: '.02em' }}>
+          Meta Ads Manager
+        </div>
+        <div style={{ marginLeft: 'auto', fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.5)', textTransform: 'uppercase', letterSpacing: '.10em' }}>
+          Draft
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'center' }}>
+        {['Campaign name', 'Objective', 'Budget', 'Audience'].map(l => (
+          <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.5)', width: 78, textAlign: 'right' }}>{l}</div>
+            <div style={{ flex: 1, height: 14, borderRadius: 3, background: 'rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.08)' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function QadsCampaignAfter() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#f5f7fa 0%,#e8ecf0 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 6,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 18, height: 18, borderRadius: 4, background: '#1877F2' }} />
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 9.5, color: '#1c1e21', fontWeight: 600 }}>
+          Dulpra · Coffee
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 99, background: 'rgba(224,160,79,0.15)', border: '1px solid rgba(224,160,79,0.4)' }}>
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#e0a04f' }} />
+          <span style={{ fontFamily: 'ui-monospace', fontSize: 7.5, color: '#c47814' }}>Paused</span>
+        </div>
+      </div>
+      {[
+        { angle: 'Slow-brew ritual',   copy: 'Coffee that earns your morning.',  ctr: '2.1%' },
+        { angle: 'Small-batch daily',  copy: 'Roasted the night before it ships.', ctr: '1.8%' },
+        { angle: 'Bean origin story',  copy: 'Colombia · single-origin · 2026 harvest.', ctr: '1.9%' },
+      ].map(row => (
+        <div key={row.angle}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '5px 7px', borderRadius: 4,
+            background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(0,0,0,0.08)',
+          }}
+        >
+          <div style={{ width: 14, height: 14, borderRadius: 2, background: 'linear-gradient(135deg,#c9a97c,#3a2b18)' }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.6)', letterSpacing: '.06em', textTransform: 'uppercase' }}>
+              {row.angle}
+            </div>
+            <div style={{ fontFamily: 'inherit', fontSize: 9.5, color: '#141212', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {row.copy}
+            </div>
+          </div>
+          <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: '#3ecf8e', fontWeight: 700 }}>
+            {row.ctr}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -50,6 +134,29 @@ export function QadsClient() {
           <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 560, margin: '0 auto' }}>
             Qads is Quante’s ad platform. It reads a store you’ve already built and generates a complete Meta and TikTok campaign — strategy, copy, creatives, and video — ready to review before a single dollar moves.
           </p>
+
+          {/* ── One-shot mini demo — "draft a campaign, paused for review" ──
+              Directly under the hero so a visitor immediately sees the
+              actual workflow: describe budget → Qads drafts copy +
+              creatives → paused for review. Auto-plays once when
+              scrolled into view. */}
+          <div style={{ maxWidth: 640, margin: '48px auto 0', textAlign: 'left' }}>
+            <StudioMiniPanel
+              scenario={{
+                url: 'dulpra.quantecode.com/qads',
+                prompt: 'Launch Meta campaign · $12/day',
+                logSteps: [
+                  { text: 'Reading store · 24 products', state: 'running' },
+                  { text: 'Drafting 3 angles + copy',    state: 'running' },
+                  { text: 'Rendering creatives',         state: 'running' },
+                  { text: 'Paused for review',           state: 'pass'    },
+                ],
+                toastLabel: 'Paused · ready for review',
+              }}
+              previewBefore={<QadsCampaignBefore />}
+              previewAfter={<QadsCampaignAfter />}
+            />
+          </div>
         </div>
       </section>
 
