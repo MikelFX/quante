@@ -24,6 +24,21 @@ export async function GET(request: Request) {
 
   try {
     const results = await Promise.allSettled(domains.map((d) => checkDomainAvailability(d)))
+    const rejectedCount = results.filter((r) => r.status === 'rejected').length
+    // Every TLD check throwing usually means Namecheap is misconfigured
+    // server-side (missing/bad credentials, IP not whitelisted, API
+    // access disabled) — treat that as a service error, not "no
+    // results". Without this branch the Studio's Search button reads
+    // as broken to the end user because nothing distinguishes a real
+    // dry-well from a config outage.
+    if (rejectedCount === results.length) {
+      const firstReason = (results[0] as PromiseRejectedResult | undefined)?.reason
+      console.error('[domains/search] all TLD checks failed:', firstReason?.message ?? firstReason)
+      return Response.json(
+        { error: 'Domain search is temporarily unavailable. Please try again in a moment.' },
+        { status: 502 },
+      )
+    }
     const available = results
       .map((r, i) => {
         if (r.status === 'fulfilled') return r.value

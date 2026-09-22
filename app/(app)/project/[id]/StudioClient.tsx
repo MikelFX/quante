@@ -442,6 +442,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [domainQuery, setDomainQuery] = useState('')
   const [domainSearching, setDomainSearching] = useState(false)
   const [domainResults, setDomainResults] = useState<Array<{ domain: string; available: boolean; price: number; currency: string }>>([])
+  // Separate "has the user run a search yet" and "did the last search
+  // fail" from the results array — the empty [] result is ambiguous
+  // (either the search hasn't run OR it returned zero available TLDs
+  // OR the Namecheap API is misconfigured), so without these two the
+  // UI shows nothing on failure and the Search button reads as broken.
+  const [domainSearched, setDomainSearched] = useState(false)
+  const [domainSearchError, setDomainSearchError] = useState<string | null>(null)
   const [ownedDomains, setOwnedDomains] = useState<Array<{ id: string; domain: string; status: string; dns_verified: boolean; project_id: string | null }>>([])
   const [domainConnectInput, setDomainConnectInput] = useState('')
   const [domainConnecting, setDomainConnecting] = useState(false)
@@ -1974,12 +1981,28 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     if (!domainQuery.trim() || domainSearching) return
     setDomainSearching(true)
     setDomainResults([])
+    setDomainSearched(true)
+    setDomainSearchError(null)
     try {
       const res = await fetch(`/api/domains/search?q=${encodeURIComponent(domainQuery.trim())}`)
-      const data = await res.json()
-      setDomainResults(data.results ?? [])
-    } catch {}
-    setDomainSearching(false)
+      // The API may return 200 with an error field (bad query, unauthorized),
+      // or a network-level failure. Either way — surface a message the user
+      // can act on instead of leaving the panel silent.
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDomainSearchError(
+          res.status === 401
+            ? 'Sign in to search domains.'
+            : (data?.error as string | undefined) ?? 'Domain search failed. Please try again.',
+        )
+      } else {
+        setDomainResults(data.results ?? [])
+      }
+    } catch {
+      setDomainSearchError('Domain search failed. Please check your connection and try again.')
+    } finally {
+      setDomainSearching(false)
+    }
   }
 
   function handleDomainBuy(domain: string, price: number) {
@@ -3805,6 +3828,30 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {domainSearching ? '…' : 'Search'}
             </button>
           </div>
+
+          {/* Search feedback — error, empty state, or results. Without
+              at least one branch here the Search button reads as broken
+              because nothing visible changes when the query returns
+              zero available TLDs or when Namecheap credentials fail. */}
+          {domainSearchError ? (
+            <div style={{
+              padding: '10px 12px', borderRadius: 8, marginBottom: 16,
+              background: 'rgba(224,86,79,0.08)',
+              border: '1px solid rgba(224,86,79,0.30)',
+            }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#e0564f' }}>{domainSearchError}</p>
+            </div>
+          ) : domainSearched && !domainSearching && domainResults.length === 0 ? (
+            <div style={{
+              padding: '10px 12px', borderRadius: 8, marginBottom: 16,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}>
+              <p style={{ margin: 0, fontSize: 12, color: '#8a8a93' }}>
+                No available domains for <span style={{ fontFamily: 'var(--font-geist-mono)', color: '#d0d0da' }}>{domainQuery}</span>. Try a different name.
+              </p>
+            </div>
+          ) : null}
 
           {/* Search results */}
           {domainResults.length > 0 && (
