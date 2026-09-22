@@ -65,6 +65,84 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
+// Coffee bag illustration used in both product previews below. SVG so
+// it stays crisp — draws a small-batch bag shape (tapered top, kraft
+// paper texture via layered gradients, cream label with "DULPRA" mark,
+// cast shadow beneath). Replaces the earlier flat-brown gradient
+// square that read as a placeholder.
+function CoffeeBag() {
+  return (
+    <div
+      style={{
+        aspectRatio: '1', borderRadius: 6, position: 'relative', overflow: 'hidden',
+        background:
+          // Cream backdrop with a subtle vignette so the bag sits in
+          // its own light circle instead of floating on a flat colour.
+          'radial-gradient(ellipse 70% 70% at 50% 45%, rgba(255,255,255,0.5) 0%, transparent 60%),' +
+          'linear-gradient(180deg,#f0ebe0 0%,#e2dbca 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 8,
+      }}
+    >
+      <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ maxWidth: 90, maxHeight: 90 }} aria-hidden="true">
+        <defs>
+          <linearGradient id="cb-body" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stopColor="#4a3a26" />
+            <stop offset="45%"  stopColor="#3a2b18" />
+            <stop offset="100%" stopColor="#22180a" />
+          </linearGradient>
+          <linearGradient id="cb-side" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"  stopColor="rgba(0,0,0,0.35)" />
+            <stop offset="20%" stopColor="rgba(0,0,0,0.0)" />
+            <stop offset="80%" stopColor="rgba(0,0,0,0.0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.35)" />
+          </linearGradient>
+          <linearGradient id="cb-label" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#f5f2ec" />
+            <stop offset="100%" stopColor="#e5ddd0" />
+          </linearGradient>
+        </defs>
+
+        {/* Ground shadow — soft ellipse under the bag. */}
+        <ellipse cx="50" cy="93" rx="34" ry="3" fill="rgba(0,0,0,0.20)" />
+
+        {/* Bag body — trapezoidal, slightly wider at the base, with a
+            gently folded top edge. */}
+        <path
+          d="M 26 20 Q 28 16 32 16 L 68 16 Q 72 16 74 20 L 78 84 Q 78 90 72 90 L 28 90 Q 22 90 22 84 Z"
+          fill="url(#cb-body)"
+        />
+        {/* Highlight/shadow gradient overlay for the side-lit look. */}
+        <path
+          d="M 26 20 Q 28 16 32 16 L 68 16 Q 72 16 74 20 L 78 84 Q 78 90 72 90 L 28 90 Q 22 90 22 84 Z"
+          fill="url(#cb-side)"
+        />
+        {/* Folded top strip — a thinner darker band across the seal. */}
+        <rect x="24" y="15" width="52" height="4" rx="1.5" fill="#1a1108" opacity="0.85" />
+        <rect x="24" y="15" width="52" height="1" fill="rgba(255,255,255,0.12)" />
+
+        {/* Paper label — cream card centred on the bag. */}
+        <rect x="34" y="32" width="32" height="42" rx="1.5" fill="url(#cb-label)" />
+        <rect x="34" y="32" width="32" height="42" rx="1.5" fill="none" stroke="rgba(0,0,0,0.10)" strokeWidth="0.6" />
+
+        {/* Label content — small wordmark + product line + weight. */}
+        <text x="50" y="42" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="4.2" fill="#141212" letterSpacing="0.4">DULPRA</text>
+        <line x1="42" y1="46" x2="58" y2="46" stroke="#141212" strokeWidth="0.4" />
+        <text x="50" y="56" textAnchor="middle" fontFamily="Georgia, serif" fontSize="5" fontStyle="italic" fill="#141212">Slow</text>
+        <text x="50" y="63" textAnchor="middle" fontFamily="Georgia, serif" fontSize="5" fontStyle="italic" fill="#141212">Roast</text>
+        <text x="50" y="71" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="2.8" fill="rgba(0,0,0,0.6)" letterSpacing="0.3">250 G · DARK</text>
+
+        {/* Bean icon — small oval with centre split, sits under the
+            label for a "coffee!" reading. */}
+        <g transform="translate(50 82)">
+          <ellipse cx="0" cy="0" rx="4" ry="2.5" fill="#0a0704" />
+          <path d="M -3 0 Q 0 -1 3 0" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.4" />
+        </g>
+      </svg>
+    </div>
+  )
+}
+
 // Product-preview panels used by the StudioMiniPanel above — a minimal
 // cream-toned coffee product page before/after adding the size picker.
 // Hand-rolled DOM (no image) so text stays crisp at any zoom.
@@ -77,9 +155,7 @@ function PricingProductBefore() {
         padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center',
       }}
     >
-      <div style={{ aspectRatio: '1', borderRadius: 6, background: 'linear-gradient(135deg,#c9a97c 0%,#8c6d47 60%,#3a2b18 100%)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: '30% 25%', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.24)' }} />
-      </div>
+      <CoffeeBag />
       <div>
         <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
           COFFEE · 250 G
@@ -105,9 +181,7 @@ function PricingProductAfter() {
         padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'center',
       }}
     >
-      <div style={{ aspectRatio: '1', borderRadius: 6, background: 'linear-gradient(135deg,#c9a97c 0%,#8c6d47 60%,#3a2b18 100%)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: '30% 25%', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.24)' }} />
-      </div>
+      <CoffeeBag />
       <div>
         <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 4 }}>
           COFFEE · 250 G

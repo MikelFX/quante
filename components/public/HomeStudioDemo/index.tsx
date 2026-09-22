@@ -39,6 +39,15 @@ const T = {
 const DEMO_URL = 'dulpra.quantecode.com'
 
 // ── Sub-component: URL bar with dots + address + status pill ─────────
+// Real macOS traffic-light system palette. Same table as the mini
+// panel — the two components deliberately share this so the flagship
+// and mini demos read as one visual family.
+const TRAFFIC_LIGHTS = {
+  red:    { base: '#ff5f57', ring: '#e04b42' },
+  yellow: { base: '#febc2e', ring: '#dea129' },
+  green:  { base: '#28c840', ring: '#1eaa2f' },
+} as const
+
 function UrlBar({ status }: { status: StudioDemoState['status'] }) {
   return (
     <div
@@ -49,17 +58,22 @@ function UrlBar({ status }: { status: StudioDemoState['status'] }) {
         background: T.surfaceRaised,
       }}
     >
+      {/* Traffic lights use the real system palette with an inner
+          highlight for a subtle 3D catch — replaces the earlier flat
+          gray dots that read as an unfinished wireframe. */}
       <div style={{ display: 'flex', gap: 6 }}>
-        {[0, 1, 2].map(i => (
+        {[TRAFFIC_LIGHTS.red, TRAFFIC_LIGHTS.yellow, TRAFFIC_LIGHTS.green].map(l => (
           <span
-            key={i}
+            key={l.base}
             style={{
               width: 10, height: 10, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.12)',
+              background: `radial-gradient(circle at 30% 30%, ${l.base} 0%, ${l.base} 55%, ${l.ring} 100%)`,
+              boxShadow: 'inset 0 0.5px 0.5px rgba(255,255,255,0.4), 0 0.5px 1px rgba(0,0,0,0.35)',
             }}
           />
         ))}
       </div>
+      <UrlSslIcon status={status} />
       <div
         style={{
           flex: 1, minWidth: 0,
@@ -71,6 +85,22 @@ function UrlBar({ status }: { status: StudioDemoState['status'] }) {
       </div>
       <StatusPill status={status} />
     </div>
+  )
+}
+
+function UrlSslIcon({ status }: { status: StudioDemoState['status'] }) {
+  // Muted padlock flips to chartreuse the moment the demo goes Live —
+  // a tiny visual reinforcement of the status pill on the other end
+  // of the URL bar.
+  const color =
+    status === 'live' ? T.accent :
+    T.textMuted
+  return (
+    <svg viewBox="0 0 12 12" width={12} height={12} aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M4 5.5 V4 a2 2 0 0 1 4 0 V5.5" fill="none" stroke={color as string} strokeWidth={1.2} strokeLinecap="round" />
+      <rect x="3" y="5.5" width="6" height="4.5" rx="1" fill="none" stroke={color as string} strokeWidth={1.2} />
+      <circle cx="6" cy="7.6" r="0.7" fill={color as string} />
+    </svg>
   )
 }
 
@@ -89,13 +119,29 @@ function StatusPill({ status }: { status: StudioDemoState['status'] }) {
         fontFamily: T.mono, fontSize: 11, color: s.text,
         background: s.bg, border: `1px solid ${s.border}`,
         whiteSpace: 'nowrap',
+        boxShadow: status === 'live' ? '0 0 14px rgba(62,207,142,0.22)' : undefined,
       }}
     >
-      <motion.span
-        animate={status === 'building' ? { opacity: [1, 0.35, 1] } : { opacity: 1 }}
-        transition={{ duration: 1.2, repeat: status === 'building' ? Infinity : 0, ease: 'easeInOut' }}
-        style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot }}
-      />
+      {/* Live/Building dots pulse a soft outer ring; Ready stays flat.
+          Same beacon treatment as the mini panel so the two components
+          feel like one family. */}
+      <span style={{ position: 'relative', width: 6, height: 6, display: 'inline-block' }}>
+        {(status === 'live' || status === 'building') && (
+          <motion.span
+            aria-hidden="true"
+            animate={{ opacity: [0.5, 0.15, 0.5], scale: [1, 1.8, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+            style={{
+              position: 'absolute', inset: -2, borderRadius: '50%',
+              background: s.dot,
+              opacity: 0.4,
+            }}
+          />
+        )}
+        <span style={{
+          position: 'absolute', inset: 0, borderRadius: '50%', background: s.dot,
+        }} />
+      </span>
       {s.label}
     </div>
   )
@@ -269,6 +315,62 @@ function HeroDark({
 
 // Feature scenario — product block with a size picker that appears
 // with scale 0.96 → 1 + fade, 400 ms.
+// Small-batch coffee bag drawing. Layered gradients + a cream label
+// that reads "DULPRA · Slow Roast · 250 G · DARK" — matches the
+// product name the size-picker demo edits. Kept inline (not shared
+// with /pricing's CoffeeBag) so this file stays self-contained per
+// the brief.
+function CoffeeBag() {
+  return (
+    <div
+      style={{
+        aspectRatio: '1', borderRadius: 6, position: 'relative', overflow: 'hidden',
+        background:
+          'radial-gradient(ellipse 70% 70% at 50% 45%, rgba(255,255,255,0.5) 0%, transparent 60%),' +
+          'linear-gradient(180deg,#f0ebe0 0%,#e2dbca 100%)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 8,
+      }}
+    >
+      <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ maxWidth: 110, maxHeight: 110 }} aria-hidden="true">
+        <defs>
+          <linearGradient id="cb2-body" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%"   stopColor="#4a3a26" />
+            <stop offset="45%"  stopColor="#3a2b18" />
+            <stop offset="100%" stopColor="#22180a" />
+          </linearGradient>
+          <linearGradient id="cb2-side" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%"  stopColor="rgba(0,0,0,0.35)" />
+            <stop offset="20%" stopColor="rgba(0,0,0,0.0)" />
+            <stop offset="80%" stopColor="rgba(0,0,0,0.0)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0.35)" />
+          </linearGradient>
+          <linearGradient id="cb2-label" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#f5f2ec" />
+            <stop offset="100%" stopColor="#e5ddd0" />
+          </linearGradient>
+        </defs>
+        <ellipse cx="50" cy="93" rx="34" ry="3" fill="rgba(0,0,0,0.20)" />
+        <path d="M 26 20 Q 28 16 32 16 L 68 16 Q 72 16 74 20 L 78 84 Q 78 90 72 90 L 28 90 Q 22 90 22 84 Z" fill="url(#cb2-body)" />
+        <path d="M 26 20 Q 28 16 32 16 L 68 16 Q 72 16 74 20 L 78 84 Q 78 90 72 90 L 28 90 Q 22 90 22 84 Z" fill="url(#cb2-side)" />
+        <rect x="24" y="15" width="52" height="4" rx="1.5" fill="#1a1108" opacity="0.85" />
+        <rect x="24" y="15" width="52" height="1" fill="rgba(255,255,255,0.12)" />
+        <rect x="34" y="32" width="32" height="42" rx="1.5" fill="url(#cb2-label)" />
+        <rect x="34" y="32" width="32" height="42" rx="1.5" fill="none" stroke="rgba(0,0,0,0.10)" strokeWidth="0.6" />
+        <text x="50" y="42" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="4.2" fill="#141212" letterSpacing="0.4">DULPRA</text>
+        <line x1="42" y1="46" x2="58" y2="46" stroke="#141212" strokeWidth="0.4" />
+        <text x="50" y="56" textAnchor="middle" fontFamily="Georgia, serif" fontSize="5" fontStyle="italic" fill="#141212">Slow</text>
+        <text x="50" y="63" textAnchor="middle" fontFamily="Georgia, serif" fontSize="5" fontStyle="italic" fill="#141212">Roast</text>
+        <text x="50" y="71" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="2.8" fill="rgba(0,0,0,0.6)" letterSpacing="0.3">250 G · DARK</text>
+        <g transform="translate(50 82)">
+          <ellipse cx="0" cy="0" rx="4" ry="2.5" fill="#0a0704" />
+          <path d="M -3 0 Q 0 -1 3 0" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.4" />
+        </g>
+      </svg>
+    </div>
+  )
+}
+
 function PreviewSizePicker({ transition }: { transition: number }) {
   const pickerOpacity = transition
   const pickerScale = 0.96 + transition * 0.04
@@ -282,23 +384,13 @@ function PreviewSizePicker({ transition }: { transition: number }) {
         background: 'linear-gradient(180deg,#faf8f3 0%,#efeae0 100%)',
       }}
     >
-      {/* Product image mock */}
-      <div
-        style={{
-          aspectRatio: '1', borderRadius: 6,
-          background: 'linear-gradient(135deg,#c9a97c 0%,#8c6d47 60%,#3a2b18 100%)',
-          position: 'relative', overflow: 'hidden',
-        }}
-      >
-        <div
-          style={{
-            position: 'absolute', inset: '30% 25%',
-            borderRadius: 6,
-            background: 'rgba(255,255,255,0.10)',
-            border: '1px solid rgba(255,255,255,0.30)',
-          }}
-        />
-      </div>
+      {/* Product image — proper coffee bag illustration (SVG) rather
+          than the earlier flat gradient square. Same bag drawing lives
+          in app/pricing/PricingClient.tsx `CoffeeBag`; inlined here
+          instead of pulling into a shared file because HomeStudioDemo
+          keeps its preview panels self-contained per the brief. */}
+      <CoffeeBag />
+
 
       {/* Product details */}
       <div>
@@ -541,8 +633,19 @@ function PromptBar({
         border: `1px solid ${T.borderStrong}`,
         background: T.surface,
         marginTop: 14,
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
       }}
     >
+      {/* Slash prefix — signals prompt surface (not URL bar) and
+          mirrors the same detail on the mini-panel prompt bar. */}
+      <span style={{
+        fontFamily: T.mono, fontSize: 11, color: T.textMuted,
+        padding: '2px 6px', borderRadius: 4,
+        border: `1px solid ${T.border}`,
+        flexShrink: 0,
+      }}>
+        /
+      </span>
       <div
         style={{
           flex: 1, minWidth: 0,
@@ -565,6 +668,18 @@ function PromptBar({
           />
         )}
       </div>
+      {/* ⌘K hint — same "keyboard-driven, real tool" cue as the mini
+          panel. Kept small enough to not steal the eye. */}
+      <span style={{
+        fontFamily: T.mono, fontSize: 10, color: T.textMuted,
+        padding: '2px 6px', borderRadius: 4,
+        border: `1px solid ${T.border}`,
+        background: 'rgba(255,255,255,0.02)',
+        letterSpacing: '.04em',
+        flexShrink: 0,
+      }}>
+        ⌘K
+      </span>
       <motion.button
         type="button"
         tabIndex={-1}
@@ -577,6 +692,9 @@ function PromptBar({
           fontFamily: T.mono, fontSize: 11, fontWeight: 700,
           padding: '6px 10px', borderRadius: 6,
           letterSpacing: '.02em',
+          // Backlit chartreuse glow — same treatment as the mini panel
+          // so the accent CTA reads as "primary" without hover.
+          boxShadow: '0 0 14px rgba(212,255,63,0.35), inset 0 1px 0 rgba(255,255,255,0.35)',
         }}
       >
         Send
@@ -599,13 +717,20 @@ function DeployToast({ visible, seconds }: { visible: boolean; seconds: number }
           transition={{ duration: 0.3, ease: 'easeOut' }}
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '7px 12px', borderRadius: 8,
+            padding: '7px 14px 7px 12px', borderRadius: 999,
             background: 'rgba(62,207,142,0.10)', border: '1px solid rgba(62,207,142,0.35)',
             color: T.green,
             fontFamily: T.mono, fontSize: 11,
+            boxShadow: '0 6px 20px -10px rgba(62,207,142,0.4)',
           }}
         >
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.green }} />
+          {/* Explicit check icon replaces the flat green dot — the
+              toast is a success surface, so the eye should land on a
+              checkmark, not an ambiguous pip. */}
+          <svg viewBox="0 0 12 12" width={12} height={12} style={{ flexShrink: 0 }}>
+            <circle cx="6" cy="6" r="5.5" fill="none" stroke={T.green} strokeWidth={1.2} opacity={0.5} />
+            <path d="M3.5 6.2 L5.3 7.8 L8.5 4.6" fill="none" stroke={T.green} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
           Live · {seconds}s · 1 credit
         </motion.div>
       )}
@@ -741,6 +866,10 @@ function HeroVideoOrPlaceholder({
 }
 
 // ── Sub-component: Studio window (all the pieces above assembled) ──
+// Wrapped in a positioned container so the corner brackets + radial
+// glow can paint just outside the panel border without clipping.
+// Same treatment as the shared StudioMiniPanel — deliberate visual
+// echo across the flagship + mini demos.
 function StudioWindow({
   state,
   scenario,
@@ -752,44 +881,108 @@ function StudioWindow({
   heroVideoSrc?: string
   heroVideoPoster?: string
 }) {
+  const isLive = state.status === 'live'
   return (
-    <div
-      role="img"
-      id="home-studio-demo-window"
-      aria-label={`Live demo of the Quante Studio: ${scenario.label} scenario. Prompt: ${scenario.prompt}`}
-      style={{
-        borderRadius: 12,
-        border: `1px solid ${T.border}`,
-        background: T.surface,
-        overflow: 'hidden',
-        boxShadow: '0 20px 60px -30px rgba(0,0,0,0.6)',
-      }}
-    >
-      <UrlBar status={state.status} />
+    <div style={{ position: 'relative', padding: 12 }}>
+      {/* Backlit chartreuse glow — intensifies slightly on Live. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute', inset: -30,
+          background: `radial-gradient(ellipse 65% 55% at 50% 50%, rgba(212,255,63,${isLive ? 0.11 : 0.05}) 0%, transparent 70%)`,
+          filter: 'blur(16px)',
+          pointerEvents: 'none',
+          transition: 'background 400ms ease',
+          zIndex: 0,
+        }}
+      />
+      <StudioCornerBrackets active={isLive} />
+      <div
+        role="img"
+        id="home-studio-demo-window"
+        aria-label={`Live demo of the Quante Studio: ${scenario.label} scenario. Prompt: ${scenario.prompt}`}
+        style={{
+          position: 'relative', zIndex: 1,
+          borderRadius: 12,
+          border: `1px solid ${T.border}`,
+          background: T.surface,
+          overflow: 'hidden',
+          boxShadow: isLive
+            ? '0 20px 60px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,255,63,0.10) inset'
+            : '0 20px 60px -30px rgba(0,0,0,0.6)',
+          transition: 'box-shadow 400ms ease',
+        }}
+      >
+        <UrlBar status={state.status} />
 
-      <div style={{ padding: 16 }}>
-        <Preview
-          scenario={scenario}
-          transition={state.transitionProgress}
-          heroVideoSrc={heroVideoSrc}
-          heroVideoPoster={heroVideoPoster}
-        />
+        <div style={{ padding: 16 }}>
+          <Preview
+            scenario={scenario}
+            transition={state.transitionProgress}
+            heroVideoSrc={heroVideoSrc}
+            heroVideoPoster={heroVideoPoster}
+          />
 
-        <BuildLog log={state.log} />
+          <BuildLog log={state.log} />
 
-        <PromptBar
-          typedPrompt={state.typedPrompt}
-          sendPressed={state.sendPressed}
-          showCaret={state.phase === 'typing' || state.phase === 'sending'}
-        />
+          <PromptBar
+            typedPrompt={state.typedPrompt}
+            sendPressed={state.sendPressed}
+            showCaret={state.phase === 'typing' || state.phase === 'sending'}
+          />
 
-        {/* Toast area: fixed height so the layout doesn't shift when
-            it enters. */}
-        <div style={{ height: 36, display: 'flex', alignItems: 'center', marginTop: 12 }}>
-          <DeployToast visible={state.showToast} seconds={state.deploySeconds} />
+          {/* Toast area: fixed height so the layout doesn't shift when
+              it enters. */}
+          <div style={{ height: 36, display: 'flex', alignItems: 'center', marginTop: 12 }}>
+            <DeployToast visible={state.showToast} seconds={state.deploySeconds} />
+          </div>
         </div>
       </div>
     </div>
+  )
+}
+
+// Four L-shaped chartreuse brackets that frame the Studio window.
+// Slightly more prominent than the mini-panel version because the
+// flagship window is bigger and needs matching visual weight.
+function StudioCornerBrackets({ active }: { active: boolean }) {
+  const stroke = active ? 'var(--qp-accent, #D4FF3F)' : 'rgba(212,255,63,0.42)'
+  const opacity = active ? 1 : 0.75
+  const armLength = 14
+  const inset = 5
+  const svgSize = armLength + 2
+  const bracket = (position: 'tl' | 'tr' | 'bl' | 'br') => {
+    const isRight = position === 'tr' || position === 'br'
+    const isBottom = position === 'bl' || position === 'br'
+    return (
+      <div
+        aria-hidden="true"
+        key={position}
+        style={{
+          position: 'absolute',
+          [isRight ? 'right' : 'left']: inset,
+          [isBottom ? 'bottom' : 'top']: inset,
+          width: svgSize, height: svgSize,
+          transform: `${isRight ? 'scaleX(-1)' : ''}${isBottom ? ' scaleY(-1)' : ''}`.trim(),
+          pointerEvents: 'none',
+          opacity,
+          transition: 'opacity 400ms ease',
+          zIndex: 2,
+        }}
+      >
+        <svg viewBox={`0 0 ${svgSize} ${svgSize}`} width={svgSize} height={svgSize}>
+          <path
+            d={`M 1 ${armLength + 1} L 1 1 L ${armLength + 1} 1`}
+            fill="none" stroke={stroke} strokeWidth={1.3} strokeLinecap="round"
+          />
+        </svg>
+      </div>
+    )
+  }
+  return (
+    <>
+      {(['tl', 'tr', 'bl', 'br'] as const).map(bracket)}
+    </>
   )
 }
 

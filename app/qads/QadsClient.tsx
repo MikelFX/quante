@@ -30,6 +30,29 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
+// Meta infinity-style wordmark rendered as SVG. Not a literal
+// trademark reproduction — a stylised loop that reads as "Meta"
+// against Facebook's brand-blue so the mock header reads as the
+// real Ads Manager chrome rather than a generic blue square. Kept
+// small (18×18) so it sits in the header like an app-icon.
+function MetaLogo() {
+  return (
+    <div style={{
+      width: 18, height: 18, borderRadius: 4,
+      background: 'linear-gradient(135deg,#0866FF 0%,#1877F2 55%,#166FE5 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.25), 0 1px 2px rgba(0,0,0,0.15)',
+    }}>
+      <svg viewBox="0 0 20 12" width={14} height={9} aria-hidden="true">
+        <path
+          d="M 3 9 Q 3 3 6 3 Q 8 3 10 7 Q 12 11 14 11 Q 17 11 17 6 Q 17 3 14 3 Q 12 3 10 7"
+          fill="none" stroke="#ffffff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"
+        />
+      </svg>
+    </div>
+  )
+}
+
 // Meta-Ads-Manager-style panels used by the hero StudioMiniPanel. The
 // "before" state shows a blank campaign form ready to receive Qads's
 // output; the "after" state shows the drafted campaign, paused, with
@@ -44,7 +67,7 @@ function QadsCampaignBefore() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 18, height: 18, borderRadius: 4, background: '#1877F2' }} />
+        <MetaLogo />
         <div style={{ fontFamily: 'ui-monospace', fontSize: 9.5, color: '#1c1e21', fontWeight: 600, letterSpacing: '.02em' }}>
           Meta Ads Manager
         </div>
@@ -74,7 +97,20 @@ function QadsCampaignAfter() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 18, height: 18, borderRadius: 4, background: '#1877F2' }} />
+        {/* Small coffee-themed campaign icon replaces the flat blue
+            square — matches the "Dulpra · Coffee" label so the row
+            reads as one branded campaign entry. */}
+        <div style={{
+          width: 18, height: 18, borderRadius: 4,
+          background: 'linear-gradient(135deg,#4a3a26,#22180a)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.15)',
+        }}>
+          <svg viewBox="0 0 12 12" width={11} height={11} fill="none">
+            <ellipse cx="6" cy="6" rx="3.2" ry="2" fill="#0a0704" stroke="rgba(255,255,255,0.25)" strokeWidth="0.4" />
+            <path d="M 3.5 6 Q 6 5 8.5 6" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="0.4" />
+          </svg>
+        </div>
         <div style={{ fontFamily: 'ui-monospace', fontSize: 9.5, color: '#1c1e21', fontWeight: 600 }}>
           Dulpra · Coffee
         </div>

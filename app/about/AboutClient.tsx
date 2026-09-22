@@ -85,31 +85,68 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
 // shows the Studio's file tree; "After" shows a downloaded ZIP with a
 // checkmark beside it — the concrete "you keep the keys" moment.
 function AboutExportBefore() {
+  const rows: { name: string; kind: 'folder' | 'file' }[] = [
+    { name: 'app/',            kind: 'folder' },
+    { name: 'components/',     kind: 'folder' },
+    { name: 'lib/',            kind: 'folder' },
+    { name: 'public/',         kind: 'folder' },
+    { name: 'package.json',    kind: 'file'   },
+    { name: 'next.config.ts',  kind: 'file'   },
+  ]
   return (
     <div
       style={{
         position: 'absolute', inset: 0,
-        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
-        padding: 14, display: 'flex', flexDirection: 'column', gap: 4,
+        background:
+          // Subtle radial glow behind the file tree so the panel has
+          // a light source instead of reading flat black.
+          'radial-gradient(ellipse 60% 60% at 30% 30%, rgba(212,255,63,0.05) 0%, transparent 70%),' +
+          'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 5,
       }}
     >
-      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>
-        dulpra/
+      {/* Root row with chevron */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <svg viewBox="0 0 8 8" width={7} height={7} aria-hidden="true">
+          <path d="M 2 1 L 6 4 L 2 7" fill="none" stroke="rgba(245,245,247,0.6)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" transform="rotate(90 4 4)" />
+        </svg>
+        <FolderIcon />
+        <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>dulpra</span>
       </div>
-      {[
-        { name: 'app/', depth: 1 },
-        { name: 'components/', depth: 1 },
-        { name: 'lib/', depth: 1 },
-        { name: 'public/', depth: 1 },
-        { name: 'package.json', depth: 1 },
-        { name: 'next.config.ts', depth: 1 },
-      ].map(f => (
-        <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: f.depth * 10 }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'rgba(245,245,247,0.22)' }} />
-          <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: 'rgba(245,245,247,0.72)' }}>{f.name}</span>
+      {rows.map(r => (
+        <div key={r.name} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 14 }}>
+          {r.kind === 'folder' ? <FolderIcon /> : <FileIcon />}
+          <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: 'rgba(245,245,247,0.72)' }}>{r.name}</span>
         </div>
       ))}
     </div>
+  )
+}
+
+function FolderIcon() {
+  return (
+    <svg viewBox="0 0 12 12" width={11} height={11} aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path
+        d="M 1 3.5 Q 1 2 2.5 2 L 4.5 2 L 5.5 3 L 9.5 3 Q 11 3 11 4.5 L 11 8.5 Q 11 10 9.5 10 L 2.5 10 Q 1 10 1 8.5 Z"
+        fill="rgba(212,255,63,0.10)" stroke="rgba(212,255,63,0.55)" strokeWidth="0.7" strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function FileIcon() {
+  return (
+    <svg viewBox="0 0 12 12" width={11} height={11} aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path
+        d="M 2.5 1.5 L 7.5 1.5 L 10 4 L 10 10.5 L 2.5 10.5 Z"
+        fill="rgba(245,245,247,0.04)" stroke="rgba(245,245,247,0.4)" strokeWidth="0.7" strokeLinejoin="round"
+      />
+      <path d="M 7.5 1.5 L 7.5 4 L 10 4" fill="none" stroke="rgba(245,245,247,0.4)" strokeWidth="0.7" strokeLinejoin="round" />
+      {/* three tiny content lines */}
+      <line x1="4"   y1="6"   x2="8" y2="6"   stroke="rgba(245,245,247,0.25)" strokeWidth="0.5" />
+      <line x1="4"   y1="7.5" x2="8" y2="7.5" stroke="rgba(245,245,247,0.25)" strokeWidth="0.5" />
+      <line x1="4"   y1="9"   x2="6.5" y2="9" stroke="rgba(245,245,247,0.25)" strokeWidth="0.5" />
+    </svg>
   )
 }
 

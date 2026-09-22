@@ -93,6 +93,26 @@ function TerminalTypewriter() {
 // point of the mini panel is that these read as *the same* Studio you see
 // screenshotted elsewhere on the page, not stock illustrations.
 
+// Small square project icon used at the top of both Manifesto preview
+// cards. Coffee bean glyph over a dark gradient — reads as "the
+// Dulpra project" at a glance instead of a flat brown box.
+function DulpraProjectIcon() {
+  return (
+    <div style={{
+      width: 20, height: 20, borderRadius: 5,
+      background: 'linear-gradient(135deg,#4a3a26,#22180a)',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 2px rgba(0,0,0,0.4)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
+    }}>
+      <svg viewBox="0 0 12 12" width={12} height={12} aria-hidden="true">
+        <ellipse cx="6" cy="6" rx="3.5" ry="2.2" fill="#0a0704" stroke="rgba(255,255,255,0.30)" strokeWidth="0.5" />
+        <path d="M 3.2 6 Q 6 5 8.8 6" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+      </svg>
+    </div>
+  )
+}
+
 function ManifestoDeployBefore() {
   return (
     <div
@@ -103,7 +123,7 @@ function ManifestoDeployBefore() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 18, height: 18, borderRadius: 4, background: 'linear-gradient(135deg,#c9a97c,#3a2b18)' }} />
+        <DulpraProjectIcon />
         <div style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>
           Dulpra · Coffee
         </div>
@@ -144,7 +164,7 @@ function ManifestoDeployAfter() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 18, height: 18, borderRadius: 4, background: 'linear-gradient(135deg,#c9a97c,#3a2b18)' }} />
+        <DulpraProjectIcon />
         <div style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>
           Dulpra · Coffee
         </div>
