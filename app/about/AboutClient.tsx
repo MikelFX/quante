@@ -29,9 +29,9 @@ const ROADMAP = [
   },
   {
     code: 'II', name: 'Qads', status: 'new', statusColor: 'var(--qp-accent)',
-    headline: 'Your store, turned into a campaign.',
-    desc: 'Same store, one more description away from a full Meta and TikTok campaign — strategy, copy, creatives and video, drafted and paused for your review.',
-    bullets: ['Reads your live catalog + brand kit', 'Claude drafts strategy and copy', 'Higgsfield generates ad video', 'Nothing goes live without your approval'],
+    headline: 'Product photo in, ad videos and photos out.',
+    desc: 'Upload a product photo, pick a style and formats, download the finished creatives — where you post them is up to you. No ad accounts to connect, no publishing, no spend inside Quante.',
+    bullets: ['One photo → 9:16 / 4:5 / 1:1 / 16:9 formats', 'Claude drafts prompts + ad copy', 'Higgsfield generates the videos and images', 'Download individually or as a ZIP'],
     accent: 'var(--qp-accent)',
   },
   {

@@ -1,13 +1,13 @@
-import { QadsClient } from './QadsClient'
+import { QadsGeneratorClient } from './QadsGeneratorClient'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
-  title: 'Qads — turn your store into a Meta & TikTok campaign',
+  title: 'Qads — generátor reklamních videí a fotek z jedné fotky produktu',
   description:
-    'Same store, one more description away from a full ad campaign — strategy, copy, creatives and video, drafted and paused for your review.',
+    'Nahraj fotku produktu, vyber styl a formáty. Qads vytvoří reklamní videa a fotky, ke stažení jednotlivě nebo v ZIPu — kam je nahraješ je na tobě.',
   path: '/qads',
 })
 
 export default function QadsPage() {
-  return <QadsClient />
+  return <QadsGeneratorClient />
 }

@@ -1,31 +1,15 @@
-// Qads credit accounting — estimate/reserve/settle/refund. Deliberately mirrors the
-// manual balance-check + credit_ledger insert pattern already used by
-// app/api/quante/iterate/route.ts (read latest balance_after, compare, insert one row)
-// rather than the unused supabase/migration-atomic-credits.sql `debit_credits` RPC, whose
-// `p_user_id uuid` signature doesn't match this app's actual user id type (Clerk's
-// string sub, stored as `text` everywhere else in this schema) — that RPC appears to
-// predate the Clerk migration and nothing else in the repo calls it.
+// Qads generator credit accounting — reserve up front at submit time, refund
+// per failed item. Same manual balance-check + credit_ledger insert pattern
+// used by app/api/quante/iterate/route.ts and (previously) the old campaign-
+// era version of this file — kept identical shape so a future migration to a
+// proper atomic RPC swaps in cleanly at both call sites at once.
 //
-// QADS_CREDIT_COSTS is new but follows CREDIT_COSTS/lib/config.ts exactly (never inline
-// these numbers at a call site).
+// This file is *only* about credit bookkeeping; the source-of-truth for how
+// many credits a given generation costs lives in lib/qads/pricing.ts, and no
+// call site should hardcode numbers.
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-export const QADS_CREDIT_COSTS = {
-  strategy_generation: 3,   // one strategy+angles+ad-sets+copy call (lib/qads/pipeline/nodes/strategy.ts)
-  static_creative: 1,        // per generated image
-  video_creative: 5,         // per generated video (Higgsfield video is the expensive op)
-  experiment_setup: 1,
-} as const
-
-export type QadsCreditReason = keyof typeof QADS_CREDIT_COSTS
-
-export interface CreditCheckResult {
-  ok: boolean
-  balance: number
-}
-
-// Read-only balance check — same query shape as iterate/route.ts.
 export async function getCreditBalance(userId: string): Promise<number> {
   const { data } = await supabaseAdmin
     .from('credit_ledger')
@@ -35,24 +19,6 @@ export async function getCreditBalance(userId: string): Promise<number> {
     .limit(1)
     .maybeSingle()
   return data?.balance_after ?? 0
-}
-
-// Estimate the total cost of a campaign generation request before spending anything —
-// POST /api/qads/campaigns shows this to the merchant for approval BEFORE reserving.
-// Matches "Estimate → reserve → settle/refund" from docs/qads-proposal.md §6.
-export function estimateCampaignCost(params: {
-  angleCount: number
-  adSetsPerAngle: number
-  staticCreativesPerAdSet: number
-  videoCreativesPerAdSet: number
-}): number {
-  const { angleCount, adSetsPerAngle, staticCreativesPerAdSet, videoCreativesPerAdSet } = params
-  const adSetCount = angleCount * adSetsPerAngle
-  return (
-    QADS_CREDIT_COSTS.strategy_generation +
-    adSetCount * staticCreativesPerAdSet * QADS_CREDIT_COSTS.static_creative +
-    adSetCount * videoCreativesPerAdSet * QADS_CREDIT_COSTS.video_creative
-  )
 }
 
 export interface ReserveResult {
@@ -66,16 +32,12 @@ export interface ReserveError {
   needed: number
 }
 
-// Reserves (debits) `amount` credits up front for a campaign, before the pipeline starts.
-// Per-asset generation failures are refunded individually as they're known (see
-// refundCredits below) rather than waiting for the whole campaign to finish — "vrácení za
-// neúspěšné assety", not a blanket all-or-nothing refund.
-export async function reserveCredits(params: {
+export async function reserveGeneratorCredits(params: {
   userId: string
   amount: number
-  campaignId: string
+  generationId: string
 }): Promise<ReserveResult | ReserveError> {
-  const { userId, amount, campaignId } = params
+  const { userId, amount, generationId } = params
   const balance = await getCreditBalance(userId)
   if (balance < amount) {
     return { ok: false, error: 'insufficient_credits', balance, needed: amount }
@@ -85,8 +47,8 @@ export async function reserveCredits(params: {
   const { error } = await supabaseAdmin.from('credit_ledger').insert({
     user_id: userId,
     delta: -amount,
-    reason: 'qads_campaign_reserve',
-    ref_id: campaignId,
+    reason: 'qads_generator_reserve',
+    ref_id: generationId,
     balance_after: newBalance,
   })
   if (error) return { ok: false, error: 'insufficient_credits', balance, needed: amount }
@@ -94,19 +56,16 @@ export async function reserveCredits(params: {
   return { ok: true, balance: newBalance }
 }
 
-// Refunds `amount` credits — used both for a hard pipeline failure (refund everything
-// reserved) and for a single failed creative generation (refund just that asset's cost).
-// Never throws: a refund failure is logged, not surfaced as a user-facing error, since the
-// alternative (blocking on it) would leave the merchant stuck mid-campaign over a
-// bookkeeping write — matches this repo's "never debit before success, but don't let a
-// refund write become a new outage" posture from CLAUDE.md §5.
-export async function refundCredits(params: {
+// Refund a single failed item's credits (or a batch if a full generation
+// fails). Never throws — a refund write failing is worth a log line, not
+// blocking the caller (matches the old campaign-era version's posture).
+export async function refundGeneratorCredits(params: {
   userId: string
   amount: number
-  campaignId: string
-  reason: string
+  generationId: string
+  reason: string  // e.g. 'qads_item_failed', 'qads_item_nsfw', 'qads_generation_hard_failure'
 }): Promise<void> {
-  const { userId, amount, campaignId, reason } = params
+  const { userId, amount, generationId, reason } = params
   if (amount <= 0) return
   const balance = await getCreditBalance(userId)
   const newBalance = balance + amount
@@ -114,10 +73,13 @@ export async function refundCredits(params: {
     user_id: userId,
     delta: amount,
     reason,
-    ref_id: campaignId,
+    ref_id: generationId,
     balance_after: newBalance,
   })
   if (error) {
-    console.error(`[qads/credits] refund failed for user ${userId}, campaign ${campaignId}, amount ${amount}:`, error.message)
+    console.error(
+      `[qads/credits] refund failed for user ${userId}, generation ${generationId}, amount ${amount}:`,
+      error.message,
+    )
   }
 }

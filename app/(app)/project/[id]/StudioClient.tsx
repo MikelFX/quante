@@ -3073,20 +3073,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </button>
         </div>
 
-        {/* Qads — deliberately a separate route (app/(app)/project/[id]/ads/), not a
-            third value of adminMode, since it's an unrelated surface (ad campaigns, not
-            storefront building or order management). This link is the only Studio-side
-            change step (j) makes to this file. */}
-        <Link
-          href={`/project/${projectId}/ads`}
+        {/* Ads (formerly /project/[id]/ads) moved out of the Studio entirely — Qads
+            is now a standalone generator at /qads that doesn't tie to a project. Link
+            preserved as an external link so a merchant already deep in the Studio
+            still has a one-click path to the generator. */}
+        <a
+          href="/qads"
+          target="_blank"
+          rel="noopener noreferrer"
           style={{
             fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 7,
             border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
             color: '#8a8a93', textDecoration: 'none', whiteSpace: 'nowrap',
           }}
         >
-          Ads
-        </Link>
+          Ads ↗
+        </a>
 
         {/* Credit balance / Agency indicator */}
         {isAgency ? (

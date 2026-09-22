@@ -207,16 +207,16 @@ function QadsTeaser() {
       <div style={{ maxWidth: 900, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 2 }}>
         <div className="qp-kicker" style={{ justifyContent: 'center' }}><span className="qp-dot" /> new — qads</div>
         <h2 style={{ fontSize: 'clamp(24px,4.4vw,38px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.18, margin: '0 0 14px' }}>
-          Now Quante builds your <span style={{ color: 'var(--qp-accent)' }}>ad campaigns</span> too.
+          Turn your product photo into <span style={{ color: 'var(--qp-accent)' }}>ad videos + photos</span>.
         </h2>
         <p style={{ fontSize: 15.5, lineHeight: 1.65, color: 'var(--qp-sub)', maxWidth: 520, margin: '0 auto' }}>
-          Same store, one more description away from a full Meta and TikTok campaign — strategy, copy, creatives, and video, drafted and paused for your review.
+          Upload one product photo, pick a style + formats, download the finished creatives. Where you post them is up to you — no ad accounts, no publishing, no spend inside Quante.
         </p>
         <Link href="/qads" className="qp-glass qp-glass-strong" style={{
           display: 'inline-block', marginTop: 22, fontSize: 13.5, fontWeight: 600, textDecoration: 'none',
           color: 'var(--qp-ink)', padding: '11px 22px', borderRadius: 99,
         }}>
-          See how Qads works →
+          Open the Qads generator →
         </Link>
       </div>
 
