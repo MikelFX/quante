@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { Rocket, Download, CheckCircle2, MessageSquareText, History, Globe2, Link2 } from 'lucide-react'
 import { CREDIT_PACKS, getPerCreditDisplay, getGenerationsCaption, formatHostingMonthly } from '@/lib/pricing'
@@ -13,11 +13,6 @@ import HomeStudioDemo from '@/components/public/HomeStudioDemo'
 import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const HERO_SHOWCASE = {
-  url: 'https://maison-s-ve.stores.quantecode.com/',
-  label: 'Maison Sève',
-}
 
 const STACK_CARDS = [
   { n: '01', icon: Rocket, title: 'Live in 3 minutes', desc: 'Click Deploy. Quante provisions hosting, SSL, and your subdomain automatically. Zero server setup, zero DevOps.' },
@@ -231,48 +226,6 @@ function StepFlow() {
   )
 }
 
-// ─── Hero live storefront preview (lazy-loaded on intersection) ───────────────
-
-function HeroStorefront() {
-  const [mounted, setMounted] = useState(false)
-  const [loaded, setLoaded] = useState(false)
-  const wrapRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const el = wrapRef.current
-    if (!el) return
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { setMounted(true); obs.disconnect() } },
-      { rootMargin: '200px' },
-    )
-    obs.observe(el)
-    return () => obs.disconnect()
-  }, [])
-
-  return (
-    <div ref={wrapRef} style={{ flex: 1, minHeight: 0, position: 'relative', background: '#f2efe9' }}>
-      <div style={{
-        position: 'absolute', inset: 0, zIndex: 1,
-        background: '#f2efe9',
-        opacity: loaded ? 0 : 1,
-        transition: 'opacity 0.35s ease',
-        pointerEvents: 'none',
-      }} />
-      {mounted && (
-        <iframe
-          src={HERO_SHOWCASE.url}
-          title={`${HERO_SHOWCASE.label} store preview`}
-          loading="lazy"
-          sandbox="allow-scripts allow-same-origin"
-          referrerPolicy="no-referrer-when-downgrade"
-          onLoad={() => setLoaded(true)}
-          style={{ width: '100%', height: '100%', border: 'none', display: 'block', pointerEvents: 'none' }}
-        />
-      )}
-    </div>
-  )
-}
-
 // ─── Bento feature grid ("everything Quante gives you") ───────────────────────
 
 function BentoGrid() {
@@ -466,23 +419,36 @@ export function HomePageClient() {
               </div>
             ))}
 
-            <div className="qp-liquid-glass qp-hero-store-card" style={{
+            {/* Hero product-demo video — replaces the earlier
+                browser-chrome card + Maison Sève iframe. Same treatment
+                as the Qads teaser video (see QadsTeaser + .qp-tilt-frame
+                in globals.css): autoplay / muted / loop / playsInline,
+                radial mask that feathers the four corners into the page
+                bg, subtle deep drop shadow. Sized to the same footprint
+                as the removed card (min(560px,88%) × 320) so the
+                surrounding floating icon badges + glow ring still land
+                in the right relative positions.
+                Swap the src (or drop a new file at the same path) to
+                update the clip — no other change needed. */}
+            <div style={{
               position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
               width: 'min(560px,88%)', height: 320, borderRadius: 26, overflow: 'hidden',
-              display: 'flex', flexDirection: 'column',
+              background: '#0a0a0e',
+              boxShadow:
+                '0 6px 16px -8px rgba(0,0,0,.15), 0 40px 90px -40px rgba(0,0,0,.55)',
+              WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at center, black 82%, transparent 100%)',
+              maskImage: 'radial-gradient(ellipse 100% 100% at center, black 82%, transparent 100%)',
             }}>
-              <div style={{
-                height: 32, display: 'flex', alignItems: 'center', gap: 6, padding: '0 14px', flexShrink: 0,
-                background: 'rgba(255,255,255,.05)', borderBottom: '1px solid var(--qp-line-soft)',
-              }}>
-                {[0, 1, 2].map(i => (
-                  <span key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,.16)' }} />
-                ))}
-                <span style={{ marginLeft: 8, fontFamily: 'var(--qp-mono)', fontSize: 10.5, color: 'var(--qp-sub)' }}>
-                  {HERO_SHOWCASE.label} · live preview
-                </span>
-              </div>
-              <HeroStorefront />
+              <video
+                src="/quante-hero.mp4"
+                autoPlay muted loop playsInline preload="metadata"
+                style={{
+                  width: '100%', height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: '50% 50%',
+                  display: 'block',
+                }}
+              />
             </div>
           </div>
         </div>
