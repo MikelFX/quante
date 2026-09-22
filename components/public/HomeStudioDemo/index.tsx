@@ -1,1033 +1,55 @@
 'use client'
 
-// HomeStudioDemo — dark "product strip" section on the light marketing
-// homepage. Shows the Studio in action across three scenarios
-// (Design / Feature / Content). Read the sibling scenarios.ts for
-// copy and useStudioLoop.ts for the state machine; this file owns
-// the render tree and the visual system only.
+// HomeStudioDemo — dark "product strip" section on the marketing
+// homepage. Left column carries the copy (eyebrow + headline + subline
+// + three proof points); right column plays a single looping video
+// (public/studio-loop.mp4) that already shows the URL bar, scenario
+// tabs, preview pane, build log, prompt bar and deploy toast all
+// happening in real recorded motion.
+//
+// Earlier revision was a full scripted 3-scenario state machine
+// (Design / Feature / Content tabs with a typewriter prompt bar and
+// hand-rolled preview panes). That is gone now — the video captures
+// the same story with higher fidelity, and the maintenance cost of
+// keeping the scripted version in sync with the real Studio wasn't
+// worth it. See git history if you ever need the scripted version
+// back (deleted files: useStudioLoop.ts, scenarios.ts, plus the
+// StudioWindow/StudioTabs/Preview/BuildLog/PromptBar/DeployToast
+// helpers that used to live in this file).
 
-import { useEffect, useRef, useState } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
-import { SCENARIOS, TEXT_SWAP_DE, type Scenario, type TransitionId } from './scenarios'
-import { useStudioLoop, type StudioDemoState } from './useStudioLoop'
+import { useRef, useEffect } from 'react'
 
 // ── Local design tokens ─────────────────────────────────────────────
-// The section runs on a dark strip regardless of the surrounding
-// marketing page (currently light), so it owns its own tone palette
-// instead of inheriting from --qp-*. The one shared value is the
-// site's chartreuse accent, pulled from the CSS variable so a
-// palette swap upstream still cascades.
+// Kept from the earlier state-machine revision so the section's dark
+// bg + type stack + accent match the rest of the site's Studio-style
+// surfaces (StudioMiniPanel, etc.) without pulling a shared module.
 const T = {
   bg: '#0a0a0a',
-  surface: '#111113',
-  surfaceRaised: '#161618',
   border: 'rgba(255,255,255,0.08)',
-  borderStrong: 'rgba(255,255,255,0.14)',
   text: '#f5f5f7',
   textDim: 'rgba(245,245,247,0.72)',
   textMuted: 'rgba(245,245,247,0.48)',
-  amber: '#e0a04f',
-  green: '#3ecf8e',
   accent: 'var(--qp-accent, #D4FF3F)',
-  accentInk: '#08080a',
-  mono: 'var(--qp-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace)',
   sans: 'var(--qp-sans, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif)',
+  mono: 'var(--qp-mono, ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace)',
 } as const
 
-// The URL that shows in the mock browser bar — a live-looking
-// customer subdomain rather than a stock placeholder.
-const DEMO_URL = 'dulpra.quantecode.com'
-
-// ── Sub-component: URL bar with dots + address + status pill ─────────
-// Real macOS traffic-light system palette. Same table as the mini
-// panel — the two components deliberately share this so the flagship
-// and mini demos read as one visual family.
-const TRAFFIC_LIGHTS = {
-  red:    { base: '#ff5f57', ring: '#e04b42' },
-  yellow: { base: '#febc2e', ring: '#dea129' },
-  green:  { base: '#28c840', ring: '#1eaa2f' },
-} as const
-
-function UrlBar({ status }: { status: StudioDemoState['status'] }) {
-  return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 14px',
-        borderBottom: `1px solid ${T.border}`,
-        background: T.surfaceRaised,
-      }}
-    >
-      {/* Traffic lights use the real system palette with an inner
-          highlight for a subtle 3D catch — replaces the earlier flat
-          gray dots that read as an unfinished wireframe. */}
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[TRAFFIC_LIGHTS.red, TRAFFIC_LIGHTS.yellow, TRAFFIC_LIGHTS.green].map(l => (
-          <span
-            key={l.base}
-            style={{
-              width: 10, height: 10, borderRadius: '50%',
-              background: `radial-gradient(circle at 30% 30%, ${l.base} 0%, ${l.base} 55%, ${l.ring} 100%)`,
-              boxShadow: 'inset 0 0.5px 0.5px rgba(255,255,255,0.4), 0 0.5px 1px rgba(0,0,0,0.35)',
-            }}
-          />
-        ))}
-      </div>
-      <UrlSslIcon status={status} />
-      <div
-        style={{
-          flex: 1, minWidth: 0,
-          fontFamily: T.mono, fontSize: 12, color: T.textDim,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}
-      >
-        {DEMO_URL}
-      </div>
-      <StatusPill status={status} />
-    </div>
-  )
-}
-
-function UrlSslIcon({ status }: { status: StudioDemoState['status'] }) {
-  // Muted padlock flips to chartreuse the moment the demo goes Live —
-  // a tiny visual reinforcement of the status pill on the other end
-  // of the URL bar.
-  const color =
-    status === 'live' ? T.accent :
-    T.textMuted
-  return (
-    <svg viewBox="0 0 12 12" width={12} height={12} aria-hidden="true" style={{ flexShrink: 0 }}>
-      <path d="M4 5.5 V4 a2 2 0 0 1 4 0 V5.5" fill="none" stroke={color as string} strokeWidth={1.2} strokeLinecap="round" />
-      <rect x="3" y="5.5" width="6" height="4.5" rx="1" fill="none" stroke={color as string} strokeWidth={1.2} />
-      <circle cx="6" cy="7.6" r="0.7" fill={color as string} />
-    </svg>
-  )
-}
-
-function StatusPill({ status }: { status: StudioDemoState['status'] }) {
-  const stops: Record<StudioDemoState['status'], { label: string; dot: string; text: string; bg: string; border: string }> = {
-    ready:    { label: 'Ready',    dot: 'rgba(255,255,255,0.35)', text: T.textDim, bg: 'rgba(255,255,255,0.04)', border: T.border },
-    building: { label: 'Building', dot: T.amber,                  text: T.amber,   bg: 'rgba(224,160,79,0.10)',  border: 'rgba(224,160,79,0.35)' },
-    live:     { label: 'Live',     dot: T.green,                  text: T.green,   bg: 'rgba(62,207,142,0.10)',  border: 'rgba(62,207,142,0.35)' },
-  }
-  const s = stops[status]
-  return (
-    <div
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 6,
-        padding: '4px 10px', borderRadius: 999,
-        fontFamily: T.mono, fontSize: 11, color: s.text,
-        background: s.bg, border: `1px solid ${s.border}`,
-        whiteSpace: 'nowrap',
-        boxShadow: status === 'live' ? '0 0 14px rgba(62,207,142,0.22)' : undefined,
-      }}
-    >
-      {/* Live/Building dots pulse a soft outer ring; Ready stays flat.
-          Same beacon treatment as the mini panel so the two components
-          feel like one family. */}
-      <span style={{ position: 'relative', width: 6, height: 6, display: 'inline-block' }}>
-        {(status === 'live' || status === 'building') && (
-          <motion.span
-            aria-hidden="true"
-            animate={{ opacity: [0.5, 0.15, 0.5], scale: [1, 1.8, 1] }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-            style={{
-              position: 'absolute', inset: -2, borderRadius: '50%',
-              background: s.dot,
-              opacity: 0.4,
-            }}
-          />
-        )}
-        <span style={{
-          position: 'absolute', inset: 0, borderRadius: '50%', background: s.dot,
-        }} />
-      </span>
-      {s.label}
-    </div>
-  )
-}
-
-// ── Sub-component: Preview pane ──────────────────────────────────────
-// Renders one of three states depending on the current scenario +
-// transition progress. Every state is real DOM — no screenshots — so
-// text stays crisp and can be edited by changing a string.
-function Preview({
-  scenario,
-  transition,
-  heroVideoSrc,
-  heroVideoPoster,
-}: {
-  scenario: Scenario
-  transition: number
-  heroVideoSrc?: string
-  heroVideoPoster?: string
-}) {
-  switch (scenario.transition) {
-    case 'wipe-dark':
-      return <PreviewDesignWipe transition={transition} heroVideoSrc={heroVideoSrc} heroVideoPoster={heroVideoPoster} />
-    case 'size-picker':
-      return <PreviewSizePicker transition={transition} />
-    case 'text-swap-de':
-      return <PreviewTextSwap transition={transition} />
-    default:
-      return null
-  }
-}
-
-// Design scenario — light hero wipes to dark hero, 2px lime edge
-// travels with the wipe, and (if provided) a background video fades
-// in 400 ms after the wipe completes.
-function PreviewDesignWipe({
-  transition,
-  heroVideoSrc,
-  heroVideoPoster,
-}: {
-  transition: number
-  heroVideoSrc?: string
-  heroVideoPoster?: string
-}) {
-  // Wipe uses the whole transition window; video fades in on the
-  // second half (400 ms after wipe start of an 800 ms wipe).
-  const wipe = transition
-  const videoFade = Math.max(0, (transition - 0.5) * 2)
-
-  return (
-    <div
-      style={{
-        position: 'relative',
-        aspectRatio: '16 / 10',
-        borderRadius: 8,
-        overflow: 'hidden',
-        border: `1px solid ${T.border}`,
-      }}
-    >
-      {/* Light state — always painted; the dark layer wipes over it. */}
-      <HeroLight />
-
-      {/* Dark state — masked by the wipe. Uses clip-path from right
-          to left driven by transition. */}
-      <div
-        style={{
-          position: 'absolute', inset: 0,
-          clipPath: `inset(0 ${(1 - wipe) * 100}% 0 0)`,
-          transition: 'clip-path 0ms',
-        }}
-      >
-        <HeroDark videoSrc={heroVideoSrc} videoPoster={heroVideoPoster} videoFade={videoFade} />
-      </div>
-
-      {/* 2px lime edge that travels with the wipe. */}
-      {wipe > 0 && wipe < 1 && (
-        <div
-          style={{
-            position: 'absolute', top: 0, bottom: 0,
-            left: `${wipe * 100}%`,
-            width: 2, background: T.accent,
-            boxShadow: `0 0 12px ${T.accent}, 0 0 24px rgba(212,255,63,0.6)`,
-            pointerEvents: 'none',
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-function HeroLight() {
-  return (
-    <div
-      style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(180deg,#f5f2ec 0%,#ece7dc 100%)',
-        padding: 22,
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-      }}
-    >
-      <div style={{ fontFamily: T.mono, fontSize: 10, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
-        DULPRA · KAFFEE
-      </div>
-      <div>
-        <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontWeight: 700, color: '#141212', letterSpacing: '-.02em', lineHeight: 1.05, marginBottom: 6 }}>
-          Coffee, roasted by candlelight.
-        </div>
-        <div style={{ fontFamily: T.sans, fontSize: 11, color: 'rgba(0,0,0,0.6)', maxWidth: 260, marginBottom: 12 }}>
-          Small-batch roasted the day before it ships.
-        </div>
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '7px 14px', borderRadius: 99,
-            background: '#141212', color: '#f5f2ec',
-            fontFamily: T.sans, fontSize: 11, fontWeight: 600,
-          }}
-        >
-          Shop collection
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function HeroDark({
-  videoSrc,
-  videoPoster,
-  videoFade,
-}: {
-  videoSrc?: string
-  videoPoster?: string
-  videoFade: number
-}) {
-  return (
-    <div
-      style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
-        padding: 22,
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-        overflow: 'hidden',
-      }}
-    >
-      <HeroVideoOrPlaceholder src={videoSrc} poster={videoPoster} opacity={videoFade} />
-
-      <div style={{ position: 'relative', zIndex: 1, fontFamily: T.mono, fontSize: 10, color: 'rgba(245,242,236,0.55)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
-        DULPRA · KAFFEE
-      </div>
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ fontFamily: 'Georgia,serif', fontSize: 22, fontWeight: 700, color: '#f5f2ec', letterSpacing: '-.02em', lineHeight: 1.05, marginBottom: 6 }}>
-          Coffee, roasted by candlelight.
-        </div>
-        <div style={{ fontFamily: T.sans, fontSize: 11, color: 'rgba(245,242,236,0.65)', maxWidth: 260, marginBottom: 12 }}>
-          Small-batch roasted the day before it ships.
-        </div>
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '7px 14px', borderRadius: 99,
-            background: '#f5f2ec', color: '#141212',
-            fontFamily: T.sans, fontSize: 11, fontWeight: 600,
-          }}
-        >
-          Shop collection
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Feature scenario — product block with a size picker that appears
-// with scale 0.96 → 1 + fade, 400 ms.
-// Small-batch coffee bag drawing. Layered gradients + a cream label
-// that reads "DULPRA · Slow Roast · 250 G · DARK" — matches the
-// product name the size-picker demo edits. Kept inline (not shared
-// with /pricing's CoffeeBag) so this file stays self-contained per
-// the brief.
-function CoffeeBag() {
-  return (
-    <div
-      style={{
-        aspectRatio: '1', borderRadius: 6, position: 'relative', overflow: 'hidden',
-        background:
-          'radial-gradient(ellipse 70% 70% at 50% 45%, rgba(255,255,255,0.5) 0%, transparent 60%),' +
-          'linear-gradient(180deg,#f0ebe0 0%,#e2dbca 100%)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 8,
-      }}
-    >
-      <svg viewBox="0 0 100 100" width="100%" height="100%" style={{ maxWidth: 110, maxHeight: 110 }} aria-hidden="true">
-        <defs>
-          <linearGradient id="cb2-body" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%"   stopColor="#4a3a26" />
-            <stop offset="45%"  stopColor="#3a2b18" />
-            <stop offset="100%" stopColor="#22180a" />
-          </linearGradient>
-          <linearGradient id="cb2-side" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%"  stopColor="rgba(0,0,0,0.35)" />
-            <stop offset="20%" stopColor="rgba(0,0,0,0.0)" />
-            <stop offset="80%" stopColor="rgba(0,0,0,0.0)" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0.35)" />
-          </linearGradient>
-          <linearGradient id="cb2-label" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#f5f2ec" />
-            <stop offset="100%" stopColor="#e5ddd0" />
-          </linearGradient>
-        </defs>
-        <ellipse cx="50" cy="93" rx="34" ry="3" fill="rgba(0,0,0,0.20)" />
-        <path d="M 26 20 Q 28 16 32 16 L 68 16 Q 72 16 74 20 L 78 84 Q 78 90 72 90 L 28 90 Q 22 90 22 84 Z" fill="url(#cb2-body)" />
-        <path d="M 26 20 Q 28 16 32 16 L 68 16 Q 72 16 74 20 L 78 84 Q 78 90 72 90 L 28 90 Q 22 90 22 84 Z" fill="url(#cb2-side)" />
-        <rect x="24" y="15" width="52" height="4" rx="1.5" fill="#1a1108" opacity="0.85" />
-        <rect x="24" y="15" width="52" height="1" fill="rgba(255,255,255,0.12)" />
-        <rect x="34" y="32" width="32" height="42" rx="1.5" fill="url(#cb2-label)" />
-        <rect x="34" y="32" width="32" height="42" rx="1.5" fill="none" stroke="rgba(0,0,0,0.10)" strokeWidth="0.6" />
-        <text x="50" y="42" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="4.2" fill="#141212" letterSpacing="0.4">DULPRA</text>
-        <line x1="42" y1="46" x2="58" y2="46" stroke="#141212" strokeWidth="0.4" />
-        <text x="50" y="56" textAnchor="middle" fontFamily="Georgia, serif" fontSize="5" fontStyle="italic" fill="#141212">Slow</text>
-        <text x="50" y="63" textAnchor="middle" fontFamily="Georgia, serif" fontSize="5" fontStyle="italic" fill="#141212">Roast</text>
-        <text x="50" y="71" textAnchor="middle" fontFamily="ui-monospace, monospace" fontSize="2.8" fill="rgba(0,0,0,0.6)" letterSpacing="0.3">250 G · DARK</text>
-        <g transform="translate(50 82)">
-          <ellipse cx="0" cy="0" rx="4" ry="2.5" fill="#0a0704" />
-          <path d="M -3 0 Q 0 -1 3 0" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="0.4" />
-        </g>
-      </svg>
-    </div>
-  )
-}
-
-function PreviewSizePicker({ transition }: { transition: number }) {
-  const pickerOpacity = transition
-  const pickerScale = 0.96 + transition * 0.04
-
-  return (
-    <div
-      style={{
-        position: 'relative', aspectRatio: '16 / 10', borderRadius: 8, overflow: 'hidden',
-        border: `1px solid ${T.border}`, padding: 22,
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'center',
-        background: 'linear-gradient(180deg,#faf8f3 0%,#efeae0 100%)',
-      }}
-    >
-      {/* Product image — proper coffee bag illustration (SVG) rather
-          than the earlier flat gradient square. Same bag drawing lives
-          in app/pricing/PricingClient.tsx `CoffeeBag`; inlined here
-          instead of pulling into a shared file because HomeStudioDemo
-          keeps its preview panels self-contained per the brief. */}
-      <CoffeeBag />
-
-
-      {/* Product details */}
-      <div>
-        <div style={{ fontFamily: T.mono, fontSize: 9, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 6 }}>
-          Coffee · 250 g
-        </div>
-        <div style={{ fontFamily: 'Georgia,serif', fontSize: 16, fontWeight: 700, color: '#141212', letterSpacing: '-.01em', marginBottom: 4 }}>
-          Slow Roast · Dark
-        </div>
-        <div style={{ fontFamily: T.sans, fontSize: 11, color: 'rgba(0,0,0,0.6)', marginBottom: 10 }}>
-          329 CZK
-        </div>
-
-        {/* Size picker — appears with the transition */}
-        <div
-          style={{
-            opacity: pickerOpacity,
-            transform: `scale(${pickerScale})`,
-            transformOrigin: 'left top',
-            display: 'flex', flexDirection: 'column', gap: 6,
-            marginBottom: 10,
-          }}
-        >
-          <div style={{ fontFamily: T.mono, fontSize: 9, color: 'rgba(0,0,0,0.45)', letterSpacing: '.12em', textTransform: 'uppercase' }}>
-            Grind
-          </div>
-          <div style={{ display: 'flex', gap: 4 }}>
-            {['XS', 'S', 'M', 'L', 'XL'].map((chip, i) => (
-              <span
-                key={chip}
-                style={{
-                  padding: '3px 7px', borderRadius: 5,
-                  fontFamily: T.mono, fontSize: 10,
-                  color: i === 2 ? '#f5f2ec' : '#141212',
-                  background: i === 2 ? '#141212' : 'transparent',
-                  border: `1px solid ${i === 2 ? '#141212' : 'rgba(0,0,0,0.2)'}`,
-                }}
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '6px 12px', borderRadius: 99,
-            background: '#141212', color: '#f5f2ec',
-            fontFamily: T.sans, fontSize: 10, fontWeight: 600,
-          }}
-        >
-          Add to cart
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Content scenario — headline and CTA text swap word by word with a
-// short blur-out / blur-in.
-function PreviewTextSwap({ transition }: { transition: number }) {
-  const en = ['Coffee,', 'roasted', 'by', 'candlelight.']
-  const de = TEXT_SWAP_DE.headline.split(' ')
-  const ctaEn = 'Shop collection'
-  const ctaDe = TEXT_SWAP_DE.cta
-
-  // Per-word swap timing — each word transitions at slightly different
-  // moments so the whole line staggers. `perWordOffset` gives each word
-  // a start point on the 0..1 progress line; `perWordDuration` how long
-  // its own blur takes. Words that have started, taken their full time,
-  // are fully DE; words not yet started are still EN; in-flight words
-  // blur out and swap.
-  const wordCount = Math.max(en.length, de.length)
-  const perWordDuration = 0.2
-  const perWordOffset = (1 - perWordDuration) / Math.max(1, wordCount - 1)
-
-  return (
-    <div
-      style={{
-        position: 'relative', aspectRatio: '16 / 10', borderRadius: 8, overflow: 'hidden',
-        border: `1px solid ${T.border}`, padding: 22,
-        background: 'linear-gradient(180deg,#f5f2ec 0%,#ece7dc 100%)',
-        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-      }}
-    >
-      <div style={{ fontFamily: T.mono, fontSize: 10, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
-        DULPRA · KAFFEE
-      </div>
-
-      <div>
-        <div
-          style={{
-            fontFamily: 'Georgia,serif', fontSize: 22, fontWeight: 700,
-            color: '#141212', letterSpacing: '-.02em', lineHeight: 1.05, marginBottom: 6,
-            display: 'flex', flexWrap: 'wrap', gap: 6,
-          }}
-        >
-          {Array.from({ length: wordCount }).map((_, i) => {
-            const wordStart = i * perWordOffset
-            const wordEnd = wordStart + perWordDuration
-            const local = Math.max(0, Math.min(1, (transition - wordStart) / perWordDuration))
-            const showDe = transition >= wordEnd - 0.001
-            const blur = local < 0.5 ? local * 2 : (1 - local) * 2 // 0 → 1 → 0
-            return (
-              <span
-                key={i}
-                style={{
-                  display: 'inline-block',
-                  filter: `blur(${blur * 4}px)`,
-                  opacity: 1 - blur * 0.4,
-                  transition: 'none',
-                }}
-              >
-                {showDe ? (de[i] ?? '') : (en[i] ?? '')}
-              </span>
-            )
-          })}
-        </div>
-
-        <div style={{ fontFamily: T.sans, fontSize: 11, color: 'rgba(0,0,0,0.6)', maxWidth: 260, marginBottom: 12 }}>
-          Small-batch roasted the day before it ships.
-        </div>
-
-        <div
-          style={{
-            display: 'inline-block',
-            padding: '7px 14px', borderRadius: 99,
-            background: '#141212', color: '#f5f2ec',
-            fontFamily: T.sans, fontSize: 11, fontWeight: 600,
-            filter: `blur(${Math.max(0, Math.min(1, transition * 2 - 0.5)) < 0.5
-              ? (Math.max(0, Math.min(1, transition * 2 - 0.5)) * 2) * 4
-              : ((1 - Math.max(0, Math.min(1, transition * 2 - 0.5))) * 2) * 4}px)`,
-          }}
-        >
-          {transition >= 0.9 ? ctaDe : ctaEn}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Sub-component: build log ────────────────────────────────────────
-// Reserves a fixed height (4 lines) so the log entering doesn't push
-// the prompt bar around and cause layout shift.
-const LOG_ROW_HEIGHT = 22
-const LOG_MAX_VISIBLE = 4
-
-function BuildLog({ log }: { log: StudioDemoState['log'] }) {
-  const visible = log.slice(Math.max(0, log.length - LOG_MAX_VISIBLE))
-  return (
-    <div
-      aria-live="off"
-      style={{
-        height: LOG_ROW_HEIGHT * LOG_MAX_VISIBLE,
-        overflow: 'hidden',
-        display: 'flex', flexDirection: 'column',
-        gap: 2, marginTop: 12,
-        fontFamily: T.mono, fontSize: 12,
-      }}
-    >
-      <AnimatePresence initial={false} mode="popLayout">
-        {visible.map((step, i) => (
-          <motion.div
-            key={`${log.length - visible.length + i}-${step.text}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              height: LOG_ROW_HEIGHT,
-              color:
-                step.state === 'fail'  ? T.amber :
-                step.state === 'pass'  ? T.green :
-                T.textDim,
-            }}
-          >
-            <LogIcon state={step.state} />
-            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {step.text}
-            </span>
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </div>
-  )
-}
-
-function LogIcon({ state }: { state: StudioDemoState['log'][number]['state'] }) {
-  if (state === 'running') {
-    return (
-      <span style={{ width: 12, height: 12, position: 'relative', flexShrink: 0 }}>
-        <motion.span
-          style={{
-            position: 'absolute', inset: 0, borderRadius: '50%',
-            border: `1.5px solid ${T.textMuted}`, borderTopColor: T.accent,
-          }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
-        />
-      </span>
-    )
-  }
-  if (state === 'fail') {
-    return (
-      <span style={{ width: 12, height: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        <svg viewBox="0 0 12 12" width={12} height={12}>
-          <path d="M6 1 L11 10 L1 10 Z" fill="none" stroke={T.amber} strokeWidth={1.5} strokeLinejoin="round" />
-          <path d="M6 5 L6 7.5" stroke={T.amber} strokeWidth={1.5} strokeLinecap="round" />
-          <circle cx={6} cy={9} r={0.5} fill={T.amber} />
-        </svg>
-      </span>
-    )
-  }
-  return (
-    <span style={{ width: 12, height: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-      <svg viewBox="0 0 12 12" width={12} height={12}>
-        <path d="M2 6.5 L5 9 L10 3.5" fill="none" stroke={T.green} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    </span>
-  )
-}
-
-// ── Sub-component: prompt bar ───────────────────────────────────────
-function PromptBar({
-  typedPrompt,
-  sendPressed,
-  showCaret,
-}: {
-  typedPrompt: string
-  sendPressed: boolean
-  showCaret: boolean
-}) {
-  return (
-    <div
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 12px', borderRadius: 8,
-        border: `1px solid ${T.borderStrong}`,
-        background: T.surface,
-        marginTop: 14,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
-      }}
-    >
-      {/* Slash prefix — signals prompt surface (not URL bar) and
-          mirrors the same detail on the mini-panel prompt bar. */}
-      <span style={{
-        fontFamily: T.mono, fontSize: 11, color: T.textMuted,
-        padding: '2px 6px', borderRadius: 4,
-        border: `1px solid ${T.border}`,
-        flexShrink: 0,
-      }}>
-        /
-      </span>
-      <div
-        style={{
-          flex: 1, minWidth: 0,
-          fontFamily: T.mono, fontSize: 12, color: T.text,
-          display: 'flex', alignItems: 'center', gap: 1,
-          whiteSpace: 'nowrap', overflow: 'hidden',
-        }}
-      >
-        <span>{typedPrompt || <span style={{ color: T.textMuted }}>Type an edit…</span>}</span>
-        {showCaret && (
-          <motion.span
-            animate={{ opacity: [1, 0, 1] }}
-            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-            style={{
-              display: 'inline-block',
-              width: 2, height: 14,
-              background: T.accent,
-              marginLeft: 2,
-            }}
-          />
-        )}
-      </div>
-      {/* ⌘K hint — same "keyboard-driven, real tool" cue as the mini
-          panel. Kept small enough to not steal the eye. */}
-      <span style={{
-        fontFamily: T.mono, fontSize: 10, color: T.textMuted,
-        padding: '2px 6px', borderRadius: 4,
-        border: `1px solid ${T.border}`,
-        background: 'rgba(255,255,255,0.02)',
-        letterSpacing: '.04em',
-        flexShrink: 0,
-      }}>
-        ⌘K
-      </span>
-      <motion.button
-        type="button"
-        tabIndex={-1}
-        aria-hidden="true"
-        animate={{ scale: sendPressed ? 0.9 : 1 }}
-        transition={{ duration: 0.15, ease: 'easeOut' }}
-        style={{
-          border: 'none', cursor: 'default',
-          background: T.accent, color: T.accentInk,
-          fontFamily: T.mono, fontSize: 11, fontWeight: 700,
-          padding: '6px 10px', borderRadius: 6,
-          letterSpacing: '.02em',
-          // Backlit chartreuse glow — same treatment as the mini panel
-          // so the accent CTA reads as "primary" without hover.
-          boxShadow: '0 0 14px rgba(212,255,63,0.35), inset 0 1px 0 rgba(255,255,255,0.35)',
-        }}
-      >
-        Send
-      </motion.button>
-    </div>
-  )
-}
-
-// ── Sub-component: deploy toast ─────────────────────────────────────
-function DeployToast({ visible, seconds }: { visible: boolean; seconds: number }) {
-  // Height is reserved by the outer box (see StudioWindow) so this
-  // doesn't cause layout shift when it appears.
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 8 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '7px 14px 7px 12px', borderRadius: 999,
-            background: 'rgba(62,207,142,0.10)', border: '1px solid rgba(62,207,142,0.35)',
-            color: T.green,
-            fontFamily: T.mono, fontSize: 11,
-            boxShadow: '0 6px 20px -10px rgba(62,207,142,0.4)',
-          }}
-        >
-          {/* Explicit check icon replaces the flat green dot — the
-              toast is a success surface, so the eye should land on a
-              checkmark, not an ambiguous pip. */}
-          <svg viewBox="0 0 12 12" width={12} height={12} style={{ flexShrink: 0 }}>
-            <circle cx="6" cy="6" r="5.5" fill="none" stroke={T.green} strokeWidth={1.2} opacity={0.5} />
-            <path d="M3.5 6.2 L5.3 7.8 L8.5 4.6" fill="none" stroke={T.green} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          Live · {seconds}s · 1 credit
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-// ── Sub-component: scenario tabs with progress fill ─────────────────
-function StudioTabs({
-  scenarioIdx,
-  progress,
-  onSelect,
-}: {
-  scenarioIdx: number
-  progress: number
-  onSelect: (idx: number) => void
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Studio demo scenarios"
-      style={{
-        display: 'grid', gridTemplateColumns: `repeat(${SCENARIOS.length}, 1fr)`,
-        gap: 8, marginBottom: 14,
-      }}
-    >
-      {SCENARIOS.map((s, i) => {
-        const active = i === scenarioIdx
-        return (
-          <button
-            key={s.id}
-            role="tab"
-            aria-pressed={active}
-            aria-controls="home-studio-demo-window"
-            onClick={() => onSelect(i)}
-            style={{
-              position: 'relative', overflow: 'hidden',
-              padding: '10px 12px', borderRadius: 8,
-              background: active ? T.surfaceRaised : 'transparent',
-              border: `1px solid ${active ? T.borderStrong : T.border}`,
-              color: active ? T.text : T.textDim,
-              fontFamily: T.mono, fontSize: 12,
-              textAlign: 'left', cursor: 'pointer',
-              transition: 'color 0.2s ease, background 0.2s ease, border-color 0.2s ease',
-            }}
-            onMouseEnter={e => { if (!active) e.currentTarget.style.color = T.text }}
-            onMouseLeave={e => { if (!active) e.currentTarget.style.color = T.textDim }}
-          >
-            <span
-              style={{
-                fontFamily: T.mono, fontSize: 10,
-                color: T.textMuted,
-                letterSpacing: '.10em', textTransform: 'uppercase',
-                marginRight: 8,
-              }}
-            >
-              0{i + 1}
-            </span>
-            {s.label}
-            {active && (
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute', left: 0, bottom: 0,
-                  height: 2, width: `${progress * 100}%`,
-                  background: T.accent,
-                  boxShadow: `0 0 8px ${T.accent}`,
-                }}
-              />
-            )}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
-// ── Sub-component: hero video-or-placeholder ────────────────────────
-// Renders the passed <video> when srcs land, otherwise draws a few
-// slowly drifting dark bars so the dark hero doesn't look broken.
-function HeroVideoOrPlaceholder({
-  src,
-  poster,
-  opacity,
-}: {
-  src?: string
-  poster?: string
-  opacity: number
-}) {
-  if (src) {
-    return (
-      <video
-        autoPlay muted loop playsInline preload="metadata"
-        poster={poster}
-        style={{
-          position: 'absolute', inset: 0,
-          width: '100%', height: '100%',
-          objectFit: 'cover',
-          opacity,
-          transition: 'opacity 0.2s linear',
-        }}
-      >
-        <source src={src} type="video/mp4" />
-        <source src={src.replace(/\.mp4$/, '.webm')} type="video/webm" />
-      </video>
-    )
-  }
-  // Placeholder — 3 slow-drifting dark bars. Deliberately subtle.
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: 'absolute', inset: 0, opacity,
-        transition: 'opacity 0.2s linear', pointerEvents: 'none',
-      }}
-    >
-      {[0, 1, 2].map(i => (
-        <motion.div
-          key={i}
-          animate={{ x: ['-10%', '10%', '-10%'] }}
-          transition={{ duration: 12 + i * 2, repeat: Infinity, ease: 'easeInOut' }}
-          style={{
-            position: 'absolute', left: 0, right: 0,
-            top: `${20 + i * 25}%`,
-            height: 20,
-            background: `rgba(255,255,255,${0.02 + i * 0.01})`,
-            filter: 'blur(6px)',
-          }}
-        />
-      ))}
-    </div>
-  )
-}
-
-// ── Sub-component: Studio window (all the pieces above assembled) ──
-// Wrapped in a positioned container so the corner brackets + radial
-// glow can paint just outside the panel border without clipping.
-// Same treatment as the shared StudioMiniPanel — deliberate visual
-// echo across the flagship + mini demos.
-function StudioWindow({
-  state,
-  scenario,
-  heroVideoSrc,
-  heroVideoPoster,
-}: {
-  state: StudioDemoState
-  scenario: Scenario
-  heroVideoSrc?: string
-  heroVideoPoster?: string
-}) {
-  const isLive = state.status === 'live'
-  return (
-    <div style={{ position: 'relative', padding: 12 }}>
-      {/* Backlit chartreuse glow — intensifies slightly on Live. */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: 'absolute', inset: -30,
-          background: `radial-gradient(ellipse 65% 55% at 50% 50%, rgba(212,255,63,${isLive ? 0.11 : 0.05}) 0%, transparent 70%)`,
-          filter: 'blur(16px)',
-          pointerEvents: 'none',
-          transition: 'background 400ms ease',
-          zIndex: 0,
-        }}
-      />
-      <StudioCornerBrackets active={isLive} />
-      <div
-        role="img"
-        id="home-studio-demo-window"
-        aria-label={`Live demo of the Quante Studio: ${scenario.label} scenario. Prompt: ${scenario.prompt}`}
-        style={{
-          position: 'relative', zIndex: 1,
-          borderRadius: 12,
-          border: `1px solid ${T.border}`,
-          background: T.surface,
-          overflow: 'hidden',
-          boxShadow: isLive
-            ? '0 20px 60px -30px rgba(0,0,0,0.7), 0 0 0 1px rgba(212,255,63,0.10) inset'
-            : '0 20px 60px -30px rgba(0,0,0,0.6)',
-          transition: 'box-shadow 400ms ease',
-        }}
-      >
-        <UrlBar status={state.status} />
-
-        <div style={{ padding: 16 }}>
-          <Preview
-            scenario={scenario}
-            transition={state.transitionProgress}
-            heroVideoSrc={heroVideoSrc}
-            heroVideoPoster={heroVideoPoster}
-          />
-
-          <BuildLog log={state.log} />
-
-          <PromptBar
-            typedPrompt={state.typedPrompt}
-            sendPressed={state.sendPressed}
-            showCaret={state.phase === 'typing' || state.phase === 'sending'}
-          />
-
-          {/* Toast area: fixed height so the layout doesn't shift when
-              it enters. */}
-          <div style={{ height: 36, display: 'flex', alignItems: 'center', marginTop: 12 }}>
-            <DeployToast visible={state.showToast} seconds={state.deploySeconds} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Four L-shaped chartreuse brackets that frame the Studio window.
-// Slightly more prominent than the mini-panel version because the
-// flagship window is bigger and needs matching visual weight.
-function StudioCornerBrackets({ active }: { active: boolean }) {
-  const stroke = active ? 'var(--qp-accent, #D4FF3F)' : 'rgba(212,255,63,0.42)'
-  const opacity = active ? 1 : 0.75
-  const armLength = 14
-  const inset = 5
-  const svgSize = armLength + 2
-  const bracket = (position: 'tl' | 'tr' | 'bl' | 'br') => {
-    const isRight = position === 'tr' || position === 'br'
-    const isBottom = position === 'bl' || position === 'br'
-    return (
-      <div
-        aria-hidden="true"
-        key={position}
-        style={{
-          position: 'absolute',
-          [isRight ? 'right' : 'left']: inset,
-          [isBottom ? 'bottom' : 'top']: inset,
-          width: svgSize, height: svgSize,
-          transform: `${isRight ? 'scaleX(-1)' : ''}${isBottom ? ' scaleY(-1)' : ''}`.trim(),
-          pointerEvents: 'none',
-          opacity,
-          transition: 'opacity 400ms ease',
-          zIndex: 2,
-        }}
-      >
-        <svg viewBox={`0 0 ${svgSize} ${svgSize}`} width={svgSize} height={svgSize}>
-          <path
-            d={`M 1 ${armLength + 1} L 1 1 L ${armLength + 1} 1`}
-            fill="none" stroke={stroke} strokeWidth={1.3} strokeLinecap="round"
-          />
-        </svg>
-      </div>
-    )
-  }
-  return (
-    <>
-      {(['tl', 'tr', 'bl', 'br'] as const).map(bracket)}
-    </>
-  )
-}
-
-// ── Main exported component ─────────────────────────────────────────
 export interface HomeStudioDemoProps {
-  /** MP4 (with matching .webm fallback) that plays inside the Design
-      scenario's dark-hero background. Falls back to a placeholder
-      animation when unset. */
-  heroVideoSrc?: string
-  heroVideoPoster?: string
-  /** Section kicker number. Defaults to '04' to fit the current
-      homepage numbering (03 stays as the SaaS-differentiation
-      section). */
+  /** Section kicker number. Defaults to '01' — the section is
+      currently the first numbered content strip on the homepage.
+      Pass a different value if the surrounding numbering changes. */
   sectionNumber?: string
 }
 
-export default function HomeStudioDemo({
-  heroVideoSrc,
-  heroVideoPoster,
-  sectionNumber = '04',
-}: HomeStudioDemoProps) {
-  const reducedMotion = !!useReducedMotion()
+export default function HomeStudioDemo({ sectionNumber = '01' }: HomeStudioDemoProps) {
+  // sectionRef is kept because a future revision may want to lazy-
+  // mount the <video> or only start playback on scroll-into-view; the
+  // hook is a stub for now (autoplay + loop covers the current spec).
   const sectionRef = useRef<HTMLElement>(null)
-  const [inView, setInView] = useState(false)
-  const [playback, setPlayback] = useState({ startIdx: 0, restartKey: 0 })
-
   useEffect(() => {
-    const el = sectionRef.current
-    if (!el) return
-    const io = new IntersectionObserver(
-      ([entry]) => setInView(entry.isIntersecting),
-      { threshold: 0.25 },
-    )
-    io.observe(el)
-    return () => io.disconnect()
+    // Reserved for future intersection-observer wiring — see comment
+    // above. Deliberately no-op today.
   }, [])
-
-  const state = useStudioLoop({
-    active: inView,
-    reducedMotion,
-    startIdx: playback.startIdx,
-    restartKey: playback.restartKey,
-  })
-
-  const scenario = SCENARIOS[state.scenarioIdx]
 
   return (
     <section
@@ -1037,12 +59,10 @@ export default function HomeStudioDemo({
         padding: 'clamp(4rem,9vw,7rem) 1.5rem',
         background: T.bg,
         color: T.text,
-        overflow: 'hidden',
-        // Break out of the surrounding light marketing rhythm on the
-        // top and bottom edges so this section reads as its own strip.
       }}
     >
-      {/* 1px grid at 4% opacity */}
+      {/* 1px grid at ~4% opacity, radially masked so it fades toward
+          the edges. Same atmosphere the StudioMiniPanel uses. */}
       <div
         aria-hidden="true"
         style={{
@@ -1055,7 +75,7 @@ export default function HomeStudioDemo({
           pointerEvents: 'none',
         }}
       />
-      {/* Soft lime radial glow behind the window */}
+      {/* Soft lime radial glow behind the video */}
       <div
         aria-hidden="true"
         style={{
@@ -1075,7 +95,7 @@ export default function HomeStudioDemo({
             display: 'grid',
             gridTemplateColumns: '5fr 7fr',
             gap: 48,
-            alignItems: 'start',
+            alignItems: 'center',
           }}
         >
           {/* Left column — copy */}
@@ -1134,35 +154,45 @@ export default function HomeStudioDemo({
             </ul>
           </div>
 
-          {/* Right column — Studio window, allowed to bleed past the container. */}
+          {/* Right column — looping Studio video. Sized to bleed ~40px
+              past the container's right edge so the frame reads as if
+              it extends off the page (same trick the earlier scripted
+              StudioWindow used). */}
           <div
             className="home-studio-demo-window-col"
             style={{
               position: 'relative',
-              // Bleed ~40px past the right edge of the container so
-              // the window feels like it extends off the page.
               marginRight: -40,
             }}
           >
-            <StudioTabs
-              scenarioIdx={state.scenarioIdx}
-              progress={state.scenarioProgress}
-              onSelect={(idx) =>
-                setPlayback(p => ({ startIdx: idx, restartKey: p.restartKey + 1 }))
-              }
-            />
-
-            <StudioWindow
-              state={state}
-              scenario={scenario}
-              heroVideoSrc={heroVideoSrc}
-              heroVideoPoster={heroVideoPoster}
-            />
+            <div style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '4 / 5',
+              borderRadius: 20,
+              overflow: 'hidden',
+              background: '#0a0a0e',
+              boxShadow:
+                '0 6px 16px -8px rgba(0,0,0,.20), 0 40px 90px -40px rgba(0,0,0,.65)',
+              WebkitMaskImage: 'radial-gradient(ellipse 105% 105% at center, black 84%, transparent 100%)',
+              maskImage: 'radial-gradient(ellipse 105% 105% at center, black 84%, transparent 100%)',
+            }}>
+              <video
+                src="/studio-loop.mp4"
+                autoPlay muted loop playsInline preload="metadata"
+                style={{
+                  width: '100%', height: '100%',
+                  objectFit: 'cover',
+                  objectPosition: '50% 50%',
+                  display: 'block',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Mobile stack: text first, window full-width. */}
+      {/* Mobile stack: text first, video full-width. */}
       <style>{`
         @media (max-width: 900px) {
           .home-studio-demo-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
@@ -1173,8 +203,12 @@ export default function HomeStudioDemo({
   )
 }
 
-// Small line-art icons for the three proof points. Deliberately
-// hand-rolled inline SVG so we don't pull an icon set for three shapes.
+// Small line-art icons for the three proof points. Kept from the
+// earlier revision because the copy column still uses them; the rest
+// of the file's hand-rolled SVG helpers (URL bar, status pill,
+// traffic lights, corner brackets, log icons, coffee bag, mountain
+// silhouette, etc.) live in StudioMiniPanel + the per-page preview
+// panes now that the state-machine window is gone.
 function ProofIcon({ variant }: { variant: 'chat' | 'wrench' | 'coin' }) {
   const stroke = T.accent
   const common = {
