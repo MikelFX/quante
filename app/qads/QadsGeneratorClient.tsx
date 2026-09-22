@@ -203,7 +203,7 @@ export function QadsGeneratorClient() {
       const res = await fetch('/api/qads/upload', { method: 'POST', body: fd })
       if (!res.ok) {
         const data = await res.json().catch(() => ({ error: 'upload_failed' }))
-        setUploadError(String(data.error ?? 'Upload selhal'))
+        setUploadError(String(data.error ?? 'Upload failed'))
         break
       }
       newPhotos.push(await res.json())
@@ -219,11 +219,11 @@ export function QadsGeneratorClient() {
       return
     }
     if (form.photos.length === 0) {
-      setSubmitError('Nahraj alespoň jednu fotku produktu.')
+      setSubmitError('Upload at least one product photo.')
       return
     }
     if (!form.productName.trim()) {
-      setSubmitError('Vyplň název produktu.')
+      setSubmitError('Add a product name.')
       return
     }
     setSubmitError(null)
@@ -249,16 +249,16 @@ export function QadsGeneratorClient() {
       const data = await res.json()
       if (!res.ok) {
         if (data.code === 'insufficient_credits') {
-          setSubmitError(`Nemáš dost kreditů (${data.balance ?? '?'} / potřeba ${data.needed ?? '?'}). Doplň v Nastavení.`)
+          setSubmitError(`Not enough credits (${data.balance ?? '?'} / need ${data.needed ?? '?'}). Top up in Billing.`)
         } else {
-          setSubmitError(String(data.error ?? 'Generování selhalo. Zkus to prosím znovu.'))
+          setSubmitError(String(data.error ?? 'Generation failed. Please try again.'))
         }
         return
       }
       setActiveGenerationId(data.generationId as string)
       setDetail(null)
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Něco se nezdařilo.')
+      setSubmitError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
       setSubmitting(false)
     }
@@ -309,13 +309,13 @@ export function QadsGeneratorClient() {
         {/* Header */}
         <header style={{ marginBottom: 32 }}>
           <p style={{ fontFamily: 'var(--qp-mono)', fontSize: 12, letterSpacing: '.10em', textTransform: 'uppercase', color: 'var(--qp-mut)', margin: '0 0 8px' }}>
-            Qads — generátor
+            Qads — generator
           </p>
           <h1 style={{ fontSize: 'clamp(28px,3.6vw,44px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.05, margin: '0 0 8px' }}>
-            Reklamní <span style={{ color: 'var(--qp-accent)' }}>videa a fotky</span> z jedné fotky produktu.
+            Ad <span style={{ color: 'var(--qp-accent)' }}>videos and photos</span> from one product shot.
           </h1>
           <p style={{ fontSize: 15, color: 'var(--qp-sub)', maxWidth: 600, margin: 0 }}>
-            Nahraj fotku, vyber styl a formáty. Stáhneš si hotové kreativy — kam je nahraješ je na tobě.
+            Upload a photo, pick a style and formats. Download the finished creatives — where you post them is up to you.
           </p>
         </header>
 
@@ -409,7 +409,7 @@ function FormPanel(props: {
       border: '1px solid var(--qp-line)', background: 'var(--qp-surface)',
       display: 'flex', flexDirection: 'column', gap: 18,
     }}>
-      <FormSection label="Fotky produktu">
+      <FormSection label="Product photos">
         <PhotoUploader
           photos={form.photos}
           onUpload={onUpload}
@@ -421,12 +421,12 @@ function FormPanel(props: {
       </FormSection>
 
       {isSignedIn && projects.length > 0 && (
-        <FormSection label="Nebo vyber z tvého Quante e-shopu">
+        <FormSection label="Or pick from your Quante store">
           <ProductPicker projects={projects} onPick={onPickProduct} />
         </FormSection>
       )}
 
-      <FormSection label="Název produktu">
+      <FormSection label="Product name">
         <input
           type="text"
           value={form.productName}
@@ -436,25 +436,25 @@ function FormPanel(props: {
         />
       </FormSection>
 
-      <FormSection label="Popis / USP (nepovinné)">
+      <FormSection label="Description / USP (optional)">
         <textarea
           rows={3}
           value={form.productDescription}
           onChange={e => setForm(prev => ({ ...prev, productDescription: e.target.value }))}
-          placeholder="Ručně praženo, prémiové 100 % arabica z Kolumbie."
+          placeholder="Hand-roasted, premium 100% arabica from Colombia."
           className="qads-input"
           style={{ resize: 'vertical' }}
         />
       </FormSection>
 
-      <FormSection label="Typ výstupu">
+      <FormSection label="Output type">
         <ChipRow>
-          <Chip active={form.outputTypes.includes('image')} onClick={() => onToggleOutput('image')}>Fotky</Chip>
-          <Chip active={form.outputTypes.includes('video')} onClick={() => onToggleOutput('video')}>Videa</Chip>
+          <Chip active={form.outputTypes.includes('image')} onClick={() => onToggleOutput('image')}>Photos</Chip>
+          <Chip active={form.outputTypes.includes('video')} onClick={() => onToggleOutput('video')}>Videos</Chip>
         </ChipRow>
       </FormSection>
 
-      <FormSection label="Formáty">
+      <FormSection label="Formats">
         <ChipRow>
           {(['9:16', '4:5', '1:1', '16:9'] as Format[]).map(f => (
             <Chip key={f} active={form.formats.includes(f)} onClick={() => onToggleFormat(f)}>{f}</Chip>
@@ -462,7 +462,7 @@ function FormPanel(props: {
         </ChipRow>
       </FormSection>
 
-      <FormSection label="Styl">
+      <FormSection label="Style">
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 6 }}>
           {QADS_STYLES.map(s => (
             <button
@@ -484,19 +484,19 @@ function FormPanel(props: {
       </FormSection>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <FormSection label="Variant / formát">
+        <FormSection label="Variants / format">
           <NumberStepper value={form.variantsPerFormat} min={1} max={4} onChange={v => setForm(prev => ({ ...prev, variantsPerFormat: v }))} />
         </FormSection>
         {form.outputTypes.includes('video') && (
-          <FormSection label="Délka videa (s)">
+          <FormSection label="Video length (s)">
             <NumberStepper value={form.videoDurationSeconds} min={4} max={10} onChange={v => setForm(prev => ({ ...prev, videoDurationSeconds: v }))} />
           </FormSection>
         )}
       </div>
 
-      <FormSection label="Jazyk textů">
+      <FormSection label="Ad copy language">
         <ChipRow>
-          {(['cs','en','sk','de'] as Language[]).map(l => (
+          {(['en','cs','sk','de'] as Language[]).map(l => (
             <Chip key={l} active={form.language === l} onClick={() => setForm(prev => ({ ...prev, language: l }))}>{l.toUpperCase()}</Chip>
           ))}
         </ChipRow>
@@ -508,12 +508,12 @@ function FormPanel(props: {
         border: '1px solid var(--qp-line)', display: 'flex', flexDirection: 'column', gap: 8,
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--qp-sub)' }}>
-          <span>Fotky ({cost.imageCredits} kr.)</span>
-          <span>Videa ({cost.videoCredits} kr.)</span>
+          <span>Photos ({cost.imageCredits} cr.)</span>
+          <span>Videos ({cost.videoCredits} cr.)</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--qp-ink)', fontWeight: 700 }}>
-          <span>Celkem</span>
-          <span>{cost.totalCredits} kr.</span>
+          <span>Total</span>
+          <span>{cost.totalCredits} cr.</span>
         </div>
       </div>
 
@@ -531,7 +531,7 @@ function FormPanel(props: {
             disabled={!canSubmit}
             style={submitButtonStyle(canSubmit)}
           >
-            Přihlásit se a vygenerovat →
+            Sign in and generate →
           </button>
         </SignInButton>
       ) : (
@@ -541,13 +541,13 @@ function FormPanel(props: {
           onClick={onSubmit}
           style={submitButtonStyle(canSubmit && !submitting)}
         >
-          {submitting ? 'Startuji generování…' : `Vygenerovat za ${cost.totalCredits} kr. →`}
+          {submitting ? 'Starting generation…' : `Generate for ${cost.totalCredits} cr. →`}
         </button>
       )}
 
       {isLoaded && !isSignedIn && (
         <p style={{ fontSize: 11, color: 'var(--qp-mut)', margin: 0, textAlign: 'center' }}>
-          Formulář zůstane vyplněný — po přihlášení tě vrátíme sem.
+          Your form stays filled in — we bring you back here after sign in.
         </p>
       )}
     </div>
@@ -648,7 +648,7 @@ function PhotoUploader(props: {
           color: 'var(--qp-sub)', fontSize: 12,
         }}
       >
-        {uploading ? 'Nahrávám…' : canAdd ? 'Přetáhni sem fotku nebo klikni pro výběr (max 4).' : 'Maximum 4 fotky.'}
+        {uploading ? 'Uploading…' : canAdd ? 'Drop a photo here or click to browse (max 4).' : 'Maximum 4 photos.'}
       </div>
       <input
         ref={fileInputRef}
@@ -670,7 +670,7 @@ function PhotoUploader(props: {
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onRemove(i) }}
-                aria-label="Odstranit fotku"
+                aria-label="Remove photo"
                 style={{
                   position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: '50%',
                   background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', cursor: 'pointer',
@@ -701,7 +701,7 @@ function ProductPicker(props: {
           color: 'var(--qp-sub)', fontSize: 12, textAlign: 'left', cursor: 'pointer',
         }}
       >
-        {open ? '× Zavřít' : '↳ Vybrat produkt'}
+        {open ? '× Close' : '↳ Pick a product'}
       </button>
       {open && (
         <div style={{ marginTop: 6, maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -739,12 +739,12 @@ function EmptyStatePanel({ isSignedIn }: { isSignedIn: boolean }) {
       background: 'var(--qp-surface)', textAlign: 'center', color: 'var(--qp-sub)',
     }}>
       <p style={{ fontSize: 14, margin: '0 0 6px', color: 'var(--qp-ink)', fontWeight: 600 }}>
-        Zatím prázdno.
+        Nothing here yet.
       </p>
       <p style={{ fontSize: 12.5, margin: 0 }}>
         {isSignedIn
-          ? 'Vyplň formulář vlevo a klikni Vygenerovat. Výsledky se objeví tady.'
-          : 'Vyplň formulář vlevo. Před spuštěním se přihlásíš — vstup zůstane vyplněný.'}
+          ? 'Fill the form on the left and click Generate. Results will show up here.'
+          : 'Fill the form on the left. You\'ll sign in before submitting — your inputs stay.'}
       </p>
     </div>
   )
@@ -764,7 +764,7 @@ function ResultsPanel({ detail, activeGenerationId }: { detail: GenerationDetail
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--qp-ink)' }}>{detail.generation.productName}</div>
           <div style={{ fontSize: 12, color: 'var(--qp-sub)', marginTop: 4 }}>
-            {completedCount} / {detail.items.length} hotovo · {detail.generation.status}
+            {completedCount} / {detail.items.length} done · {detail.generation.status}
           </div>
         </div>
         <a
@@ -777,7 +777,7 @@ function ResultsPanel({ detail, activeGenerationId }: { detail: GenerationDetail
             textDecoration: 'none', cursor: canZip ? 'pointer' : 'not-allowed',
           }}
         >
-          Stáhnout vše (ZIP)
+          Download all (ZIP)
         </a>
       </div>
 
@@ -796,7 +796,7 @@ function ItemCard({ item, copy, generationId }: { item: GenerationItem; copy?: A
   const [copiedText, setCopiedText] = useState<string | null>(null)
   const regenerate = async () => {
     if (!generationId) return
-    if (!confirm(`Vygenerovat znovu? Odečte se ${item.creditsCharged} kr.`)) return
+    if (!confirm(`Regenerate this variant? ${item.creditsCharged} credits will be charged.`)) return
     setRegenerating(true)
     try {
       await fetch(`/api/qads/generations/${generationId}/regenerate-item`, {
@@ -830,26 +830,26 @@ function ItemCard({ item, copy, generationId }: { item: GenerationItem; copy?: A
         )}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: 'var(--qp-mut)', fontFamily: 'var(--qp-mono)' }}>
-        <span>{item.kind === 'image' ? 'FOTKA' : 'VIDEO'} · {item.format} · v{item.variantIdx + 1}</span>
-        <span>{item.creditsCharged} kr.</span>
+        <span>{item.kind === 'image' ? 'PHOTO' : 'VIDEO'} · {item.format} · v{item.variantIdx + 1}</span>
+        <span>{item.creditsCharged} cr.</span>
       </div>
       {item.status === 'completed' && item.downloadUrl && (
         <div style={{ display: 'flex', gap: 6 }}>
-          <a href={item.downloadUrl} download style={btnSmallPrimary()}>Stáhnout</a>
-          <button type="button" onClick={regenerate} disabled={regenerating} style={btnSmallGhost()}>{regenerating ? '…' : 'Znovu'}</button>
+          <a href={item.downloadUrl} download style={btnSmallPrimary()}>Download</a>
+          <button type="button" onClick={regenerate} disabled={regenerating} style={btnSmallGhost()}>{regenerating ? '…' : 'Regenerate'}</button>
         </div>
       )}
       {(item.status === 'failed' || item.status === 'nsfw') && (
-        <div style={{ fontSize: 11, color: '#e0564f' }}>{item.errorMessage ?? 'Selhalo'}</div>
+        <div style={{ fontSize: 11, color: '#e0564f' }}>{item.errorMessage ?? 'Failed'}</div>
       )}
       {(item.status === 'failed' || item.status === 'nsfw') && (
-        <button type="button" onClick={regenerate} disabled={regenerating} style={btnSmallPrimary()}>{regenerating ? '…' : 'Zkusit znovu'}</button>
+        <button type="button" onClick={regenerate} disabled={regenerating} style={btnSmallPrimary()}>{regenerating ? '…' : 'Try again'}</button>
       )}
       {copy && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, borderTop: '1px solid var(--qp-line-soft)', paddingTop: 8 }}>
           <CopyRow label="Hook" text={copy.hook} copiedText={copiedText} onCopy={copyText} />
           <CopyRow label="Headline" text={copy.headline} copiedText={copiedText} onCopy={copyText} />
-          <CopyRow label="Text" text={copy.primaryText} copiedText={copiedText} onCopy={copyText} />
+          <CopyRow label="Body" text={copy.primaryText} copiedText={copiedText} onCopy={copyText} />
           <CopyRow label="CTA" text={copy.cta} copiedText={copiedText} onCopy={copyText} />
         </div>
       )}
@@ -879,12 +879,12 @@ function CopyRow({ label, text, copiedText, onCopy }: { label: string; text: str
 
 function StatusPill({ status }: { status: GenerationItem['status'] }) {
   const label: Record<GenerationItem['status'], string> = {
-    queued: 'Čeká',
-    generating: 'Generuje se',
-    completed: 'Hotovo',
-    failed: 'Chyba',
-    nsfw: 'Zamítnuto',
-    canceled: 'Zrušeno',
+    queued: 'Queued',
+    generating: 'Generating',
+    completed: 'Done',
+    failed: 'Failed',
+    nsfw: 'Rejected',
+    canceled: 'Canceled',
   }
   const color: Record<GenerationItem['status'], string> = {
     queued: 'var(--qp-mut)',
@@ -903,7 +903,7 @@ function HistoryPanel({ history, activeGenerationId, onSelect }: { history: Gene
   return (
     <div style={{ padding: 16, borderRadius: 12, border: '1px solid var(--qp-line)', background: 'var(--qp-surface)' }}>
       <div style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-mut)', textTransform: 'uppercase', letterSpacing: '.10em', marginBottom: 12 }}>
-        Historie
+        History
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {history.map(g => {
@@ -924,16 +924,16 @@ function HistoryPanel({ history, activeGenerationId, onSelect }: { history: Gene
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{g.productName}</div>
                 <div style={{ fontSize: 11, color: 'var(--qp-mut)', marginTop: 3 }}>
-                  {new Date(g.createdAt).toLocaleDateString('cs-CZ')} · {g.itemCounts.completed}/{g.itemCounts.total} · {g.status}
+                  {new Date(g.createdAt).toLocaleDateString('en-US')} · {g.itemCounts.completed}/{g.itemCounts.total} · {g.status}
                 </div>
               </div>
-              <span style={{ fontSize: 11, color: 'var(--qp-mut)', fontFamily: 'var(--qp-mono)' }}>{g.totalCredits} kr.</span>
+              <span style={{ fontSize: 11, color: 'var(--qp-mut)', fontFamily: 'var(--qp-mono)' }}>{g.totalCredits} cr.</span>
             </button>
           )
         })}
       </div>
       <p style={{ fontSize: 11, color: 'var(--qp-mut)', margin: '12px 0 0' }}>
-        Starší kampaně ze Studia (před přechodem na nový generátor) najdeš v <Link href="/dashboard" style={{ color: 'var(--qp-accent-deep)' }}>Dashboardu</Link>.
+        Older campaigns from the Studio (before the new generator) live in the <Link href="/dashboard" style={{ color: 'var(--qp-accent-deep)' }}>Dashboard</Link>.
       </p>
     </div>
   )

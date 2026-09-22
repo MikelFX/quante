@@ -2,9 +2,9 @@ import { QadsGeneratorClient } from './QadsGeneratorClient'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
-  title: 'Qads — generátor reklamních videí a fotek z jedné fotky produktu',
+  title: 'Qads — ad video + photo generator from a single product photo',
   description:
-    'Nahraj fotku produktu, vyber styl a formáty. Qads vytvoří reklamní videa a fotky, ke stažení jednotlivě nebo v ZIPu — kam je nahraješ je na tobě.',
+    'Upload a product photo, pick a style and formats. Qads produces ad videos and photos you can download individually or as a ZIP — where you post them is up to you.',
   path: '/qads',
 })
 

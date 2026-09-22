@@ -26,8 +26,8 @@ export interface QadsStyleDefinition {
 export const QADS_STYLES: QadsStyleDefinition[] = [
   {
     id: 'packshot',
-    label: 'Studiový packshot',
-    description: 'Čistá studiová fotka na jednolitém pozadí, žádné rušivé prvky.',
+    label: 'Studio packshot',
+    description: 'Clean studio shot on a plain background, no distractions.',
     imageDirective:
       'Studio packshot on a clean neutral background (light grey or off-white sweep). ' +
       'Even softbox lighting from front-left, subtle rim light. ' +
@@ -40,7 +40,7 @@ export const QADS_STYLES: QadsStyleDefinition[] = [
   {
     id: 'lifestyle',
     label: 'Lifestyle',
-    description: 'Produkt v reálném prostředí, přirozené světlo, ruce v akci.',
+    description: 'Product in a real setting, natural light, hands in the frame.',
     imageDirective:
       'Lifestyle scene: product held or placed in a warm real-world setting ' +
       '(kitchen counter, café table, wooden desk). Golden-hour window light, ' +
@@ -52,8 +52,8 @@ export const QADS_STYLES: QadsStyleDefinition[] = [
   },
   {
     id: 'ugc',
-    label: 'UGC / autentický',
-    description: 'Vypadá jako by ho natočil zákazník na mobil, mírně chaotické.',
+    label: 'UGC / authentic',
+    description: 'Looks like a customer filmed it on their phone, slightly chaotic.',
     imageDirective:
       'UGC-style photo taken on a modern smartphone, imperfect framing, ' +
       'ambient indoor light, mild sensor noise. Product held at arm\'s length ' +
@@ -66,7 +66,7 @@ export const QADS_STYLES: QadsStyleDefinition[] = [
   {
     id: 'cinematic',
     label: 'Cinematic',
-    description: 'Filmové osvětlení, hluboké stíny, prémiová atmosféra.',
+    description: 'Cinema-grade lighting, deep shadows, premium mood.',
     imageDirective:
       'Cinematic still: product lit with a single hard key light from the side, ' +
       'deep negative-fill shadows on the opposite side. Colour palette leans amber ' +
@@ -79,7 +79,7 @@ export const QADS_STYLES: QadsStyleDefinition[] = [
   {
     id: 'minimal',
     label: 'Minimal / editorial',
-    description: 'Vzdušná kompozice, hodně bílé, jeden barevný akcent.',
+    description: 'Airy composition, lots of white space, one colour accent.',
     imageDirective:
       'Minimal editorial layout: product placed off-centre on a large flat colour field ' +
       '(soft cream, pale sage, or muted terracotta). Generous negative space, one small ' +

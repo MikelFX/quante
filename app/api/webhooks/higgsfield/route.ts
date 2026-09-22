@@ -97,7 +97,7 @@ export async function POST(request: Request) {
   } else if (result.status === 'nsfw') {
     await supabaseAdmin.from('qads_items').update({
       status: 'nsfw',
-      error_message: 'Odmítnuto content moderation modelu.',
+      error_message: 'Rejected by the model\'s content moderation.',
       completed_at: new Date().toISOString(),
     }).eq('id', item.id as string)
     await refundGeneratorCredits({
