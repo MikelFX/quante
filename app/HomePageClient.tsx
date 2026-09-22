@@ -430,9 +430,16 @@ export function HomePageClient() {
                 in the right relative positions.
                 Swap the src (or drop a new file at the same path) to
                 update the clip — no other change needed. */}
-            <div style={{
+            <div className="qp-hero-store-card" style={{
               position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-              width: 'min(560px,88%)', height: 320, borderRadius: 26, overflow: 'hidden',
+              width: 'min(560px,88%)', height: 320,
+              // Aspect ratio kicks in on mobile once the shared
+              // .qp-hero-store-card mobile rule overrides height to
+              // auto — without it the wrapper collapses to 0 because
+              // the child <video> only has height: 100%. Matches the
+              // desktop 560×320 shape (7:4) so nothing shifts.
+              aspectRatio: '7 / 4',
+              borderRadius: 26, overflow: 'hidden',
               background: '#0a0a0e',
               boxShadow:
                 '0 6px 16px -8px rgba(0,0,0,.15), 0 40px 90px -40px rgba(0,0,0,.55)',
