@@ -1,11 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import { useUser, useClerk } from '@clerk/nextjs'
 import { LiquidGlassDefs } from './LiquidGlassDefs'
 
 const LINKS = [
   { href: '/showcase', label: 'Showcase' },
   { href: '/pricing', label: 'Pricing' },
+  { href: '/qads', label: 'Qads' },
   { href: '/domains', label: 'Domains' },
   { href: '/about', label: 'About' },
 ]
@@ -14,7 +16,15 @@ const LINKS = [
 // ONLY sticky element on these pages — stacking a sticky nav on top of a
 // sticky harness bar was the source of a real mobile bug in the approved
 // mockup, so keep it that way here too.
+//
+// Aware of Clerk auth state: an anonymous visitor sees "Log in" + "Try free";
+// a signed-in visitor sees "Dashboard" + a small sign-out link so they can
+// jump to the Studio without hitting the URL bar, or sign out and go back to
+// the marketing site as an anonymous user.
 export function PublicNav() {
+  const { isSignedIn, isLoaded } = useUser()
+  const { signOut } = useClerk()
+
   return (
     <>
     <LiquidGlassDefs />
@@ -67,7 +77,7 @@ export function PublicNav() {
         >
           quante
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
           {LINKS.map(l => (
             <Link
               key={l.href}
@@ -78,24 +88,63 @@ export function PublicNav() {
               {l.label}
             </Link>
           ))}
-          <Link href="/login" style={{ fontSize: 13.5, color: 'var(--qp-sub)', textDecoration: 'none' }}>
-            Log in
-          </Link>
-          <Link
-            href="/signup"
-            style={{
-              fontSize: 13.5,
-              fontWeight: 600,
-              textDecoration: 'none',
-              color: '#08080a',
-              background: 'var(--qp-accent)',
-              padding: '0.5rem 1.1rem',
-              borderRadius: 99,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            Try free →
-          </Link>
+          {/* Auth cluster: layout is stable across states (an anonymous
+              visitor sees Log in + Try free; a signed-in visitor sees
+              Sign out + Dashboard) so the nav's total width doesn't shift
+              once Clerk hydrates. */}
+          {!isLoaded ? (
+            <span style={{ width: 140 }} />
+          ) : isSignedIn ? (
+            <>
+              <button
+                type="button"
+                onClick={() => signOut({ redirectUrl: '/' })}
+                style={{
+                  fontSize: 13.5, color: 'var(--qp-sub)',
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Sign out
+              </button>
+              <Link
+                href="/dashboard"
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  color: '#08080a',
+                  background: 'var(--qp-accent)',
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: 99,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Open Studio →
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login" style={{ fontSize: 13.5, color: 'var(--qp-sub)', textDecoration: 'none' }}>
+                Log in
+              </Link>
+              <Link
+                href="/signup"
+                style={{
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  color: '#08080a',
+                  background: 'var(--qp-accent)',
+                  padding: '0.5rem 1.1rem',
+                  borderRadius: 99,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Try free →
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
