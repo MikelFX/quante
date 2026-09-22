@@ -407,7 +407,7 @@ export function DomainsClient() {
       </section>
 
       {/* CTA */}
-      <section style={{ borderTop: '1px solid var(--qp-line-soft)', padding: 'clamp(4rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ borderTop: '1px solid var(--qp-line-soft)', padding: 'clamp(4rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
           <span style={{ position: 'absolute', width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle,rgba(212,255,63,.25),transparent 66%)', top: '50%', left: '50%', transform: 'translate(-50%,-50%)' }} />
         </div>

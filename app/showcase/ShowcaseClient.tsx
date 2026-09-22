@@ -119,7 +119,7 @@ function ShowcaseBriefAfter() {
       </div>
       {/* Right column — mountain silhouette so the hero has a real
           image beat and reads as an outdoor brand at a glance. */}
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
+      <div style={{ position: 'relative' }}>
         <MountainSilhouette />
       </div>
     </div>
@@ -280,7 +280,7 @@ export function ShowcaseClient() {
       ))}
 
       {/* ── HOW IT WORKS ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -120, right: '10%' }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 180, left: '50%', transform: 'translateX(-50%)' }} />
@@ -304,7 +304,7 @@ export function ShowcaseClient() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', textAlign: 'center', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-mint" style={{ top: -140, left: '25%' }} />
           <span className="qp-blob qp-blob-accent" style={{ bottom: -140, right: '25%' }} />

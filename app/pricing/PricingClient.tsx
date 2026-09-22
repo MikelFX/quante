@@ -283,7 +283,7 @@ export function PricingClient() {
       </section>
 
       {/* ── CREDIT PACKS ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: '30%' }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 200, left: '50%', transform: 'translateX(-50%)' }} />
@@ -402,7 +402,7 @@ export function PricingClient() {
       </section>
 
       {/* ── AGENCY ── */}
-      <section id="agency" style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+      <section id="agency" style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative' }}>
         <div className="qp-ambient"><span className="qp-blob qp-blob-mint" style={{ top: -100, right: '15%' }} /></div>
         <div style={{ maxWidth: 920, margin: '0 auto', position: 'relative', zIndex: 2 }}>
           <SectionKicker n="04" label="agency" />
@@ -487,7 +487,7 @@ export function PricingClient() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', textAlign: 'center', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: '25%' }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -140, right: '25%' }} />

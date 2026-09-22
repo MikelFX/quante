@@ -311,7 +311,7 @@ function QadsTeaser() {
   }, [])
 
   return (
-    <section style={{ padding: 'clamp(2.5rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
+    <section style={{ padding: 'clamp(2.5rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
       <div className="qp-ambient">
         <span className="qp-blob qp-blob-accent" style={{ top: -160, left: '50%', transform: 'translateX(-50%)' }} />
       </div>
@@ -486,7 +486,7 @@ export function HomePageClient() {
           separate boxed sections" feedback. Content is still visually
           distinguished by spacing and scroll-reveal, just not by hard
           seams (hairlines) or alternating background bands. */}
-      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: -100 }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: -90 }} />
@@ -551,7 +551,7 @@ export function HomePageClient() {
       </section>
 
       {/* ── WHY IT'S DIFFERENT ── */}
-      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: '20%', right: -140 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 160, left: '50%', transform: 'translateX(-50%)' }} />
@@ -577,7 +577,7 @@ export function HomePageClient() {
       </section>
 
       {/* ── EVERYTHING YOU GET (bento grid) ── */}
-      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-mint" style={{ top: -100, left: '10%' }} />
           <span className="qp-blob qp-blob-accent" style={{ bottom: -140, right: '6%' }} />
@@ -611,7 +611,7 @@ export function HomePageClient() {
       </section>
 
       {/* ── PRICING PREVIEW ── */}
-      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3rem,6vw,4.5rem) 1.5rem', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -120, right: -100 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 220, left: '50%', transform: 'translateX(-50%)' }} />
@@ -663,7 +663,7 @@ export function HomePageClient() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: 'clamp(3.5rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,8vw,6rem) 1.5rem', textAlign: 'center', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -160, left: '20%' }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: '20%' }} />

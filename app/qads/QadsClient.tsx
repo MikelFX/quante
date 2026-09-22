@@ -197,7 +197,7 @@ export function QadsClient() {
       </section>
 
       {/* ── WHAT IT GENERATES ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -120, left: -120 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 160, left: '50%', transform: 'translateX(-50%)' }} />
@@ -222,7 +222,7 @@ export function QadsClient() {
       </section>
 
       {/* ── HOW IT WORKS ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: -100 }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: -90 }} />
@@ -261,7 +261,7 @@ export function QadsClient() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', textAlign: 'center', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: '25%' }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -140, right: '25%' }} />

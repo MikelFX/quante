@@ -228,7 +228,7 @@ export function AboutClient() {
       </section>
 
       {/* ── THE PROBLEM ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -120, left: -120 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 160, left: '50%', transform: 'translateX(-50%)' }} />
@@ -252,7 +252,7 @@ export function AboutClient() {
       </section>
 
       {/* ── MANIFESTO ── */}
-      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: -100 }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -160, right: -90 }} />
@@ -296,7 +296,7 @@ export function AboutClient() {
       {/* ── ROADMAP ── */}
       {/* id="roadmap": footer nav links here via /about#roadmap (lib/site-config.ts)
           — was a dead anchor (no matching id anywhere on the page) until this fix. */}
-      <section id="roadmap" style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative', overflow: 'hidden' }}>
+      <section id="roadmap" style={{ padding: 'clamp(3.5rem,7vw,5rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-mint" style={{ top: -140, right: -100 }} />
           <span className="qp-blob qp-blob-wide" style={{ top: 220, left: '50%', transform: 'translateX(-50%)' }} />
@@ -382,7 +382,7 @@ export function AboutClient() {
       </section>
 
       {/* ── CTA ── */}
-      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+      <section style={{ padding: 'clamp(4rem,8vw,6rem) 1.5rem', borderTop: '1px solid var(--qp-line-soft)', background: 'var(--qp-bg-alt)', textAlign: 'center', position: 'relative' }}>
         <div className="qp-ambient">
           <span className="qp-blob qp-blob-accent" style={{ top: -140, left: '25%' }} />
           <span className="qp-blob qp-blob-mint" style={{ bottom: -140, right: '25%' }} />

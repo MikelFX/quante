@@ -19,7 +19,7 @@ export function ApiClient() {
   }
 
   return (
-    <div style={{ minHeight: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(4rem,8vw,8rem) 1.5rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '70vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'clamp(4rem,8vw,8rem) 1.5rem', textAlign: 'center', position: 'relative' }}>
 
       {/* ambient orb */}
       <div style={{ position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
