@@ -88,117 +88,93 @@ export default function HomeStudioDemo({ sectionNumber = '01' }: HomeStudioDemoP
         }}
       />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      {/* Copy on top, centred. Was previously the left column of a 5/7
+          split with the video on the right — swapped to a stacked
+          layout so the video can render at its full intrinsic aspect
+          ratio without object-fit: cover chopping the Studio nav +
+          featured product tile off the sides. */}
+      <div style={{ maxWidth: 720, margin: '0 auto', textAlign: 'center', position: 'relative', zIndex: 1 }}>
         <div
-          className="home-studio-demo-grid"
           style={{
-            display: 'grid',
-            gridTemplateColumns: '5fr 7fr',
-            gap: 48,
-            alignItems: 'center',
+            fontFamily: T.mono, fontSize: 12,
+            color: T.textMuted, letterSpacing: '.10em', textTransform: 'uppercase',
+            marginBottom: 16, display: 'inline-flex', alignItems: 'center', gap: 8,
           }}
         >
-          {/* Left column — copy */}
-          <div>
-            <div
-              style={{
-                fontFamily: T.mono, fontSize: 12,
-                color: T.textMuted, letterSpacing: '.10em', textTransform: 'uppercase',
-                marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
-              }}
-            >
-              <span
-                style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: T.accent, boxShadow: `0 0 0 4px rgba(212,255,63,0.15)`,
-                }}
-              />
-              {sectionNumber} — Inside the Studio
-            </div>
-
-            <h2
-              style={{
-                fontFamily: T.sans,
-                fontSize: 'clamp(28px,3.6vw,44px)',
-                fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.05,
-                color: T.text, margin: '0 0 16px',
-              }}
-            >
-              Say what to change.<br />
-              <span style={{ color: T.textDim }}>Watch it ship.</span>
-            </h2>
-
-            <p
-              style={{
-                fontFamily: T.sans,
-                fontSize: 15.5, lineHeight: 1.6,
-                color: T.textDim, margin: '0 0 32px',
-                maxWidth: 460,
-              }}
-            >
-              Every edit becomes real code — built, repaired if it breaks, and deployed
-              to your domain. No templates, no drag-and-drop.
-            </p>
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { icon: 'chat',    label: 'Plain-language edits' },
-                { icon: 'wrench',  label: 'Self-repairing builds' },
-                { icon: 'coin',    label: '1 edit = 1 credit' },
-              ].map(p => (
-                <li key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <ProofIcon variant={p.icon as 'chat' | 'wrench' | 'coin'} />
-                  <span style={{ fontFamily: T.sans, fontSize: 14, color: T.text }}>{p.label}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Right column — looping Studio video. Sized to bleed ~40px
-              past the container's right edge so the frame reads as if
-              it extends off the page (same trick the earlier scripted
-              StudioWindow used). */}
-          <div
-            className="home-studio-demo-window-col"
+          <span
             style={{
-              position: 'relative',
-              marginRight: -40,
+              width: 6, height: 6, borderRadius: '50%',
+              background: T.accent, boxShadow: `0 0 0 4px rgba(212,255,63,0.15)`,
             }}
-          >
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              aspectRatio: '4 / 5',
-              borderRadius: 20,
-              overflow: 'hidden',
-              background: '#0a0a0e',
-              boxShadow:
-                '0 6px 16px -8px rgba(0,0,0,.20), 0 40px 90px -40px rgba(0,0,0,.65)',
-              WebkitMaskImage: 'radial-gradient(ellipse 105% 105% at center, black 84%, transparent 100%)',
-              maskImage: 'radial-gradient(ellipse 105% 105% at center, black 84%, transparent 100%)',
-            }}>
-              <video
-                src="/studio-loop.mp4"
-                autoPlay muted loop playsInline preload="metadata"
-                style={{
-                  width: '100%', height: '100%',
-                  objectFit: 'cover',
-                  objectPosition: '50% 50%',
-                  display: 'block',
-                }}
-              />
-            </div>
-          </div>
+          />
+          {sectionNumber} — Inside the Studio
         </div>
+
+        <h2
+          style={{
+            fontFamily: T.sans,
+            fontSize: 'clamp(30px,4.6vw,52px)',
+            fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.05,
+            color: T.text, margin: '0 0 16px',
+          }}
+        >
+          Say what to change.{' '}
+          <span style={{ color: T.textDim }}>Watch it ship.</span>
+        </h2>
+
+        <p
+          style={{
+            fontFamily: T.sans,
+            fontSize: 16, lineHeight: 1.6,
+            color: T.textDim, margin: '0 auto 24px',
+            maxWidth: 520,
+          }}
+        >
+          Every edit becomes real code — built, repaired if it breaks, and deployed
+          to your domain. No templates, no drag-and-drop.
+        </p>
+
+        {/* Proof points — horizontal row on desktop, wraps to a stack
+            on narrow viewports. */}
+        <ul
+          style={{
+            listStyle: 'none', padding: 0, margin: 0,
+            display: 'flex', flexWrap: 'wrap', justifyContent: 'center',
+            gap: '14px 28px',
+          }}
+        >
+          {[
+            { icon: 'chat',    label: 'Plain-language edits' },
+            { icon: 'wrench',  label: 'Self-repairing builds' },
+            { icon: 'coin',    label: '1 edit = 1 credit' },
+          ].map(p => (
+            <li key={p.label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <ProofIcon variant={p.icon as 'chat' | 'wrench' | 'coin'} />
+              <span style={{ fontFamily: T.sans, fontSize: 14, color: T.text }}>{p.label}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
-      {/* Mobile stack: text first, video full-width. */}
-      <style>{`
-        @media (max-width: 900px) {
-          .home-studio-demo-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
-          .home-studio-demo-window-col { margin-right: 0 !important; }
-        }
-      `}</style>
+      {/* Video below the copy, full container width. No radial mask,
+          no object-fit: cover — the video plays at its intrinsic
+          aspect ratio (width: 100%; height: auto) so the whole
+          recorded frame is visible with nothing clipped. Rounded
+          corners + deep drop shadow only. */}
+      <div style={{ maxWidth: 1200, margin: 'clamp(2.5rem,6vw,4rem) auto 0', position: 'relative', zIndex: 1 }}>
+        <video
+          src="/studio-loop.mp4"
+          autoPlay muted loop playsInline preload="metadata"
+          style={{
+            display: 'block',
+            width: '100%',
+            height: 'auto',
+            borderRadius: 20,
+            boxShadow:
+              '0 6px 16px -8px rgba(0,0,0,.25), 0 40px 90px -40px rgba(0,0,0,.65)',
+          }}
+        />
+      </div>
     </section>
   )
 }
