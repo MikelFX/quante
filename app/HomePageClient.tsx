@@ -10,6 +10,7 @@ import { GlassCard } from '@/components/public/GlassCard'
 import { FeatureCard } from '@/components/public/FeatureCard'
 import { IconTile } from '@/components/public/IconTile'
 import HomeStudioDemo from '@/components/public/HomeStudioDemo'
+import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,96 @@ function TerminalTypewriter() {
   return (
     <div className="qp-terminal">
       <span className="qp-prompt">$</span><span ref={elRef} /><span className="qp-cursor">▍</span>
+    </div>
+  )
+}
+
+// ─── Manifesto mini-demo preview panels ─────────────────────────────────────
+// Rendered inside the section-02 StudioMiniPanel. "Before" shows a Studio
+// project card with an unpressed Deploy button; "After" shows the same card
+// with a live URL pill instead of the button. Hand-rolled DOM — the whole
+// point of the mini panel is that these read as *the same* Studio you see
+// screenshotted elsewhere on the page, not stock illustrations.
+
+function ManifestoDeployBefore() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 18, height: 18, borderRadius: 4, background: 'linear-gradient(135deg,#c9a97c,#3a2b18)' }} />
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>
+          Dulpra · Coffee
+        </div>
+        <div style={{ marginLeft: 'auto', fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(245,245,247,0.48)', textTransform: 'uppercase', letterSpacing: '.10em' }}>
+          Draft
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+        {['12 products', '4 collections', '1 language', 'no domain yet'].map(t => (
+          <div key={t} style={{ fontFamily: 'inherit', fontSize: 9.5, color: 'rgba(245,245,247,0.72)' }}>· {t}</div>
+        ))}
+      </div>
+      <div style={{ marginTop: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div
+          style={{
+            padding: '6px 12px', borderRadius: 99,
+            background: 'var(--qp-accent, #D4FF3F)', color: '#08080a',
+            fontFamily: 'inherit', fontSize: 10, fontWeight: 700,
+          }}
+        >
+          Deploy
+        </div>
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(245,245,247,0.48)' }}>
+          preview only · not live
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ManifestoDeployAfter() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 10,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 18, height: 18, borderRadius: 4, background: 'linear-gradient(135deg,#c9a97c,#3a2b18)' }} />
+        <div style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>
+          Dulpra · Coffee
+        </div>
+        <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '1px 7px', borderRadius: 99, background: 'rgba(62,207,142,0.14)', border: '1px solid rgba(62,207,142,0.4)' }}>
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#3ecf8e' }} />
+          <span style={{ fontFamily: 'ui-monospace', fontSize: 8, color: '#3ecf8e', fontWeight: 700 }}>Live</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+        {['12 products', '4 collections', '1 language', 'SSL active ✓'].map(t => (
+          <div key={t} style={{ fontFamily: 'inherit', fontSize: 9.5, color: 'rgba(245,245,247,0.72)' }}>· {t}</div>
+        ))}
+      </div>
+      <div style={{ marginTop: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '6px 12px', borderRadius: 99,
+            background: 'rgba(212,255,63,0.10)', border: '1px solid rgba(212,255,63,0.35)',
+            fontFamily: 'ui-monospace', fontSize: 9,
+            color: 'var(--qp-accent, #D4FF3F)',
+          }}
+        >
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--qp-accent, #D4FF3F)' }} />
+          dulpra.stores.quantecode.com
+        </div>
+      </div>
     </div>
   )
 }
@@ -438,6 +529,30 @@ export function HomePageClient() {
                 </p>
               ))}
             </GlassCard>
+          </div>
+
+          {/* ── One-shot mini demo — "Deploy → live in ~3 minutes" ──
+              Sits below the "old way vs Quante" comparison as the
+              concrete proof of the right-hand column's claim. Watches
+              the Deploy button get pressed, SSL provision, and the
+              storefront flip Live under a *.stores.quantecode.com
+              subdomain. */}
+          <div style={{ maxWidth: 560, margin: '40px auto 0' }}>
+            <StudioMiniPanel
+              scenario={{
+                url: 'quantecode.com/project/dulpra',
+                prompt: 'Deploy to production',
+                logSteps: [
+                  { text: 'Building storefront',    state: 'running' },
+                  { text: 'Provisioning SSL',       state: 'running' },
+                  { text: 'Publishing to CDN',      state: 'running' },
+                  { text: 'Deployed',               state: 'pass'    },
+                ],
+                toastLabel: 'Live · dulpra.stores.quantecode.com',
+              }}
+              previewBefore={<ManifestoDeployBefore />}
+              previewAfter={<ManifestoDeployAfter />}
+            />
           </div>
         </div>
       </section>

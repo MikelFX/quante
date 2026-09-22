@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
+import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 const TRAP_CARDS = [
   { n: '01', title: 'The subscription trap', desc: 'Most AI builders charge you every month — forever. Stop paying, lose access. Your work was never really yours.' },
@@ -80,6 +81,69 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
+// Export-flow preview panels used by the hero StudioMiniPanel. "Before"
+// shows the Studio's file tree; "After" shows a downloaded ZIP with a
+// checkmark beside it — the concrete "you keep the keys" moment.
+function AboutExportBefore() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 4,
+      }}
+    >
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+        dulpra/
+      </div>
+      {[
+        { name: 'app/', depth: 1 },
+        { name: 'components/', depth: 1 },
+        { name: 'lib/', depth: 1 },
+        { name: 'public/', depth: 1 },
+        { name: 'package.json', depth: 1 },
+        { name: 'next.config.ts', depth: 1 },
+      ].map(f => (
+        <div key={f.name} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: f.depth * 10 }}>
+          <span style={{ width: 8, height: 8, borderRadius: 2, background: 'rgba(245,245,247,0.22)' }} />
+          <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: 'rgba(245,245,247,0.72)' }}>{f.name}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AboutExportAfter() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <div style={{
+        width: 62, height: 62, borderRadius: 10,
+        background: 'linear-gradient(135deg,rgba(212,255,63,0.20),rgba(212,255,63,0.06))',
+        border: '1px solid rgba(212,255,63,0.35)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg viewBox="0 0 24 24" width={30} height={30} fill="none" stroke="var(--qp-accent, #D4FF3F)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+      </div>
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>
+        dulpra-source.zip
+      </div>
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)' }}>
+        4.2 MB · Next.js project · yours
+      </div>
+    </div>
+  )
+}
+
 export function AboutClient() {
   return (
     <div className="qnt-public qp-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -101,6 +165,28 @@ export function AboutClient() {
           <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 540, margin: '0 auto' }}>
             Most AI builders rent you access. Quante hands you the source. What you generate here is a real Next.js project you own outright — export it any time, host it anywhere, keep it running long after we stop existing.
           </p>
+
+          {/* ── One-shot mini demo — "Export the project" ──
+              The concrete moment behind the "keep the keys" headline —
+              a Studio-window scenario where the source gets bundled
+              into a downloadable ZIP with a README + .env.example
+              already inside. */}
+          <div style={{ maxWidth: 640, margin: '48px auto 0' }}>
+            <StudioMiniPanel
+              scenario={{
+                url: 'quantecode.com/project/dulpra',
+                prompt: 'Export the project',
+                logSteps: [
+                  { text: 'Bundling Next.js source',    state: 'running' },
+                  { text: 'Adding README + .env.example', state: 'running' },
+                  { text: 'Zip ready',                  state: 'pass'    },
+                ],
+                toastLabel: 'dulpra-source.zip · 4.2 MB',
+              }}
+              previewBefore={<AboutExportBefore />}
+              previewAfter={<AboutExportAfter />}
+            />
+          </div>
         </div>
       </section>
 

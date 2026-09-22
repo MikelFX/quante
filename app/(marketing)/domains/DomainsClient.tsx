@@ -14,6 +14,7 @@ import Link from 'next/link'
 import { domainProvider } from '@/lib/site-config'
 import DomainRegistrantForm from '@/components/public/DomainRegistrantForm'
 import type { DomainRegistrant } from '@/lib/domain-registrant'
+import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 const mono = 'var(--font-geist-mono)'
 const accent = 'var(--qp-accent)'
@@ -42,6 +43,94 @@ const STEPS = [
     desc: "Your store is reachable at your new address within minutes of purchase. The full URL — with HTTPS — is ready to share.",
   },
 ]
+
+// Domain-connect preview panels used by the hero StudioMiniPanel.
+// "Before" mimics a project's domain settings pane showing only the
+// default *.stores.quantecode.com URL; "After" swaps in the custom
+// domain with an SSL check + status pill.
+function DomainConnectBefore() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
+      }}
+    >
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)', letterSpacing: '.10em', textTransform: 'uppercase', marginBottom: 4 }}>
+        Domains
+      </div>
+      <div
+        style={{
+          padding: '9px 10px', borderRadius: 6,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3ecf8e' }} />
+        <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7' }}>
+          dulpra.stores.quantecode.com
+        </span>
+        <span style={{ marginLeft: 'auto', fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(245,245,247,0.48)', textTransform: 'uppercase', letterSpacing: '.10em' }}>
+          Default
+        </span>
+      </div>
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 9.5, color: 'rgba(245,245,247,0.48)', marginTop: 4 }}>
+        + Add custom domain
+      </div>
+    </div>
+  )
+}
+
+function DomainConnectAfter() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
+      }}
+    >
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)', letterSpacing: '.10em', textTransform: 'uppercase', marginBottom: 4 }}>
+        Domains
+      </div>
+      <div
+        style={{
+          padding: '9px 10px', borderRadius: 6,
+          background: 'rgba(212,255,63,0.08)',
+          border: '1px solid rgba(212,255,63,0.32)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--qp-accent, #D4FF3F)' }} />
+        <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: '#f5f5f7', fontWeight: 600 }}>
+          dulpra.com
+        </span>
+        <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, padding: '1px 6px', borderRadius: 99, background: 'rgba(62,207,142,0.14)', border: '1px solid rgba(62,207,142,0.4)' }}>
+          <span style={{ fontFamily: 'ui-monospace', fontSize: 8, color: '#3ecf8e', fontWeight: 700 }}>SSL ✓</span>
+        </span>
+      </div>
+      <div
+        style={{
+          padding: '9px 10px', borderRadius: 6,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', alignItems: 'center', gap: 8,
+          opacity: 0.7,
+        }}
+      >
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(245,245,247,0.35)' }} />
+        <span style={{ fontFamily: 'ui-monospace', fontSize: 10, color: 'rgba(245,245,247,0.6)' }}>
+          dulpra.stores.quantecode.com
+        </span>
+        <span style={{ marginLeft: 'auto', fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(245,245,247,0.48)', textTransform: 'uppercase', letterSpacing: '.10em' }}>
+          Alias
+        </span>
+      </div>
+    </div>
+  )
+}
 
 const FAQS = [
   {
@@ -190,6 +279,29 @@ export function DomainsClient() {
               {searching ? 'Searching…' : 'Search'}
             </button>
           </form>
+
+          {/* ── One-shot mini demo — "Connect dulpra.com" ──
+              A single scenario showing the full custom-domain workflow
+              (Namecheap lookup → CNAME added → SSL provisioned →
+              verified) as the concrete answer to the question the
+              search form invites: "what happens after I hit Search?" */}
+          <div style={{ maxWidth: 560, margin: '48px auto 0', textAlign: 'left' }}>
+            <StudioMiniPanel
+              scenario={{
+                url: 'quantecode.com/project/dulpra/domains',
+                prompt: 'Connect dulpra.com',
+                logSteps: [
+                  { text: `${domainProvider.name} lookup`, state: 'running' },
+                  { text: 'Adding CNAME',                  state: 'running' },
+                  { text: 'Provisioning SSL',              state: 'running' },
+                  { text: 'Verified',                      state: 'pass'    },
+                ],
+                toastLabel: 'Live at dulpra.com · SSL ✓',
+              }}
+              previewBefore={<DomainConnectBefore />}
+              previewAfter={<DomainConnectAfter />}
+            />
+          </div>
         </div>
       </section>
 
