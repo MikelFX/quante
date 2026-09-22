@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
-import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 // Data-driven list of live showcase stores. Every entry MUST resolve to a
 // real, deployed store — the audit brief's honesty rule (2.2). Anything
@@ -54,125 +53,6 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
-// Brief-to-store preview panels for the hero StudioMiniPanel. "Before"
-// is a blank untitled tab; "After" mimics the Axiom hero (matching the
-// first LIVE_STORES entry below, so a viewer sees the exact end state
-// they can then open in the iframe).
-function ShowcaseBriefBefore() {
-  return (
-    <div
-      style={{
-        position: 'absolute', inset: 0,
-        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
-        padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
-        alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <div style={{
-        width: 42, height: 42, borderRadius: 8,
-        border: '1px dashed rgba(245,245,247,0.22)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="rgba(245,245,247,0.35)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
-      </div>
-      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
-        Untitled project
-      </div>
-    </div>
-  )
-}
-
-function ShowcaseBriefAfter() {
-  return (
-    <div
-      style={{
-        position: 'absolute', inset: 0,
-        // Two-tone cold-morning gradient (slate cream at top, warmer
-        // sand at the bottom) so the surface reads like an outdoor
-        // editorial hero rather than a flat cream.
-        background:
-          'linear-gradient(180deg,#e5e0d3 0%,#d4cdba 50%,#c8bfa8 100%)',
-        display: 'grid', gridTemplateColumns: '1.15fr 1fr',
-      }}
-    >
-      {/* Left column — nav + headline + CTA */}
-      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <AxiomLogo />
-          <div style={{ fontFamily: 'ui-monospace', fontSize: 6.5, color: 'rgba(0,0,0,0.45)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            GEAR · ROUTES · JOURNAL
-          </div>
-        </div>
-        <div>
-          <div style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: '#141212', letterSpacing: '-.02em', lineHeight: 1.05, marginBottom: 4 }}>
-            Built for<br />the outdoors.
-          </div>
-          <div style={{ fontFamily: 'inherit', fontSize: 8.5, color: 'rgba(0,0,0,0.6)', maxWidth: 200, marginBottom: 8 }}>
-            Technical gear engineered for cold-weather routes.
-          </div>
-          <div style={{ display: 'inline-block', padding: '4px 9px', borderRadius: 99, background: '#141212', color: '#f5f2ec', fontFamily: 'inherit', fontSize: 8, fontWeight: 600 }}>
-            Shop gear
-          </div>
-        </div>
-      </div>
-      {/* Right column — mountain silhouette so the hero has a real
-          image beat and reads as an outdoor brand at a glance. */}
-      <div style={{ position: 'relative' }}>
-        <MountainSilhouette />
-      </div>
-    </div>
-  )
-}
-
-// Small typographic "AXIOM" wordmark with a triangle mark — cheaper
-// than embedding a real logo file and matches Axiom's actual bold
-// minimal aesthetic (see LIVE_STORES entry below).
-function AxiomLogo() {
-  return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-      <svg viewBox="0 0 12 12" width={10} height={10} aria-hidden="true">
-        <path d="M 6 1.5 L 11 10.5 L 1 10.5 Z" fill="none" stroke="#141212" strokeWidth="1.2" strokeLinejoin="round" />
-      </svg>
-      <span style={{ fontFamily: 'ui-monospace', fontSize: 8.5, fontWeight: 700, color: '#141212', letterSpacing: '.16em' }}>
-        AXIOM
-      </span>
-    </div>
-  )
-}
-
-// SVG mountain silhouette — three overlapping peaks in descending
-// blue-slate tones with a sun and thin cloud line. Reads as "outdoor
-// gear brand hero" at a glance without needing a real photo.
-function MountainSilhouette() {
-  return (
-    <svg viewBox="0 0 120 80" width="100%" height="100%" preserveAspectRatio="xMidYMax slice" style={{ display: 'block' }} aria-hidden="true">
-      <defs>
-        <linearGradient id="mtn-sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"  stopColor="rgba(230,222,204,0)" />
-          <stop offset="100%" stopColor="rgba(230,222,204,0.2)" />
-        </linearGradient>
-      </defs>
-      <rect width="120" height="80" fill="url(#mtn-sky)" />
-      {/* Sun */}
-      <circle cx="88" cy="20" r="7" fill="rgba(255,240,210,0.55)" />
-      <circle cx="88" cy="20" r="4" fill="rgba(255,232,180,0.85)" />
-      {/* Distant cloud line */}
-      <path d="M 5 32 Q 30 28 60 32 T 115 30" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.6" />
-      {/* Back peak (lightest) */}
-      <path d="M 0 80 L 25 40 L 40 55 L 60 30 L 78 55 L 95 42 L 120 80 Z" fill="#8a9aab" opacity="0.75" />
-      {/* Mid peak */}
-      <path d="M 0 80 L 18 55 L 40 32 L 62 60 L 82 45 L 105 65 L 120 80 Z" fill="#5f6d7d" />
-      {/* Front peak with snow cap */}
-      <path d="M 0 80 L 25 65 L 48 40 L 70 65 L 95 55 L 120 80 Z" fill="#3c4652" />
-      <path d="M 42 46 L 48 40 L 54 46 L 51 48 L 48 45 L 45 48 Z" fill="rgba(255,255,255,0.75)" />
-      {/* Snow line on mid peak */}
-      <path d="M 36 36 L 40 32 L 45 37 L 42 38 L 40 35 L 38 38 Z" fill="rgba(255,255,255,0.55)" />
-    </svg>
-  )
-}
-
 export function ShowcaseClient() {
   return (
     <div className="qnt-public qp-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -195,26 +75,24 @@ export function ShowcaseClient() {
             Real stores, live on the web — each generated from a one-paragraph brief. Complete, styled, deployed. No manual design.
           </p>
 
-          {/* ── One-shot mini demo — "brief → generated store" ──
-              Actively shows the workflow the static iframes below only
-              show the end result of. Prompt is one line, log narrates
-              the generate → render → deploy chain, preview swaps from
-              a blank browser to a real-looking Axiom store hero. */}
-          <div style={{ maxWidth: 640, margin: '48px auto 0', textAlign: 'left' }}>
-            <StudioMiniPanel
-              scenario={{
-                url: 'quantecode.com/new',
-                prompt: 'Outdoor gear · bold minimal · CZK',
-                logSteps: [
-                  { text: 'Drafting manifest',       state: 'running' },
-                  { text: 'Generating catalog',      state: 'running' },
-                  { text: 'Rendering storefront',    state: 'running' },
-                  { text: 'Deployed',                state: 'pass'    },
-                ],
-                toastLabel: 'Live · axiom.stores.quantecode.com',
+          {/* ── Create loop video — replaces the earlier scripted
+              StudioMiniPanel with the Axiom mountain silhouette.
+              Video captures the same "brief → generated Svit store"
+              workflow in real recorded motion, played at intrinsic
+              aspect ratio (width:100%; height:auto) so nothing is
+              cropped. */}
+          <div style={{ maxWidth: 900, margin: '48px auto 0' }}>
+            <video
+              src="/create-loop.mp4"
+              autoPlay muted loop playsInline preload="metadata"
+              style={{
+                display: 'block',
+                width: '100%',
+                height: 'auto',
+                borderRadius: 20,
+                boxShadow:
+                  '0 6px 16px -8px rgba(0,0,0,.25), 0 40px 90px -40px rgba(0,0,0,.65)',
               }}
-              previewBefore={<ShowcaseBriefBefore />}
-              previewAfter={<ShowcaseBriefAfter />}
             />
           </div>
         </div>
