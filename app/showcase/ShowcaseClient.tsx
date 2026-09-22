@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { SiteFooter } from '@/components/SiteFooter'
 import { PublicNav } from '@/components/public/PublicNav'
 import { GlassCard } from '@/components/public/GlassCard'
+import { StudioMiniPanel } from '@/components/public/StudioMiniPanel'
 
 // Data-driven list of live showcase stores. Every entry MUST resolve to a
 // real, deployed store — the audit brief's honesty rule (2.2). Anything
@@ -53,6 +54,63 @@ function SectionKicker({ n, label }: { n: string; label: string }) {
   )
 }
 
+// Brief-to-store preview panels for the hero StudioMiniPanel. "Before"
+// is a blank untitled tab; "After" mimics the Axiom hero (matching the
+// first LIVE_STORES entry below, so a viewer sees the exact end state
+// they can then open in the iframe).
+function ShowcaseBriefBefore() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#0f0f11 0%,#050506 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', gap: 8,
+        alignItems: 'center', justifyContent: 'center',
+      }}
+    >
+      <div style={{
+        width: 42, height: 42, borderRadius: 8,
+        border: '1px dashed rgba(245,245,247,0.22)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="rgba(245,245,247,0.35)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </div>
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 9, color: 'rgba(245,245,247,0.48)', letterSpacing: '.08em', textTransform: 'uppercase' }}>
+        Untitled project
+      </div>
+    </div>
+  )
+}
+
+function ShowcaseBriefAfter() {
+  return (
+    <div
+      style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg,#f5f2ec 0%,#ece7dc 100%)',
+        padding: 14, display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ fontFamily: 'ui-monospace', fontSize: 8, color: 'rgba(0,0,0,0.5)', letterSpacing: '.14em', textTransform: 'uppercase' }}>
+        AXIOM
+      </div>
+      <div>
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: 18, fontWeight: 700, color: '#141212', letterSpacing: '-.02em', lineHeight: 1.1, marginBottom: 4 }}>
+          Built for the outdoors.
+        </div>
+        <div style={{ fontFamily: 'inherit', fontSize: 9, color: 'rgba(0,0,0,0.6)', maxWidth: 220, marginBottom: 8 }}>
+          Technical gear engineered for cold-weather routes.
+        </div>
+        <div style={{ display: 'inline-block', padding: '4px 9px', borderRadius: 99, background: '#141212', color: '#f5f2ec', fontFamily: 'inherit', fontSize: 8, fontWeight: 600 }}>
+          Shop gear
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function ShowcaseClient() {
   return (
     <div className="qnt-public qp-dark" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -74,6 +132,29 @@ export function ShowcaseClient() {
           <p style={{ fontSize: 16, lineHeight: 1.7, color: 'var(--qp-sub)', maxWidth: 520, margin: '0 auto' }}>
             Real stores, live on the web — each generated from a one-paragraph brief. Complete, styled, deployed. No manual design.
           </p>
+
+          {/* ── One-shot mini demo — "brief → generated store" ──
+              Actively shows the workflow the static iframes below only
+              show the end result of. Prompt is one line, log narrates
+              the generate → render → deploy chain, preview swaps from
+              a blank browser to a real-looking Axiom store hero. */}
+          <div style={{ maxWidth: 640, margin: '48px auto 0', textAlign: 'left' }}>
+            <StudioMiniPanel
+              scenario={{
+                url: 'quantecode.com/new',
+                prompt: 'Outdoor gear · bold minimal · CZK',
+                logSteps: [
+                  { text: 'Drafting manifest',       state: 'running' },
+                  { text: 'Generating catalog',      state: 'running' },
+                  { text: 'Rendering storefront',    state: 'running' },
+                  { text: 'Deployed',                state: 'pass'    },
+                ],
+                toastLabel: 'Live · axiom.stores.quantecode.com',
+              }}
+              previewBefore={<ShowcaseBriefBefore />}
+              previewAfter={<ShowcaseBriefAfter />}
+            />
+          </div>
         </div>
       </section>
 
