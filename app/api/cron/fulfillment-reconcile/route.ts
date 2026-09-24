@@ -22,6 +22,7 @@
 
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { isAuthorizedCron } from '@/lib/cron-auth'
 import { decryptSecret } from '@/lib/crypto'
 import { findByrdShipmentByOrderId } from '@/lib/fulfillment/providers/byrd'
 
@@ -38,12 +39,9 @@ interface StuckRow {
 }
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (secret) {
-    const authHeader = request.headers.get('authorization') ?? ''
-    if (authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  // Fail closed: a missing CRON_SECRET must not leave this route public.
+  if (!isAuthorizedCron(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const cutoff = new Date(Date.now() - TEN_MINUTES_MS).toISOString()

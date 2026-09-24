@@ -35,8 +35,14 @@ export interface RecordSellerEarningInput {
   currency: string
 }
 
+// SECURITY: call this ONLY from a server-verified payment event (e.g. the Stripe webhook's
+// checkout.session.completed after signature verification, with the price read from the DB).
+// Never from a client-callable route — an unpaid "purchase" must never create seller
+// earnings (it let sockpuppet accounts farm a seller's balance). No caller exists today:
+// /api/marketplace/purchases only accepts free listings.
+// Any future payout must also count only rows linked to a verified Stripe payment.
 export async function recordSellerEarning(input: RecordSellerEarningInput): Promise<{ recorded: boolean }> {
-  if (input.sellerEarningCents <= 0) return { recorded: false }
+  if (!Number.isInteger(input.sellerEarningCents) || input.sellerEarningCents <= 0) return { recorded: false }
 
   const { data: lastEntry } = await supabaseAdmin
     .from('marketplace_seller_ledger')

@@ -3,6 +3,7 @@
 // status 'pending' — an admin must approve it (see /api/admin/partners/[id]/status)
 // before it can earn commission. One partner account per Quante user.
 
+import { randomInt } from 'crypto'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
@@ -10,7 +11,8 @@ function generateReferralCode(): string {
   // 8 uppercase alphanumeric chars, no ambiguous 0/O/1/I — human-shareable in a link.
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
-  for (let i = 0; i < 8; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)]
+  // CSPRNG — referral codes will attribute commission once the referral flow is wired.
+  for (let i = 0; i < 8; i++) code += alphabet[randomInt(alphabet.length)]
   return code
 }
 
@@ -24,6 +26,9 @@ export async function POST(request: Request) {
 
   if (!companyName || !contactEmail) {
     return Response.json({ error: 'companyName and contactEmail are required' }, { status: 400 })
+  }
+  if (companyName.length > 200 || contactEmail.length > 254) {
+    return Response.json({ error: 'companyName or contactEmail is too long' }, { status: 400 })
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
     return Response.json({ error: 'contactEmail is not a valid email address' }, { status: 400 })

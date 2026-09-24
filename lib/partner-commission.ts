@@ -6,6 +6,13 @@
 // Connect transfer) is a deliberate, separate feature left for the user to build and
 // activate later. See supabase/migration-partners.sql's header comment.
 //
+// SECURITY — before wiring ANY payout, transfer, discount or credit grant off
+// partner_commission_ledger: commission on a project the partner owns or pays for must
+// NEVER be paid out (getActivePartnerForProject() refuses it; rows recorded before that
+// guard existed may still be self-commission and must be excluded/cleaned up). Also move
+// the balance_after_cents computation into a locked SQL function first — the
+// read-then-insert below races under concurrent webhook deliveries.
+//
 // Kept dependency-light (only supabaseAdmin) so calculateCommissionCents() itself is
 // trivially unit-testable — see __tests__/partner-commission.test.mjs.
 
@@ -14,7 +21,8 @@ import { supabaseAdmin } from './supabase/admin'
 export function calculateCommissionCents(amountCents: number, commissionRateBps: number): number {
   if (!Number.isFinite(amountCents) || !Number.isFinite(commissionRateBps)) return 0
   if (amountCents <= 0 || commissionRateBps <= 0) return 0
-  return Math.floor((amountCents * commissionRateBps) / 10000)
+  // Commission can never exceed the underlying charge.
+  return Math.floor((amountCents * Math.min(commissionRateBps, 10000)) / 10000)
 }
 
 export interface RecordCommissionInput {
@@ -72,20 +80,37 @@ export async function recordCommission(input: RecordCommissionInput): Promise<Re
 // returns what's needed to record a commission for it. Returns null for unassigned
 // projects or projects assigned to a pending/suspended partner (no commission accrues
 // until the partner is approved) — callers should silently skip in that case.
+//
+// SECURITY: also returns null when the partner IS the project owner or the paying user
+// (`payerUserId`, e.g. hosting_subscriptions.user_id). Partners can currently only assign
+// projects they own, so without this check every approved partner earned a standing
+// kickback on their own hosting spend. Commission accrues only when a DIFFERENT account
+// owns/pays for the project (the future referral model — partners.referral_code).
 export async function getActivePartnerForProject(
-  projectId: string
+  projectId: string,
+  payerUserId?: string | null
 ): Promise<{ partnerId: string; commissionRateBps: number } | null> {
-  const { data } = await supabaseAdmin
+  const { data, error } = await supabaseAdmin
     .from('partner_projects')
-    .select('partner_id, status, partners!inner(id, status, commission_rate_bps)')
+    .select('partner_id, status, partners!inner(id, status, commission_rate_bps, user_id), projects!inner(user_id)')
     .eq('project_id', projectId)
     .eq('status', 'active')
     .maybeSingle()
 
-  if (!data) return null
+  if (error || !data) return null // fail closed — no commission on lookup errors
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const partner = (data as any).partners
+  const row = data as any
+  const partner = row.partners
+  const projectOwnerId = row.projects?.user_id as string | undefined
   if (!partner || partner.status !== 'active') return null
 
-  return { partnerId: partner.id as string, commissionRateBps: partner.commission_rate_bps as number }
+  const partnerUserId = partner.user_id as string | undefined
+  if (!partnerUserId || !projectOwnerId) return null
+  if (partnerUserId === projectOwnerId) return null // self-owned project — no commission
+  if (payerUserId && partnerUserId === payerUserId) return null // partner paying themselves
+
+  const rate = Number(partner.commission_rate_bps)
+  if (!Number.isInteger(rate) || rate <= 0 || rate > 10000) return null
+
+  return { partnerId: partner.id as string, commissionRateBps: rate }
 }

@@ -1,12 +1,15 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getOwnedProject } from '@/lib/auth/project'
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id: projectId } = await params
+  const project = await getOwnedProject(projectId, userId)
+  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   const supabase = await createClient()
 
   const { data: rows } = await supabase

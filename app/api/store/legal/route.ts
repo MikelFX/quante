@@ -9,6 +9,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { generateTermsEn, generatePrivacyEn, generateCookiesEn, generateContactEn } from '@/lib/legal-templates-en'
 import type { BusinessInfo, PaymentsInfo, ShippingInfo } from '@/types/business'
 import { EMPTY_BUSINESS_INFO } from '@/types/business'
+import { isUuid } from '@/lib/auth/project'
 
 const PAGES = ['terms', 'privacy', 'cookies', 'contact'] as const
 type LegalPageId = (typeof PAGES)[number]
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const projectId = searchParams.get('projectId')
   const page = searchParams.get('page') as LegalPageId | null
-  if (!projectId || !page || !PAGES.includes(page)) {
+  if (!isUuid(projectId) || !page || !PAGES.includes(page)) {
     return NextResponse.json({ error: 'projectId and a valid page (terms|privacy|cookies|contact) are required' }, { status: 400 })
   }
 

@@ -1,11 +1,12 @@
 // Called by deployed stores' admin panel — returns all orders for this project.
-// Authenticated by QUANTE_API_KEY (per-project secret injected at deploy time).
+// Authenticated by QUANTE_API_KEY (per-project secret injected at deploy time),
+// verified by hash + constant-time compare (see ../_lib/store-auth.ts).
 
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
-
-const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
+import { signedInvoiceUrlOrNull } from '@/lib/invoice-generator'
+import { authenticateStoreKey } from '../_lib/store-auth'
 
 export async function GET(request: Request) {
   // Rate-limit by IP: max 60 requests per minute
@@ -18,17 +19,7 @@ export async function GET(request: Request) {
     })
   }
 
-  const authHeader = request.headers.get('authorization') ?? ''
-  const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim()
-
-  if (!apiKey) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: secret } = await supabaseAdmin
-    .from('project_secrets')
-    .select('project_id')
-    .eq('quante_api_key', apiKey)
-    .maybeSingle()
-
+  const secret = await authenticateStoreKey(request)
   if (!secret) return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
 
   const { data: rows } = await supabaseAdmin
@@ -48,7 +39,8 @@ export async function GET(request: Request) {
     status: o.status,
     paymentStatus: o.payment_status,
     paymentMethod: o.payment_method,
-    invoiceUrl: o.invoice_number ? `${QUANTE_URL}/invoice/${o.id}` : null,
+    // Signed link: the store admin isn't signed into Quante (see app/invoice/[orderId]).
+    invoiceUrl: o.invoice_number ? signedInvoiceUrlOrNull(o.id as string) : null,
     createdAt: o.created_at,
   }))
 

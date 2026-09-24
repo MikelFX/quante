@@ -7,6 +7,8 @@
 
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getOwnedProject, isUuid } from '@/lib/auth/project'
+import { validateCustomComponent } from '@/lib/sandbox/validate-component'
 
 const MAX_PRICE_CENTS = 100_000 // $1,000 sanity cap — infrastructure phase, no real charge occurs anyway
 
@@ -43,6 +45,9 @@ export async function POST(request: Request) {
     return Response.json({ error: "kind must be 'component' or 'starter_store'" }, { status: 400 })
   }
   if (!title) return Response.json({ error: 'title is required' }, { status: 400 })
+  if (title.length > 200 || (description?.length ?? 0) > 5000) {
+    return Response.json({ error: 'title or description is too long' }, { status: 400 })
+  }
   if (priceCents > MAX_PRICE_CENTS) {
     return Response.json({ error: `priceCents may not exceed ${MAX_PRICE_CENTS}` }, { status: 400 })
   }
@@ -50,6 +55,7 @@ export async function POST(request: Request) {
   if (kind === 'component') {
     const componentId = body.componentId
     if (typeof componentId !== 'string') return Response.json({ error: 'componentId is required' }, { status: 400 })
+    if (!isUuid(componentId)) return Response.json({ error: 'Component not found' }, { status: 404 })
 
     const { data: component } = await supabaseAdmin
       .from('custom_components')
@@ -63,7 +69,16 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Component not found' }, { status: 404 })
     }
 
-    const passedValidation = !!component.passed_validation
+    // Re-run the sandbox validator on the exact code being snapshotted — the stored flag
+    // alone isn't trusted, since this code gets installed into other tenants' projects.
+    const passedValidation =
+      !!component.passed_validation &&
+      typeof component.code === 'string' &&
+      validateCustomComponent(component.code).valid
+    // Nothing auto-lists. The blocklist validator is not a security boundary: exported
+    // stores run component code UNSANDBOXED (see lib/sandbox/validate-component.ts header),
+    // so every component listing — free or paid, validator-passing or not — needs a human
+    // admin review before it can be installed into another tenant's store.
     const { data, error } = await supabaseAdmin
       .from('marketplace_listings')
       .insert({
@@ -76,9 +91,8 @@ export async function POST(request: Request) {
         description,
         price_cents: priceCents,
         passed_validation: passedValidation,
-        // Already went through the sandboxed component-generation validator (CLAUDE.md
-        // §4.3) — safe to list immediately. Everything else needs admin review.
-        status: passedValidation ? 'listed' : 'pending',
+        // Always 'pending' — only an admin can move a listing to 'listed'.
+        status: 'pending',
       })
       .select('id, kind, title, status')
       .single()
@@ -91,12 +105,7 @@ export async function POST(request: Request) {
   const projectId = body.projectId
   if (typeof projectId !== 'string') return Response.json({ error: 'projectId is required' }, { status: 400 })
 
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  const project = await getOwnedProject(projectId, userId, 'id')
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
   const { data: version } = await supabaseAdmin

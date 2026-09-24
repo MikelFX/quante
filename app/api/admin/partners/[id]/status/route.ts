@@ -1,21 +1,12 @@
 // POST /api/admin/partners/[id]/status   { status: 'active' | 'suspended' | 'pending' }
-// Admin-only gate for approving/suspending partner accounts, matching the existing
-// ADMIN_EMAILS pattern used by app/api/admin/changelog/route.ts and app/(app)/admin/page.tsx.
+// Admin-only gate for approving/suspending partner accounts (shared requireAdmin() in
+// lib/admin.ts — verified primary email in ADMIN_EMAILS).
 // This never touches money — it only flips whether a partner's commission accrual is live
 // (getActivePartnerForProject() in lib/partner-commission.ts checks partners.status).
 
-import { auth, currentUser } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-
-async function requireAdmin(): Promise<string | null> {
-  const { userId } = await auth()
-  if (!userId) return null
-  const user = await currentUser()
-  const email = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? ''
-  return ADMIN_EMAILS.includes(email) ? userId : null
-}
+import { requireAdmin } from '@/lib/admin'
+import { isUuid } from '@/lib/auth/project'
 
 const VALID_STATUSES = ['pending', 'active', 'suspended']
 
@@ -24,6 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!adminId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (!isUuid(id)) return Response.json({ error: 'Partner not found' }, { status: 404 })
   const body = await request.json().catch(() => ({}))
   const status = body.status
 

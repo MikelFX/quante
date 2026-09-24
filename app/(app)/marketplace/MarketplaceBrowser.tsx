@@ -45,15 +45,24 @@ export function MarketplaceBrowser({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ listingId, targetProjectId: selectedProjectId }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({})) as { error?: string }
       if (!res.ok) {
-        setBuyError(data.error ?? 'Purchase failed.')
+        if (res.status === 409) {
+          // Already purchased — reflect it instead of leaving a dead Confirm button.
+          setOwned((prev) => new Set(prev).add(listingId))
+          setActiveListingId(null)
+          return
+        }
+        setBuyError(
+          data.error ??
+          (res.status === 402 ? 'Paid listings are not yet available.' : `Purchase failed (HTTP ${res.status}).`)
+        )
       } else {
         setOwned((prev) => new Set(prev).add(listingId))
         setActiveListingId(null)
       }
     } catch {
-      setBuyError('Purchase failed.')
+      setBuyError('Could not reach the server. Please try again.')
     } finally {
       setIsBuying(false)
     }
@@ -73,6 +82,10 @@ export function MarketplaceBrowser({
       {initialListings.map((listing) => {
         const isOwned = owned.has(listing.id)
         const isActive = activeListingId === listing.id
+        // No payment path exists yet — the purchase endpoint only accepts free listings
+        // (402 otherwise), so paid ones are shown but can't be bought. Fail closed on a
+        // malformed price.
+        const isPaid = !(Number.isFinite(listing.price_cents) && listing.price_cents === 0)
         const Icon = listing.kind === 'component' ? Layers : Package
         return (
           <div key={listing.id} style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -93,8 +106,17 @@ export function MarketplaceBrowser({
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--live)', padding: '7px 0' }}>
                 <Check size={14} /> Installed
               </div>
+            ) : isPaid ? (
+              <button
+                type="button"
+                disabled
+                title="Paid marketplace purchases aren't available yet."
+                style={{ fontSize: 12, fontWeight: 600, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)', color: '#5b5b64', cursor: 'not-allowed' }}
+              >
+                Coming soon
+              </button>
             ) : !isSignedIn ? (
-              <p style={{ fontSize: 11, color: '#5b5b64', margin: 0 }}>Sign in to purchase.</p>
+              <p style={{ fontSize: 11, color: '#5b5b64', margin: 0 }}>Sign in to install.</p>
             ) : isActive ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <select
@@ -129,7 +151,7 @@ export function MarketplaceBrowser({
                 onClick={() => { setActiveListingId(listing.id); setSelectedProjectId(''); setBuyError(null) }}
                 style={{ fontSize: 12, fontWeight: 600, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(212,255,63,.35)', background: 'rgba(212,255,63,.08)', color: '#E8FF9E', cursor: 'pointer' }}
               >
-                Buy & install
+                Install free
               </button>
             )}
           </div>

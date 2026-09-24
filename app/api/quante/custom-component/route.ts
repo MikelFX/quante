@@ -5,15 +5,23 @@
 // Costs 3 credits.
 
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
+import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getOwnedProject } from '@/lib/auth/project'
+import { debitCredits, refundDebit } from '@/lib/credits'
 import { anthropic, ITERATION_MODEL } from '@/lib/claude'
 import { validateCustomComponent } from '@/lib/sandbox/validate-component'
+import { rateLimit } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 
 export const maxDuration = 120
 
 const COMPONENT_COST = 3
+const MAX_INSTRUCTION_CHARS = 4000
+const MAX_NAME_CHARS = 120
+const COMPONENT_RATE_LIMIT_PER_HOUR = 20
+// debitCredits() refuses accounts flagged after a chargeback (users.billing_hold).
+const BILLING_HOLD_MESSAGE = 'Your account is on hold after a payment dispute — contact support.'
 
 const COMPONENT_SYSTEM = `You are an expert React developer generating isolated, sandboxed storefront components for an e-commerce platform.
 
@@ -37,61 +45,60 @@ export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { projectId: string; instruction: string; name?: string }
+  let body: { projectId?: unknown; instruction?: unknown; name?: unknown }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
 
-  const { projectId, instruction, name = 'Custom Component' } = body
-  if (!projectId || !instruction?.trim()) {
+  const { projectId } = body
+  const instruction = typeof body.instruction === 'string' ? body.instruction.trim() : ''
+  const name = typeof body.name === 'string' && body.name.trim()
+    ? body.name.trim().slice(0, MAX_NAME_CHARS)
+    : 'Custom Component'
+  if (!projectId || !instruction) {
     return NextResponse.json({ error: 'projectId and instruction are required' }, { status: 400 })
   }
-
-  // Check credits
-  const supabase = await createClient()
-  const { data: lastEntry } = await supabase
-    .from('credit_ledger')
-    .select('balance_after')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const balance = lastEntry?.balance_after ?? 0
-  if (balance < COMPONENT_COST) {
-    return NextResponse.json({ error: `Insufficient credits. Need ${COMPONENT_COST}, have ${balance}.` }, { status: 402 })
+  if (instruction.length > MAX_INSTRUCTION_CHARS) {
+    return NextResponse.json({ error: `Instruction too long (max ${MAX_INSTRUCTION_CHARS} characters).` }, { status: 400 })
   }
 
-  // Verify project ownership
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  // Verify project ownership (service-role client — RLS does not apply)
+  const project = await getOwnedProject<{ id: string }>(projectId, userId, 'id')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
-  // Debit credits
-  const { data: ledgerRow, error: ledgerErr } = await supabaseAdmin
+  // Rate limit. Failed generations (e.g. an instruction that forces fetch() and so fails
+  // sandbox validation) are refunded in full, so without a cap a user holding 3 credits
+  // could loop paid Claude calls forever. The ledger count is DB-backed (works across
+  // serverless instances) and includes refunded attempts, since the debit row stays.
+  if (!rateLimit(`custom-component:${userId}`, COMPONENT_RATE_LIMIT_PER_HOUR, 3_600_000).allowed) {
+    return NextResponse.json({ error: `Rate limit reached — max ${COMPONENT_RATE_LIMIT_PER_HOUR} components per hour.` }, { status: 429 })
+  }
+  const { count: recentCount, error: countErr } = await supabaseAdmin
     .from('credit_ledger')
-    .insert({
-      user_id: userId,
-      delta: -COMPONENT_COST,
-      reason: 'custom_component',
-      ref_id: projectId,
-      balance_after: balance - COMPONENT_COST,
-    })
-    .select()
-    .single()
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('reason', 'custom_component')
+    .lt('delta', 0)
+    .gte('created_at', new Date(Date.now() - 3_600_000).toISOString())
+  if (countErr || (recentCount ?? 0) >= COMPONENT_RATE_LIMIT_PER_HOUR) {
+    return NextResponse.json({ error: `Rate limit reached — max ${COMPONENT_RATE_LIMIT_PER_HOUR} components per hour.` }, { status: 429 })
+  }
 
-  if (ledgerErr || !ledgerRow) {
+  // Atomic debit BEFORE the Claude call; refundDebit on any failure. The refund adds
+  // back only this request's debit, so concurrent spends are never erased.
+  const creditRef = randomUUID()
+  const debit = await debitCredits(userId, COMPONENT_COST, 'custom_component', creditRef)
+  if (!debit.ok) {
+    if (debit.error === 'insufficient_credits') {
+      return NextResponse.json({ error: `Insufficient credits. Need ${COMPONENT_COST}, have ${debit.balance ?? 0}.` }, { status: 402 })
+    }
+    if (debit.error === 'billing_hold') {
+      return NextResponse.json({ error: BILLING_HOLD_MESSAGE, code: 'billing_hold' }, { status: 402 })
+    }
     return NextResponse.json({ error: 'Failed to debit credit' }, { status: 500 })
   }
 
   const refund = async () => {
-    await supabaseAdmin.from('credit_ledger').insert({
-      user_id: userId, delta: COMPONENT_COST, reason: 'custom_component_refund',
-      ref_id: ledgerRow.id, balance_after: balance,
-    })
+    await refundDebit(userId, creditRef, 'custom_component', 'custom_component_refund')
   }
 
   try {
@@ -102,11 +109,11 @@ export async function POST(request: Request) {
       system: COMPONENT_SYSTEM,
       messages: [{
         role: 'user',
-        content: `Generate a React component for this request:\n\n${instruction.trim()}`,
+        content: `Generate a React component for this request:\n\n${instruction}`,
       }],
     })
 
-    const rawCode = msg.content[0].type === 'text'
+    const rawCode = msg.content[0]?.type === 'text'
       ? msg.content[0].text.trim().replace(/^```(?:tsx?|jsx?)?\n?/, '').replace(/\n?```$/, '').trim()
       : ''
 
@@ -130,11 +137,11 @@ export async function POST(request: Request) {
     const { data: comp, error: compErr } = await supabaseAdmin
       .from('custom_components')
       .insert({
-        project_id: projectId,
+        project_id: project.id,
         ref,
         name,
         code: rawCode,
-        prompt: instruction.trim(),
+        prompt: instruction,
         passed_validation: true,
         warnings: validation.warnings,
       })
@@ -153,7 +160,7 @@ export async function POST(request: Request) {
       warnings: validation.warnings,
       section: { type: 'customComponent', ref },
       creditsUsed: COMPONENT_COST,
-      balanceAfter: balance - COMPONENT_COST,
+      balanceAfter: debit.balance,
     })
   } catch (err) {
     await refund()
@@ -171,18 +178,13 @@ export async function GET(request: Request) {
   const projectId = url.searchParams.get('projectId')
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
 
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  const project = await getOwnedProject<{ id: string }>(projectId, userId, 'id')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   const { data: components } = await supabaseAdmin
     .from('custom_components')
     .select('id, ref, name, prompt, warnings, created_at')
-    .eq('project_id', projectId)
+    .eq('project_id', project.id)
     .order('created_at', { ascending: false })
 
   return NextResponse.json({ components: components ?? [] })

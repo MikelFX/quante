@@ -6,7 +6,11 @@ import Link from 'next/link'
 interface BalanceData {
   balance: number | null
   tier?: string
+  // Set by /api/credits/balance when the welcome grant is waiting on a verified email.
+  verificationRequired?: boolean
 }
+
+const VERIFY_HINT = 'Verify your email to receive your free credits'
 
 export function CreditPill({ compact = false }: { compact?: boolean }) {
   const [data, setData] = useState<BalanceData | null>(null)
@@ -63,8 +67,15 @@ export function CreditPill({ compact = false }: { compact?: boolean }) {
     )
   }
 
+  const needsVerification = data?.verificationRequired === true
+
   return (
-    <Link href="/billing" style={{ textDecoration: 'none' }}>
+    <Link
+      href="/billing"
+      style={{ textDecoration: 'none' }}
+      title={needsVerification ? VERIFY_HINT : undefined}
+      aria-label={needsVerification ? `${data?.balance ?? 0} credits. ${VERIFY_HINT}.` : undefined}
+    >
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: compact ? '3px 8px' : '5px 10px',
@@ -94,12 +105,21 @@ export function CreditPill({ compact = false }: { compact?: boolean }) {
           fontFamily: 'var(--font-geist-mono)',
           fontSize: compact ? 11 : 12,
           fontWeight: 500,
-          color: data === null ? '#8a8a93' : '#a8afff',
+          color: data === null ? '#8a8a93' : '#E8FF9E',
           letterSpacing: '-.01em',
           minWidth: 20,
         }}>
           {data === null ? '…' : (data.balance ?? 0)}
         </span>
+        {needsVerification && (
+          <span style={{
+            fontSize: compact ? 10 : 11,
+            color: '#e0a04f',
+            whiteSpace: 'nowrap',
+          }}>
+            {compact ? 'verify email' : 'Verify email for free credits'}
+          </span>
+        )}
       </div>
     </Link>
   )

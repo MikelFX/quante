@@ -2,108 +2,91 @@
 // webhook drops. Every qads_items row that's been in queued/generating for
 // more than STUCK_AFTER_MINUTES with a stored higgsfield_status_url gets
 // re-polled via Higgsfield's status endpoint; if we get a terminal state,
-// we apply the same completion / refund logic the webhook route would.
+// we apply the same completion / refund logic the webhook route does
+// (lib/qads/items.ts — atomic transitions, refund only by the winner).
+//
+// Also reconciles orphaned generations: credits are debited before Claude /
+// Higgsfield run, so a generate request killed mid-flight leaves a 'queued'
+// generation (and possibly never-submitted items). Those are failed and
+// refunded here exactly once.
 //
 // Never fires more than one poll per item per cron tick — the daily
 // (Hobby-plan-friendly) schedule handles this at the tick boundary; if
 // upgraded to Pro / more frequent, add a lastPolledAt column and gate on it.
 //
-// Vercel auth: same "Authorization: Bearer CRON_SECRET" pattern the other
-// cron endpoints in this repo use.
+// Auth: fails closed via isAuthorizedCron (Authorization: Bearer CRON_SECRET;
+// rejected when CRON_SECRET is unset).
 
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { isAuthorizedCron } from '@/lib/cron-auth'
 import { getHiggsfieldCredentialsFromEnv, createHiggsfieldProvider } from '@/lib/qads/media/providers/higgsfield'
-import { refundGeneratorCredits } from '@/lib/qads/credits'
+import { applyProviderResult, failItemAndRefund, maybeCompleteGeneration } from '@/lib/qads/items'
+import { refundGeneratorCredits, sumGenerationRefunds } from '@/lib/qads/credits'
 
 export const maxDuration = 300
 
 const STUCK_AFTER_MINUTES = 10
+// Well past the generate route's maxDuration, so a live request is never touched.
+const ORPHAN_AFTER_MINUTES = 15
 const MAX_ITEMS_PER_RUN = 200
+const MAX_ORPHANS_PER_RUN = 100
 
 export async function GET(request: Request) {
-  // Vercel sends the secret as Authorization: Bearer <CRON_SECRET> when set
-  // in project env. Allow either unset (dev / local runs) or matching.
-  const cronSecret = process.env.CRON_SECRET ?? ''
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization') ?? ''
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isAuthorizedCron(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const summary = { polled: 0, completed: 0, failed: 0, still_generating: 0, errors: 0, orphans: 0 }
+
+  // ── Orphaned generations (function died after the debit) ──
+  const orphanCutoff = new Date(Date.now() - ORPHAN_AFTER_MINUTES * 60_000).toISOString()
+  const { data: orphans } = await supabaseAdmin
+    .from('qads_generations')
+    .select('id, user_id, total_credits_reserved')
+    .eq('status', 'queued')
+    .lt('created_at', orphanCutoff)
+    .limit(MAX_ORPHANS_PER_RUN)
+  for (const gen of orphans ?? []) {
+    try {
+      await reconcileOrphan(gen.id as string, gen.user_id as string, Number(gen.total_credits_reserved) || 0)
+      summary.orphans++
+    } catch (err) {
+      summary.errors++
+      console.error(`[qads/sweep-stuck] orphan ${gen.id} reconcile error:`, err instanceof Error ? err.message : err)
     }
   }
 
+  // ── Stuck in-flight items ──
   const creds = getHiggsfieldCredentialsFromEnv()
-  if (!creds) return NextResponse.json({ error: 'Higgsfield not configured' }, { status: 500 })
+  if (!creds) return NextResponse.json({ error: 'Higgsfield not configured', summary }, { status: 500 })
   const provider = createHiggsfieldProvider(creds)
 
   const cutoff = new Date(Date.now() - STUCK_AFTER_MINUTES * 60_000).toISOString()
   const { data: stuck } = await supabaseAdmin
     .from('qads_items')
-    .select('id, generation_id, user_id, kind, higgsfield_status_url, credits_charged, status')
+    .select('id, generation_id, user_id, higgsfield_status_url, credits_charged, status')
     .in('status', ['queued', 'generating'])
     .not('higgsfield_status_url', 'is', null)
     .lt('created_at', cutoff)
     .limit(MAX_ITEMS_PER_RUN)
 
-  const summary = { polled: 0, completed: 0, failed: 0, still_generating: 0, errors: 0 }
-
   for (const item of stuck ?? []) {
     summary.polled++
     try {
       const status = await provider.getStatus(item.higgsfield_status_url as string)
-      if (status.status === 'completed' && status.assets?.length) {
-        try {
-          const asset = status.assets[0]
-          const res = await fetch(asset.url)
-          if (!res.ok) throw new Error(`asset fetch ${res.status}`)
-          const buffer = Buffer.from(await res.arrayBuffer())
-          const mimeType = asset.contentType || res.headers.get('content-type') || 'application/octet-stream'
-          const ext = (mimeType.split('/')[1]?.split(';')[0] || 'bin').replace('jpeg', 'jpg')
-          const path = `${item.user_id}/${item.generation_id}/${item.id}.${ext}`
-          const { error: uploadErr } = await supabaseAdmin.storage.from('qads-outputs').upload(path, buffer, {
-            contentType: mimeType, upsert: true,
-          })
-          if (uploadErr) throw new Error(uploadErr.message)
-          await supabaseAdmin.from('qads_items').update({
-            status: 'completed',
-            storage_bucket: 'qads-outputs',
-            storage_path: path,
-            mime_type: mimeType,
-            completed_at: new Date().toISOString(),
-          }).eq('id', item.id as string)
-          summary.completed++
-        } catch (copyErr) {
-          const message = copyErr instanceof Error ? copyErr.message : 'copy_failed'
-          await supabaseAdmin.from('qads_items').update({
-            status: 'failed',
-            error_message: message.slice(0, 500),
-            completed_at: new Date().toISOString(),
-          }).eq('id', item.id as string)
-          await refundGeneratorCredits({
-            userId: item.user_id as string,
-            amount: item.credits_charged as number,
-            generationId: item.generation_id as string,
-            reason: 'qads_item_copy_failed',
-          })
-          summary.failed++
-        }
-      } else if (status.status === 'failed' || status.status === 'canceled' || status.status === 'nsfw') {
-        const newStatus = status.status === 'nsfw' ? 'nsfw' : 'failed'
-        await supabaseAdmin.from('qads_items').update({
-          status: newStatus,
-          error_message: (status.error ?? `provider status: ${status.status}`).slice(0, 500),
-          completed_at: new Date().toISOString(),
-        }).eq('id', item.id as string)
-        await refundGeneratorCredits({
-          userId: item.user_id as string,
-          amount: item.credits_charged as number,
-          generationId: item.generation_id as string,
-          reason: newStatus === 'nsfw' ? 'qads_item_nsfw' : 'qads_item_generation_failed',
-        })
-        summary.failed++
-      } else {
-        summary.still_generating++
-      }
+      const outcome = await applyProviderResult(
+        {
+          id: item.id as string,
+          generation_id: item.generation_id as string,
+          user_id: item.user_id as string,
+          credits_charged: item.credits_charged as number,
+        },
+        status,
+      )
+      if (outcome === 'completed') summary.completed++
+      else if (outcome === 'failed') summary.failed++
+      else if (outcome === 'pending') summary.still_generating++
       await maybeCompleteGeneration(item.generation_id as string)
     } catch (err) {
       summary.errors++
@@ -114,19 +97,40 @@ export async function GET(request: Request) {
   return NextResponse.json({ ok: true, summary })
 }
 
-async function maybeCompleteGeneration(generationId: string): Promise<void> {
-  const { data: rows } = await supabaseAdmin
+async function reconcileOrphan(generationId: string, userId: string, totalReserved: number): Promise<void> {
+  // Items created but never submitted: fail + refund each (atomic, winner-only).
+  const { data: items } = await supabaseAdmin
     .from('qads_items')
-    .select('status')
+    .select('id, generation_id, user_id, credits_charged, status, higgsfield_request_id')
     .eq('generation_id', generationId)
-  if (!rows || rows.length === 0) return
-  const allTerminal = rows.every(r => ['completed', 'failed', 'canceled', 'nsfw'].includes(r.status as string))
-  if (!allTerminal) return
-  const anyCompleted = rows.some(r => r.status === 'completed')
-  const anyFailed = rows.some(r => r.status !== 'completed')
-  const nextStatus = anyCompleted && anyFailed ? 'partial' : anyCompleted ? 'completed' : 'failed'
-  await supabaseAdmin.from('qads_generations').update({
-    status: nextStatus,
-    completed_at: new Date().toISOString(),
-  }).eq('id', generationId)
+  for (const it of items ?? []) {
+    if (it.status === 'queued' && !it.higgsfield_request_id) {
+      await failItemAndRefund(
+        { id: it.id as string, generation_id: generationId, user_id: userId, credits_charged: it.credits_charged as number },
+        { errorMessage: 'Generation was interrupted before this item was submitted.', refundReason: 'qads_item_submit_failed' },
+      )
+    }
+  }
+
+  if (!items || items.length === 0) {
+    // Died before items existed (during Claude): claim the generation, then
+    // refund whatever of the reservation hasn't been refunded yet.
+    const { data: won } = await supabaseAdmin
+      .from('qads_generations')
+      .update({ status: 'failed', completed_at: new Date().toISOString() })
+      .eq('id', generationId)
+      .eq('status', 'queued')
+      .select('id')
+      .maybeSingle()
+    if (!won) return
+    const remaining = totalReserved - (await sumGenerationRefunds(userId, generationId))
+    if (remaining > 0) {
+      await refundGeneratorCredits({ userId, amount: remaining, generationId, reason: 'qads_generation_orphaned' })
+    }
+    return
+  }
+
+  // Items exist: submitted ones are handled by the normal item sweep / webhook.
+  await supabaseAdmin.from('qads_generations').update({ status: 'generating' }).eq('id', generationId).eq('status', 'queued')
+  await maybeCompleteGeneration(generationId)
 }

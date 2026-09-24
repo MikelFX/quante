@@ -24,7 +24,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
   const [{ data: items }, { data: copy }] = await Promise.all([
     supabaseAdmin
       .from('qads_items')
-      .select('id, kind, format, variant_idx, prompt_used, higgsfield_model, higgsfield_request_id, status, storage_bucket, storage_path, mime_type, error_message, credits_charged, created_at, completed_at')
+      .select('id, kind, format, variant_idx, prompt_used, higgsfield_model, status, storage_bucket, storage_path, mime_type, error_message, credits_charged, created_at, completed_at')
       .eq('generation_id', id),
     supabaseAdmin
       .from('qads_ad_copy')
@@ -50,7 +50,9 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
       variantIdx: it.variant_idx,
       promptUsed: it.prompt_used,
       higgsfieldModel: it.higgsfield_model,
-      higgsfieldRequestId: it.higgsfield_request_id,
+      // Kept in the shape for compatibility; the provider request id keys the
+      // webhook and is no longer exposed to clients.
+      higgsfieldRequestId: null,
       status: it.status,
       mimeType: it.mime_type,
       errorMessage: it.error_message,

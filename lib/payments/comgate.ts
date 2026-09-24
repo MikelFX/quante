@@ -61,6 +61,10 @@ export class ComgateProvider implements PaymentProvider {
 
     const text = await res.text()
     const params = new URLSearchParams(text)
+    // A failed status call must never be read as "pending"/"paid" by the caller.
+    if (!res.ok || params.get('code') !== '0') {
+      throw new Error(`Comgate status error ${params.get('code') ?? res.status}: ${params.get('message') ?? ''}`)
+    }
 
     const statusMap: Record<string, PaymentStatusResult['status']> = {
       PAID: 'paid',
@@ -74,6 +78,10 @@ export class ComgateProvider implements PaymentProvider {
       transactionId,
       status: statusMap[params.get('status') ?? ''] ?? 'pending',
       paidAmount: params.get('price') ? Number(params.get('price')) : undefined,
+      currency: params.get('curr') ?? undefined,
+      refId: params.get('refId') ?? undefined,
+      test: params.get('test') === 'true',
+      merchantRef: params.get('merchant') ?? undefined,
     }
   }
 }

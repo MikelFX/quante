@@ -18,7 +18,12 @@
     "test:generation-resume": "node --test __tests__/generation-resume.test.mjs",
     "test:generation-poll": "node --test __tests__/generation-poll.test.mjs",
     "test:domain-registrant": "node --test __tests__/domain-registrant.test.mjs",
-    "test:pricing-consistency": "node --test __tests__/pricing-consistency.test.mjs"
+    "test:pricing-consistency": "node --test __tests__/pricing-consistency.test.mjs",
+    "test:store-file-filter": "node --test __tests__/store-file-filter.test.mjs",
+    "test:identity-gate": "node --test __tests__/identity-gate.test.mjs",
+    "test:mail-guards": "node --test __tests__/mail-guards.test.mjs",
+    "test:security4-misc": "node --test __tests__/security4-misc.test.mjs",
+    "test": "node --test __tests__/*.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",

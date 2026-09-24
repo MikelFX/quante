@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { setEnvVars } from '@/lib/hosting/vercel'
 import { encryptSecret, isEncryptionConfigured } from '@/lib/crypto'
+import { getOwnedProject } from '@/lib/auth/project'
 
 // Fix (2026-08-07): the shipping/fulfillment secret fields below (dhl_api_key/secret,
 // gls_password, byrd_api_key/secret, zasilkovna_api_password) used to be written here in
@@ -23,6 +24,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { id: projectId } = await params
   const supabase = await createClient()
+
+  // Ownership check — without it any signed-in user could probe another project's
+  // configured carrier/fulfillment credentials.
+  const project = await getOwnedProject(projectId, userId)
+  if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   const { data: secrets } = await supabase
     .from('project_secrets')
@@ -53,15 +59,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Stripe/Comgate/GoPay keys are intentionally NOT accepted here.
   // Hosted stores always process payments through Quante's platform credentials.
   // Users configure their own keys only in self-hosted exports (via .env.local).
-  const { zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber, glsUsername, glsPassword, glsClientNumber, glsCountry, byrdApiKey, byrdApiSecret } = await request.json()
+  const body = await request.json().catch(() => null) as Record<string, unknown> | null
+  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
+  // Every field is an optional string (null/'' clears it). Reject anything else so
+  // objects/arrays never reach the DB or the store's Vercel env.
+  const FIELDS = ['zasilkovnaApiKey', 'zasilkovnaApiPassword', 'dhlApiKey', 'dhlApiSecret', 'dhlAccountNumber', 'glsUsername', 'glsPassword', 'glsClientNumber', 'glsCountry', 'byrdApiKey', 'byrdApiSecret'] as const
+  for (const field of FIELDS) {
+    const v = body[field]
+    if (v === undefined || v === null) continue
+    if (typeof v !== 'string' || v.length > 500) {
+      return NextResponse.json({ error: `Invalid value for ${field}` }, { status: 400 })
+    }
+  }
+  const { zasilkovnaApiKey, zasilkovnaApiPassword, dhlApiKey, dhlApiSecret, dhlAccountNumber, glsUsername, glsPassword, glsClientNumber, glsCountry, byrdApiKey, byrdApiSecret } = body as Record<(typeof FIELDS)[number], string | null | undefined>
+  if (typeof glsCountry === 'string' && glsCountry.trim() && !/^[a-z]{2}$/i.test(glsCountry.trim())) {
+    return NextResponse.json({ error: 'Invalid value for glsCountry' }, { status: 400 })
+  }
 
-  const supabase = await createClient()
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id, vercel_project_id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  const project = await getOwnedProject<{ id: string; vercel_project_id: string | null }>(projectId, userId, 'id, vercel_project_id')
 
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
@@ -93,7 +108,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (byrdApiKey !== undefined) upsertPayload.byrd_api_key = encOrNull(byrdApiKey)
   if (byrdApiSecret !== undefined) upsertPayload.byrd_api_secret = encOrNull(byrdApiSecret)
 
-  await supabaseAdmin.from('project_secrets').upsert(upsertPayload, { onConflict: 'project_id' })
+  const { error: upsertErr } = await supabaseAdmin.from('project_secrets').upsert(upsertPayload, { onConflict: 'project_id' })
+  if (upsertErr) {
+    console.error('[settings] upsert failed:', upsertErr.message)
+    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
+  }
 
   // Push Zásilkovna widget key to the deployed Vercel project env vars
   if (project.vercel_project_id) {

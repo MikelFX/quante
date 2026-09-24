@@ -2,14 +2,17 @@
 // Creates a GLS parcel for the order, returns parcel number + label PDF (base64).
 // Authenticated via Clerk (merchant Studio session).
 // No shipping_method check — the merchant picks the carrier in the unified dropdown.
+//
+// SECURITY (final audit F3): same transition + mail guards as the store-key order API —
+// see ../../_lib/ship-guard.ts. A test-mode (GLS sandbox) parcel never mails the customer.
 
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { decryptSecret } from '@/lib/crypto'
 import { createGlsParcel } from '@/lib/gls'
-import { shippingEmail, sendEmail } from '@/lib/email-templates'
-import type { ShopManifest } from '@/types/manifest'
+import { getOwnedProject, isUuid } from '@/lib/auth/project'
+import { shipRefusal, claimShipped, releaseShipped, sendGuardedShippingMail, safeTrackingUrl, type ShippableOrder } from '../../_lib/ship-guard'
 
 export async function POST(
   request: Request,
@@ -20,14 +23,9 @@ export async function POST(
 
   const { id: projectId, orderId } = await params
 
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
-
+  const project = await getOwnedProject<{ id: string }>(projectId, userId, 'id')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  if (!isUuid(orderId)) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
   const { data: secrets } = await supabaseAdmin
     .from('project_secrets')
@@ -50,6 +48,9 @@ export async function POST(
   if (order.status === 'shipped') {
     return NextResponse.json({ error: 'Order already shipped', parcelNumber: order.tracking_code }, { status: 409 })
   }
+  const from = order as ShippableOrder
+  const refusal = shipRefusal(from)
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 409 })
 
   const shippingAddr = order.shipping_address as {
     ulice?: string; street?: string
@@ -72,19 +73,28 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => ({})) as {
-    content?: string
-    testMode?: boolean
+    content?: unknown
+    testMode?: unknown
   }
+  const testMode = body.testMode === true
+  const content = typeof body.content === 'string' ? body.content.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 200) || undefined : undefined
 
+  // Claim before creating the parcel — see ../../_lib/ship-guard.ts.
+  if (!(await claimShipped(projectId, orderId, from))) {
+    return NextResponse.json({ error: 'Order was changed by another request. Reload and try again.' }, { status: 409 })
+  }
+  const prevTrackingCode = (order.tracking_code as string | null) ?? null
+
+  let result: Awaited<ReturnType<typeof createGlsParcel>>
   try {
     // gls_password is AES-256-GCM encrypted at rest (see settings/route.ts);
     // decryptSecret() also transparently passes through legacy plaintext rows.
-    const result = await createGlsParcel({
+    result = await createGlsParcel({
       username: secrets.gls_username as string,
       password: decryptSecret(secrets.gls_password as string) as string,
       clientNumber: secrets.gls_client_number as string,
       accountCountry: (secrets.gls_country as string | null) ?? 'cz',
-      testMode: body.testMode ?? false,
+      testMode,
 
       recipientName: order.customer_name ?? 'Zákazník',
       recipientStreet,
@@ -95,54 +105,46 @@ export async function POST(
       recipientEmail: order.customer_email ?? undefined,
 
       orderNumber: order.order_number,
-      content: body.content,
+      content,
       cod: order.payment_method === 'dobirka' ? order.total_cents / 100 : 0,
     })
-
-    await supabaseAdmin
-      .from('store_orders')
-      .update({
-        status: 'shipped',
-        tracking_code: result.parcelNumber,
-        tracking_url: result.trackingUrl,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId)
-
-    if (order.customer_email) {
-      const { data: versionRow } = await supabaseAdmin
-        .from('manifest_versions')
-        .select('manifest')
-        .eq('project_id', projectId)
-        .order('version_no', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const manifest = versionRow?.manifest as ShopManifest | undefined
-      if (manifest) {
-        const { subject, html } = shippingEmail({
-          orderNumber: order.order_number,
-          customerName: order.customer_name ?? 'zákazníku',
-          storeName: manifest.brand.name,
-          accentColor: manifest.design.palette.accent,
-          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
-          merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
-          trackingCode: result.parcelNumber,
-          trackingUrl: result.trackingUrl,
-          carrier: 'GLS',
-        })
-        await sendEmail(order.customer_email, subject, html)
-      }
-    }
-
-    return NextResponse.json({
-      ok: true,
-      parcelNumber: result.parcelNumber,
-      trackingUrl: result.trackingUrl,
-      labelBase64: result.labelBase64,
-    })
   } catch (err) {
+    await releaseShipped(projectId, orderId, from.status, prevTrackingCode)
     const msg = err instanceof Error ? err.message : 'GLS API error'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
+
+  const trackingUrl = safeTrackingUrl(result.trackingUrl) ?? null
+  const { error: trackErr } = await supabaseAdmin
+    .from('store_orders')
+    .update({
+      tracking_code: result.parcelNumber,
+      tracking_url: trackingUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('project_id', projectId)
+  if (trackErr) console.error('[store-orders/gls] parcel created but tracking not saved', { orderId, parcelNumber: result.parcelNumber, error: trackErr.message })
+
+  // A sandbox parcel is not a real shipment — never tell the customer it shipped.
+  if (!testMode) {
+    await sendGuardedShippingMail({
+      projectId,
+      orderId,
+      customerEmail: order.customer_email as string | null,
+      order: from,
+      orderNumber: order.order_number,
+      customerName: order.customer_name as string | null,
+      trackingCode: result.parcelNumber,
+      trackingUrl,
+      carrier: 'GLS',
+    })
+  }
+
+  return NextResponse.json({
+    ok: true,
+    parcelNumber: result.parcelNumber,
+    trackingUrl: result.trackingUrl,
+    labelBase64: result.labelBase64,
+  })
 }

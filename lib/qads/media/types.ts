@@ -32,6 +32,9 @@ export interface MediaGenerationInput {
   // Optional second reference (e.g. a model/person shot) for providers whose enhanced
   // mode accepts one — ignored by providers/modes that don't support it.
   modelImageUrl?: string
+  // Video only: clip length the user paid for (see lib/qads/pricing.ts). Mappers must
+  // render exactly this length — charging for N seconds and rendering fewer is a bug.
+  durationSeconds?: number
   webhookUrl?: string
 }
 

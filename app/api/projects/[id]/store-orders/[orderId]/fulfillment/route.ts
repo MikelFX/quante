@@ -30,17 +30,13 @@ import { decryptSecret } from '@/lib/crypto'
 import { createFulfillmentProvider } from '@/lib/fulfillment/registry'
 import { attemptAutoCreateShipment, createShipmentDirectFallback } from '@/lib/fulfillment/auto-ship'
 import type { QuanteOrder } from '@/lib/fulfillment/types'
-import { shippingEmail, sendEmail } from '@/lib/email-templates'
-import type { ShopManifest } from '@/types/manifest'
+import { getOwnedProject, isUuid } from '@/lib/auth/project'
+import { shipRefusal, claimShipped, sendGuardedShippingMail, safeTrackingUrl, type ShippableOrder } from '../../_lib/ship-guard'
 
 async function loadContext(userId: string, projectId: string, orderId: string) {
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  const project = await getOwnedProject<{ id: string }>(projectId, userId, 'id')
   if (!project) return { error: NextResponse.json({ error: 'Project not found' }, { status: 404 }) }
+  if (!isUuid(orderId)) return { error: NextResponse.json({ error: 'Order not found' }, { status: 404 }) }
 
   const { data: secrets } = await supabaseAdmin
     .from('project_secrets')
@@ -151,9 +147,13 @@ export async function POST(
   if (order.fulfillment_ref) {
     return NextResponse.json({ error: 'Order already sent to fulfillment', byrdId: order.fulfillment_ref }, { status: 409 })
   }
+  // SECURITY (final audit F3): only orders that may ship (see ../../_lib/ship-guard.ts) go
+  // to the warehouse — an unpaid online order is never picked, and never mailed as shipped.
+  const refusal = shipRefusal(order as ShippableOrder)
+  if (refusal) return NextResponse.json({ error: refusal }, { status: 409 })
 
-  const body = await request.json().catch(() => ({})) as { testMode?: boolean }
-  const built = buildQuanteOrder(order, { testMode: body.testMode ?? false })
+  const body = await request.json().catch(() => ({})) as { testMode?: unknown }
+  const built = buildQuanteOrder(order, { testMode: body.testMode === true })
   if ('error' in built) return NextResponse.json({ error: built.error }, { status: 422 })
 
   try {
@@ -216,50 +216,56 @@ export async function GET(
   try {
     const shipment = await provider.getShipment(order.fulfillment_ref as string)
 
+    const trackingUrl = safeTrackingUrl(shipment.trackingUrl) ?? null
     const update: Record<string, unknown> = {
       fulfillment_status: shipment.status,
       updated_at: new Date().toISOString(),
     }
 
-    const justShipped = !!shipment.trackingNumber && order.status !== 'shipped'
-    if (justShipped) {
-      update.status = 'shipped'
-      update.tracking_code = shipment.trackingNumber
-      if (shipment.trackingUrl) update.tracking_url = shipment.trackingUrl
+    // SECURITY (final audit F3): the move to shipped follows the same rules as every other
+    // ship path (../../_lib/ship-guard.ts) — compare-and-set on status + payment status,
+    // and only from a state that may ship. An order that may not (e.g. an unpaid online
+    // order sent to byrd before this guard existed) only gets its tracking recorded: no
+    // status change and no customer mail.
+    let justShipped = false
+    let tracking: Record<string, unknown> | null = null
+    if (shipment.trackingNumber && order.status !== 'shipped') {
+      tracking = { tracking_code: shipment.trackingNumber }
+      if (trackingUrl) tracking.tracking_url = trackingUrl
+      if (!shipRefusal(order as ShippableOrder)) {
+        justShipped = await claimShipped(projectId, orderId, order as ShippableOrder, { ...update, ...tracking })
+      }
     }
 
-    await supabaseAdmin.from('store_orders').update(update).eq('id', orderId)
+    if (!justShipped) {
+      // Refused, or the claim lost a race (another poll shipped it, or the order changed
+      // meanwhile): still record this poll's tracking data — never the status.
+      if (tracking) Object.assign(update, tracking)
+      await supabaseAdmin.from('store_orders').update(update).eq('id', orderId).eq('project_id', projectId)
+    }
     await supabaseAdmin.from('fulfillment_shipments').update({
       status: shipment.status,
       tracking_number: shipment.trackingNumber ?? null,
-      tracking_url: shipment.trackingUrl ?? null,
+      tracking_url: trackingUrl,
       carrier: shipment.trackingCarrier ?? null,
       updated_at: new Date().toISOString(),
     }).eq('order_id', orderId).then(() => {}, () => {}) // best-effort — table may not exist pre-migration
 
-    if (justShipped && order.customer_email) {
-      const { data: versionRow } = await supabaseAdmin
-        .from('manifest_versions')
-        .select('manifest')
-        .eq('project_id', projectId)
-        .order('version_no', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const manifest = versionRow?.manifest as ShopManifest | undefined
-      if (manifest) {
-        const { subject, html } = shippingEmail({
-          orderNumber: order.order_number,
-          customerName: order.customer_name ?? 'zákazníku',
-          storeName: manifest.brand.name,
-          accentColor: manifest.design.palette.accent,
-          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
-          merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
-          trackingCode: shipment.trackingNumber as string,
-          trackingUrl: shipment.trackingUrl ?? '',
-          carrier: shipment.trackingCarrier || 'byrd fulfillment',
-        })
-        await sendEmail(order.customer_email, subject, html)
+    // Mail only for the row this request actually moved to shipped, only to the address
+    // stored on the order, and only within the mail caps.
+    if (justShipped) {
+      const sent = await sendGuardedShippingMail({
+        projectId,
+        orderId,
+        customerEmail: order.customer_email as string | null,
+        order: order as ShippableOrder,
+        orderNumber: order.order_number as string,
+        customerName: order.customer_name as string | null,
+        trackingCode: shipment.trackingNumber as string,
+        trackingUrl,
+        carrier: String(shipment.trackingCarrier || 'byrd fulfillment').slice(0, 60),
+      })
+      if (sent) {
         // Best-effort — table may not exist pre-migration. customer_notified_at existing only
         // on fulfillment_shipments (not store_orders) is intentional: it's audit/dedup data
         // for the reconciliation cron (spec section 7: "only after a successful send"), not
@@ -277,7 +283,7 @@ export async function GET(
       subStatus: shipment.subStatus ?? null,
       trackingCarrier: shipment.trackingCarrier ?? null,
       trackingNumber: shipment.trackingNumber ?? null,
-      trackingUrl: shipment.trackingUrl ?? null,
+      trackingUrl,
       orderShipped: justShipped || order.status === 'shipped',
     })
   } catch (err) {

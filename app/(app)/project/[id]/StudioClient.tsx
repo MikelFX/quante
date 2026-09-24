@@ -65,7 +65,7 @@ type StreamEvent =
   | { type: 'status'; text: string }
   | { type: 'chunk'; text: string }
   | { type: 'text_chunk'; text: string }
-  | { type: 'done'; reply?: string; projectId?: string; versionId?: string; deploymentId?: string; previewUrl?: string; summary?: string }
+  | { type: 'done'; reply?: string; projectId?: string; versionId?: string; deploymentId?: string; previewUrl?: string; summary?: string; droppedFiles?: unknown; droppedFileDetails?: unknown; warning?: unknown }
   | { type: 'error'; message: string }
 
 interface HostingInfo {
@@ -85,7 +85,13 @@ interface Props {
   latestDeployment: { id: string; status: string; url: string | null } | null
   isAgency?: boolean
   hasCodeVersion: boolean
+  // Server-computed from lib/hosting/gate.ts (everLive && !canDeployProduction). When
+  // passed it wins over the client-side estimate below.
+  hostingPaused?: boolean
 }
+
+// Mirrors PERIOD_END_GRACE_MS in lib/hosting/gate.ts.
+const HOSTING_PERIOD_END_GRACE_MS = 48 * 60 * 60 * 1000
 
 type StudioTab = 'chat' | 'preview' | 'logs' | 'sections' | 'products' | 'theme' | 'publish'
 type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'publish'
@@ -167,6 +173,49 @@ async function* readNdjsonStream(response: Response): AsyncGenerator<StreamEvent
   if (buffer.trim()) {
     try { yield JSON.parse(buffer) as StreamEvent } catch {}
   }
+}
+
+// generate / iterate / fix may report AI-written files the server refused to store
+// (filterAiStoreFiles). Shape is tolerated loosely: string[] or {path, reason}[]; absent → null.
+function droppedFilesNotice(dropped: unknown): string | null {
+  if (!Array.isArray(dropped) || dropped.length === 0) return null
+  const items = dropped.slice(0, 12).map((d) => {
+    if (typeof d === 'string') return d
+    if (d && typeof d === 'object') {
+      const { path, reason } = d as { path?: unknown; reason?: unknown }
+      const p = typeof path === 'string' ? path : '(unknown file)'
+      return typeof reason === 'string' && reason ? `${p} (${reason})` : p
+    }
+    return null
+  }).filter((l): l is string => !!l)
+  if (items.length === 0) return null
+  const more = dropped.length > items.length ? ` …and ${dropped.length - items.length} more` : ''
+  return `Some files the AI wrote were not saved because they are outside what a store may contain: ${items.join(', ')}.${more}`
+}
+
+// Image types /api/upload accepts (SVG is rejected server-side).
+const UPLOAD_IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif,image/avif'
+// Image types /api/quante/vision accepts.
+const VISION_IMAGE_ACCEPT = 'image/png,image/jpeg,image/webp,image/gif'
+
+// Account frozen after a payment dispute (users.billing_hold): every credit-spending route
+// answers 402 { error, code: 'billing_hold' }. Always show it as the hold, never as a
+// generic failure or "insufficient credits".
+const BILLING_HOLD_NOTICE = 'Your account is on hold after a payment dispute, so credits can\'t be spent right now — contact support to resolve it.'
+function serverErrorText(data: unknown, fallback: string): string {
+  const d = (data && typeof data === 'object' ? data : {}) as { error?: unknown; message?: unknown; code?: unknown }
+  if (d.code === 'billing_hold' || d.error === 'billing_hold') return BILLING_HOLD_NOTICE
+  if (typeof d.error === 'string' && d.error) return d.error
+  if (typeof d.message === 'string' && d.message) return d.message
+  return fallback
+}
+function isBillingHoldText(text: string): boolean {
+  return /account is on hold/i.test(text)
+}
+
+async function uploadErrorText(res: Response, fallback: string): Promise<string> {
+  const data = await res.json().catch(() => null) as { error?: string } | null
+  return data?.error ?? fallback
 }
 
 const SECTION_LABELS: Record<string, string> = {
@@ -290,7 +339,7 @@ const QUICK_CHIPS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function StudioClient({ projectId, projectName, storeUrl, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false }: Props) {
+export function StudioClient({ projectId, projectName, storeUrl, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false, hostingPaused: hostingPausedProp }: Props) {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -298,13 +347,29 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [balance, setBalance] = useState(initialBalance)
   const [hasGeneratedOnce, setHasGeneratedOnce] = useState(hasCodeVersion || !!latestDeployment)
   const [activeTab, setActiveTab] = useState<StudioTab>('chat')
+  // Hosting paused (suspended, or trial over without a subscription; Agency is never
+  // gated): the server then deploys chat edits / fixes / rebuilds as a true *.vercel.app
+  // preview only (see app/api/quante/iterate/deploy.ts + lib/hosting/gate.ts), while the
+  // store subdomain keeps serving the maintenance page. In that state the returned
+  // preview URL must be shown as-is instead of being mapped to the subdomain.
+  // Client-side estimate (used when the page doesn't pass the server-computed flag): an
+  // active/trialing subscription only counts until its period end + 48h grace, as in the gate.
+  const subscriptionCountsNow = hostingInfo.subscribed && (
+    !hostingInfo.subscriptionEndsAt
+    || !Number.isFinite(Date.parse(hostingInfo.subscriptionEndsAt))
+    || Date.parse(hostingInfo.subscriptionEndsAt) + HOSTING_PERIOD_END_GRACE_MS > Date.now()
+  )
+  const hostingPaused = hostingPausedProp ?? (!subscriptionCountsNow && !isAgency && (
+    hostingInfo.suspendedAt !== null
+    || (hostingInfo.trialEndsAt !== null && new Date(hostingInfo.trialEndsAt).getTime() <= Date.now())
+  ))
   // Preview + logs state (new code-gen approach)
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     (() => {
       const u = latestDeployment?.url ?? null
       const safe = (u && !u.includes('://null') && u !== 'null') ? u : null
       // Prefer canonical store domain URL over raw Vercel deployment URLs (which block in iframes)
-      if (safe?.includes('vercel.app') && storeUrl) return storeUrl
+      if (safe?.includes('vercel.app') && storeUrl && !hostingPaused) return storeUrl
       return safe ?? storeUrl ?? null
     })()
   )
@@ -321,9 +386,40 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Version whose generate/iterate debit gets refunded if the auto-fix loop gives up
   const lastPaidVersionIdRef = useRef<string | null>(null)
   const refundRequestedRef = useRef(false)
-  // Returns the best available preview URL — prefers canonical domain URL over raw vercel.app URLs
+  // Returns the best available preview URL — prefers canonical domain URL over raw vercel.app URLs,
+  // except while hosting is paused: then the vercel.app URL IS the only place the new version runs.
   const resolveUrl = (url: string | null | undefined) =>
-    (url && url.includes('vercel.app') && storeUrl) ? storeUrl : (url ?? storeUrl ?? null)
+    (url && url.includes('vercel.app') && storeUrl && !hostingPaused) ? storeUrl : (url ?? storeUrl ?? null)
+  // One-line chat notice after a paused store gets a preview-only deploy.
+  const hostingPausedNotice = 'Hosting for this store is paused, so this change was deployed as a private preview only — your public store address keeps showing the paused page until you subscribe.'
+  // Auto-fix stops for good (until the user sends a new message) once the server refuses
+  // with 402/403/413/429 or a "describe it in chat" 409 — retrying can't succeed and only
+  // burns attempt budget. (A "not failed yet" 409 is transient and does not block.)
+  const autoFixBlockedRef = useRef(false)
+  // Auto-fix gave up because a server cap / size limit / safety rejection stopped it (not
+  // billing) → the refund-on-give-up path runs as if all attempts had been used.
+  const [autoFixGaveUp, setAutoFixGaveUp] = useState(false)
+  // Outcome of the refund-on-give-up request — the banner only claims a refund when
+  // /api/credits/refund actually returned one (it can refuse: daily cap, not exhausted …).
+  const [autoFixRefund, setAutoFixRefund] = useState<
+    | { status: 'pending' }
+    | { status: 'refunded'; credits: number }
+    | { status: 'not_refunded'; message: string }
+    | null
+  >(null)
+  // Bumped on every reset so a late refund answer from an earlier change is ignored.
+  const refundSeqRef = useRef(0)
+  // New paid change → fresh auto-fix budget and refund state.
+  function resetAutoFixState() {
+    setAutoFixAttempts(0)
+    autoFixBlockedRef.current = false
+    setAutoFixGaveUp(false)
+    refundRequestedRef.current = false
+    refundSeqRef.current += 1
+    setAutoFixRefund(null)
+  }
+  // Synchronous guard so two fixes can never be in flight at once (isFixing is async state).
+  const fixInFlightRef = useRef(false)
   const logsEndRef = useRef<HTMLDivElement>(null)
   const logEventSourceRef = useRef<EventSource | null>(null)
   // Legacy compatibility stubs — keep panels from crashing during transition
@@ -427,13 +523,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Earnings + payout
   const [earnings, setEarnings] = useState<{
     available: number; netTotal: number; saleCount: number; currency: string
+    // Additive fields from /api/earnings (per-currency balances + hold period)
+    heldCents?: number; holdDays?: number
+    byCurrency?: Array<{ currency: string; availableCents: number; heldCents: number; pendingPayoutCents: number; saleCount: number }>
   } | null>(null)
-  const [payoutAccount, setPayoutAccount] = useState<{ iban: string | null; account_holder_name: string | null } | null>(null)
+  const [payoutAccount, setPayoutAccount] = useState<{
+    iban: string | null; account_holder_name: string | null
+    identity_verified?: boolean; payouts_available_from?: string | null
+  } | null>(null)
   const [ibanInput, setIbanInput] = useState('')
   const [holderInput, setHolderInput] = useState('')
   const [isSavingIban, setIsSavingIban] = useState(false)
   const [isRequestingPayout, setIsRequestingPayout] = useState(false)
   const [payoutMsg, setPayoutMsg] = useState<string | null>(null)
+  const [payoutMsgIsError, setPayoutMsgIsError] = useState(false)
+  // Currency the merchant picked to pay out (null = auto: the largest payable balance)
+  const [payoutCurrency, setPayoutCurrency] = useState<string | null>(null)
   // Hosting panel
   const [customDomainInput, setCustomDomainInput] = useState('')
   const [isAddingDomain, setIsAddingDomain] = useState(false)
@@ -518,12 +623,25 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [healthActionError, setHealthActionError] = useState<string | null>(null)
 
   // Hosting trial helpers
+  // The free hosting trial is once per user. POST /api/deploy answers 402
+  // SUBSCRIPTION_REQUIRED for a never-live store whose owner already used it; remember
+  // that so the Subscribe UI shows even when the page loaded with no trial stamp.
+  const [trialUsedOnDeploy, setTrialUsedOnDeploy] = useState(false)
+  // page.tsx reports a never-live store whose owner used the trial elsewhere as an
+  // epoch trialEndsAt (real stamps are never the epoch).
+  const trialUsedElsewhere = !hostingInfo.subscribed && hostingInfo.suspendedAt === null && (
+    (hostingInfo.trialEndsAt !== null && new Date(hostingInfo.trialEndsAt).getTime() === 0)
+    || trialUsedOnDeploy
+  )
   const trialDaysLeft = hostingInfo.trialEndsAt
     ? Math.max(0, Math.ceil((new Date(hostingInfo.trialEndsAt).getTime() - Date.now()) / 86400000))
     : null
-  const trialExpired = hostingInfo.trialEndsAt !== null && trialDaysLeft === 0
-  const showHostingBanner = hostingInfo.trialEndsAt !== null && !hostingInfo.subscribed
-    && (hostingInfo.suspendedAt !== null || trialExpired || (trialDaysLeft !== null && trialDaysLeft <= 7))
+  const trialExpired = hostingInfo.trialEndsAt !== null && trialDaysLeft === 0 && !trialUsedElsewhere
+  // Subscribe buttons: a trial stamp exists (running / ended / suspended) or no trial is left.
+  const showSubscribeOptions = !hostingInfo.subscribed && (hostingInfo.trialEndsAt !== null || trialUsedElsewhere)
+  const showHostingBanner = trialUsedElsewhere || (hostingInfo.trialEndsAt !== null && !hostingInfo.subscribed
+    && (hostingInfo.suspendedAt !== null || trialExpired || (trialDaysLeft !== null && trialDaysLeft <= 7)))
+  const trialUsedText = 'Your free trial was already used on another store — subscribe to go live.'
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -721,13 +839,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             setDeployDomain(d.domain)
           } else {
             // Auto-deploy ready — always use canonical domain URL, not raw Vercel URL
-            const readyUrl = storeUrl ?? ((d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) ? d.url : null)
+            // (hosting paused → the preview deployment's own URL; the subdomain shows the paused page)
+            const pausedUrl = hostingPaused && d.url && !d.url.includes('://null') ? d.url : null
+            const readyUrl = pausedUrl ?? storeUrl ?? ((d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) ? d.url : null)
             if (readyUrl) setPreviewUrl(readyUrl)
             setPreviewReady(true)
           }
         } else if (d.status === 'building' && d.vercelDeploymentId) {
           // Show canonical URL immediately (iframe will load when build finishes)
-          if (storeUrl) {
+          if (hostingPaused && !isLiveDeploy && d.url && !d.url.includes('://null')) {
+            setPreviewUrl(d.url)
+          } else if (storeUrl) {
             setPreviewUrl(storeUrl)
           } else if (d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) {
             setPreviewUrl(d.url)
@@ -742,7 +864,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             // Preview deployment: poll Vercel status directly first to avoid triggering
             // auto-fix for errors that happened before this page load.
             if (!logEventSourceRef.current) {
-              fetch(`/api/deploy?id=${d.vercelDeploymentId}`)
+              fetch(`/api/deploy?id=${encodeURIComponent(d.vercelDeploymentId)}`)
                 .then(r => r.json())
                 .then(s => {
                   if (s.status === 'ready') {
@@ -772,7 +894,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           }
         } else if ((d.status === 'error' || d.status === 'canceled') && d.vercelDeploymentId && !isLiveDeploy) {
           // Preview build failed — surface error and trigger auto-fix
-          fetch(`/api/deploy?id=${d.vercelDeploymentId}`)
+          fetch(`/api/deploy?id=${encodeURIComponent(d.vercelDeploymentId)}`)
             .then(r => r.json())
             .then((err: { errorMessage?: string }) => {
               const msg = (err.errorMessage ?? 'Build failed — check Vercel logs.').slice(0, 800)
@@ -851,7 +973,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
     let receivedAnyLog = false
 
-    const es = new EventSource(`/api/deploy/logs?deploymentId=${deploymentId}`)
+    const es = new EventSource(`/api/deploy/logs?deploymentId=${encodeURIComponent(deploymentId)}`)
     logEventSourceRef.current = es
 
     es.onmessage = (evt) => {
@@ -875,8 +997,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             setLogStreamStage('error')
           }
           if (data.state === 'ready' || data.type === 'ready') {
-            // Always point the iframe at the canonical domain URL (not a raw vercel.app URL)
-            if (storeUrl) {
+            // Always point the iframe at the canonical domain URL (not a raw vercel.app URL) —
+            // unless hosting is paused: then the subdomain shows the paused page and the
+            // preview URL already set from the iterate/fix/redeploy response is the right one.
+            if (hostingPaused) {
+              // keep the current preview URL
+            } else if (storeUrl) {
               setPreviewUrl(storeUrl)
             } else {
               fetch(`/api/projects/${projectId}/deployments`)
@@ -893,7 +1019,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           } else if ((data.state === 'error' || data.type === 'error') && !buildError) {
             // Stream ended with a build error but no build_error event was received —
             // fetch the error details directly so auto-fix can trigger
-            fetch(`/api/deploy?id=${deploymentId}`)
+            fetch(`/api/deploy?id=${encodeURIComponent(deploymentId)}`)
               .then(r => r.json())
               .then((d: { status?: string; errorMessage?: string }) => {
                 const msg = d.errorMessage ?? 'Build failed — check Vercel logs for details.'
@@ -922,7 +1048,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       es.close()
       logEventSourceRef.current = null
 
-      const pollOnce = () => fetch(`/api/deploy?id=${deploymentId}`)
+      const pollOnce = () => fetch(`/api/deploy?id=${encodeURIComponent(deploymentId)}`)
         .then(r => r.json())
         .then((d: { status?: string; url?: string; errorMessage?: string }) => {
           if (d.status === 'ready') {
@@ -985,6 +1111,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   // Cleanup on unmount
   useEffect(() => () => {
+    // Stops pending refund retries / stale fix bookkeeping from acting after unmount.
+    refundSeqRef.current += 1
     logEventSourceRef.current?.close()
     if (previewBuildPollRef.current) clearInterval(previewBuildPollRef.current)
     if (logStreamWatchdogRef.current) clearTimeout(logStreamWatchdogRef.current)
@@ -993,22 +1121,53 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Auto-fix loop: trigger handleFix automatically when a build error is detected
   useEffect(() => {
     if (!buildError || isFixing || autoFixAttempts >= MAX_AUTO_FIX) return
-    const timer = setTimeout(() => {
-      setAutoFixAttempts(prev => prev + 1)
-      void handleFix()
-    }, 1500)
+    if (autoFixBlockedRef.current || fixInFlightRef.current) return
+    // handleFix counts the attempt itself, and only when the fix actually ran — a
+    // transient refusal (409 "not failed yet", 429 "already running", 503) must not burn
+    // the client's budget: the server's refund check counts real (saved) fixes only.
+    const timer = setTimeout(() => { void handleFix() }, 1500)
     return () => clearTimeout(timer)
   }, [buildError]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Refund path: all fix attempts exhausted and the build is still broken →
-  // refund the generate/iterate debit (server validates + idempotent per version).
-  // Retries a few times because Vercel may still be flipping the deployment to 'error'.
+  // Refund path: all fix attempts exhausted (or auto-fix stopped by a server cap) and the
+  // build is still broken → refund the generate/iterate debit (server validates +
+  // idempotent per version). Retries a few times because Vercel may still be flipping
+  // the deployment to 'error'.
   useEffect(() => {
-    if (!buildError || isFixing || autoFixAttempts < MAX_AUTO_FIX) return
+    if (!buildError || isFixing || (autoFixAttempts < MAX_AUTO_FIX && !autoFixGaveUp)) return
     if (refundRequestedRef.current || !lastPaidVersionIdRef.current) return
     refundRequestedRef.current = true
     const versionId = lastPaidVersionIdRef.current
-    let cancelled = false
+    const seq = refundSeqRef.current
+    // Auto-fix stopped early (server cap / size limit / safety rejection) before
+    // MAX_AUTO_FIX fixes were saved: /api/credits/refund would refuse ("not exhausted"),
+    // so don't spend a refund-rate-limit slot on it — say plainly why there's no refund.
+    if (autoFixAttempts < MAX_AUTO_FIX) {
+      const message = `Credits are refunded only after ${MAX_AUTO_FIX} automatic fix attempts have failed, so this change was not refunded.`
+      setAutoFixRefund({ status: 'not_refunded', message })
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `The build couldn't be repaired automatically. ${message} Try rephrasing your request, or describe the fix in chat.`,
+        type: 'error' as const,
+      }])
+      return
+    }
+    setAutoFixRefund({ status: 'pending' })
+
+    // Record the outcome even if this effect re-ran meanwhile (the server already acted);
+    // only a reset for a newer change (seq bump) discards it.
+    const settle = (outcome: { status: 'refunded'; credits: number } | { status: 'not_refunded'; message: string }) => {
+      if (refundSeqRef.current !== seq) return
+      setAutoFixRefund(outcome)
+      refreshBalance()
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: outcome.status === 'refunded'
+          ? `The build couldn't be repaired automatically, so your ${outcome.credits} credit${outcome.credits > 1 ? 's were' : ' was'} refunded. Try rephrasing your request, or describe the fix in chat.`
+          : `The build couldn't be repaired automatically. ${outcome.message} Try rephrasing your request, or describe the fix in chat.`,
+        type: 'error' as const,
+      }])
+    }
 
     const attempt = async (triesLeft: number) => {
       try {
@@ -1017,25 +1176,41 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ versionId }),
         })
-        if (res.status === 409 && triesLeft > 0 && !cancelled) {
-          setTimeout(() => void attempt(triesLeft - 1), 12_000)
+        // Retries are tied to the change (seq), not to this effect run: buildError can be
+        // set a second time by the log-stream end handler, which re-runs the effect, and
+        // that must not cut a pending "not failed yet" retry short.
+        if (res.status === 409 && triesLeft > 0) {
+          if (refundSeqRef.current !== seq) return
+          setTimeout(() => { if (refundSeqRef.current === seq) void attempt(triesLeft - 1) }, 12_000)
           return
         }
-        const data = await res.json() as { ok?: boolean; refunded?: number }
-        const refunded = data.refunded ?? 0
-        if (data.ok && refunded > 0 && !cancelled) {
-          refreshBalance()
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: `The build couldn't be repaired automatically, so your ${refunded} credit${refunded > 1 ? 's were' : ' was'} refunded. Try rephrasing your request, or describe the fix in chat.`,
-            type: 'error' as const,
-          }])
+        const data = await res.json().catch(() => null) as
+          { ok?: boolean; refunded?: number; no_debit?: boolean; error?: string } | null
+        const refunded = typeof data?.refunded === 'number' ? data.refunded : 0
+        if (res.ok && data?.ok === true && refunded > 0) {
+          settle({ status: 'refunded', credits: refunded })
+        } else if (res.ok && data?.ok === true) {
+          settle({
+            status: 'not_refunded',
+            message: data.no_debit
+              ? 'No credits were charged for this change, so there was nothing to refund.'
+              : 'No refund was issued for this change.',
+          })
+        } else {
+          // 403 not refundable (auto-fix not exhausted, too old …), 429 daily refund
+          // limit reached, 409 build not failed, 500 — show the server's reason.
+          const raw = data?.error ?? `Refund request failed (${res.status}).`
+          const reason = res.status === 403 && /not been exhausted/i.test(raw)
+            ? `refunds apply only after ${MAX_AUTO_FIX} automatic fix attempts have failed`
+            : raw
+          settle({ status: 'not_refunded', message: `Your credits were not refunded: ${reason.replace(/\.?$/, '.')}` })
         }
-      } catch {}
+      } catch {
+        settle({ status: 'not_refunded', message: 'The refund request failed, so your credits were not refunded.' })
+      }
     }
     void attempt(3)
-    return () => { cancelled = true }
-  }, [buildError, isFixing, autoFixAttempts]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [buildError, isFixing, autoFixAttempts, autoFixGaveUp]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bootstrap from URL params set by /new redirect (deploymentId + previewUrl + versionId).
   //
@@ -1094,6 +1269,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
+    // Rejections before the stream starts (402 / 429 / billing hold …) come back as plain
+    // JSON { error } — show the server's text instead of "Stream ended unexpectedly".
+    if (!response.ok) {
+      const data = await response.json().catch(() => null) as { error?: string; message?: string; code?: string } | null
+      const msg = serverErrorText(data, `Request failed (${response.status}). Please try again.`)
+      setStreamingText('')
+      setMessages((prev) => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { role: 'assistant', content: msg, type: 'error' }
+        return updated
+      })
+      onError?.(msg)
+      return
+    }
     if (!response.body) throw new Error('No stream')
 
     for await (const event of readNdjsonStream(response)) {
@@ -1134,6 +1323,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       } else if (event.type === 'done') {
         setStreamingText('')
         onDone(event.reply, event.deploymentId, event.previewUrl, event.versionId)
+        // Partial safety rejection: those files kept their previous version (server text).
+        const partialWarning = typeof event.warning === 'string' && event.warning ? event.warning : null
+        if (partialWarning) setMessages(prev => [...prev, { role: 'assistant', content: partialWarning, type: 'status' }])
+        const droppedNote = droppedFilesNotice(event.droppedFileDetails ?? event.droppedFiles)
+        if (droppedNote) setMessages(prev => [...prev, { role: 'assistant', content: droppedNote, type: 'status' }])
         return
       }
     }
@@ -1159,7 +1353,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     })
     const data = await response.json().catch(() => null)
     if (!response.ok || !data?.jobId) {
-      const msg = data?.error ?? 'Could not start generation. Please try again.'
+      const msg = serverErrorText(data, 'Could not start generation. Please try again.')
       setStreamingText('')
       setMessages((prev) => {
         const updated = [...prev]
@@ -1179,7 +1373,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       let payload: JobStatusPayload
       try {
-        const r = await fetch(`/api/quante/generate/status?jobId=${jobId}`)
+        const r = await fetch(`/api/quante/generate/status?jobId=${encodeURIComponent(jobId)}`)
         if (!r.ok) continue // transient — retry next tick
         payload = await r.json()
       } catch {
@@ -1216,6 +1410,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           payload.previewUrl ?? undefined,
           decision.codeVersionId ?? undefined,
         )
+        const droppedPayload = payload as { droppedFiles?: unknown; droppedFileDetails?: unknown }
+        const droppedNote = droppedFilesNotice(droppedPayload.droppedFileDetails ?? droppedPayload.droppedFiles)
+        if (droppedNote) setMessages(prev => [...prev, { role: 'assistant', content: droppedNote, type: 'status' }])
         return
       }
       if (decision.action === 'error') {
@@ -1243,53 +1440,100 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   }
 
   async function handleFix() {
-    if (!buildError || isFixing) return
+    if (!buildError || isFixing || fixInFlightRef.current) return
+    fixInFlightRef.current = true
     setIsFixing(true)
-    setMessages((prev) => [...prev, {
+    // The change this fix belongs to. A fix can take minutes and chat stays usable meanwhile;
+    // if the user sends a new change first (resetAutoFixState bumps the seq), this fix's
+    // outcome must not touch the new change's auto-fix budget, block flag or refund path.
+    const fixSeq = refundSeqRef.current
+    const isStale = () => refundSeqRef.current !== fixSeq
+    const statusMsg: Message = {
       role: 'assistant',
       content: `Fixing build error in \`${buildError.filePath}\` at line ${buildError.line}…`,
       type: 'status',
-    }])
+    }
+    setMessages((prev) => [...prev, statusMsg])
+    // Replace this fix's own status line (append if it is gone) — never whatever
+    // message happens to be last by the time the fix answers.
+    const replaceStatus = (msg: Message) => setMessages((prev) => {
+      const idx = prev.lastIndexOf(statusMsg)
+      if (idx === -1) return [...prev, msg]
+      const updated = [...prev]
+      updated[idx] = msg
+      return updated
+    })
     try {
       const res = await fetch('/api/quante/fix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, errorMessage: buildError.message, filePath: buildError.filePath }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { error?: string }))
+      // Count toward MAX_AUTO_FIX only when a fix version was actually saved (2xx with a
+      // versionId) — /api/credits/refund counts exactly those. Failures that saved nothing
+      // (500 AI / parse / save error) and refusals (409, 429, 503, 413 …) are not attempts.
+      const savedFix = res.ok && typeof (data as { versionId?: unknown }).versionId === 'string'
+      if (savedFix && !isStale()) setAutoFixAttempts(prev => prev + 1)
       if (!res.ok) {
-        setMessages((prev) => {
-          const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: data.error ?? 'Fix failed.', type: 'error' }
-          return updated
-        })
+        const base: string = serverErrorText(data, 'Fix failed.')
+        const saysUseChat = /in chat/i.test(base)
+        // "A fix is already running" is temporary: not terminal, no block, no give-up.
+        const alreadyRunning = res.status === 429 && /already running/i.test(base)
+        // Caps reached (429), no credits or billing hold (402), not allowed (403), store
+        // too large (413), fix rejected by safety checks or aimed at an unknown file (409
+        // "… in chat instead"): retrying can't help, so stop the auto-fix loop and point
+        // the user at the chat instead. The other 409s ("has not failed" while Vercel is
+        // still building / status check failed, "no failed build of the current version")
+        // are transient — a later build error may auto-fix again.
+        const terminal = !alreadyRunning &&
+          ([402, 403, 413, 429].includes(res.status) || (res.status === 409 && saysUseChat))
+        if (terminal && !isStale()) {
+          autoFixBlockedRef.current = true
+          // Gave up for good on this paid change (not billing / permission) → let the
+          // refund-on-give-up path explain the outcome.
+          if (res.status !== 402 && res.status !== 403) setAutoFixGaveUp(true)
+        }
+        // 402 (billing hold) / 403: the server's message is the whole story — chat edits
+        // would be refused too, so don't point the user there.
+        const content = terminal && !saysUseChat && res.status !== 402 && res.status !== 403
+          ? `${base} Auto-fix is paused — describe the fix in chat instead (e.g. "Fix the build error in ${buildError.filePath}").`
+          : base
+        replaceStatus({ role: 'assistant', content, type: 'error' })
+        // A fix rejected by safety checks carries droppedFiles — list them unless the
+        // server's error text already names them.
+        const rejected = (data as { droppedFiles?: unknown }).droppedFiles
+        const firstRejected = Array.isArray(rejected) && typeof rejected[0] === 'string' ? rejected[0] : null
+        const rejectedNote = firstRejected && base.includes(firstRejected) ? null : droppedFilesNotice(rejected)
+        if (rejectedNote) setMessages(prev => [...prev, { role: 'assistant', content: rejectedNote, type: 'status' }])
         return
       }
-      setBuildError(null)
       fetchVersions()
       refreshBalance()
-      setMessages((prev) => {
-        const updated = [...prev]
-        updated[updated.length - 1] = {
-          role: 'assistant',
-          content: data.explanation ?? 'Fix applied — redeploying preview…',
-          type: 'done',
-        }
-        return updated
+      replaceStatus({
+        role: 'assistant',
+        content: data.explanation ?? 'Fix applied — redeploying preview…',
+        type: 'done',
       })
+      const fixDroppedNote = droppedFilesNotice(data.droppedFileDetails ?? data.droppedFiles)
+      if (fixDroppedNote) setMessages(prev => [...prev, { role: 'assistant', content: fixDroppedNote, type: 'status' }])
+      // A newer change was sent while this fix ran: its own build / preview / log stream
+      // owns the UI now, so don't clear its build error or switch the preview to this fix.
+      if (isStale()) return
+      setBuildError(null)
       const fixUrl = resolveUrl(data.previewUrl)
       if (fixUrl) { setPreviewUrl(fixUrl); setPreviewReady(false) }
+      if (hostingPaused && typeof data.previewUrl === 'string' && data.previewUrl.includes('vercel.app')) {
+        setMessages(prev => [...prev, { role: 'assistant', content: hostingPausedNotice, type: 'status' }])
+      }
       if (data.deploymentId) {
         setMessages(prev => [...prev, { role: 'assistant', content: 'Redeploying with the fix — watch the Logs tab on the right.', type: 'status' }])
         startLogStreaming(data.deploymentId)
       }
     } catch {
-      setMessages((prev) => {
-        const updated = [...prev]
-        updated[updated.length - 1] = { role: 'assistant', content: 'Fix request failed.', type: 'error' }
-        return updated
-      })
+      replaceStatus({ role: 'assistant', content: 'Fix request failed.', type: 'error' })
     } finally {
+      fixInFlightRef.current = false
       setIsFixing(false)
     }
   }
@@ -1318,8 +1562,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       { role: 'assistant', content: '…', type: 'status' },
     ])
     setIsGenerating(true)
-    setAutoFixAttempts(0)
-    refundRequestedRef.current = false
+    resetAutoFixState()
 
     if (!hasGeneratedOnce) {
       // Generation flow — first time. Uses the 202+polling path (consumeGenerationJob) instead
@@ -1348,8 +1591,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           setShowPushToLive(true)
           // Stream build logs so failures surface and the auto-fix loop can engage
           if (deploymentId) startLogStreaming(deploymentId)
-        })
+        }, () => refreshBalance())
       } catch {
+        refreshBalance()
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = { role: 'assistant', content: 'Something went wrong. Try again.', type: 'error' }
@@ -1389,13 +1633,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           fetchVersions()
           const iterUrl = resolveUrl(newPreviewUrl)
           if (iterUrl) { setPreviewUrl(iterUrl); setPreviewReady(false) }
+          if (hostingPaused && newPreviewUrl?.includes('vercel.app')) {
+            setMessages(prev => [...prev, { role: 'assistant', content: hostingPausedNotice, type: 'status' }])
+          }
           if (deploymentId) {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Building preview in the background — watch the Logs tab on the right (~2 min).', type: 'status' }])
             startLogStreaming(deploymentId)
           }
-        }
+        },
+        // The server's error text says whether the credit was refunded (it may not be —
+        // e.g. daily refund limit), so it is shown as-is; the balance is re-read either way.
+        () => refreshBalance(),
       )
     } catch {
+      refreshBalance()
       setMessages((prev) => {
         const updated = [...prev]
         updated[updated.length - 1] = { role: 'assistant', content: 'Something went wrong. Try again.', type: 'error' }
@@ -1410,8 +1661,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   async function handleSectionRegenerate(sectionIndex: number, instruction: string) {
     if (isGenerating) return
     setIsGenerating(true)
-    setAutoFixAttempts(0)
-    refundRequestedRef.current = false
+    resetAutoFixState()
     setRegeneratingSection(sectionIndex)
     setExpandedSection(null)
     // Section regeneration is now handled via iteration in the new code-gen approach
@@ -1441,10 +1691,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           fetchVersions()
           const secUrl = resolveUrl(newPreviewUrl)
           if (secUrl) setPreviewUrl(secUrl)
+          if (hostingPaused && newPreviewUrl?.includes('vercel.app')) {
+            setMessages(prev => [...prev, { role: 'assistant', content: hostingPausedNotice, type: 'status' }])
+          }
           if (deploymentId) startLogStreaming(deploymentId)
-        }
+        },
+        () => refreshBalance(),
       )
     } catch {
+      refreshBalance()
       setMessages((prev) => {
         const updated = [...prev]
         updated[updated.length - 1] = { role: 'assistant', content: 'Section update failed.', type: 'error' }
@@ -1459,10 +1714,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   async function triggerRedeploy() {
     try {
       const res = await fetch(`/api/projects/${projectId}/redeploy`, { method: 'POST' })
-      if (!res.ok) return
+      if (!res.ok) {
+        const err = await res.json().catch(() => null) as { error?: string } | null
+        if (err?.error) setMessages(prev => [...prev, { role: 'assistant', content: err.error!, type: 'error' }])
+        return
+      }
       const data = await res.json() as { deploymentId?: string; previewUrl?: string }
       const redeployUrl = resolveUrl(data.previewUrl)
       if (redeployUrl) { setPreviewUrl(redeployUrl); setPreviewReady(false) }
+      // Paused hosting → the server built a preview only, not the production redeploy.
+      if (hostingPaused && data.previewUrl?.includes('vercel.app')) {
+        setMessages(prev => [...prev, { role: 'assistant', content: hostingPausedNotice, type: 'status' }])
+      }
       if (data.deploymentId) startLogStreaming(data.deploymentId)
     } catch {}
   }
@@ -1479,8 +1742,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         fetchVersions()
         setMessages((prev) => [...prev, { role: 'assistant', content: 'Version restored — rebuilding preview…', type: 'done' }])
         await triggerRedeploy()
+      } else {
+        // 429 too many restores, 503 temporarily unavailable, 404 version gone …
+        const err = await res.json().catch(() => null) as { error?: string } | null
+        setMessages(prev => [...prev, { role: 'assistant', content: err?.error ?? `Could not restore this version (${res.status}).`, type: 'error' }])
       }
-    } catch {}
+    } catch {
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Could not restore this version. Please try again.', type: 'error' }])
+    }
   }
 
   async function handleExport(includeAdmin = false) {
@@ -1495,7 +1764,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        alert(data.error ?? 'Export failed.')
+        alert(serverErrorText(data, 'Export failed.'))
         return
       }
       const blob = await res.blob()
@@ -1522,7 +1791,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   async function pollDeployStatus(deploymentId: string) {
     try {
-      const res = await fetch(`/api/deploy?id=${deploymentId}`)
+      const res = await fetch(`/api/deploy?id=${encodeURIComponent(deploymentId)}`)
       if (!res.ok) return
       const data = await res.json()
 
@@ -1573,13 +1842,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { error?: string; code?: string }))
       if (!res.ok) {
         setIsDeploying(false)
         setDeployStatus('error')
+        // 402 SUBSCRIPTION_REQUIRED covers both an ended trial and a suspended store — use
+        // the server's wording; 429 (deploy throttle) / 503 (plan check) show their text too.
+        // A never-live store with no trial stamp can only be refused because the owner's
+        // one free trial was used on another store — switch to the "trial used" state so
+        // the Subscribe buttons render without a reload.
+        if (data.code === 'SUBSCRIPTION_REQUIRED' && !hostingInfo.suspendedAt
+          && (/already used/i.test(data.error ?? '') || hostingInfo.trialEndsAt === null)) {
+          setTrialUsedOnDeploy(true)
+        }
         const msg = data.code === 'SUBSCRIPTION_REQUIRED'
-          ? `Trial ended — subscribe to keep hosting (${formatHostingBoth()}). Click **Subscribe** below.`
-          : (data.error ?? 'Deployment failed.')
+          ? `${data.error ?? 'Trial ended — subscribe to keep hosting.'} (${formatHostingBoth()}). Click **Subscribe** below.`
+          : serverErrorText(data, `Deployment failed (${res.status}).`)
         setMessages((prev) => {
           const updated = [...prev]
           updated[updated.length - 1] = { role: 'assistant', content: msg, type: 'error' }
@@ -1617,11 +1895,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, type: 'preview' }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { error?: string }))
       if (!res.ok) {
         setMessages((prev) => {
           const updated = [...prev]
-          updated[updated.length - 1] = { role: 'assistant', content: data.error ?? 'Preview deploy failed.', type: 'error' }
+          updated[updated.length - 1] = { role: 'assistant', content: serverErrorText(data, 'Preview deploy failed.'), type: 'error' }
           return updated
         })
         return
@@ -1678,6 +1956,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     }
   }
 
+  // /api/projects/[id]/orders now serves PAID store_orders (with line items) in the legacy
+  // shape — it no longer touches merchant Stripe keys, so 'NO_STRIPE_KEY' can't happen.
+  // It stays the source here (not /store-orders) because this panel lists line items,
+  // which /store-orders doesn't return; the "All orders" tab uses /store-orders.
   async function handleLoadOrders() {
     setIsLoadingOrders(true)
     setOrdersError(null)
@@ -2049,9 +2331,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ domain: domainConnectInput.trim(), projectId }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { error?: string }))
       if (data.instructions) setDomainConnectResult({ instructions: data.instructions, dnsValue: data.dnsValue })
-    } catch {}
+      // 400 not registered / platform domain, 409 held or being bought elsewhere, 429 rate limit
+      else if (!res.ok) alert(data.error ?? 'Could not connect this domain.')
+    } catch { alert('Something went wrong. Please try again.') }
     setDomainConnecting(false)
   }
 
@@ -2070,47 +2354,104 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       })
       if (res.ok) {
         setOwnedDomains(prev => prev.map(d => (d.id === domainId ? { ...d, project_id: projectId } : d)))
+      } else {
+        // 409 inactive / already assigned, 502 Vercel attach failed
+        const data = await res.json().catch(() => null) as { error?: string } | null
+        alert(data?.error ?? 'Could not connect this domain.')
       }
-    } catch {}
+    } catch { alert('Something went wrong. Please try again.') }
     setDomainAssigning(null)
+  }
+
+  // Payable balances per currency (from /api/earnings byCurrency; older responses only
+  // carry the single display currency).
+  const payableBalances = (earnings?.byCurrency
+    ?? (earnings ? [{ currency: earnings.currency, availableCents: Math.round(earnings.available * 100), heldCents: earnings.heldCents ?? 0, pendingPayoutCents: 0, saleCount: earnings.saleCount }] : [])
+  ).filter((b) => b.availableCents > 0).sort((a, b) => b.availableCents - a.availableCents)
+  const selectedPayoutCurrency = (payoutCurrency && payableBalances.some((b) => b.currency === payoutCurrency))
+    ? payoutCurrency
+    : (payableBalances[0]?.currency ?? null)
+  // Changing IBAN / holder pauses payouts and clears identity verification server-side.
+  const normIban = (s: string | null | undefined) => (s ?? '').replace(/\s+/g, '').toUpperCase()
+  const payoutAccountWillChange = !!payoutAccount?.iban && (
+    normIban(ibanInput) !== normIban(payoutAccount.iban)
+    || holderInput.trim() !== (payoutAccount.account_holder_name ?? '').trim()
+  )
+  const payoutsPausedUntil = payoutAccount?.payouts_available_from && Date.parse(payoutAccount.payouts_available_from) > Date.now()
+    ? payoutAccount.payouts_available_from
+    : null
+
+  function reloadPayoutAccount() {
+    fetch(`/api/payout/account?project_id=${projectId}`)
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setPayoutAccount(d) })
+      .catch(() => {})
   }
 
   async function handleSaveIban() {
     if (!ibanInput.trim() || !holderInput.trim()) return
+    const changing = payoutAccountWillChange
+    const isFirstAccount = !payoutAccount?.iban
     setIsSavingIban(true)
+    setPayoutMsg(null)
     try {
       const res = await fetch('/api/payout/account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, iban: ibanInput.trim(), accountHolderName: holderInput.trim() }),
       })
-      const data = await res.json()
-      if (data.ok) setPayoutAccount({ iban: ibanInput.trim(), account_holder_name: holderInput.trim() })
-    } catch { /* non-fatal */ }
+      const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string }))
+      if (data.ok) {
+        setPayoutAccount((prev) => ({ ...prev, iban: ibanInput.trim(), account_holder_name: holderInput.trim() }))
+        setPayoutMsgIsError(false)
+        // The server starts the 7-day waiting period on the first save too (not only on a change).
+        setPayoutMsg(changing
+          ? 'Payout account updated. For your security, payouts are paused for 7 days and the new account must be re-verified before the next payout.'
+          : isFirstAccount
+            ? 'Payout account saved. For your security, payouts become available 7 days after an account is added, once we have verified the account holder.'
+            : 'Payout account saved.')
+        reloadPayoutAccount()
+      } else {
+        setPayoutMsgIsError(true)
+        setPayoutMsg(data.error ?? 'Failed to save payout account.')
+      }
+    } catch {
+      setPayoutMsgIsError(true)
+      setPayoutMsg('Something went wrong.')
+    }
     setIsSavingIban(false)
   }
 
   async function handleRequestPayout() {
+    if (!selectedPayoutCurrency) return
     setIsRequestingPayout(true)
     setPayoutMsg(null)
     try {
       const res = await fetch('/api/payout/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, currency: selectedPayoutCurrency }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string }))
       if (data.ok) {
-        setPayoutMsg(`Payout of €${(data.amountCents / 100).toFixed(2)} requested. We'll process it within 2 business days.`)
+        const cur = typeof data.currency === 'string' ? data.currency.toUpperCase() : selectedPayoutCurrency
+        setPayoutMsgIsError(false)
+        setPayoutMsg(`Payout of ${(data.amountCents / 100).toFixed(2)} ${cur} requested. We'll process it within 2 business days.`)
         // Refresh earnings
         fetch(`/api/earnings?project_id=${projectId}`)
           .then((r) => r.json())
           .then((d) => { if (!d.error) setEarnings(d) })
           .catch(() => {})
       } else {
+        // 403 awaiting identity verification, 409 paused after an account change or a
+        // request already in progress, 400 below the minimum — the server says which.
+        setPayoutMsgIsError(true)
         setPayoutMsg(data.error ?? 'Request failed.')
       }
-    } catch { setPayoutMsg('Something went wrong.') }
+    } catch {
+      setPayoutMsgIsError(true)
+      setPayoutMsg('Something went wrong.')
+    }
     setIsRequestingPayout(false)
   }
 
@@ -2127,7 +2468,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       fd.append('file', file)
       fd.append('projectId', projectId)
       const res = await fetch('/api/upload', { method: 'POST', body: fd })
-      if (!res.ok) { alert('Upload failed.'); return }
+      // 413 too large / 415 wrong type / 429 rate limit all carry a readable { error }
+      if (!res.ok) { alert(await uploadErrorText(res, 'Upload failed.')); return }
       const { url } = await res.json()
       onDone(url)
     } catch { alert('Upload failed.') }
@@ -2143,7 +2485,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       fd.append('projectId', projectId)
       const res = await fetch('/api/upload', { method: 'POST', body: fd })
       if (!res.ok) {
-        alert('Image upload failed.')
+        alert(await uploadErrorText(res, 'Image upload failed.'))
         setChatAttachedImage(null)
         return
       }
@@ -2185,8 +2527,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageBase64: base64, mimeType, projectId }),
       })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error ?? 'Vision analysis failed'); return }
+      const data = await res.json().catch(() => ({} as { error?: string }))
+      // 402 (credits / billing hold) and 429 (rate limit) carry the reason in `error`
+      if (!res.ok) { alert(serverErrorText(data, `Vision analysis failed (${res.status}).`)); return }
       setVisionResult(data.vision)
       if (data.balanceAfter !== undefined) setBalance(data.balanceAfter)
     } catch { alert('Vision analysis failed.') }
@@ -2239,8 +2582,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productName: productDraft.name, productDescription: productDraft.description, projectId }),
       })
-      const data = await res.json()
-      if (!res.ok) { alert(data.error ?? 'Image suggestion failed'); return }
+      const data = await res.json().catch(() => ({} as { error?: string }))
+      if (!res.ok) { alert(serverErrorText(data, `Image suggestion failed (${res.status}).`)); return }
       setSuggestedImages(data.images ?? [])
       if (data.balanceAfter !== undefined) setBalance(data.balanceAfter)
     } catch { alert('Image suggestion failed.') }
@@ -2588,14 +2931,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const ProductsPanel = (
     <div style={{ flex: 1, overflowY: 'auto' }}>
       {/* hidden file input for product images */}
-      <input ref={imageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+      <input ref={imageInputRef} type="file" accept={UPLOAD_IMAGE_ACCEPT} style={{ display: 'none' }} onChange={async e => {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file || !pendingImageTarget) return
         await handleUploadImage(file, pendingImageTarget)
         setPendingImageTarget(null)
       }} />
-      <input ref={sectionImageInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={async e => {
+      <input ref={sectionImageInputRef} type="file" accept={UPLOAD_IMAGE_ACCEPT} style={{ display: 'none' }} onChange={async e => {
         const file = e.target.files?.[0]
         e.target.value = ''
         if (!file || !pendingImageTarget) return
@@ -2930,9 +3273,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <span>
         {hostingInfo.suspendedAt
           ? 'Store paused — visitors see a maintenance page. Your data is safe.'
-          : trialExpired
-            ? 'Free hosting trial ended — subscribe to keep your store live.'
-            : `Free hosting trial: ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+          : trialUsedElsewhere
+            ? trialUsedText
+            : trialExpired
+              ? 'Free hosting trial ended — subscribe to keep your store live.'
+              : `Free hosting trial: ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
       </span>
       <button
         onClick={() => handleHostingSubscribe('year')}
@@ -3252,7 +3597,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <input
               ref={visionInputRef}
               type="file"
-              accept="image/*"
+              accept={VISION_IMAGE_ACCEPT}
               style={{ display: 'none' }}
               onChange={e => {
                 const file = e.target.files?.[0]
@@ -3382,7 +3727,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <input
                 ref={chatImageInputRef}
                 type="file"
-                accept="image/*"
+                accept={UPLOAD_IMAGE_ACCEPT}
                 style={{ display: 'none' }}
                 onChange={async (e) => {
                   const file = e.target.files?.[0]
@@ -3648,7 +3993,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {/* IMAGE→BRAND vision */}
       <section>
         <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 8 }}>Image → Brand</p>
-        <input ref={visionInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => {
+        <input ref={visionInputRef} type="file" accept={VISION_IMAGE_ACCEPT} style={{ display: 'none' }} onChange={e => {
           const file = e.target.files?.[0]
           if (file) handleVisionAnalyze(file)
           e.target.value = ''
@@ -4125,11 +4470,24 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Deploy your store</p>
             <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
-              <strong style={{ color: '#f4f4f6' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.stores.quantecode.com</span> subdomain (5 cr).<br />
+              <strong style={{ color: '#f4f4f6' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.stores.quantecode.com</span> subdomain (no credits — included with hosting).<br />
               <strong style={{ color: '#f4f4f6' }}>Preview</strong> — unique URL for testing, doesn&apos;t affect live store (2 cr).
             </p>
-            {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && (
+            {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && !trialUsedElsewhere && (
               <p style={{ fontSize: 11, color: '#e0a04f', margin: 0 }}>First production deploy starts your 30-day free trial.</p>
+            )}
+            {trialUsedElsewhere && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(224,160,79,.25)', background: 'rgba(224,160,79,.06)' }}>
+                <p style={{ fontSize: 11, color: '#e0a04f', margin: 0, lineHeight: 1.5 }}>{trialUsedText}</p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+                    {isSubscribing ? '…' : 'Subscribe · $99/year'}
+                  </button>
+                  <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+                    {isSubscribing ? '…' : '$9.99/mo'}
+                  </button>
+                </div>
+              </div>
             )}
             {!hasGeneratedOnce ? (
               <p style={{ fontSize: 12, color: '#5b5b64', margin: 0, textAlign: 'center' }}>Generate a store first</p>
@@ -4158,7 +4516,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     transition: 'background 0.15s, color 0.15s',
                   }}
                 >
-                  {isDeploying ? '⟳ …' : !checklistAllOk ? 'Complete checklist' : 'Production — 5 cr'}
+                  {isDeploying ? '⟳ …' : !checklistAllOk ? 'Complete checklist' : 'Production'}
                 </button>
               </div>
             )}
@@ -4189,7 +4547,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               onMouseEnter={e => { if (hasGeneratedOnce && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.06)' }}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
             >
-              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
+              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>free</span>
             </button>
             <button
               onClick={() => handleExport(true)}
@@ -4204,7 +4562,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               onMouseEnter={e => { if (hasGeneratedOnce && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.13)' }}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.07)'}
             >
-              {isExportingAdmin ? '…' : '↓ ZIP + Admin'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>5 cr</span>
+              {isExportingAdmin ? '…' : '↓ ZIP + Admin'}
             </button>
           </div>
         </div>
@@ -4321,7 +4679,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 }}
               >
                 <Wrench size={12} />
-                {isFixing ? 'Fixing…' : 'Fix this error · 2 cr'}
+                {isFixing ? 'Fixing…' : 'Fix this error · free'}
               </button>
             </div>
           </div>
@@ -4330,12 +4688,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {isFixing && (
         <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#D4FF3F', fontFamily: 'var(--font-geist-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(212,255,63,.3)', borderTopColor: '#D4FF3F', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
-          Auto-fixing error (attempt {autoFixAttempts}/{MAX_AUTO_FIX})…
+          Auto-fixing error (attempt {Math.min(autoFixAttempts + 1, MAX_AUTO_FIX)}/{MAX_AUTO_FIX})…
         </div>
       )}
-      {!isFixing && autoFixAttempts >= MAX_AUTO_FIX && buildError && (
+      {!isFixing && (autoFixAttempts >= MAX_AUTO_FIX || autoFixGaveUp) && buildError && (
         <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#f87171', fontFamily: 'var(--font-geist-mono)' }}>
-          Auto-fix failed after {MAX_AUTO_FIX} attempts — your credits were refunded. Try describing the fix in chat.
+          {autoFixAttempts >= MAX_AUTO_FIX ? `Auto-fix failed after ${MAX_AUTO_FIX} attempts` : 'Auto-fix stopped'}
+          {autoFixRefund?.status === 'pending'
+            ? ' — checking whether your credits can be refunded…'
+            : autoFixRefund?.status === 'refunded'
+              ? ` — your ${autoFixRefund.credits} credit${autoFixRefund.credits > 1 ? 's were' : ' was'} refunded.`
+              : autoFixRefund?.status === 'not_refunded'
+                ? ` — ${autoFixRefund.message}`
+                : '.'}
+          {' '}Try describing the fix in chat.
         </div>
       )}
     </div>
@@ -4428,7 +4794,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 transition: 'opacity 0.15s',
               }}
             >
-              Push to Live — 5 cr
+              Push to Live
             </button>
             <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>
               Takes ~2 min on Vercel
@@ -4808,6 +5174,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 6px' }}>Hosting</p>
           {hostingInfo.subscribed ? (
             <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--live)', margin: 0 }}>● Hosting active</p>
+          ) : trialUsedElsewhere ? (
+            <p style={{ fontSize: 13, fontWeight: 500, color: '#e0a04f', margin: 0, lineHeight: 1.5 }}>
+              ● {trialUsedText}
+            </p>
           ) : hostingInfo.trialEndsAt ? (
             <p style={{ fontSize: 13, fontWeight: 500, color: trialExpired ? '#e0564f' : '#e0a04f', margin: 0 }}>
               ● {hostingInfo.suspendedAt ? 'Store paused' : trialExpired ? 'Trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
@@ -4816,7 +5186,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <p style={{ fontSize: 13, color: '#8a8a93', margin: 0 }}>Not deployed</p>
           )}
         </div>
-        {!hostingInfo.subscribed && hostingInfo.trialEndsAt && (
+        {showSubscribeOptions && (
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
             <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
               {isSubscribing ? '…' : '$99/year'}
@@ -4861,8 +5231,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {/* Tab switcher: Store orders vs Stripe */}
       <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.04)', borderRadius: 9, padding: 4, alignSelf: 'flex-start' }}>
         {[
-          { id: 'store' as const, label: 'Other methods' },
-          { id: 'stripe' as const, label: 'Stripe' },
+          { id: 'store' as const, label: 'All orders' },
+          { id: 'stripe' as const, label: 'Paid · items' },
         ].map(({ id, label }) => (
           <button
             key={id}
@@ -4920,6 +5290,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 const isZasilkovna = o.shippingMethod === 'zasilkovna'
                 const shipped = o.status === 'shipped'
                 const paid = o.paymentStatus === 'paid'
+                // Gateway test mode: notifications set 'test_paid' — never real money.
+                const testPaid = o.paymentStatus === 'test_paid'
 
                 return (
                   <div key={o.id} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -4945,7 +5317,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     {/* Row 2: badges */}
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: paid ? 'rgba(62,207,142,.12)' : 'rgba(224,160,79,.12)', color: paid ? 'var(--live)' : '#e0a04f' }}>
-                        {paid ? 'Paid' : o.paymentStatus}
+                        {paid ? 'Paid' : testPaid ? 'Test payment — not real' : o.paymentStatus}
                       </span>
                       <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,.06)', color: '#8a8a93' }}>
                         {o.paymentMethod}
@@ -5091,10 +5463,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <Settings2 size={32} style={{ color: '#5b5b64' }} />
             <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No Stripe orders here</p>
             <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
-              Card payments run through Quante&apos;s managed Stripe account, not a key you configure — check the &quot;Other methods&quot; tab for all orders.
+              Card payments run through Quante&apos;s managed Stripe account, not a key you configure — check the &quot;All orders&quot; tab.
             </p>
             <button onClick={() => setOrdersTab('store')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer' }}>
-              View other methods
+              View all orders
             </button>
           </div>
         ) : isLoadingOrders ? (
@@ -5590,16 +5962,23 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 </p>
               )}
             </>
-          ) : hostingInfo.trialEndsAt ? (
+          ) : showSubscribeOptions ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                 <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? '#e0564f' : '#e0a04f', flexShrink: 0 }} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? '#e0564f' : '#e0a04f' }}>
                   {hostingInfo.suspendedAt
                     ? 'Store paused — hosting expired'
-                    : trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
+                    : trialUsedElsewhere
+                      ? 'Free trial already used'
+                      : trialExpired ? 'Free trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
                 </span>
               </div>
+              {trialUsedElsewhere && (
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+                  {trialUsedText}
+                </p>
+              )}
               {hostingInfo.suspendedAt && (
                 <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
                   Visitors see a maintenance page. Your data is safe — subscribe and the store goes back online automatically.
@@ -5647,6 +6026,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             </p>
           </div>
         </div>
+        {(earnings?.heldCents ?? 0) > 0 && (
+          <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+            {earnings!.currency} {((earnings!.heldCents ?? 0) / 100).toFixed(2)} is still in the {earnings!.holdDays ? `${earnings!.holdDays}-day ` : ''}hold period and becomes available afterwards.
+          </p>
+        )}
         <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 12 }}>
           <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 8 }}>Payout account</p>
           <input
@@ -5661,6 +6045,41 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             placeholder="Your IBAN"
             style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
           />
+          {payoutAccountWillChange && (
+            <p style={{ fontSize: 11, color: '#e0a04f', lineHeight: 1.5, margin: '0 0 8px' }}>
+              Changing the IBAN or account holder pauses payouts for 7 days and the new account has to be re-verified before the next payout.
+            </p>
+          )}
+          {!payoutAccount?.iban && (ibanInput.trim() || holderInput.trim()) && (
+            <p style={{ fontSize: 11, color: '#8a8a93', lineHeight: 1.5, margin: '0 0 8px' }}>
+              After you add a payout account there is a 7-day waiting period, and we verify the account holder before the first payout.
+            </p>
+          )}
+          {payoutAccount?.iban && !payoutAccountWillChange && payoutAccount.identity_verified === false && (
+            <p style={{ fontSize: 11, color: '#8a8a93', lineHeight: 1.5, margin: '0 0 8px' }}>
+              Awaiting identity verification — we check that the account holder matches the store owner before the first payout.
+            </p>
+          )}
+          {payoutAccount?.iban && !payoutAccountWillChange && payoutsPausedUntil && (
+            <p style={{ fontSize: 11, color: '#8a8a93', lineHeight: 1.5, margin: '0 0 8px' }}>
+              Payouts are in the security waiting period after the payout account was added or changed — available from {new Date(payoutsPausedUntil).toLocaleDateString('en-GB')}.
+            </p>
+          )}
+          {payoutAccount?.iban && payableBalances.length > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <label htmlFor="payout-currency" style={{ fontSize: 11, color: '#8a8a93', whiteSpace: 'nowrap' }}>Pay out</label>
+              <select
+                id="payout-currency"
+                value={selectedPayoutCurrency ?? ''}
+                onChange={e => setPayoutCurrency(e.target.value)}
+                style={{ flex: 1, fontSize: 12, padding: '6px 8px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
+              >
+                {payableBalances.map(b => (
+                  <option key={b.currency} value={b.currency}>{b.currency} {(b.availableCents / 100).toFixed(2)}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 6 }}>
             <button
               onClick={handleSaveIban}
@@ -5669,10 +6088,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             >
               {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
             </button>
-            {payoutAccount?.iban && (earnings?.available ?? 0) > 0 && (
+            {payoutAccount?.iban && !payoutAccountWillChange && payableBalances.length > 0 && (
               <button
                 onClick={handleRequestPayout}
-                disabled={isRequestingPayout}
+                disabled={isRequestingPayout || !selectedPayoutCurrency}
                 style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#D4FF3F', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
               >
                 {isRequestingPayout ? '…' : 'Request payout'}
@@ -5680,7 +6099,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             )}
           </div>
           {payoutMsg && (
-            <p style={{ fontSize: 11, marginTop: 8, color: payoutMsg.startsWith('Payout') ? 'var(--live)' : '#f87171', lineHeight: 1.5, margin: '8px 0 0' }}>
+            <p style={{ fontSize: 11, marginTop: 8, color: payoutMsgIsError ? '#f87171' : 'var(--live)', lineHeight: 1.5, margin: '8px 0 0' }}>
               {payoutMsg}
             </p>
           )}
@@ -6086,6 +6505,19 @@ function ChatMessage({ message, onUndo }: { message: Message; onUndo?: () => voi
           }}
         >
           Buy credits →
+        </Link>
+      )}
+      {isError && isBillingHoldText(message.content) && (
+        <Link
+          href="/contact"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7,
+            border: '1px solid rgba(224,160,79,.35)', background: 'rgba(224,160,79,.08)',
+            color: '#e0a04f', textDecoration: 'none',
+          }}
+        >
+          Contact support →
         </Link>
       )}
     </div>

@@ -120,6 +120,9 @@ export function QadsGeneratorClient() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [activeGenerationId, setActiveGenerationId] = useState<string | null>(null)
   const [detail, setDetail] = useState<GenerationDetail | null>(null)
+  // Bumped after a successful per-item regenerate so polling restarts even when the
+  // generation itself had already reached a terminal status.
+  const [pollNonce, setPollNonce] = useState(0)
   const [history, setHistory] = useState<GenerationSummary[]>([])
   const [projects, setProjects] = useState<Array<{ projectId: string; projectName: string; products: Array<{ id: string; name: string; description: string; images: string[] }> }>>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -156,6 +159,7 @@ export function QadsGeneratorClient() {
   useEffect(() => {
     if (!activeGenerationId) return
     let stop = false
+    let ticks = 0
     const tick = async () => {
       try {
         const res = await fetch(`/api/qads/generations/${activeGenerationId}`)
@@ -163,7 +167,11 @@ export function QadsGeneratorClient() {
         const data = (await res.json()) as GenerationDetail
         if (stop) return
         setDetail(data)
-        const done = ['completed', 'partial', 'failed'].includes(data.generation.status)
+        ticks++
+        // A regenerated item can be in flight while the generation row is already terminal —
+        // keep polling for it, but bounded (~12 min) so a stuck item can't poll forever.
+        const itemsPending = data.items.some(i => i.status === 'queued' || i.status === 'generating')
+        const done = ['completed', 'partial', 'failed'].includes(data.generation.status) && (!itemsPending || ticks > 200)
         if (done) {
           // Refresh history so the row shows as done
           const listRes = await fetch('/api/qads/generations')
@@ -175,7 +183,7 @@ export function QadsGeneratorClient() {
     }
     void tick()
     return () => { stop = true }
-  }, [activeGenerationId])
+  }, [activeGenerationId, pollNonce])
 
   // ── Derived cost ──
   const cost = useMemo(() => computeGeneratorCost({
@@ -235,8 +243,9 @@ export function QadsGeneratorClient() {
         body: JSON.stringify({
           productName: form.productName,
           productDescription: form.productDescription,
+          // Only storage paths are sent — the server signs them itself and ignores any
+          // client-supplied URLs.
           photoStoragePaths: form.photos.map(p => p.storagePath),
-          photoSignedUrls: form.photos.map(p => p.signedUrl),
           projectId: form.projectId,
           outputTypes: form.outputTypes,
           formats: form.formats,
@@ -246,7 +255,7 @@ export function QadsGeneratorClient() {
           language: form.language,
         }),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         if (data.code === 'insufficient_credits') {
           setSubmitError(`Not enough credits (${data.balance ?? '?'} / need ${data.needed ?? '?'}). Top up in Billing.`)
@@ -357,7 +366,7 @@ export function QadsGeneratorClient() {
           {/* Right — results + history */}
           <section style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="qads-results-col">
             {detail
-              ? <ResultsPanel detail={detail} activeGenerationId={activeGenerationId} />
+              ? <ResultsPanel detail={detail} activeGenerationId={activeGenerationId} onItemRegenerated={() => setPollNonce(n => n + 1)} />
               : <EmptyStatePanel isSignedIn={!!isSignedIn} />}
             {isSignedIn && history.length > 0 && (
               <HistoryPanel history={history} activeGenerationId={activeGenerationId} onSelect={setActiveGenerationId} />
@@ -750,7 +759,7 @@ function EmptyStatePanel({ isSignedIn }: { isSignedIn: boolean }) {
   )
 }
 
-function ResultsPanel({ detail, activeGenerationId }: { detail: GenerationDetail; activeGenerationId: string | null }) {
+function ResultsPanel({ detail, activeGenerationId, onItemRegenerated }: { detail: GenerationDetail; activeGenerationId: string | null; onItemRegenerated: () => void }) {
   const completedCount = detail.items.filter(i => i.status === 'completed').length
   const canZip = completedCount > 0
   const zipHref = activeGenerationId ? `/api/qads/generations/${activeGenerationId}/zip` : '#'
@@ -784,25 +793,47 @@ function ResultsPanel({ detail, activeGenerationId }: { detail: GenerationDetail
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
         {detail.items.map(item => {
           const copy = detail.adCopy.find(c => c.format === item.format && c.variantIdx === item.variantIdx)
-          return <ItemCard key={item.id} item={item} copy={copy} generationId={activeGenerationId} />
+          return <ItemCard key={item.id} item={item} copy={copy} generationId={activeGenerationId} onRegenerated={onItemRegenerated} />
         })}
       </div>
     </div>
   )
 }
 
-function ItemCard({ item, copy, generationId }: { item: GenerationItem; copy?: AdCopy; generationId: string | null }) {
+function ItemCard({ item, copy, generationId, onRegenerated }: { item: GenerationItem; copy?: AdCopy; generationId: string | null; onRegenerated: () => void }) {
   const [regenerating, setRegenerating] = useState(false)
+  const [regenError, setRegenError] = useState<string | null>(null)
   const [copiedText, setCopiedText] = useState<string | null>(null)
   const regenerate = async () => {
     if (!generationId) return
     if (!confirm(`Regenerate this variant? ${item.creditsCharged} credits will be charged.`)) return
     setRegenerating(true)
+    setRegenError(null)
     try {
-      await fetch(`/api/qads/generations/${generationId}/regenerate-item`, {
+      const res = await fetch(`/api/qads/generations/${generationId}/regenerate-item`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ itemId: item.id }),
       })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({})) as { error?: string; code?: string; balance?: number; needed?: number }
+        if (data.error === 'billing_hold' || data.code === 'billing_hold') {
+          setRegenError('Your account is on a billing hold — contact support.')
+        } else if (res.status === 402 || data.error === 'insufficient_credits') {
+          setRegenError(`Not enough credits (${data.balance ?? '?'} / need ${data.needed ?? '?'}). Top up in Billing.`)
+        } else if (res.status === 409) {
+          setRegenError(data.error ?? 'This variant is already generating.')
+        } else if (res.status === 429) {
+          setRegenError(data.error ?? 'Rate limit reached — please try again later.')
+        } else if (data.error === 'reserve_failed') {
+          setRegenError('Could not reserve credits. Please try again.')
+        } else {
+          setRegenError(data.error ?? 'Regenerate failed. Please try again.')
+        }
+        return
+      }
+      onRegenerated()
+    } catch {
+      setRegenError('Could not reach the server. Please try again.')
     } finally {
       setRegenerating(false)
     }
@@ -844,6 +875,9 @@ function ItemCard({ item, copy, generationId }: { item: GenerationItem; copy?: A
       )}
       {(item.status === 'failed' || item.status === 'nsfw') && (
         <button type="button" onClick={regenerate} disabled={regenerating} style={btnSmallPrimary()}>{regenerating ? '…' : 'Try again'}</button>
+      )}
+      {regenError && (
+        <div role="alert" style={{ fontSize: 11, color: '#e0564f' }}>{regenError}</div>
       )}
       {copy && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, borderTop: '1px solid var(--qp-line-soft)', paddingTop: 8 }}>

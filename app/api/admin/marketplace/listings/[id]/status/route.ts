@@ -1,20 +1,11 @@
 // POST /api/admin/marketplace/listings/[id]/status   { status: 'listed' | 'rejected' | 'delisted' | 'pending' }
-// Admin-only review gate, same ADMIN_EMAILS pattern as app/api/admin/partners/[id]/status/route.ts
-// and app/api/admin/changelog/route.ts. Required before any unvalidated component or
-// starter_store listing becomes purchasable — see migration-marketplace.sql.
+// Admin-only review gate (shared requireAdmin() in lib/admin.ts — verified primary email
+// in ADMIN_EMAILS). Required before any unvalidated component, paid listing or
+// starter_store listing becomes visible — see migration-marketplace.sql.
 
-import { auth, currentUser } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
-
-async function requireAdmin(): Promise<string | null> {
-  const { userId } = await auth()
-  if (!userId) return null
-  const user = await currentUser()
-  const email = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? ''
-  return ADMIN_EMAILS.includes(email) ? userId : null
-}
+import { requireAdmin } from '@/lib/admin'
+import { isUuid } from '@/lib/auth/project'
 
 const VALID_STATUSES = ['pending', 'listed', 'delisted', 'rejected']
 
@@ -23,6 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!adminId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+  if (!isUuid(id)) return Response.json({ error: 'Listing not found' }, { status: 404 })
   const body = await request.json().catch(() => ({}))
   const status = body.status
 

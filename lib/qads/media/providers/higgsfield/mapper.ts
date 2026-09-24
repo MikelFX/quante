@@ -72,7 +72,11 @@ export function buildSeedanceVideoRequest(input: MediaGenerationInput) {
     image_urls: [input.referenceImageUrl, ...(input.modelImageUrl ? [input.modelImageUrl] : [])],
     resolution: '720p' as const,
     generate_audio: false, // ad creative audio is a separate, later decision (music/VO licensing) — silent by default
-    duration: 5, // shortest supported (4-30s) — a short product loop is the safe default for ad placements; longer is a Phase-2 UI choice
+    // Render the duration the user was charged for (pricing is per second). Clamped to
+    // Seedance's documented 4-30s range; 5s only when no duration was supplied.
+    duration: Number.isFinite(input.durationSeconds)
+      ? Math.min(30, Math.max(4, Math.round(input.durationSeconds as number)))
+      : 5,
     aspect_ratio: FORMAT_TO_VIDEO_ASPECT_RATIO[input.format],
     output_format: 'mp4' as const,
   }

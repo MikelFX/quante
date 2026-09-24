@@ -139,7 +139,7 @@ const FAQS = [
   },
   {
     q: "Which TLDs are supported?",
-    a: `Quante checks the most common TLDs — .com, .cz, .sk, .eu, .app, .ai, .io, .shop and .store. Availability depends on ${domainProvider.name}'s current reseller inventory. Exact availability and price is shown in the search results.`,
+    a: `Quante checks the most common TLDs — .com, .cz, .sk, .eu, .app, .io, .shop and .store. Availability depends on ${domainProvider.name}'s current reseller inventory. Exact availability and price is shown in the search results.`,
   },
   {
     q: "Is renewal automatic?",

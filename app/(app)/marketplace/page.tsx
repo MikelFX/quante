@@ -35,8 +35,12 @@ export default async function MarketplacePage() {
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '32px 24px', maxWidth: 960, margin: '0 auto', width: '100%' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f4f4f6', margin: '0 0 6px' }}>Marketplace</h1>
-      <p style={{ fontSize: 13, color: '#8a8a93', margin: '0 0 28px', lineHeight: 1.6 }}>
-        Components and starter stores published by other Quante users. Buying installs a copy directly into one of your projects.
+      <p style={{ fontSize: 13, color: '#8a8a93', margin: '0 0 12px', lineHeight: 1.6 }}>
+        Components and starter stores published by other Quante users. Installing adds a copy directly into one of your projects.
+      </p>
+      <p style={{ fontSize: 12, color: '#5b5b64', margin: '0 0 28px', lineHeight: 1.6, padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+        Paid purchases are coming soon — for now only free listings can be installed.
+        Selling? Free components that pass validation are listed right away; paid listings and starter stores go to review first and appear here once approved.
       </p>
       <MarketplaceBrowser
         initialListings={(listings ?? []) as MarketplaceListing[]}

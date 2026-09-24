@@ -88,14 +88,18 @@ export class GopayProvider implements PaymentProvider {
       CANCELED: 'cancelled',
       TIMEOUTED: 'expired',
       REFUNDED: 'refunded',
-      PARTIALLY_REFUNDED: 'refunded',
+      // A partial refund leaves the order (partly) paid — never a full refund.
+      PARTIALLY_REFUNDED: 'partially_refunded',
     }
 
     return {
       transactionId,
       status: statusMap[data.state as string] ?? 'pending',
       paidAmount: data.amount as number | undefined,
+      currency: typeof data.currency === 'string' ? data.currency : undefined,
       paidAt: data.payment_instrument_details?.bank_transfer?.transaction_date ?? undefined,
+      refId: typeof data.order_number === 'string' ? data.order_number : undefined,
+      merchantRef: data.target?.goid != null ? String(data.target.goid) : undefined,
     }
   }
 }
@@ -109,6 +113,7 @@ export function createGopayProvider(): GopayProvider | null {
     clientId,
     clientSecret,
     goId,
-    testMode: process.env.GOPAY_TEST_MODE !== 'false',
+    // Live unless explicitly set to test (was: test unless explicitly 'false').
+    testMode: process.env.GOPAY_TEST_MODE === 'true',
   })
 }

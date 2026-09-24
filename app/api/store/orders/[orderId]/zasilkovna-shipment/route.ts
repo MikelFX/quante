@@ -7,8 +7,13 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { decryptSecret } from '@/lib/crypto'
 import { createPacketaParcel } from '@/lib/zasilkovna'
-import { shippingEmail, sendEmail } from '@/lib/email-templates'
-import type { ShopManifest } from '@/types/manifest'
+import { shippingEmail, sendEmail, getProjectFromEmail } from '@/lib/email-templates'
+import { loadStoreEmailContext } from '@/lib/order-emails'
+import { isUuid } from '@/lib/auth/project'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { authenticateStoreKey } from '../../../_lib/store-auth'
+import { reserveOrderMailSlot } from '../../../_lib/order-mail'
+import { reserveUnpaidMailSlotIfNeeded } from '@/lib/order-emails'
 
 interface Context {
   params: Promise<{ orderId: string }>
@@ -17,17 +22,15 @@ interface Context {
 export async function POST(request: Request, { params }: Context) {
   const { orderId } = await params
 
-  const authHeader = request.headers.get('authorization') ?? ''
-  const apiKey = authHeader.replace(/^Bearer\s+/i, '').trim()
-  if (!apiKey) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const rl = rateLimit(`store-zasilkovna:${getClientIp(request)}`, 30, 60_000)
+  if (!rl.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
-  const { data: secret } = await supabaseAdmin
-    .from('project_secrets')
-    .select('project_id, zasilkovna_api_key, zasilkovna_api_password')
-    .eq('quante_api_key', apiKey)
-    .maybeSingle()
-
+  const secret = await authenticateStoreKey<{ zasilkovna_api_key: string | null; zasilkovna_api_password: string | null }>(
+    request,
+    'zasilkovna_api_key, zasilkovna_api_password',
+  )
   if (!secret) return NextResponse.json({ error: 'Invalid API key' }, { status: 401 })
+  if (!isUuid(orderId)) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
   if (!secret.zasilkovna_api_key || !secret.zasilkovna_api_password) {
     return NextResponse.json({ error: 'Zásilkovna API credentials not configured for this project' }, { status: 422 })
   }
@@ -49,16 +52,60 @@ export async function POST(request: Request, { params }: Context) {
   if (order.status === 'shipped') {
     return NextResponse.json({ error: 'Order already shipped', barcode: order.tracking_code }, { status: 409 })
   }
-
-  const body = await request.json().catch(() => ({})) as {
-    weight?: number
-    size?: { width: number; height: number; depth: number }
+  // Same transition rule as PATCH /api/store/orders/[orderId]: ship from pending only for
+  // cash-on-delivery / bank-transfer orders, and from paid only when the order is offline
+  // or its online payment was confirmed by the provider (payment_status 'paid').
+  const fromStatus = order.status as string
+  const fromPaymentStatus = (order.payment_status as string | null) ?? null
+  const offline = order.payment_method === 'dobirka' || order.payment_method === 'prevod'
+  if (!((fromStatus === 'paid' && (offline || fromPaymentStatus === 'paid')) || (fromStatus === 'pending' && offline))) {
+    return NextResponse.json({
+      error: fromStatus === 'paid'
+        ? 'The payment for this order has not been confirmed by the payment provider'
+        : `Order cannot be shipped from status ${fromStatus}`,
+    }, { status: 409 })
   }
 
+  const body = await request.json().catch(() => ({})) as {
+    weight?: unknown
+    size?: { width?: unknown; height?: unknown; depth?: unknown }
+  }
+  // Parcel dimensions go to Packeta — accept only sane positive numbers.
+  const pos = (v: unknown, max: number) => {
+    const n = Number(v)
+    return Number.isFinite(n) && n > 0 && n <= max ? n : undefined
+  }
+  const weight = pos(body.weight, 50)
+  const size = body.size && pos(body.size.width, 300) && pos(body.size.height, 300) && pos(body.size.depth, 300)
+    ? { width: Number(body.size.width), height: Number(body.size.height), depth: Number(body.size.depth) }
+    : undefined
+
+  // Claim the order BEFORE creating the parcel: compare-and-set to shipped on the status
+  // and payment status read above. Of two concurrent requests only one gets the row, so
+  // only one (paid, possibly COD) Packeta parcel is created and only one mail goes out.
+  // If Packeta then fails, the claim is released again (see below).
+  const claimBase = supabaseAdmin
+    .from('store_orders')
+    .update({ status: 'shipped', updated_at: new Date().toISOString() })
+    .eq('id', orderId)
+    .eq('project_id', secret.project_id)
+    .eq('status', fromStatus)
+  const { data: claimed, error: claimError } = await (fromPaymentStatus === null
+    ? claimBase.is('payment_status', null)
+    : claimBase.eq('payment_status', fromPaymentStatus))
+    .select('id')
+    .maybeSingle()
+  if (claimError) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+  if (!claimed) {
+    return NextResponse.json({ error: 'Order was changed by another request. Reload and try again.' }, { status: 409 })
+  }
+  const prevTrackingCode = (order.tracking_code as string | null) ?? null
+
+  let parcel: Awaited<ReturnType<typeof createPacketaParcel>>
   try {
     // zasilkovna_api_password is AES-256-GCM encrypted at rest (see settings/route.ts);
     // decryptSecret() transparently passes through legacy plaintext rows.
-    const parcel = await createPacketaParcel({
+    parcel = await createPacketaParcel({
       apiKey: secret.zasilkovna_api_key,
       apiPassword: decryptSecret(secret.zasilkovna_api_password) as string,
       orderId,
@@ -70,51 +117,65 @@ export async function POST(request: Request, { params }: Context) {
       branchCountry: (order.zasilkovna_branch_country as string | null) ?? 'cz',
       currency: (order.currency as string).toUpperCase(),
       value: order.total_cents / 100,
-      weight: body.weight ?? (order.parcel_weight_kg as number | null) ?? 1,
-      size: body.size ?? (order.parcel_size as { width: number; height: number; depth: number } | null) ?? undefined,
+      weight: weight ?? (order.parcel_weight_kg as number | null) ?? 1,
+      size: size ?? (order.parcel_size as { width: number; height: number; depth: number } | null) ?? undefined,
       cod: order.payment_method === 'dobirka' ? order.total_cents / 100 : 0,
     })
-
-    await supabaseAdmin
-      .from('store_orders')
-      .update({
-        status: 'shipped',
-        tracking_code: parcel.barcode,
-        tracking_url: parcel.trackingUrl,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId)
-
-    // Send shipping notification email
-    if (order.customer_email) {
-      const { data: versionRow } = await supabaseAdmin
-        .from('manifest_versions')
-        .select('manifest')
-        .eq('project_id', secret.project_id)
-        .order('version_no', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-
-      const manifest = versionRow?.manifest as ShopManifest | undefined
-      if (manifest) {
-        const { subject, html } = shippingEmail({
-          orderNumber: order.order_number,
-          customerName: order.customer_name ?? 'zákazníku',
-          storeName: manifest.brand.name,
-          accentColor: manifest.design.palette.accent,
-          merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
-          merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
-          trackingCode: parcel.barcode,
-          trackingUrl: parcel.trackingUrl,
-          carrier: 'Zásilkovna',
-        })
-        await sendEmail(order.customer_email, subject, html)
-      }
-    }
-
-    return NextResponse.json({ ok: true, barcode: parcel.barcode, trackingUrl: parcel.trackingUrl })
   } catch (err) {
+    // No parcel was created — release the claim so the merchant can retry (or fall back
+    // to a manual PATCH). Conditioned on the claimed state: if anything changed the order
+    // meanwhile, that change wins and the order is left as it is.
+    const releaseBase = supabaseAdmin
+      .from('store_orders')
+      .update({ status: fromStatus, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .eq('project_id', secret.project_id)
+      .eq('status', 'shipped')
+    const { data: released } = await (prevTrackingCode === null
+      ? releaseBase.is('tracking_code', null)
+      : releaseBase.eq('tracking_code', prevTrackingCode))
+      .select('id')
+      .maybeSingle()
+    if (!released) console.error('[store/zasilkovna] could not release shipment claim', { projectId: secret.project_id, orderId })
+    // Caller is the authenticated merchant; the Packeta reason is actionable for them.
     const msg = err instanceof Error ? err.message : 'Packeta API error'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
+
+  const { error: trackErr } = await supabaseAdmin
+    .from('store_orders')
+    .update({
+      tracking_code: parcel.barcode,
+      tracking_url: parcel.trackingUrl,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', orderId)
+    .eq('project_id', secret.project_id)
+  if (trackErr) console.error('[store/zasilkovna] parcel created but tracking not saved', { orderId, barcode: parcel.barcode, error: trackErr.message })
+
+  // Send shipping notification email (only to the address stored on the order, only
+  // because this request claimed the transition to shipped, within the mail caps).
+  if (
+    order.customer_email
+    && await reserveOrderMailSlot(secret.project_id, orderId, order.customer_email as string)
+    && await reserveUnpaidMailSlotIfNeeded(secret.project_id, order as { payment_method?: string | null; payment_status?: string | null })
+  ) {
+    const ctx = await loadStoreEmailContext(secret.project_id)
+    if (ctx) {
+      const { subject, html } = shippingEmail({
+        orderNumber: order.order_number,
+        customerName: order.customer_name ?? 'zákazníku',
+        storeName: ctx.storeName,
+        accentColor: ctx.accentColor,
+        merchantEmail: ctx.merchantEmail,
+        merchantName: ctx.merchantName,
+        trackingCode: parcel.barcode,
+        trackingUrl: parcel.trackingUrl,
+        carrier: 'Zásilkovna',
+      })
+      await sendEmail(order.customer_email, subject, html, await getProjectFromEmail(secret.project_id, ctx.storeName))
+    }
+  }
+
+  return NextResponse.json({ ok: true, barcode: parcel.barcode, trackingUrl: parcel.trackingUrl })
 }

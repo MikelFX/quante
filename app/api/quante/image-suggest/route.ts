@@ -4,12 +4,17 @@
 // Costs 1 credit.
 
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { randomUUID } from 'crypto'
+import { getOwnedProject } from '@/lib/auth/project'
+import { debitCredits, refundDebit } from '@/lib/credits'
 import { anthropic, ITERATION_MODEL } from '@/lib/claude'
 import { NextResponse } from 'next/server'
 
 const SUGGEST_COST = 1
+const MAX_NAME_CHARS = 200
+const MAX_DESCRIPTION_CHARS = 1000
+// debitCredits() refuses accounts flagged after a chargeback (users.billing_hold).
+const BILLING_HOLD_MESSAGE = 'Your account is on hold after a payment dispute — contact support.'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -20,43 +25,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Image suggestions require UNSPLASH_ACCESS_KEY to be configured.' }, { status: 503 })
   }
 
-  let body: { productName: string; productDescription?: string; projectId?: string }
+  let body: { productName?: unknown; productDescription?: unknown; projectId?: unknown }
   try { body = await request.json() }
   catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
 
-  const { productName, productDescription = '', projectId } = body
+  const { projectId } = body
+  // Bound the prompt size — this is a cheap 1-credit call and must stay cheap.
+  const productName = typeof body.productName === 'string' ? body.productName.trim().slice(0, MAX_NAME_CHARS) : ''
+  const productDescription = typeof body.productDescription === 'string'
+    ? body.productDescription.trim().slice(0, MAX_DESCRIPTION_CHARS)
+    : ''
   if (!productName) return NextResponse.json({ error: 'productName required' }, { status: 400 })
 
-  // Check + debit credits
-  const supabase = await createClient()
-  const { data: lastEntry } = await supabase
-    .from('credit_ledger')
-    .select('balance_after')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  const balance = lastEntry?.balance_after ?? 0
-  if (balance < SUGGEST_COST) {
-    return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+  // Optional project context — when given it must belong to the caller.
+  if (projectId !== undefined && projectId !== null && projectId !== '') {
+    const project = await getOwnedProject(projectId, userId, 'id')
+    if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
-  const { data: ledgerRow, error: ledgerErr } = await supabaseAdmin
-    .from('credit_ledger')
-    .insert({
-      user_id: userId,
-      delta: -SUGGEST_COST,
-      reason: 'image_suggest',
-      ref_id: projectId ?? null,
-      balance_after: balance - SUGGEST_COST,
-    })
-    .select()
-    .single()
-
-  if (ledgerErr || !ledgerRow) {
+  // Atomic debit BEFORE the Claude/Unsplash calls; refundDebit (this request only) on failure.
+  const creditRef = randomUUID()
+  const debit = await debitCredits(userId, SUGGEST_COST, 'image_suggest', creditRef)
+  if (!debit.ok) {
+    if (debit.error === 'insufficient_credits') {
+      return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
+    }
+    if (debit.error === 'billing_hold') {
+      return NextResponse.json({ error: BILLING_HOLD_MESSAGE, code: 'billing_hold' }, { status: 402 })
+    }
     return NextResponse.json({ error: 'Failed to debit credit' }, { status: 500 })
   }
+  const refund = () => refundDebit(userId, creditRef, 'image_suggest', 'image_suggest_refund')
 
   try {
     // Ask Claude for the best Unsplash search query
@@ -75,9 +74,9 @@ Good examples: "ceramic coffee mug white", "leather wallet flat lay", "skincare 
       }],
     })
 
-    const query = msg.content[0].type === 'text'
+    const query = (msg.content[0]?.type === 'text'
       ? msg.content[0].text.trim().replace(/^["']|["']$/g, '')
-      : productName
+      : productName).slice(0, 100)
 
     // Fetch from Unsplash
     const unsplashRes = await fetch(
@@ -87,10 +86,7 @@ Good examples: "ceramic coffee mug white", "leather wallet flat lay", "skincare 
 
     if (!unsplashRes.ok) {
       // Refund on Unsplash failure
-      await supabaseAdmin.from('credit_ledger').insert({
-        user_id: userId, delta: SUGGEST_COST, reason: 'image_suggest_refund',
-        ref_id: ledgerRow.id, balance_after: balance,
-      })
+      await refund()
       return NextResponse.json({ error: 'Image service unavailable' }, { status: 502 })
     }
 
@@ -107,12 +103,9 @@ Good examples: "ceramic coffee mug white", "leather wallet flat lay", "skincare 
       creditUrl: r.user.links.html + '?utm_source=quante&utm_medium=referral',
     }))
 
-    return NextResponse.json({ images, query, creditsUsed: SUGGEST_COST, balanceAfter: balance - SUGGEST_COST })
+    return NextResponse.json({ images, query, creditsUsed: SUGGEST_COST, balanceAfter: debit.balance })
   } catch (err) {
-    await supabaseAdmin.from('credit_ledger').insert({
-      user_id: userId, delta: SUGGEST_COST, reason: 'image_suggest_refund',
-      ref_id: ledgerRow.id, balance_after: balance,
-    })
+    await refund()
     console.error('[image-suggest] error:', err)
     return NextResponse.json({ error: 'Image suggestion failed' }, { status: 500 })
   }

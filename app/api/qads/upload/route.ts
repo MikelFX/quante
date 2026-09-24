@@ -8,19 +8,43 @@
 // Auth required — unauthenticated visitors can *see* the /qads form but
 // uploads only succeed once they've signed in (session state on the client
 // keeps the picked File objects around across the auth redirect).
+//
+// SECURITY (audit F6/F11): the image type is detected from magic bytes (the client's
+// multipart Content-Type is never trusted) and the stored extension + Content-Type
+// come from that detection, so the bucket can't hold arbitrary files labelled as
+// images. Uploads are rate limited per user (in-memory, per instance) and capped per
+// user per day by a DB-backed quota (app/api/upload/_lib/quota.ts).
 
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { rateLimit } from '@/lib/rate-limit'
+import { detectImage } from '@/app/api/upload/_lib/detect-image'
+import { reserveUpload } from '@/app/api/upload/_lib/quota'
 
 export const maxDuration = 30
 
 const MAX_BYTES = 12 * 1024 * 1024 // 12 MB — well above a phone camera photo, well below Vercel's 15 MB body cap
-const ALLOWED_MIMES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+// Formats Higgsfield accepts as reference images (checked against the DETECTED type).
+const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const BUCKET = 'qads-inputs'
+// 1–4 photos per generation; a busy day of ad work stays well under this.
+const DAILY_QUOTA = { maxFiles: 60, maxBytes: 300 * 1024 * 1024 }
 
 export async function POST(request: Request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Cheap early reject before buffering a huge multipart body.
+  const declaredLength = Number(request.headers.get('content-length') ?? '0')
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BYTES + 64 * 1024) {
+    return NextResponse.json({ error: `File too large (max ${MAX_BYTES / 1024 / 1024} MB)` }, { status: 413 })
+  }
+
+  const rl = rateLimit(`qads-upload:${userId}`, 20, 60_000)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too many uploads. Try again in a minute.' }, { status: 429 })
+  }
 
   let formData: FormData
   try {
@@ -34,26 +58,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing file field' }, { status: 400 })
   }
 
-  if (!ALLOWED_MIMES.has(file.type)) {
-    return NextResponse.json({ error: `Unsupported content-type: ${file.type}` }, { status: 415 })
-  }
   if (file.size === 0) return NextResponse.json({ error: 'Empty file' }, { status: 400 })
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: `File too large (max ${MAX_BYTES / 1024 / 1024} MB)` }, { status: 413 })
   }
 
-  const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') ?? 'jpg'
-  const storagePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-  const arrayBuffer = await file.arrayBuffer()
+  const buffer = Buffer.from(await file.arrayBuffer())
+  if (buffer.length === 0) return NextResponse.json({ error: 'Empty file' }, { status: 400 })
+  if (buffer.length > MAX_BYTES) {
+    return NextResponse.json({ error: `File too large (max ${MAX_BYTES / 1024 / 1024} MB)` }, { status: 413 })
+  }
+
+  const kind = detectImage(buffer)
+  if (!kind || !ALLOWED_MIMES.has(kind.contentType)) {
+    return NextResponse.json(
+      { error: 'Unsupported file type. Upload a JPEG, PNG or WebP image.' },
+      { status: 415 },
+    )
+  }
+
+  // Daily quota, reserved before writing. Fallback while the upload_events migration
+  // hasn't run: count today's objects under the user's folder in the bucket.
+  const quota = await reserveUpload(userId, BUCKET, buffer.length, DAILY_QUOTA, userId)
+  if (!quota.ok) return NextResponse.json({ error: quota.error }, { status: quota.status })
+
+  const storagePath = `${userId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${kind.ext}`
 
   const { error: uploadError } = await supabaseAdmin.storage
-    .from('qads-inputs')
-    .upload(storagePath, Buffer.from(arrayBuffer), {
-      contentType: file.type,
+    .from(BUCKET)
+    .upload(storagePath, buffer, {
+      contentType: kind.contentType,
       upsert: false,
     })
   if (uploadError) {
     console.error('[qads/upload] storage upload failed:', uploadError.message)
+    await quota.release()
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
   }
 
@@ -61,7 +100,7 @@ export async function POST(request: Request) {
   // batch of concurrent submits to complete their initial fetch — after
   // that Higgsfield has the pixels and no longer needs the reference URL.
   const { data: signed, error: signError } = await supabaseAdmin.storage
-    .from('qads-inputs')
+    .from(BUCKET)
     .createSignedUrl(storagePath, 60 * 60 * 2)
   if (signError || !signed?.signedUrl) {
     console.error('[qads/upload] signed URL failed:', signError?.message)
@@ -71,7 +110,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     storagePath,
     signedUrl: signed.signedUrl,
-    mimeType: file.type,
-    bytes: file.size,
+    mimeType: kind.contentType,
+    bytes: buffer.length,
   })
 }

@@ -17,6 +17,13 @@ import {
 // only the returned JSX is filtered by section.
 export type MerchantPanelSection = 'business' | 'payments' | 'shipping' | 'market' | 'emails'
 
+// Keeps the 'Failed to save' prefix (the status lines colour themselves red on it) and
+// appends the server's reason (400 invalid value, 429 rate limit, …) when there is one.
+async function saveErrorText(res: Response): Promise<string> {
+  const data = await res.json().catch(() => null) as { error?: string } | null
+  return data?.error ? `Failed to save: ${data.error}` : 'Failed to save'
+}
+
 interface Props {
   projectId: string
   onBalanceRefresh: () => void
@@ -99,6 +106,11 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
   const [hasPaypalSecret, setHasPaypalSecret] = useState(false)
   const [isSavingGateways, setIsSavingGateways] = useState(false)
   const [gatewaysMsg, setGatewaysMsg] = useState('')
+  // Sandbox mode for the merchant's OWN gateway credentials (project_secrets.payment_test_mode).
+  // Off by default, matching the server (only an explicit `true` enables sandbox, and new
+  // rows default to false). While on, gateway payments are not real: orders get
+  // payment_status 'test_paid', never 'paid'.
+  const [paymentTestMode, setPaymentTestMode] = useState(false)
 
   useEffect(() => {
     fetch(`/api/project/secrets?projectId=${projectId}`)
@@ -114,6 +126,9 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         setHasPaypalSecret(!!d.hasPaypalSecret)
         if (d.marketCountry) setMarketCountry(d.marketCountry)
         if (d.marketLanguage) setMarketLanguage(d.marketLanguage)
+        // GET reports only an explicit `true` as test mode (no row / null → live), the same
+        // rule lib/payments/project-providers.ts applies.
+        setPaymentTestMode(d.paymentTestMode === true)
 
         const m = d.merchant as BusinessInfo | null
         if (m) setForm({ ...EMPTY_BUSINESS_INFO, ...m })
@@ -200,7 +215,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, merchant_json: form }),
       })
-      if (!res.ok) { setSaveMsg('Failed to save'); return }
+      if (!res.ok) { setSaveMsg(await saveErrorText(res)); return }
       setSaveMsg('Saved')
       setTimeout(() => setSaveMsg(''), 2500)
     } catch {
@@ -219,7 +234,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, market_country: marketCountry || null, market_language: marketLanguage || null }),
       })
-      if (!res.ok) { setMarketMsg('Failed to save'); return }
+      if (!res.ok) { setMarketMsg(await saveErrorText(res)); return }
       setMarketMsg('Saved — next generation/edit will use this')
       setTimeout(() => setMarketMsg(''), 3500)
     } catch {
@@ -238,7 +253,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, resend_from_email: emailFrom || null }),
       })
-      if (!res.ok) { setEmailFromMsg('Failed to save'); return }
+      if (!res.ok) { setEmailFromMsg(await saveErrorText(res)); return }
       setEmailFromMsg(emailFrom ? 'Saved' : 'Reset to default (objednavky@quantecode.com)')
       setTimeout(() => setEmailFromMsg(''), 3000)
     } catch {
@@ -309,7 +324,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ projectId, payments_json: payments, shipping_json: shipping }),
       })
-      if (!res.ok) { setPayShipMsg('Failed to save'); return }
+      if (!res.ok) { setPayShipMsg(await saveErrorText(res)); return }
       setPayShipMsg('Saved')
       setTimeout(() => setPayShipMsg(''), 2500)
     } catch {
@@ -323,11 +338,12 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
     setIsSavingGateways(true)
     setGatewaysMsg('')
     try {
-      const body: Record<string, string | null> = {
+      const body: Record<string, string | boolean | null> = {
         comgate_merchant_id: comgateMerchantId.trim() || null,
         gopay_go_id: gopayGoId.trim() || null,
         gopay_client_id: gopayClientId.trim() || null,
         paypal_client_id: paypalClientId.trim() || null,
+        payment_test_mode: paymentTestMode,
       }
       // Secrets are write-only — only send when the user typed a new value
       if (comgateSecret.trim()) body.comgate_secret = comgateSecret.trim()
@@ -624,7 +640,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Transactional emails</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          Customer emails are sent from <code style={{ fontSize: 9 }}>objednavky@quantecode.com</code> (default). For your own domain, verify it in Resend and enter the address below.
+          Customer emails are sent from <code style={{ fontSize: 9 }}>objednavky@quantecode.com</code> (default). To send from your own address, it must be on a custom domain connected and verified for this store — otherwise mail goes out from the platform mailbox under your store name. The test email goes to your account email.
         </p>
         <div style={{ display: 'flex', gap: 4 }}>
           <input
@@ -650,7 +666,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         >
           {isSendingTest ? 'Sending…' : 'Send test email →'}
         </button>
-        {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.includes('Chyba') ? '#f87171' : '#34d399', margin: 0 }}>{testEmailMsg}</p>}
+        {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.startsWith('Test email sent') ? '#34d399' : '#f87171', margin: 0 }}>{testEmailMsg}</p>}
       </div>
       )}
 
@@ -776,6 +792,22 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           <input style={fieldStyle} value={paypalClientId} onChange={(e) => setPaypalClientId(e.target.value)} placeholder="Client ID" />
           <input style={fieldStyle} type="password" value={paypalClientSecret} onChange={(e) => setPaypalClientSecret(e.target.value)} placeholder={hasPaypalSecret ? 'Client secret saved — enter new value to replace' : 'Client secret'} autoComplete="new-password" />
         </div>
+
+        {/* Sandbox / test mode for the credentials above */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <input type="checkbox" id="pay_test_mode" checked={paymentTestMode} onChange={(e) => setPaymentTestMode(e.target.checked)} style={{ margin: '2px 0 0' }} />
+          <label htmlFor="pay_test_mode" style={{ fontSize: 11, cursor: 'pointer', flex: 1, lineHeight: 1.5 }}>
+            Test mode (sandbox)
+            <span style={{ display: 'block', fontSize: 10, color: 'var(--muted-foreground)' }}>
+              Use your gateways&apos; sandbox credentials. Orders are marked as test payments and no real money moves. Takes effect when you save.
+            </span>
+          </label>
+        </div>
+        {paymentTestMode && (
+          <div style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(224,160,79,0.08)', border: '1px solid rgba(224,160,79,0.35)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: '#e0a04f', margin: 0, letterSpacing: '0.04em' }}>TEST MODE: payments through your own gateways are not real.</p>
+          </div>
+        )}
 
         <button
           onClick={saveGatewayCredentials}

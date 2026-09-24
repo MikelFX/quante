@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { loadOwnedPreviewManifest } from '@/app/(preview)/_lib/owned-manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
 import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
 import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
@@ -13,15 +13,8 @@ interface Props {
 export default async function SuccessPage({ params, searchParams }: Props) {
   const { id } = await params
   const { order, method } = await searchParams
-  const supabase = await createClient()
-
-  const { data } = await supabase
-    .from('manifest_versions')
-    .select('manifest')
-    .eq('project_id', id)
-    .order('version_no', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const manifestRow = await loadOwnedPreviewManifest(id)
+  const data = manifestRow ? { manifest: manifestRow } : null
 
   const manifest = data?.manifest as ShopManifest | undefined
   if (!manifest) return <div style={{ padding: '4rem', textAlign: 'center', color: '#666' }}>No manifest found.</div>

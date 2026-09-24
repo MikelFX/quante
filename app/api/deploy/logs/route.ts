@@ -1,9 +1,32 @@
 import { auth } from '@clerk/nextjs/server'
 import { streamDeploymentLogs, getBuildError, getDeploymentStatus } from '@/lib/hosting/vercel'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getOwnedProject } from '@/lib/auth/project'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
+
+// Vercel deployment ids look like dpl_<base62>. Anything else (hostnames, paths) is
+// rejected before it can reach a Vercel API URL.
+const DEPLOYMENT_ID_RE = /^dpl_[A-Za-z0-9]+$/
+
+// Best-effort, per-instance cap on concurrently open log streams per user — each one
+// can hold a function open for up to maxDuration.
+const MAX_STREAMS_PER_USER = 3
+const openStreams = new Map<string, number>()
+
+function acquireStreamSlot(userId: string): boolean {
+  const n = openStreams.get(userId) ?? 0
+  if (n >= MAX_STREAMS_PER_USER) return false
+  openStreams.set(userId, n + 1)
+  return true
+}
+
+function releaseStreamSlot(userId: string): void {
+  const n = (openStreams.get(userId) ?? 1) - 1
+  if (n <= 0) openStreams.delete(userId)
+  else openStreams.set(userId, n)
+}
 
 // ─── Vercel build error parser ────────────────────────────────────────────────
 // Extracts file path and line from TypeScript/Next.js build errors like:
@@ -42,19 +65,64 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const deploymentId = searchParams.get('deploymentId')
   if (!deploymentId) return new Response('deploymentId required', { status: 400 })
+  if (!DEPLOYMENT_ID_RE.test(deploymentId)) return new Response('Not found', { status: 404 })
+
+  // SECURITY (audit #34): the team-wide VERCEL_TOKEN can read ANY deployment's build
+  // logs (other tenants', the platform's own). The caller must own a deployments row
+  // for this id AND the project it belongs to. All later status writes are scoped to
+  // that exact row.
+  const { data: dep } = await supabaseAdmin
+    .from('deployments')
+    .select('id, project_id')
+    .eq('vercel_deployment_id', deploymentId)
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  if (!dep) return new Response('Not found', { status: 404 })
+  const ownedProject = await getOwnedProject(dep.project_id, userId, 'id')
+  if (!ownedProject) return new Response('Not found', { status: 404 })
+  const deploymentRowId = dep.id as string
+
+  if (!acquireStreamSlot(userId)) {
+    return new Response('Too many open log streams', { status: 429 })
+  }
+  let slotReleased = false
+  const releaseSlot = () => {
+    if (slotReleased) return
+    slotReleased = true
+    releaseStreamSlot(userId)
+  }
 
   const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
+    cancel() {
+      releaseSlot()
+    },
     async start(controller) {
+      let closed = false
       function sendEvent(data: object) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        if (closed) return
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`))
+        } catch {
+          closed = true
+        }
+      }
+      function closeStream() {
+        releaseSlot()
+        if (closed) return
+        closed = true
+        try { controller.close() } catch {}
       }
 
       const abortController = new AbortController()
 
       // If client disconnects, abort polling
-      request.signal?.addEventListener('abort', () => abortController.abort())
+      request.signal?.addEventListener('abort', () => {
+        abortController.abort()
+        releaseSlot()
+      })
 
       let terminalEventEmitted = false
 
@@ -88,7 +156,7 @@ export async function GET(request: Request) {
                 try {
                   await supabaseAdmin.from('deployments')
                     .update({ status: event.type === 'ready' ? 'ready' : 'error', updated_at: new Date().toISOString() })
-                    .eq('vercel_deployment_id', deploymentId)
+                    .eq('id', deploymentRowId)
                 } catch {}
 
                 // On error: fetch full build error text and send as build_error event
@@ -109,7 +177,7 @@ export async function GET(request: Request) {
                 }
 
                 sendEvent({ type: 'stream_end', state: event.type })
-                controller.close()
+                closeStream()
               })()
             }
           },
@@ -119,7 +187,8 @@ export async function GET(request: Request) {
         clearTimeout(hangTimeout)
         if (!abortController.signal.aborted) {
           console.error('[deploy/logs] streaming error:', err)
-          sendEvent({ type: 'stream_error', message: String(err) })
+          // Generic message — never forward internal error details to the client.
+          sendEvent({ type: 'stream_error', message: 'Log stream interrupted.' })
         }
 
         if (!terminalEventEmitted) {
@@ -130,6 +199,8 @@ export async function GET(request: Request) {
 
           for (let i = 0; i < MAX_POLLS; i++) {
             await new Promise(r => setTimeout(r, POLL_INTERVAL))
+            // Client went away — stop burning function time on a stream nobody reads.
+            if (request.signal?.aborted || closed) { resolved = true; break }
 
             let status
             try {
@@ -189,7 +260,7 @@ export async function GET(request: Request) {
           }
         }
 
-        controller.close()
+        closeStream()
         return
       }
 
@@ -199,20 +270,20 @@ export async function GET(request: Request) {
       // happens when the build was already complete before we started streaming,
       // or when the 90s hang timeout fired and aborted the stream.
       // Check actual deployment state and resolve the client.
-      if (!terminalEventEmitted && !abortController.signal.aborted) {
+      if (!terminalEventEmitted && !request.signal?.aborted) {
         try {
           const status = await getDeploymentStatus(deploymentId)
           if (status.state === 'ready') {
             await supabaseAdmin.from('deployments')
               .update({ status: 'ready', updated_at: new Date().toISOString() })
-              .eq('vercel_deployment_id', deploymentId)
+              .eq('id', deploymentRowId)
             sendEvent({ type: 'ready', text: '', created: Date.now() })
             sendEvent({ type: 'stream_end', state: 'ready' })
           } else if (status.state === 'error' || status.state === 'canceled') {
             const errorText = await getBuildError(deploymentId)
             await supabaseAdmin.from('deployments')
               .update({ status: status.state, error_message: errorText, updated_at: new Date().toISOString() })
-              .eq('vercel_deployment_id', deploymentId)
+              .eq('id', deploymentRowId)
             if (errorText && !errorText.startsWith('Build failed — ')) {
               const parsed = parseBuildError(errorText)
               sendEvent({
@@ -228,8 +299,13 @@ export async function GET(request: Request) {
         } catch (err) {
           console.error('[deploy/logs] post-stream status check failed:', err)
         }
-        controller.close()
+        closeStream()
+      } else if (!terminalEventEmitted) {
+        // Client disconnected before a terminal event — nothing left to do.
+        closeStream()
       }
+      // When a terminal event WAS emitted, the async handler above closes the stream
+      // (and releases the slot) once it has sent stream_end.
     },
   })
 

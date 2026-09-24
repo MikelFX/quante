@@ -6,17 +6,10 @@ import Link from 'next/link'
 import { DashboardGrid } from './DashboardGrid'
 import { DashboardHeader } from './DashboardHeader'
 import { DashboardEmptyState } from './DashboardEmptyState'
-
-async function ensureWelcomeGrant(userId: string, supabase: Awaited<ReturnType<typeof createClient>>) {
-  const { data } = await supabase
-    .from('credit_ledger').select('id').eq('user_id', userId).limit(1).maybeSingle()
-  if (!data) {
-    const grant = CREDIT_COSTS.welcome_grant
-    await supabase.from('credit_ledger').insert({
-      user_id: userId, delta: grant, reason: 'welcome_grant', ref_id: null, balance_after: grant,
-    })
-  }
-}
+// Shared one-time welcome grant (atomic RPC, verified accounts only). The old inline
+// read-then-insert here raced with /api/credits/balance and could grant twice.
+import { ensureWelcomeGrant } from '@/app/api/credits/welcome-grant'
+import { getBalance } from '@/lib/credits'
 
 export default async function DashboardPage() {
   const { userId } = await auth()
@@ -26,21 +19,22 @@ export default async function DashboardPage() {
   const record = await getUserRecord(userId)
   const isAgency = record.tier === 'agency' && record.subscription_status === 'active'
 
+  // Welcome credits wait for a verified email — surface that instead of a silent 0 balance.
+  let verificationRequired = false
   if (!isAgency) {
-    await ensureWelcomeGrant(userId, supabase)
+    const grant = await ensureWelcomeGrant(userId)
+    verificationRequired = grant.status === 'verification_required'
   }
 
-  const [projectsResult, archivedResult, ledgerResult] = await Promise.all([
+  const [projectsResult, archivedResult, creditBalance] = await Promise.all([
     supabase.from('projects').select('*').eq('user_id', userId)
       .neq('status', 'archived').order('updated_at', { ascending: false }),
     supabase.from('projects').select('id, name').eq('user_id', userId).eq('status', 'archived'),
-    supabase.from('credit_ledger').select('balance_after')
-      .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    getBalance(userId), // latest ledger row by seq, not created_at
   ])
 
   const projects = projectsResult.data ?? []
   const archived = archivedResult.data ?? []
-  const creditBalance = ledgerResult.data?.balance_after ?? 0
   const activeCount = projects.length
   const atLimit = activeCount >= record.project_limit
   const limitLabel = `${activeCount} / ${record.project_limit} active`
@@ -49,6 +43,12 @@ export default async function DashboardPage() {
     <div className="q-page-wrap">
 
       <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} />
+
+      {verificationRequired && (
+        <div role="status" style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', fontSize: 13, color: '#e0a04f' }}>
+          Verify your email to receive your {CREDIT_COSTS.welcome_grant} free credits — then reload this page.
+        </div>
+      )}
 
       {/* At-limit warning */}
       {atLimit && (

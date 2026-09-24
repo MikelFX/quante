@@ -5,6 +5,22 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getOwnedProject } from '@/lib/auth/project'
+
+// Base for invoice links shown in the merchant dashboard. The invoice route
+// authorizes the signed-in owner, so when NEXT_PUBLIC_APP_URL is missing or not
+// https we emit a same-origin relative link instead of guessing a host.
+function invoiceBase(): string {
+  const raw = process.env.NEXT_PUBLIC_APP_URL
+  if (!raw) return ''
+  try {
+    const u = new URL(raw)
+    if (u.protocol !== 'https:' && u.hostname !== 'localhost') return ''
+    return u.origin
+  } catch {
+    return ''
+  }
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { userId } = await auth()
@@ -12,23 +28,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   const { id: projectId } = await params
 
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
-
+  // Ownership check (service-role client — RLS does not protect us here).
+  const project = await getOwnedProject<{ id: string }>(projectId, userId, 'id')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   const { data: rows } = await supabaseAdmin
     .from('store_orders')
     .select('id, order_number, customer_email, customer_name, customer_phone, total_cents, currency, status, payment_status, payment_method, shipping_method, zasilkovna_branch_id, zasilkovna_branch_country, shipping_country, shipping_address, tracking_code, tracking_url, fulfillment_provider, fulfillment_ref, fulfillment_status, invoice_number, created_at')
-    .eq('project_id', projectId)
+    .eq('project_id', project.id)
     .order('created_at', { ascending: false })
     .limit(200)
 
-  const QUANTE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
+  const QUANTE_URL = invoiceBase()
 
   const orders = (rows ?? []).map((o) => ({
     id: o.id,

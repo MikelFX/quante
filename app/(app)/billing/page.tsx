@@ -5,6 +5,8 @@ import { CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
 import { AGENCY_MONTHLY_USD, CREDIT_COSTS } from '@/lib/config'
 import { PurchaseButtons } from './PurchaseButtons'
 import { AgencyPortalButton } from './AgencyPortalButton'
+import { ensureWelcomeGrant } from '@/app/api/credits/welcome-grant'
+import { getBalance } from '@/lib/credits'
 
 interface LedgerEntry {
   id: string
@@ -186,24 +188,34 @@ export default async function BillingPage({ searchParams }: Props) {
   }
 
   // ── Credit / Free view ───────────────────────────────────────────────────────
-  const [balanceResult, historyResult] = await Promise.all([
-    supabase
+  // Same one-time welcome grant as the dashboard / balance endpoint (idempotent). Runs
+  // before the ledger reads so a freshly verified user sees their credits here too, and
+  // tells us when the grant is still waiting on a verified email.
+  const grant = await ensureWelcomeGrant(userId)
+  const verificationRequired = grant.status === 'verification_required'
+
+  // Balance comes from getBalance (latest row by seq — created_at is transaction-start
+  // time and can be out of write order under concurrent ledger writes).
+  const loadHistory = async (): Promise<LedgerEntry[]> => {
+    const bySeq = await supabase
       .from('credit_ledger')
-      .select('balance_after')
+      .select('id, delta, reason, balance_after, created_at')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
+      .order('seq', { ascending: false })
+      .limit(50)
+    if (!bySeq.error) return (bySeq.data ?? []) as LedgerEntry[]
+    // seq column missing (migration-credits-v2.sql not applied yet) — fall back.
+    const byTime = await supabase
       .from('credit_ledger')
       .select('id, delta, reason, balance_after, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(50),
-  ])
+      .order('id', { ascending: false })
+      .limit(50)
+    return (byTime.data ?? []) as LedgerEntry[]
+  }
 
-  const balance = balanceResult.data?.balance_after ?? 0
-  const history = (historyResult.data ?? []) as LedgerEntry[]
+  const [balance, history] = await Promise.all([getBalance(userId), loadHistory()])
   const sparkline = buildSparkline(history)
   const sparkMax = Math.max(...sparkline, 1)
   const totalUsed = history.filter(e => e.delta < 0).reduce((s, e) => s + Math.abs(e.delta), 0)
@@ -245,7 +257,11 @@ export default async function BillingPage({ searchParams }: Props) {
             </p>
           </div>
           <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>credits remaining</p>
-          {isLow && (
+          {verificationRequired ? (
+            <p style={{ fontSize: 11, color: '#e0a04f', margin: '8px 0 0' }}>
+              Verify your email to receive your {CREDIT_COSTS.welcome_grant} free credits.
+            </p>
+          ) : isLow && (
             <p style={{ fontSize: 11, color: '#e0a04f', marginTop: 8, margin: '8px 0 0' }}>Low balance — top up to keep building.</p>
           )}
         </div>

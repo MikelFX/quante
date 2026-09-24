@@ -11,33 +11,8 @@ export const PRODUCTS_FILE = 'data/products.ts'
 // Returns null when the file deviates too far from a plain literal (e.g. template
 // strings or expressions) — callers must degrade gracefully to AI editing.
 export function parseProductsFile(content: string): StoreProduct[] | null {
-  const assignMatch = content.match(/products\s*(?::\s*[A-Za-z0-9_$[\]<>,.\s]+)?=\s*\[/)
-  if (!assignMatch || assignMatch.index === undefined) return null
-
-  const start = assignMatch.index + assignMatch[0].length - 1
-  let depth = 0
-  let end = -1
-  let inString: string | null = null
-  let escaped = false
-
-  for (let i = start; i < content.length; i++) {
-    const ch = content[i]
-    if (inString) {
-      if (escaped) { escaped = false; continue }
-      if (ch === '\\') { escaped = true; continue }
-      if (ch === inString) inString = null
-      continue
-    }
-    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; continue }
-    if (ch === '[' || ch === '{') depth++
-    else if (ch === ']' || ch === '}') {
-      depth--
-      if (depth === 0) { end = i; break }
-    }
-  }
-  if (end === -1) return null
-
-  const literal = content.slice(start, end + 1)
+  const literal = extractProductsLiteral(content)
+  if (!literal) return null
   try {
     const parsed: unknown = JSON5.parse(literal)
     if (!Array.isArray(parsed)) return null
@@ -48,6 +23,112 @@ export function parseProductsFile(content: string): StoreProduct[] | null {
   } catch {
     return null
   }
+}
+
+// Brace-depth scan over the source from `start` (an opening '[' or '{'). Skips
+// string contents and // or /* */ comments. Calls onDepth(i, depthBefore, depthAfter)
+// at every bracket. Returns the index of the matching close bracket, or -1.
+function scanBalanced(src: string, start: number, onDepth?: (i: number, before: number, after: number) => void): number {
+  let depth = 0
+  let inString: string | null = null
+  let escaped = false
+  for (let i = start; i < src.length; i++) {
+    const ch = src[i]
+    if (inString) {
+      if (escaped) { escaped = false; continue }
+      if (ch === '\\') { escaped = true; continue }
+      if (ch === inString) inString = null
+      continue
+    }
+    if (ch === '/' && src[i + 1] === '/') {
+      const nl = src.indexOf('\n', i)
+      if (nl === -1) return -1
+      i = nl
+      continue
+    }
+    if (ch === '/' && src[i + 1] === '*') {
+      const close = src.indexOf('*/', i + 2)
+      if (close === -1) return -1
+      i = close + 1
+      continue
+    }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = ch; continue }
+    if (ch === '[' || ch === '{') {
+      onDepth?.(i, depth, depth + 1)
+      depth++
+    } else if (ch === ']' || ch === '}') {
+      onDepth?.(i, depth, depth - 1)
+      depth--
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
+function extractProductsLiteral(content: string): string | null {
+  const assignMatch = content.match(/products\s*(?::\s*[A-Za-z0-9_$[\]<>,.\s]+)?=\s*\[/)
+  if (!assignMatch || assignMatch.index === undefined) return null
+  const start = assignMatch.index + assignMatch[0].length - 1
+  const end = scanBalanced(content, start)
+  return end === -1 ? null : content.slice(start, end + 1)
+}
+
+/** The fields the public checkout needs to price a cart line. */
+export interface PricingProduct {
+  id: string
+  name: string
+  price: number
+  available?: boolean
+  variants?: Array<{ id: string; name: string; price?: number }>
+}
+
+function toPricingProduct(p: unknown): PricingProduct | null {
+  if (typeof p !== 'object' || p === null) return null
+  const o = p as Record<string, unknown>
+  if (typeof o.id !== 'string' || !o.id || typeof o.name !== 'string') return null
+  if (typeof o.price !== 'number' || !Number.isFinite(o.price) || o.price < 0) return null
+  const out: PricingProduct = { id: o.id, name: o.name, price: o.price }
+  if (typeof o.available === 'boolean') out.available = o.available
+  if (Array.isArray(o.variants)) {
+    out.variants = o.variants
+      .filter((v): v is Record<string, unknown> => typeof v === 'object' && v !== null && typeof (v as Record<string, unknown>).id === 'string')
+      .map((v) => ({
+        id: v.id as string,
+        name: typeof v.name === 'string' ? v.name : String(v.id),
+        ...(v.price !== undefined && v.price !== null ? { price: typeof v.price === 'number' ? v.price : NaN } : {}),
+      }))
+  }
+  return out
+}
+
+// Tolerant, read-only parse for server-side pricing (checkout). Unlike
+// parseProductsFile — which must refuse to rewrite a file it can't fully round-trip —
+// this only needs id / name / price / available / variants, so one product with a
+// non-literal field (or missing slug/images) doesn't take the whole store offline:
+// when the literal as a whole won't parse, each top-level object is parsed on its own
+// and the ones that fail are simply unknown (their checkout gets a 409, not the store).
+// A variant with a non-numeric price keeps price = NaN so it is refused, never charged
+// at the base price.
+export function parseProductsForPricing(content: string): PricingProduct[] | null {
+  const literal = extractProductsLiteral(content)
+  if (!literal) return null
+  let items: unknown[]
+  try {
+    const parsed: unknown = JSON5.parse(literal)
+    if (!Array.isArray(parsed)) return null
+    items = parsed
+  } catch {
+    items = []
+    let objStart = -1
+    scanBalanced(literal, 0, (i, before, after) => {
+      if (before === 1 && after === 2 && literal[i] === '{') objStart = i
+      else if (before === 2 && after === 1 && objStart !== -1 && literal[i] === '}') {
+        try { items.push(JSON5.parse(literal.slice(objStart, i + 1))) } catch { /* skip this product */ }
+        objStart = -1
+      }
+    })
+  }
+  return items.map(toPricingProduct).filter((p): p is PricingProduct => p !== null)
 }
 
 function isStoreProductLike(p: unknown): p is StoreProduct {

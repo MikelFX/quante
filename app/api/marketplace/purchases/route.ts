@@ -1,15 +1,17 @@
 // POST /api/marketplace/purchases   { listingId, targetProjectId }
 //
-// SAFETY: this endpoint does NOT charge any real payment method. It records the purchase +
-// seller-earning bookkeeping (mirroring how credit-pack purchases are recorded today) and
-// installs a copy of the snapshot into the buyer's chosen project. In production this
-// should be called only after a real charge succeeds (e.g. from a Stripe webhook, the same
-// way credit purchases work in app/api/stripe/webhook/route.ts) — that wiring is the
-// deliberate activation step left for the user; see migration-marketplace.sql.
+// SAFETY: this endpoint does NOT charge any payment method, so it only accepts FREE
+// listings (price_cents = 0). Paid listings are rejected with 402 until a real payment
+// path exists (Stripe Checkout created here with the server-side price, and the purchase
+// row + seller earning + install done in the verified Stripe webhook). Previously any user
+// could "buy" a paid listing for nothing and credit the seller's earnings ledger, which
+// also let sockpuppet accounts farm seller earnings.
+// This route never writes seller earnings — nothing was paid.
 
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { calculateRevenueSplit, recordSellerEarning, DEFAULT_PLATFORM_FEE_BPS } from '@/lib/marketplace'
+import { getOwnedProject, isUuid } from '@/lib/auth/project'
+import { validateCustomComponent } from '@/lib/sandbox/validate-component'
 
 export async function POST(request: Request) {
   const { userId } = await auth()
@@ -21,6 +23,7 @@ export async function POST(request: Request) {
   if (typeof listingId !== 'string' || typeof targetProjectId !== 'string') {
     return Response.json({ error: 'listingId and targetProjectId are required' }, { status: 400 })
   }
+  if (!isUuid(listingId)) return Response.json({ error: 'Listing not available' }, { status: 404 })
 
   const { data: listing } = await supabaseAdmin
     .from('marketplace_listings')
@@ -34,13 +37,26 @@ export async function POST(request: Request) {
     return Response.json({ error: 'You cannot purchase your own listing' }, { status: 400 })
   }
 
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id, user_id')
-    .eq('id', targetProjectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  // No payment is collected here — refuse anything that isn't free. Price comes from the
+  // DB row only; anything non-numeric is treated as paid (fail closed).
+  const priceCents = Number(listing.price_cents)
+  if (!Number.isFinite(priceCents) || priceCents !== 0) {
+    return Response.json({ error: 'Paid listings are not yet available' }, { status: 402 })
+  }
+
+  const project = await getOwnedProject(targetProjectId, userId)
   if (!project) return Response.json({ error: 'Target project not found' }, { status: 404 })
+
+  // Re-validate component code at install time — it is copied into another tenant's
+  // project with passed_validation=true, so it must pass the sandbox validator now.
+  if (listing.kind === 'component') {
+    const code = listing.snapshot?.code
+    if (typeof code !== 'string' || !validateCustomComponent(code).valid) {
+      return Response.json({ error: 'Listing not available' }, { status: 404 })
+    }
+  } else if (listing.kind !== 'starter_store' || !listing.snapshot?.files) {
+    return Response.json({ error: 'Listing not available' }, { status: 404 })
+  }
 
   const { data: existing } = await supabaseAdmin
     .from('marketplace_purchases')
@@ -50,7 +66,8 @@ export async function POST(request: Request) {
     .maybeSingle()
   if (existing) return Response.json({ error: 'You already purchased this listing', purchaseId: existing.id }, { status: 409 })
 
-  const split = calculateRevenueSplit(listing.price_cents, DEFAULT_PLATFORM_FEE_BPS)
+  // Free claim: zero price, zero fee, zero seller earning (kept in the response shape).
+  const split = { priceCents: 0, platformFeeBps: 0, platformFeeCents: 0, sellerEarningCents: 0 }
 
   const { data: purchase, error: purchaseError } = await supabaseAdmin
     .from('marketplace_purchases')
@@ -73,17 +90,11 @@ export async function POST(request: Request) {
     // "already purchased" rather than a hard error.
     const code = (purchaseError as { code?: string } | null)?.code
     if (code === '23505') return Response.json({ error: 'You already purchased this listing' }, { status: 409 })
-    return Response.json({ error: purchaseError?.message ?? 'Failed to record purchase' }, { status: 500 })
+    console.error('[marketplace/purchases] insert failed:', purchaseError?.message)
+    return Response.json({ error: 'Failed to record purchase' }, { status: 500 })
   }
 
-  if (split.sellerEarningCents > 0) {
-    await recordSellerEarning({
-      sellerUserId: listing.seller_user_id,
-      purchaseId: purchase.id,
-      sellerEarningCents: split.sellerEarningCents,
-      currency: listing.currency,
-    })
-  }
+  // Seller earnings are intentionally NOT recorded here — see the header comment.
 
   const installResult = await installListing(listing, targetProjectId, userId)
   return Response.json({ purchase: { id: purchase.id, ...split }, install: installResult }, { status: 201 })

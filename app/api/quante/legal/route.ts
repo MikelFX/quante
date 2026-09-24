@@ -8,6 +8,8 @@ import {
   generateKontakt,
 } from '@/lib/legal-templates'
 import { ShopManifestSchema } from '@/lib/manifest-schema'
+import { getOwnedProject } from '@/lib/auth/project'
+import { hasPaidAdminPanel } from '@/app/api/quante/admin-panel/paid'
 import type { ShopManifest } from '@/types/manifest'
 
 // Fix (2026-08-07): this route used supabase.auth.getUser() against the service-role
@@ -21,15 +23,13 @@ export async function POST(request: Request) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = await createClient()
-  const { projectId } = await request.json()
+  let projectId: unknown
+  try { ({ projectId } = await request.json()) }
+  catch { return NextResponse.json({ error: 'Invalid request body' }, { status: 400 }) }
   if (!projectId) return NextResponse.json({ error: 'Missing projectId' }, { status: 400 })
 
-  const { data: project } = await supabase
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .single()
+  // Ownership check (service-role client — RLS does not apply)
+  const project = await getOwnedProject<{ id: string }>(projectId, userId, 'id')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   // Code-gen mode (2026-08-21): app/terms, app/privacy, app/cookies, app/contact are
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const { data: codeVersion } = await supabase
     .from('code_versions')
     .select('id')
-    .eq('project_id', projectId)
+    .eq('project_id', project.id)
     .limit(1)
     .maybeSingle()
   if (codeVersion) {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   const { data: versionRow } = await supabase
     .from('manifest_versions')
     .select('manifest, version_no')
-    .eq('project_id', projectId)
+    .eq('project_id', project.id)
     .order('version_no', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -96,17 +96,25 @@ export async function POST(request: Request) {
     footer: ensureLegalFooterColumn(manifest),
   }
 
-  const parsed = ShopManifestSchema.strip().parse(updatedManifest)
+  const result = ShopManifestSchema.strip().safeParse(updatedManifest)
+  if (!result.success) {
+    return NextResponse.json({ error: 'Stored manifest is invalid — cannot add legal pages.' }, { status: 422 })
+  }
+  const parsed = result.data
+  // adminPanel is a PAID add-on: never carry a stored (client/AI-writable) flag forward
+  // into a new version; set it only from the server-side purchase record.
+  delete (parsed as { adminPanel?: boolean }).adminPanel
+  if (await hasPaidAdminPanel(userId, project.id)) (parsed as { adminPanel?: boolean }).adminPanel = true
 
   const { error } = await supabase.from('manifest_versions').insert({
-    project_id: projectId,
+    project_id: project.id,
     version_no: versionRow.version_no + 1,
     manifest: parsed,
     prompt: 'Generování právních stránek',
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', projectId)
+  await supabase.from('projects').update({ updated_at: new Date().toISOString() }).eq('id', project.id)
 
   return NextResponse.json({ manifest: parsed })
 }

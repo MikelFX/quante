@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { loadOwnedPreviewManifest } from '@/app/(preview)/_lib/owned-manifest'
 import { StoreShell } from '@/components/storefront/StoreShell'
 import type { ShopManifest } from '@/types/manifest'
 
@@ -9,15 +9,8 @@ interface Props {
 
 export default async function StoreLayout({ children, params }: Props) {
   const { id } = await params
-  const supabase = await createClient()
-
-  const { data } = await supabase
-    .from('manifest_versions')
-    .select('manifest')
-    .eq('project_id', id)
-    .order('version_no', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const manifestRow = await loadOwnedPreviewManifest(id)
+  const data = manifestRow ? { manifest: manifestRow } : null
 
   const manifest = data?.manifest as ShopManifest | undefined
   const currency = manifest?.catalog.currency ?? ''

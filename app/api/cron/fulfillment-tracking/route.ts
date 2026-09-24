@@ -9,15 +9,15 @@
 // after the send succeeds, so a transient email failure means "try again next hour", not
 // silence forever, and a successful send is never repeated.
 //
-// Protect with CRON_SECRET (Vercel sends it automatically as "Authorization: Bearer <secret>"
-// when the env var is set) — same convention as /api/cron/hosting.
+// Protected by CRON_SECRET via lib/cron-auth (Vercel sends "Authorization: Bearer <secret>"
+// automatically once the env var is set). Fails closed when the secret is missing.
 
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { isAuthorizedCron } from '@/lib/cron-auth'
 import { decryptSecret } from '@/lib/crypto'
 import { createFulfillmentProvider } from '@/lib/fulfillment/registry'
-import { shippingEmail, sendEmail } from '@/lib/email-templates'
-import type { ShopManifest } from '@/types/manifest'
+import { claimShipped, sendGuardedShippingMail, shipRefusal, safeTrackingUrl, type ShippableOrder } from '@/app/api/projects/[id]/store-orders/_lib/ship-guard'
 
 export const maxDuration = 300
 
@@ -35,12 +35,9 @@ interface ShipmentRow {
 }
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (secret) {
-    const authHeader = request.headers.get('authorization') ?? ''
-    if (authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  // Fail closed: a missing CRON_SECRET must not leave this route public.
+  if (!isAuthorizedCron(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const cutoff = new Date(Date.now() - THIRTY_DAYS_MS).toISOString()
@@ -99,12 +96,11 @@ export async function GET(request: Request) {
 
         const { data: order } = await supabaseAdmin
           .from('store_orders')
-          .select('id, order_number, customer_name, customer_email, status')
+          .select('id, order_number, customer_name, customer_email, status, payment_status, payment_method')
           .eq('id', row.order_id)
+          .eq('project_id', projectId)
           .maybeSingle()
         if (!order) continue
-
-        const justShipped = !!shipment.trackingNumber && order.status !== 'shipped'
 
         await supabaseAdmin.from('fulfillment_shipments').update({
           status: shipment.status,
@@ -114,43 +110,47 @@ export async function GET(request: Request) {
           updated_at: new Date().toISOString(),
         }).eq('id', row.id)
 
-        await supabaseAdmin.from('store_orders').update({
+        // SECURITY (final audit F3 follow-up): the move to 'shipped' follows the same
+        // transition rules and compare-and-set as the Studio / store-key routes, and the
+        // customer mail goes through the same guarded sender (per-recipient slot, unpaid
+        // offline budget, store branding, carrier-host tracking links only).
+        const trackingFields = {
           fulfillment_status: shipment.status,
-          ...(justShipped ? {
-            status: 'shipped',
+          ...(shipment.trackingNumber ? {
             tracking_code: shipment.trackingNumber,
-            tracking_url: shipment.trackingUrl ?? null,
+            tracking_url: safeTrackingUrl(shipment.trackingUrl) ?? null,
           } : {}),
-          updated_at: new Date().toISOString(),
-        }).eq('id', row.order_id)
+        }
+        const wantsShipped = !!shipment.trackingNumber && order.status !== 'shipped'
+        const shippable = order as ShippableOrder
+        let claimed = false
+        if (wantsShipped && shipRefusal(shippable) === null) {
+          claimed = await claimShipped(projectId, row.order_id, shippable, trackingFields)
+        }
+        if (!claimed) {
+          await supabaseAdmin.from('store_orders')
+            .update({ ...trackingFields, updated_at: new Date().toISOString() })
+            .eq('id', row.order_id)
+            .eq('project_id', projectId)
+        }
 
         updated++
 
-        // Notify exactly once: only if this poll is the one that found tracking, AND we
-        // haven't already recorded a successful notification for this shipment.
-        if (justShipped && !row.customer_notified_at && order.customer_email) {
-          const { data: versionRow } = await supabaseAdmin
-            .from('manifest_versions')
-            .select('manifest')
-            .eq('project_id', projectId)
-            .order('version_no', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-
-          const manifest = versionRow?.manifest as ShopManifest | undefined
-          if (manifest) {
-            const { subject, html } = shippingEmail({
-              orderNumber: order.order_number,
-              customerName: order.customer_name ?? 'zákazníku',
-              storeName: manifest.brand.name,
-              accentColor: manifest.design.palette.accent,
-              merchantEmail: manifest.merchant?.kontakt.email ?? 'info@quantecode.com',
-              merchantName: manifest.merchant?.obchodni_nazev ?? manifest.brand.name,
-              trackingCode: shipment.trackingNumber as string,
-              trackingUrl: shipment.trackingUrl ?? '',
-              carrier: shipment.trackingCarrier || 'byrd fulfillment',
-            })
-            await sendEmail(order.customer_email, subject, html)
+        // Notify at most once: only the poll whose claim moved the order to shipped, and
+        // only if no notification was recorded for this shipment yet.
+        if (claimed && !row.customer_notified_at && order.customer_email) {
+          const sent = await sendGuardedShippingMail({
+            projectId,
+            orderId: row.order_id,
+            customerEmail: order.customer_email as string,
+            order: shippable,
+            orderNumber: order.order_number as string,
+            customerName: order.customer_name as string | null,
+            trackingCode: shipment.trackingNumber ?? null,
+            trackingUrl: shipment.trackingUrl ?? null,
+            carrier: shipment.trackingCarrier || 'byrd fulfillment',
+          })
+          if (sent) {
             // Set ONLY after the send succeeds — see module header.
             await supabaseAdmin.from('fulfillment_shipments').update({
               customer_notified_at: new Date().toISOString(),

@@ -10,6 +10,7 @@
 
 import fs from 'fs'
 import path from 'path'
+import ts from 'typescript'
 import type { ShopManifest } from '@/types/manifest'
 import type { CodeVersionFiles } from '@/types/store-code'
 
@@ -27,6 +28,1541 @@ export interface CustomComponentRecord {
   ref: string
   name: string
   code: string
+}
+
+// ─── Shared generated files (both scaffolds) ─────────────────────────────────
+
+// next.config.ts. Security: stores may only be framed by themselves and by the
+// Studio preview (quantecode.com). The legacy scaffold's /admin panel is never
+// frameable at all (its "mark as shipped" buttons were clickjackable).
+function buildNextConfig(withAdmin: boolean): string {
+  const adminRules = withAdmin
+    ? `
+      {
+        source: '/admin/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'X-Frame-Options', value: 'DENY' },
+        ],
+      },
+      {
+        source: '/api/admin/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'X-Frame-Options', value: 'DENY' },
+        ],
+      },`
+    : ''
+  return `import type { NextConfig } from 'next'
+
+const FRAME_ANCESTORS = "frame-ancestors 'self' https://quantecode.com https://*.quantecode.com"
+
+const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      { source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: FRAME_ANCESTORS }] },${adminRules}
+    ]
+  },
+}
+export default nextConfig
+`
+}
+
+// lib/platform.ts — hosted-mode helpers. Security:
+//  - fails closed when QUANTE_API_URL is missing/malformed (no hard-coded fallback
+//    host that someone else could register and receive carts + the store API key);
+//  - only follows payment redirects to known providers or back to the store itself;
+//  - never touches QUANTE_API_KEY (R9): it used to export platformHeaders(), which
+//    let any page/component that imported this module read the store's key.
+const PLATFORM_HELPER_TS = `// Hosted-mode helpers (server-side only).
+
+// Base URL of the hosting platform. Returns null when QUANTE_API_URL is unset or
+// not https (http is accepted for localhost only), so callers fail closed instead
+// of falling back to a hard-coded host.
+export function platformUrl(): string | null {
+  const raw = process.env.QUANTE_API_URL
+  if (!raw) return null
+  try {
+    const u = new URL(raw)
+    const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1'
+    if (u.protocol === 'https:' || (local && u.protocol === 'http:')) return u.origin
+  } catch {}
+  return null
+}
+
+// NOTE: nothing in this module reads QUANTE_API_KEY. The key is read only inside the
+// locked route handlers (see storeKeyHeaders there), so page/component code cannot
+// get at it by importing a shared helper.
+
+// Origin of the incoming browser request (used for payment return URLs).
+export function storeOriginOf(request: Request): string {
+  const origin = request.headers.get('origin')
+  if (origin) return origin
+  const host = request.headers.get('host')
+  return host ? 'https://' + host : 'http://localhost:3000'
+}
+
+// Shopper IP forwarded to the platform as x-quante-client-ip so its checkout rate
+// limit keys on each shopper instead of this store's shared egress IP. The platform
+// only trusts it alongside this store's API key. On Vercel these headers are set by
+// the platform edge; an unparseable value is simply not forwarded.
+export function shopperIpHeader(request: Request): Record<string, string> {
+  const ip = request.headers.get('x-real-ip')?.trim()
+    || (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
+  return ip && /^[0-9A-Fa-f:.]{3,45}$/.test(ip) ? { 'x-quante-client-ip': ip } : {}
+}
+
+const PAYMENT_HOSTS = ['stripe.com', 'comgate.cz', 'gopay.cz', 'gopay.com', 'paypal.com']
+
+// A checkout redirect is only followed when it points at a known payment provider
+// or back at this store. Extra provider hosts can be allowed with
+// PAYMENT_REDIRECT_HOSTS (comma-separated, e.g. a custom Stripe Checkout domain).
+export function isAllowedRedirect(url: unknown, storeOrigin: string): url is string {
+  if (typeof url !== 'string') return false
+  let u: URL
+  try { u = new URL(url) } catch { return false }
+  try { if (u.origin === new URL(storeOrigin).origin) return true } catch {}
+  if (u.protocol !== 'https:') return false
+  const host = u.hostname.toLowerCase()
+  const extra = (process.env.PAYMENT_REDIRECT_HOSTS ?? '').split(',').map((h) => h.trim().toLowerCase()).filter(Boolean)
+  return [...PAYMENT_HOSTS, ...extra].some((d) => host === d || host.endsWith('.' + d))
+}
+
+// Trimmed, length-capped string or undefined.
+export function cleanString(v: unknown, max = 200): string | undefined {
+  return typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined
+}
+
+export function cleanAddress(v: unknown): { ulice: string; mesto: string; psc: string; zeme?: string } | undefined {
+  if (!v || typeof v !== 'object') return undefined
+  const a = v as Record<string, unknown>
+  const ulice = cleanString(a.ulice), mesto = cleanString(a.mesto), psc = cleanString(a.psc, 20)
+  if (!ulice || !mesto || !psc) return undefined
+  return { ulice, mesto, psc, zeme: cleanString(a.zeme, 2) }
+}
+`
+
+// Spliced into each LOCKED route handler that calls the platform with the store's
+// API key. Deliberately a module-private function in the route file itself (route
+// files cannot be imported by AI code: rejectAiStoreFile refuses app/api imports),
+// never an export of a shared module.
+const STORE_KEY_HEADERS_FN = `// Request headers carrying this store's API key. Read only here, inside this
+// locked route handler — never exported from a module other code could import.
+function storeKeyHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const key = process.env.QUANTE_API_KEY
+  return key ? { ...extra, Authorization: 'Bearer ' + key } : { ...extra }
+}`
+
+// ─── AI file allowlist (security) ────────────────────────────────────────────
+// Generated code is deployed into Quante's own Vercel team, so AI-authored files
+// are restricted to presentational code that slots into the hand-written engine
+// (CLAUDE.md §2.3/§4.3). Everything else — route handlers, middleware/proxy,
+// instrumentation, vercel.json, package.json, next.config, dotfiles, public/ —
+// is dropped. Exported so generate/iterate/fix/checkpoint can filter BEFORE
+// storing code_versions; buildStoreFiles() re-applies it as defence in depth
+// because rows saved before this check existed may already contain such files.
+
+const AI_ALLOWED_ROOTS = new Set(['app', 'components', 'data', 'styles', 'lib', 'hooks', 'types'])
+// Only these file names may be written under app/ — UI segments, never route
+// handlers (route.ts) or metadata routes (sitemap.ts, robots.ts, opengraph-image…).
+// The root app/layout.tsx is LOCKED separately.
+const AI_ALLOWED_APP_FILES = new Set(['page.tsx', 'layout.tsx', 'template.tsx', 'not-found.tsx', 'loading.tsx', 'error.tsx'])
+const AI_MAX_FILE_BYTES = 512 * 1024
+
+export function isAllowedStorePath(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > 200) return false
+  if (p.includes('\\') || p.startsWith('/') || /[\u0000-\u001f]/.test(p)) return false
+  const segs = p.split('/')
+  if (segs.length < 2 || segs.length > 10) return false
+  for (const s of segs) {
+    // No empty, ".", ".." or hidden (".env", ".npmrc", ".vercel") segments.
+    if (!s || s.startsWith('.') || !/^[A-Za-z0-9_\-[\]().]+$/.test(s)) return false
+  }
+  if (!AI_ALLOWED_ROOTS.has(segs[0])) return false
+  const file = segs[segs.length - 1]
+  if (!/\.(tsx|ts|css)$/.test(file)) return false
+  // Root-level middleware/proxy/instrumentation and pages/ are already excluded by
+  // AI_ALLOWED_ROOTS; under app/ only page-like files are allowed (no route.ts).
+  if (segs[0] === 'app') {
+    if (segs[1] === 'api') return false
+    if (file.endsWith('.css')) return true
+    return AI_ALLOWED_APP_FILES.has(file)
+  }
+  return true
+}
+
+// Server-only capabilities AI presentational code never needs. Best-effort static
+// check — the path allowlist above is the primary control.
+//
+// The checks run on a tokenized view of each .ts/.tsx file (scanSource below):
+// string literals, template text, comments, regex bodies and JSX text are blanked
+// out first, so copy such as `tags: ['global']`, `label: 'Function'` or
+// `<p>Global shipping</p>` no longer drops a legitimate file, while real code
+// usages (identifiers, member accesses, imports) are still rejected. Where the lexer
+// has to guess (regex vs division, JSX vs less-than/generics) it always picks the
+// reading that scans MORE text as code, so a guess can only make the check stricter.
+// A file the lexer cannot follow falls back to the stricter raw-text checks
+// (AI_FORBIDDEN_CODE + findForbiddenIdentRaw), which is the old behaviour.
+
+// Raw-text checks — used only when scanSource() cannot tokenize a file.
+const AI_FORBIDDEN_CODE: Array<{ re: RegExp; why: string }> = [
+  { re: /['"]use server['"]/, why: "'use server' (server actions)" },
+  { re: /export\s+(?:const|let|var|async\s+function|function)\s+(?:maxDuration|runtime|preferredRegion)\b/, why: 'route segment config' },
+  { re: /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"`](?:node:[^'"`]*|child_process|fs|fs\/promises|net|tls|dgram|dns|cluster|worker_threads|http|https|http2|os|vm|v8|inspector|module|perf_hooks|async_hooks|process|crypto|stream)['"`]/, why: 'Node built-in import' },
+  // Request headers/cookies (incl. platform-injected tokens) and route-handler APIs.
+  { re: /(?:\bfrom\s*|\bimport\s*\(\s*)['"`]next\/(?:headers|server)['"`]/, why: 'next/headers or next/server import' },
+  // Dynamic import() of anything but a plain string literal (e.g. 'no' + 'de:fs').
+  { re: /\bimport\s*\(\s*(?!['"][^'"`+]*['"]\s*\))/, why: 'computed dynamic import()' },
+  // \u escapes of ASCII letters/$/_ let an identifier dodge the word checks below
+  // (process === process). Copy text never needs to escape plain ASCII.
+  { re: /\\u(?:\{0*(?:24|5f|[46][1-9a-f]|[57][0-9a])\}|00(?:24|5f|[46][1-9a-f]|[57][0-9a]))/i, why: 'unicode-escaped identifier' },
+  // Reaching Function through a prototype: [].map.constructor('…')().
+  { re: /\.\s*constructor\b|['"`]constructor['"`]/, why: 'constructor access' },
+  // Outbound requests to another host (skimming / exfiltration).
+  { re: /(?<![\w$])fetch\s*\(\s*['"`]\s*(?:[A-Za-z][A-Za-z0-9+.-]*:|[\\/]{2})/, why: 'fetch to an external URL' },
+  { re: /(?<![\w$])(?:XMLHttpRequest|WebSocket|EventSource|sendBeacon)(?![\w$])/, why: 'network API' },
+]
+
+// Identifiers that give AI code the Node runtime (process.env secrets, require,
+// eval/Function). Any use in code is rejected — not just the obvious `process.env.X`
+// spelling, since `const { env } = process`, `(0, eval)(…)` or `Function('…')`
+// work just as well. The only exception is the build-time-inlined public env reads
+// (NEXT_PUBLIC_* / NODE_ENV): those values are public by definition (Next inlines
+// them into the browser bundle) and the generation prompt allows them, so older
+// stores that read e.g. NEXT_PUBLIC_SITE_URL keep deploying. Server secrets
+// (QUANTE_API_KEY, STRIPE_SECRET_KEY …) never match that pattern.
+const AI_FORBIDDEN_IDENTS = ['process', 'globalThis', 'global', 'eval', 'Function', 'require', 'module', '__non_webpack_require__']
+const AI_ALLOWED_PROCESS_USE = /^process\s*\.\s*env\s*\.\s*(?:NEXT_PUBLIC_[A-Z0-9_]+|NODE_ENV)(?![A-Za-z0-9_$])/
+// Property names that reach the runtime or Function when used as a computed key
+// (`x['eval']`, `x['con' + 'structor']`).
+const AI_FORBIDDEN_KEYS = new Set([...AI_FORBIDDEN_IDENTS, 'constructor', '__proto__'])
+// Network primitives presentational code never needs.
+const AI_FORBIDDEN_NETWORK = ['XMLHttpRequest', 'WebSocket', 'EventSource', 'sendBeacon']
+const NODE_BUILTIN_MODULE = /^(?:node:.*|child_process|fs|fs\/promises|net|tls|dgram|dns|cluster|worker_threads|http|https|http2|os|vm|v8|inspector|module|perf_hooks|async_hooks|process|crypto|stream)(?:\/.*)?$/
+const ROUTE_CONFIG_RE = /export\s+(?:const|let|var|async\s+function|function)\s+(?:maxDuration|runtime|preferredRegion)(?![\w$])/
+// Code right before a string literal that makes the literal a module specifier.
+const MODULE_SPECIFIER_BEFORE = /(?:(?<![\w$.])(?:from|import)|(?<![\w$.])(?:import|require)\s*\()\s*$/
+// URL literals that leave the store: any scheme (https:, data: …) or protocol-relative.
+const ABSOLUTE_URL_RE = /^\s*(?:[A-Za-z][A-Za-z0-9+.-]*:|[\\/]{2})/
+// JSX text never legitimately looks like this; checked as defence in depth in case
+// the lexer ever reads real code as JSX text.
+const JSX_TEXT_CODE_RE = /\bprocess\s*(?:\.\s*env\b|\[)|\bglobalThis\b|__non_webpack_require__/
+
+// JS/TS words that may legally sit next to an identifier on the same line
+// (`return process`, `typeof process`, `process as any`, `x in process` …).
+const JS_ADJACENT_KEYWORDS = new Set([
+  'abstract', 'accessor', 'as', 'assert', 'asserts', 'async', 'await', 'case', 'catch', 'class', 'const', 'debugger',
+  'declare', 'default', 'delete', 'do', 'else', 'enum', 'export', 'extends', 'finally', 'for', 'from', 'function',
+  'get', 'if', 'implements', 'import', 'in', 'infer', 'instanceof', 'interface', 'is', 'keyof', 'let', 'module',
+  'namespace', 'new', 'of', 'out', 'override', 'private', 'protected', 'public', 'readonly', 'return', 'satisfies',
+  'set', 'static', 'super', 'switch', 'this', 'throw', 'try', 'type', 'typeof', 'unique', 'using', 'var', 'void',
+  'while', 'with', 'yield',
+])
+
+// Raw-text fallback only. True when the word at [start, end) is plain prose ("our
+// process is simple"): it has a non-keyword word right next to it on the same line,
+// separated only by spaces/tabs. Two juxtaposed identifiers are a syntax error in
+// code, so this can only match inside strings, comments or JSX text.
+function isProseWord(src: string, start: number, end: number): boolean {
+  const isLetter = (c: string | undefined) => !!c && /[A-Za-z]/.test(c)
+  const isIdentChar = (c: string | undefined) => !!c && /[A-Za-z0-9_$\\]/.test(c)
+
+  let i = start - 1
+  while (i >= 0 && (src[i] === ' ' || src[i] === '\t')) i--
+  if (i < start - 1 && isLetter(src[i])) {
+    let j = i
+    while (j >= 0 && isLetter(src[j])) j--
+    if (!isIdentChar(src[j]) && !JS_ADJACENT_KEYWORDS.has(src.slice(j + 1, i + 1))) return true
+  }
+
+  let k = end
+  while (k < src.length && (src[k] === ' ' || src[k] === '\t')) k++
+  if (k > end && isLetter(src[k])) {
+    let m = k
+    while (m < src.length && isLetter(src[m])) m++
+    if (!isIdentChar(src[m]) && !JS_ADJACENT_KEYWORDS.has(src.slice(k, m))) return true
+  }
+  return false
+}
+
+function findForbiddenIdentRaw(src: string): string | null {
+  for (const ident of AI_FORBIDDEN_IDENTS) {
+    const re = new RegExp(`(?<![A-Za-z0-9_$\\\\])${ident}(?![A-Za-z0-9_$])`, 'g')
+    for (const m of src.matchAll(re)) {
+      const start = m.index ?? 0
+      if (ident === 'process' && AI_ALLOWED_PROCESS_USE.test(src.slice(start, start + 120))) continue
+      if (isProseWord(src, start, start + ident.length)) continue
+      return ident
+    }
+  }
+  return null
+}
+
+// ── Lexer ────────────────────────────────────────────────────────────────────
+
+interface ScannedLiteral {
+  /** 'string' = quoted string or JSX attribute string; 'jsx' = JSX text. */
+  kind: 'string' | 'template' | 'jsx'
+  /** Decoded value. Templates: the static text with the ${…} parts left out. */
+  value: string
+  /** Templates: static text before the first ${…}. Otherwise the value. */
+  head: string
+  /** Index of the opening quote/backtick (JSX text: first text char). */
+  start: number
+  /** Index just after the closing quote/backtick (JSX text: end of the text). */
+  end: number
+}
+
+interface ScannedSource {
+  /** Same length as the source; literal/comment/regex/JSX-text contents are spaces. */
+  code: string
+  literals: ScannedLiteral[]
+}
+
+const IDENT_CHAR_RE = /[A-Za-z0-9_$]/
+const JSX_NAME_CHAR_RE = /[A-Za-z0-9_$.:-]/
+// Reserved words after which a new expression (so a regex literal or JSX) starts.
+const EXPR_KEYWORDS = new Set(['return', 'typeof', 'case', 'do', 'else', 'in', 'instanceof', 'new', 'delete', 'void', 'throw', 'yield', 'await'])
+
+function isWs(c: string | undefined): boolean {
+  return c === ' ' || c === '\t' || c === '\n' || c === '\r' || c === '\f' || c === '\v'
+    || c === '\u00a0' || c === '\ufeff' || c === '\u2028' || c === '\u2029'
+}
+
+// Can a new expression start at `pos` (i.e. is a '/' there a regex and a '<' JSX)?
+// Decided from the previous significant token. Anything that can end an operand —
+// identifiers, literals, `)`, `]`, `}`, postfix `++`/`--`, TS's non-null `!` —
+// answers no, so a doubtful '/' or '<' is scanned as code instead of being blanked.
+function canStartExpression(buf: ArrayLike<string>, pos: number): boolean {
+  let k = pos - 1
+  while (k >= 0 && isWs(buf[k])) k--
+  if (k < 0) return true
+  const c = buf[k]
+  if (IDENT_CHAR_RE.test(c)) {
+    let s = k
+    while (s > 0 && IDENT_CHAR_RE.test(buf[s - 1])) s--
+    let word = ''
+    for (let q = s; q <= k; q++) word += buf[q]
+    let p = s - 1
+    while (p >= 0 && isWs(buf[p])) p--
+    if (p >= 0 && buf[p] === '.') return false // property name (a.in, x.return)
+    return EXPR_KEYWORDS.has(word)
+  }
+  if (c === '>') return k > 0 && buf[k - 1] === '=' // only the arrow `=>`
+  if (c === '+' || c === '-') return !(k > 0 && buf[k - 1] === c) // not after postfix ++/--
+  if (c === '!') return canStartExpression(buf, k) // prefix `!` vs TS non-null assertion
+  return '(,=:[&|?{;*%~^<'.includes(c)
+}
+
+function decodeEscape(src: string, i: number): { ch: string; next: number } {
+  const c = src[i + 1]
+  if (c === undefined) throw new Error('scan')
+  const simple: Record<string, string> = { n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', v: '\v', 0: '\0' }
+  if (c in simple && !(c === '0' && /[0-9]/.test(src[i + 2] ?? ''))) return { ch: simple[c], next: i + 2 }
+  if (c === '\r') return { ch: '', next: src[i + 2] === '\n' ? i + 3 : i + 2 }
+  if (c === '\n' || c === '\u2028' || c === '\u2029') return { ch: '', next: i + 2 }
+  if (c === 'x') {
+    const hex = src.slice(i + 2, i + 4)
+    if (!/^[0-9a-fA-F]{2}$/.test(hex)) throw new Error('scan')
+    return { ch: String.fromCharCode(parseInt(hex, 16)), next: i + 4 }
+  }
+  if (c === 'u') {
+    if (src[i + 2] === '{') {
+      const close = src.indexOf('}', i + 3)
+      const hex = close < 0 ? '' : src.slice(i + 3, close)
+      if (!/^[0-9a-fA-F]{1,6}$/.test(hex) || parseInt(hex, 16) > 0x10ffff) throw new Error('scan')
+      return { ch: String.fromCodePoint(parseInt(hex, 16)), next: close + 1 }
+    }
+    const hex = src.slice(i + 2, i + 6)
+    if (!/^[0-9a-fA-F]{4}$/.test(hex)) throw new Error('scan')
+    return { ch: String.fromCharCode(parseInt(hex, 16)), next: i + 6 }
+  }
+  return { ch: c, next: i + 2 }
+}
+
+// Tokenizes TS/TSX just enough to tell code from text. Returns null when the source
+// cannot be followed (unterminated literal, unbalanced JSX …); callers then fall back
+// to the raw-text checks.
+function scanSource(src: string, jsx: boolean): ScannedSource | null {
+  const n = src.length
+  const out = src.split('')
+  const literals: ScannedLiteral[] = []
+  let i = 0
+
+  const fail = (): never => { throw new Error('scan') }
+  const blank = (from: number, to: number) => {
+    for (let k = from; k < to; k++) if (out[k] !== '\n' && out[k] !== '\r') out[k] = ' '
+  }
+
+  function readQuoted(q: string): void {
+    const start = i
+    let value = ''
+    i++
+    for (;;) {
+      if (i >= n) fail()
+      const c = src[i]
+      if (c === q) break
+      if (c === '\n' || c === '\r') fail()
+      if (c === '\\') { const d = decodeEscape(src, i); value += d.ch; i = d.next; continue }
+      value += c
+      i++
+    }
+    i++
+    blank(start + 1, i - 1)
+    literals.push({ kind: 'string', value, head: value, start, end: i })
+  }
+
+  function readTemplate(): void {
+    const start = i
+    let value = ''
+    let head: string | null = null
+    i++
+    let segStart = i
+    for (;;) {
+      if (i >= n) fail()
+      const c = src[i]
+      if (c === '`') break
+      if (c === '\\') { const d = decodeEscape(src, i); value += d.ch; i = d.next; continue }
+      if (c === '$' && src[i + 1] === '{') {
+        blank(segStart, i)
+        if (head === null) head = value
+        i += 2
+        scanCode(true) // stops on the closing '}'
+        i++
+        segStart = i
+        continue
+      }
+      value += c
+      i++
+    }
+    blank(segStart, i)
+    i++
+    literals.push({ kind: 'template', value, head: head ?? value, start, end: i })
+  }
+
+  function readRegex(): void {
+    const start = i
+    i++
+    let inClass = false
+    for (;;) {
+      if (i >= n) fail()
+      const c = src[i]
+      if (c === '\n' || c === '\r') fail()
+      if (c === '\\') {
+        if (src[i + 1] === '\n' || src[i + 1] === '\r' || i + 1 >= n) fail()
+        i += 2
+        continue
+      }
+      if (inClass) { if (c === ']') inClass = false }
+      else if (c === '[') inClass = true
+      else if (c === '/') break
+      i++
+    }
+    blank(start + 1, i)
+    i++
+    while (i < n && IDENT_CHAR_RE.test(src[i])) i++ // flags
+  }
+
+  // A '<' in expression position is JSX unless it opens TS generics: `<T,>`,
+  // `<T extends X>`, `<T = X>` or a generic function type `<T>(…) => R`. The last
+  // one also turns away real JSX whose text starts with '(' — that file is then
+  // scanned more strictly, never less.
+  function looksLikeJsx(): boolean {
+    let k = i + 1
+    if (src[k] === '>') return true // fragment
+    if (!/[A-Za-z_$]/.test(src[k] ?? '')) return false
+    while (k < n && JSX_NAME_CHAR_RE.test(src[k])) k++
+    while (k < n && isWs(src[k])) k++
+    const c = src[k]
+    if (c === ',' || c === '=') return false
+    if (src.startsWith('extends', k) && !IDENT_CHAR_RE.test(src[k + 7] ?? '')) return false
+    if (c === '>') {
+      let p = k + 1
+      while (p < n && isWs(src[p])) p++
+      if (src[p] === '(') return false
+    }
+    return true
+  }
+
+  function readJsxAttrString(q: string): void {
+    const start = i
+    const close = src.indexOf(q, i + 1)
+    if (close < 0) fail()
+    const value = src.slice(i + 1, close)
+    blank(start + 1, close)
+    i = close + 1
+    literals.push({ kind: 'string', value, head: value, start, end: i })
+  }
+
+  function readJsxElement(): void {
+    // i at '<'
+    i++
+    if (src[i] === '>') { i++; readJsxChildren(); return } // <>…</>
+    if (!/[A-Za-z_$]/.test(src[i] ?? '')) fail()
+    while (i < n && JSX_NAME_CHAR_RE.test(src[i])) i++
+    for (;;) {
+      while (i < n && isWs(src[i])) i++
+      if (i >= n) fail()
+      const c = src[i]
+      if (c === '/' && src[i + 1] === '/') { // comment between attributes
+        const nl = src.indexOf('\n', i)
+        const stop = nl < 0 ? n : nl
+        blank(i, stop)
+        i = stop
+        continue
+      }
+      if (c === '/' && src[i + 1] === '*') {
+        const close = src.indexOf('*/', i + 2)
+        if (close < 0) fail()
+        blank(i, close + 2)
+        i = close + 2
+        continue
+      }
+      if (c === '/') { if (src[i + 1] !== '>') fail(); i += 2; return }
+      if (c === '>') { i++; readJsxChildren(); return }
+      if (c === '{') { i++; scanCode(true); i++; continue } // {...spread}
+      if (!/[A-Za-z_$]/.test(c)) fail()
+      while (i < n && JSX_NAME_CHAR_RE.test(src[i])) i++
+      while (i < n && isWs(src[i])) i++
+      if (src[i] !== '=') continue // boolean attribute
+      i++
+      while (i < n && isWs(src[i])) i++
+      const v = src[i]
+      if (v === '"' || v === "'") readJsxAttrString(v)
+      else if (v === '{') { i++; scanCode(true); i++ }
+      else if (v === '<') readJsxElement()
+      else fail()
+    }
+  }
+
+  function readJsxChildren(): void {
+    let textStart = i
+    const flushText = () => {
+      if (i > textStart) {
+        literals.push({ kind: 'jsx', value: src.slice(textStart, i), head: '', start: textStart, end: i })
+        blank(textStart, i)
+      }
+    }
+    for (;;) {
+      if (i >= n) fail()
+      const c = src[i]
+      if (c === '{') { flushText(); i++; scanCode(true); i++; textStart = i; continue }
+      if (c === '<') {
+        flushText()
+        if (src[i + 1] === '/') { // closing tag
+          i += 2
+          while (i < n && (JSX_NAME_CHAR_RE.test(src[i]) || isWs(src[i]))) i++
+          if (src[i] !== '>') fail()
+          i++
+          return
+        }
+        readJsxElement() // inside children every '<' opens an element
+        textStart = i
+        continue
+      }
+      i++
+    }
+  }
+
+  // Scans code to EOF (top level) or to the '}' closing the current `${` / `{`
+  // (nested), leaving i on that '}'.
+  function scanCode(nested: boolean): void {
+    let depth = 0
+    while (i < n) {
+      const c = src[i]
+      if (c === '"' || c === "'") { readQuoted(c); continue }
+      if (c === '`') { readTemplate(); continue }
+      if (c === '/') {
+        const d = src[i + 1]
+        if (d === '/') {
+          const nl = src.indexOf('\n', i)
+          const stop = nl < 0 ? n : nl
+          blank(i, stop)
+          i = stop
+          continue
+        }
+        if (d === '*') {
+          const close = src.indexOf('*/', i + 2)
+          if (close < 0) fail()
+          blank(i, close + 2)
+          i = close + 2
+          continue
+        }
+        if (canStartExpression(out, i)) { readRegex(); continue }
+        i++
+        continue
+      }
+      if (c === '<' && jsx && canStartExpression(out, i) && looksLikeJsx()) { readJsxElement(); continue }
+      if (c === '{') depth++
+      else if (c === '}') {
+        if (depth === 0) { if (nested) return; fail() }
+        depth--
+      }
+      i++
+    }
+    if (nested) fail()
+  }
+
+  try {
+    scanCode(false)
+  } catch {
+    return null
+  }
+  return { code: out.join(''), literals }
+}
+
+// ── Checks ───────────────────────────────────────────────────────────────────
+
+// Local modules AI code may never import: the hosted-mode helper module, the legacy
+// admin-session module and every route handler (they run with the store's server env).
+function isLockedModuleImport(filePath: string, spec: string): boolean {
+  let target: string
+  if (spec.startsWith('@/')) target = spec.slice(2)
+  else if (spec === '.' || spec === '..' || spec.startsWith('./') || spec.startsWith('../')) {
+    target = path.posix.join(path.posix.dirname(filePath), spec)
+  } else if (spec.startsWith('/')) target = spec.slice(1)
+  else target = spec
+  target = path.posix.normalize(target).replace(/^(?:\.\/)+/, '').replace(/\/+$/, '').toLowerCase()
+  target = target.replace(/\.(?:tsx?|jsx?|mjs|cjs)$/, '').replace(/\/index$/, '')
+  return target === 'lib/platform' || target === 'lib/admin-session'
+    || target === 'app/api' || target.startsWith('app/api/')
+}
+
+function forbiddenImport(filePath: string, spec: string): string | null {
+  if (NODE_BUILTIN_MODULE.test(spec)) return 'Node built-in import'
+  if (/^next\/(?:headers|server)(?:\.js)?$/.test(spec)) return 'next/headers or next/server import'
+  if (isLockedModuleImport(filePath, spec)) return 'import of a locked platform module'
+  return null
+}
+
+function findForbiddenIdentInCode(code: string): string | null {
+  for (const ident of AI_FORBIDDEN_IDENTS) {
+    const re = new RegExp(`(?<![A-Za-z0-9_$])${ident}(?![A-Za-z0-9_$])`, 'g')
+    for (const m of code.matchAll(re)) {
+      const start = m.index ?? 0
+      if (ident === 'process' && AI_ALLOWED_PROCESS_USE.test(code.slice(start, start + 120))) continue
+      return ident
+    }
+  }
+  return null
+}
+
+function checkScannedCode(filePath: string, { code, literals }: ScannedSource): string | null {
+  const sorted = [...literals].sort((a, b) => a.start - b.start)
+  const byStart = new Map(sorted.map((l) => [l.start, l]))
+
+  if (ROUTE_CONFIG_RE.test(code)) return 'route segment config'
+  // Outside literals a backslash can only be an escaped identifier (process).
+  if (code.includes('\\')) return 'unicode-escaped identifier'
+  if (/(?<![\w$.])import\s*\(\s*(?!'[^'\n]*'\s*\)|"[^"\n]*"\s*\))/.test(code)) return 'computed dynamic import()'
+  if (/\.\s*constructor(?![\w$])/.test(code)) return 'constructor access'
+
+  for (const l of sorted) {
+    if (l.kind === 'jsx') {
+      if (JSX_TEXT_CODE_RE.test(l.value)) return 'code in JSX text'
+      continue
+    }
+    if (l.kind === 'string' && l.value === 'use server') return "'use server' (server actions)"
+    if (l.value === 'constructor' || l.value === '__proto__') return 'constructor access'
+    if (l.kind === 'string' && MODULE_SPECIFIER_BEFORE.test(code.slice(Math.max(0, l.start - 40), l.start))) {
+      const why = forbiddenImport(filePath, l.value)
+      if (why) return why
+    }
+  }
+
+  const ident = findForbiddenIdentInCode(code)
+  if (ident) return ident
+
+  // Computed member access with string keys: x['eval'], x['con' + 'structor'].
+  // A '[' where an expression may start is an array literal (tags: ['global'],
+  // `for (const t of ['global'])`, `export default ['global']`).
+  for (let k = code.indexOf('['); k >= 0; k = code.indexOf('[', k + 1)) {
+    if (canStartExpression(code, k) || /(?<![\w$.])(?:of|default)\s*$/.test(code.slice(Math.max(0, k - 12), k))) continue
+    let depth = 0
+    let close = code.length
+    for (let q = k; q < code.length; q++) {
+      if (code[q] === '[') depth++
+      else if (code[q] === ']' && --depth === 0) { close = q; break }
+    }
+    // First literal starting after '[' (binary search), then every one up to ']'.
+    let lo = 0
+    let hi = sorted.length
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (sorted[mid].start <= k) lo = mid + 1; else hi = mid }
+    const parts: string[] = []
+    for (let q = lo; q < sorted.length && sorted[q].start < close; q++) {
+      if (sorted[q].kind === 'jsx') continue
+      if (AI_FORBIDDEN_KEYS.has(sorted[q].value)) return `computed access to '${sorted[q].value}'`
+      parts.push(sorted[q].value)
+    }
+    const joined = parts.join('')
+    if (AI_FORBIDDEN_KEYS.has(joined)) return `computed access to '${joined}'`
+  }
+
+  for (const name of AI_FORBIDDEN_NETWORK) {
+    if (new RegExp(`(?<![\\w$])${name}(?![\\w$])`).test(code)) return `network API: ${name}`
+  }
+
+  // fetch() of an absolute URL — given literally or through a const in this file.
+  for (const m of code.matchAll(/(?<![\w$])fetch\s*\(\s*/g)) {
+    const argStart = (m.index ?? 0) + m[0].length
+    let lit = byStart.get(argStart)
+    if (!lit) {
+      const id = /^[A-Za-z_$][\w$]*/.exec(code.slice(argStart, argStart + 100))?.[0]
+      if (id) {
+        const decl = new RegExp(`(?<![\\w$])(?:const|let|var)\\s+${id.replace(/\$/g, '\\$')}\\s*(?::[^=;]*)?=\\s*$`)
+        lit = sorted.find((l) => l.kind !== 'jsx' && decl.test(code.slice(Math.max(0, l.start - 200), l.start)))
+      }
+    }
+    if (lit && lit.kind !== 'jsx' && ABSOLUTE_URL_RE.test(lit.head)) return 'fetch to an external URL'
+  }
+
+  return null
+}
+
+function checkRawCode(filePath: string, content: string): string | null {
+  for (const { re, why } of AI_FORBIDDEN_CODE) {
+    if (re.test(content)) return why
+  }
+  const ident = findForbiddenIdentRaw(content)
+  if (ident) return ident
+  for (const m of content.matchAll(/(['"`])([^'"`\n]{1,300})\1/g)) {
+    if (isLockedModuleImport(filePath, m[2])) return 'import of a locked platform module'
+  }
+  return null
+}
+
+// ── AST allowlist (security boundary, F7/F9) ─────────────────────────────────
+// The lexical checks above are a denylist over text; a name rebuilt at runtime from
+// pieces is invisible to them. This pass parses the file with the TypeScript
+// compiler (same dependency lib/sandbox/validate-component.ts uses) and enforces an
+// ALLOWLIST: known module specifiers only, no runtime/global escape hatches, no
+// prototype-chain property names in any position, computed keys only when their
+// value is provably not one of those names, and constant-folded string values
+// checked against them. Anything the parser reports as a syntax error, or that the
+// walker cannot fully analyse, is rejected (fail closed). Both passes must accept.
+
+// Package specifiers AI files may import (all shipped by the scaffold package.json).
+const AI_ALLOWED_PACKAGES = new Set([
+  'react', 'react-dom', 'react/jsx-runtime',
+  'next/link', 'next/image', 'next/navigation', 'next/font/google',
+  'framer-motion', 'lucide-react',
+])
+// Extra specifiers allowed for `import type` only (erased at compile time).
+const AI_TYPE_ONLY_PACKAGES = new Set(['next'])
+// Free identifiers that give code the runtime, a global object, or raw network access.
+const AST_FORBIDDEN_IDENTS = new Set([
+  'process', 'global', 'globalThis', 'eval', 'Function', 'require', 'module', 'exports',
+  'Reflect', 'Proxy', 'WebAssembly', 'XMLHttpRequest', 'WebSocket', 'EventSource',
+  'importScripts', '__non_webpack_require__', '__webpack_require__', 'Buffer', 'setImmediate',
+  'atob', 'unescape', 'SharedArrayBuffer', 'Atomics', 'Worker', 'SharedWorker',
+])
+// Browser globals: only in 'use client' files (never evaluated with the server env).
+const AST_CLIENT_ONLY_IDENTS = new Set(['window', 'document'])
+// Global-object aliases that are also common local names: flagged only when not
+// declared in the file, and only allowed in 'use client' files.
+const AST_AMBIGUOUS_GLOBALS = new Set(['self', 'top', 'parent', 'frames'])
+// Property names forbidden in EVERY position (member access, computed key, object
+// literal key, destructuring key, class member).
+const AST_FORBIDDEN_PROPS = new Set([
+  'constructor', '__proto__', 'prototype', '__defineGetter__', '__defineSetter__',
+  '__lookupGetter__', '__lookupSetter__', 'caller', 'callee', 'arguments',
+  'prepareStackTrace', 'captureStackTrace', 'getThis', 'getFunction',
+])
+// Additionally forbidden as the name in a member access (`x.eval`, `navigator.sendBeacon`).
+const AST_FORBIDDEN_MEMBER_NAMES = new Set([
+  ...AST_FORBIDDEN_IDENTS, 'sendBeacon', 'fromCharCode', 'fromCodePoint', 'mainModule',
+  'binding', 'dlopen',
+])
+// A constant-folded string (or computed key) equal to one of these rejects the file.
+const AST_FORBIDDEN_STRING_VALUES = new Set([
+  ...AST_FORBIDDEN_PROPS, ...AST_FORBIDDEN_MEMBER_NAMES, 'env', 'window', 'document', 'self',
+])
+// Plain single literals are product copy far more often than code, so only the
+// prototype-chain names are rejected there (the old lexical rule, extended).
+const AST_FORBIDDEN_PLAIN_LITERALS = new Set([
+  'constructor', '__proto__', 'prototype', '__defineGetter__', '__defineSetter__',
+  '__lookupGetter__', '__lookupSetter__',
+])
+// Object.<name> members AI code may use.
+const AST_OBJECT_ALLOWED_MEMBERS = new Set(['keys', 'values', 'entries', 'fromEntries', 'assign', 'freeze', 'isFrozen'])
+const AST_ROUTE_CONFIG_NAMES = new Set(['maxDuration', 'runtime', 'preferredRegion'])
+// Calls whose result is a string built at runtime; a variable initialised from one
+// may not be used as a computed key.
+const AST_STRING_BUILDING_METHODS = new Set([
+  'join', 'concat', 'reverse', 'replace', 'replaceAll', 'slice', 'substring', 'substr',
+  'toString', 'repeat', 'padStart', 'padEnd', 'trim', 'trimStart', 'trimEnd',
+  'toLowerCase', 'toUpperCase', 'normalize', 'at', 'charAt', 'map', 'reduce', 'split',
+])
+
+function astUnwrap(node: ts.Expression): ts.Expression {
+  let e = node
+  while (
+    ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isNonNullExpression(e) ||
+    ts.isSatisfiesExpression(e) || ts.isTypeAssertionExpression(e)
+  ) e = e.expression
+  return e
+}
+
+type AstFolded = string | string[] | null
+
+// Best-effort constant folding of string-building expressions over literals and
+// file-level constant strings ('a' + 'b', `a${'b'}`, ['a','b'].join(''), 'a'.concat('b')).
+function astFold(node: ts.Expression, consts: Map<string, string>, depth = 0): AstFolded {
+  if (depth > 300) throw new Error('expression nested too deeply')
+  const e = astUnwrap(node)
+  const str = (x: ts.Expression): string | null => {
+    const v = astFold(x, consts, depth + 1)
+    return typeof v === 'string' ? v : null
+  }
+  if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e) || ts.isNumericLiteral(e)) return e.text
+  if (ts.isIdentifier(e)) return consts.get(e.text) ?? null
+  if (ts.isTemplateExpression(e)) {
+    let out = e.head.text
+    for (const span of e.templateSpans) {
+      const v = str(span.expression)
+      if (v === null) return null
+      out += v + span.literal.text
+    }
+    return out
+  }
+  if (ts.isTaggedTemplateExpression(e)) {
+    const t = e.template
+    if (ts.isNoSubstitutionTemplateLiteral(t)) return t.rawText ?? t.text
+    return null
+  }
+  if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const l = str(e.left)
+    const r = l === null ? null : str(e.right)
+    return l === null || r === null ? null : l + r
+  }
+  if (ts.isConditionalExpression(e)) {
+    // Either branch may be the runtime value; report one that folds to a forbidden name.
+    const a = str(e.whenTrue)
+    const b = str(e.whenFalse)
+    if (a !== null && AST_FORBIDDEN_STRING_VALUES.has(a)) return a
+    if (b !== null && AST_FORBIDDEN_STRING_VALUES.has(b)) return b
+    return a !== null && a === b ? a : null
+  }
+  if (ts.isArrayLiteralExpression(e)) {
+    const parts: string[] = []
+    for (const el of e.elements) {
+      const v = str(el)
+      if (v === null) return null
+      parts.push(v)
+    }
+    return parts
+  }
+  if (ts.isCallExpression(e) && ts.isPropertyAccessExpression(e.expression)) {
+    const method = e.expression.name.text
+    const target = astFold(e.expression.expression, consts, depth + 1)
+    if (target === null) return null
+    const args: string[] = []
+    for (const a of e.arguments) {
+      const v = str(a)
+      if (v === null) return null
+      args.push(v)
+    }
+    if (typeof target === 'string') {
+      if (method === 'concat') return target + args.join('')
+      if (method === 'split') return target.split(args[0] ?? '')
+      if (method === 'toString' || method === 'valueOf') return target
+      if (method === 'trim') return target.trim()
+      if (method === 'toLowerCase') return target.toLowerCase()
+      if (method === 'toUpperCase') return target.toUpperCase()
+      if (method === 'repeat') return target.repeat(Math.min(Number(args[0]) || 0, 64))
+      if (method === 'slice' || method === 'substring') {
+        return target[method](Number(args[0]) || 0, args[1] === undefined ? undefined : Number(args[1]))
+      }
+      return null
+    }
+    if (method === 'join') return target.join(args.length ? args[0] : ',')
+    if (method === 'reverse') return [...target].reverse()
+    if (method === 'concat') return [...target, ...args]
+    return null
+  }
+  return null
+}
+
+function astConstStrings(sf: ts.SourceFile): Map<string, string> {
+  const consts = new Map<string, string>()
+  const ambiguous = new Set<string>()
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      const name = node.name.text
+      const v = astFold(node.initializer, consts)
+      if (typeof v === 'string' && !ambiguous.has(name) && !consts.has(name)) consts.set(name, v)
+      else { consts.delete(name); ambiguous.add(name) }
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return consts
+}
+
+function astIsStringish(node: ts.Expression): boolean {
+  const e = astUnwrap(node)
+  if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e) || ts.isTemplateExpression(e) || ts.isTaggedTemplateExpression(e)) return true
+  if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    return astIsStringish(e.left) || astIsStringish(e.right)
+  }
+  return false
+}
+
+// Names bound (anywhere in the file) to a string assembled at runtime; such a name
+// may not be used as a computed key because its value cannot be checked statically.
+function astRuntimeStringNames(sf: ts.SourceFile, consts: Map<string, string>): Set<string> {
+  const names = new Set<string>()
+  const builds = (init: ts.Expression): boolean => {
+    const e = astUnwrap(init)
+    if (astFold(e, consts) !== null) return false
+    if (astIsStringish(e)) return true
+    if (ts.isCallExpression(e)) {
+      const callee = astUnwrap(e.expression)
+      if (ts.isPropertyAccessExpression(callee) && AST_STRING_BUILDING_METHODS.has(callee.name.text)) return true
+      if (ts.isIdentifier(callee) && (callee.text === 'String' || callee.text === 'decodeURIComponent' || callee.text === 'decodeURI')) return true
+    }
+    if (ts.isConditionalExpression(e)) return builds(e.whenTrue) || builds(e.whenFalse)
+    if (ts.isBinaryExpression(e)) {
+      const op = e.operatorToken.kind
+      if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.AmpersandAmpersandToken) {
+        return builds(e.left) || builds(e.right)
+      }
+    }
+    return false
+  }
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer && builds(node.initializer)) {
+      names.add(node.name.text)
+    } else if (ts.isBinaryExpression(node) && node.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+        node.operatorToken.kind <= ts.SyntaxKind.LastAssignment && ts.isIdentifier(node.left) && builds(node.right)) {
+      names.add(node.left.text)
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return names
+}
+
+function astDeclaredNames(sf: ts.SourceFile): Set<string> {
+  const names = new Set<string>()
+  const addBinding = (b: ts.BindingName) => {
+    if (ts.isIdentifier(b)) names.add(b.text)
+    else for (const el of b.elements) if (!ts.isOmittedExpression(el)) addBinding(el.name)
+  }
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) || ts.isParameter(node)) addBinding(node.name)
+    else if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name) names.add(node.name.text)
+    else if (ts.isImportClause(node) && node.name) names.add(node.name.text)
+    else if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node)) names.add(node.name.text)
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return names
+}
+
+/** Where an Identifier sits: a property/member name, a declaration name, or a value reference. */
+function astIdentRole(id: ts.Identifier): 'member' | 'key' | 'decl' | 'jsxAttr' | 'label' | 'ref' {
+  const p = id.parent
+  if (!p) return 'ref'
+  if (ts.isPropertyAccessExpression(p)) return p.name === id ? 'member' : 'ref'
+  if (ts.isQualifiedName(p)) return 'member'
+  if (ts.isJsxAttribute(p)) return 'jsxAttr'
+  if (ts.isLabeledStatement(p) || ts.isBreakOrContinueStatement(p)) return 'label'
+  if (ts.isBindingElement(p)) {
+    if (p.propertyName === id) return 'key'
+    if (p.name === id) return p.propertyName ? 'decl' : 'key' // `{ constructor }` reads that key
+    return 'ref'
+  }
+  if (ts.isShorthandPropertyAssignment(p)) return p.name === id ? 'ref' : 'ref'
+  if (
+    ts.isPropertyAssignment(p) || ts.isPropertyDeclaration(p) || ts.isPropertySignature(p) ||
+    ts.isMethodDeclaration(p) || ts.isMethodSignature(p) || ts.isGetAccessorDeclaration(p) ||
+    ts.isSetAccessorDeclaration(p) || ts.isEnumMember(p)
+  ) return (p as { name?: ts.Node }).name === id ? 'key' : 'ref'
+  if (
+    ts.isVariableDeclaration(p) || ts.isParameter(p) || ts.isFunctionDeclaration(p) || ts.isFunctionExpression(p) ||
+    ts.isClassDeclaration(p) || ts.isClassExpression(p) || ts.isInterfaceDeclaration(p) ||
+    ts.isTypeAliasDeclaration(p) || ts.isTypeParameterDeclaration(p) || ts.isEnumDeclaration(p) ||
+    ts.isImportClause(p) || ts.isNamespaceImport(p)
+  ) return (p as { name?: ts.Node }).name === id ? 'decl' : 'ref'
+  if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p)) return 'decl'
+  return 'ref'
+}
+
+/** process.env.NEXT_PUBLIC_* / process.env.NODE_ENV, read as a plain member chain. */
+function astIsAllowedProcessUse(id: ts.Identifier): boolean {
+  const envAccess = id.parent
+  if (!envAccess || !ts.isPropertyAccessExpression(envAccess) || envAccess.expression !== id || envAccess.name.text !== 'env') return false
+  if (envAccess.questionDotToken) return false
+  const varAccess = envAccess.parent
+  if (!varAccess || !ts.isPropertyAccessExpression(varAccess) || varAccess.expression !== envAccess) return false
+  const name = varAccess.name.text
+  if (!/^(?:NEXT_PUBLIC_[A-Z0-9_]+|NODE_ENV)$/.test(name)) return false
+  // The value may be read, never written or deleted.
+  const use = varAccess.parent
+  if (use && ts.isBinaryExpression(use) && use.left === varAccess &&
+      use.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && use.operatorToken.kind <= ts.SyntaxKind.LastAssignment) return false
+  if (use && ts.isDeleteExpression(use)) return false
+  return true
+}
+
+/** '@/x' or a relative specifier → project-relative path inside the AI-writable roots, else null. */
+function astResolveLocalImport(filePath: string, spec: string): string | null {
+  let target: string
+  if (spec.startsWith('@/')) target = spec.slice(2)
+  else if (spec === '.' || spec === '..' || spec.startsWith('./') || spec.startsWith('../')) {
+    target = path.posix.join(path.posix.dirname(filePath), spec)
+  } else return null
+  if (target.includes('\\') || /[\u0000-\u001f]/.test(target)) return null
+  target = path.posix.normalize(target).replace(/^(?:\.\/)+/, '').replace(/\/+$/, '')
+  if (!target || target === '.' || target.startsWith('../') || target === '..' || target.startsWith('/')) return null
+  const root = target.split('/')[0]
+  if (!AI_ALLOWED_ROOTS.has(root)) return null
+  return target
+}
+
+function astCheckModuleSpecifier(filePath: string, spec: ts.Expression | undefined, typeOnly: boolean): string | null {
+  if (!spec) return null
+  if (!ts.isStringLiteral(spec)) return 'non-literal module specifier'
+  const s = spec.text
+  if (AI_ALLOWED_PACKAGES.has(s)) return null
+  if (typeOnly && AI_TYPE_ONLY_PACKAGES.has(s)) return null
+  const local = astResolveLocalImport(filePath, s)
+  if (local === null) return `import of '${s.slice(0, 80)}' is not allowed`
+  if (isLockedModuleImport(filePath, s)) return 'import of a locked platform module'
+  return null
+}
+
+function astIsTypeOnlyImport(node: ts.ImportDeclaration): boolean {
+  const clause = node.importClause
+  if (!clause) return false // side-effect import
+  if (clause.isTypeOnly) return true
+  if (clause.name) return false
+  const b = clause.namedBindings
+  if (!b || ts.isNamespaceImport(b)) return false
+  return b.elements.length > 0 && b.elements.every((el) => el.isTypeOnly)
+}
+
+function astHasUseClient(sf: ts.SourceFile): boolean {
+  for (const st of sf.statements) {
+    if (!ts.isExpressionStatement(st) || !ts.isStringLiteral(st.expression)) return false
+    if (st.expression.text === 'use client') return true
+  }
+  return false
+}
+
+function astIsRelativeUrl(s: string): boolean {
+  return s.startsWith('/') && !s.startsWith('//') && !s.startsWith('/\\')
+}
+
+/** A computed key whose value cannot be assembled at runtime from strings. */
+function astIsStaticKey(node: ts.Expression, runtimeNames: Set<string>, depth = 0): boolean {
+  if (depth > 100) return false
+  const e = astUnwrap(node)
+  if (ts.isNumericLiteral(e) || ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e)) return true
+  if (ts.isIdentifier(e)) return !runtimeNames.has(e.text)
+  if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) return true
+  if (ts.isPrefixUnaryExpression(e) || ts.isPostfixUnaryExpression(e)) return astIsStaticKey(e.operand, runtimeNames, depth + 1)
+  if (ts.isBinaryExpression(e)) {
+    const op = e.operatorToken.kind
+    if (op === ts.SyntaxKind.CommaToken || (op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment)) return false
+    if (op === ts.SyntaxKind.PlusToken && (astIsStringish(e.left) || astIsStringish(e.right))) return false
+    if (op === ts.SyntaxKind.BarBarToken || op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.AmpersandAmpersandToken) {
+      return astIsStaticKey(e.left, runtimeNames, depth + 1) && astIsStaticKey(e.right, runtimeNames, depth + 1)
+    }
+    return astIsStaticKey(e.left, runtimeNames, depth + 1) && astIsStaticKey(e.right, runtimeNames, depth + 1)
+  }
+  if (ts.isCallExpression(e)) {
+    const callee = astUnwrap(e.expression)
+    if (ts.isIdentifier(callee) && (callee.text === 'Number' || callee.text === 'parseInt' || callee.text === 'parseFloat')) return true
+    if (ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === 'Math') return true
+  }
+  return false
+}
+
+function runAstStoreChecks(filePath: string, src: string): string | null {
+  const kind = filePath.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+  const sf = ts.createSourceFile(filePath, src, ts.ScriptTarget.Latest, true, kind)
+  const diagnostics = (sf as unknown as { parseDiagnostics?: readonly ts.Diagnostic[] }).parseDiagnostics ?? []
+  if (diagnostics.length > 0) {
+    const first = diagnostics[0]
+    const where = first.start !== undefined ? sf.getLineAndCharacterOfPosition(first.start).line + 1 : 0
+    return `syntax error${where ? ` at line ${where}` : ''}: ${ts.flattenDiagnosticMessageText(first.messageText, ' ').slice(0, 120)}`
+  }
+
+  const isClient = astHasUseClient(sf)
+  const consts = astConstStrings(sf)
+  const runtimeNames = astRuntimeStringNames(sf, consts)
+  const declared = astDeclaredNames(sf)
+
+  const checkKeyExpr = (key: ts.Expression): string | null => {
+    const folded = astFold(key, consts)
+    if (typeof folded === 'string') {
+      return AST_FORBIDDEN_STRING_VALUES.has(folded) ? `computed access to '${folded}'` : null
+    }
+    if (Array.isArray(folded)) {
+      const joined = folded.join(',')
+      return AST_FORBIDDEN_STRING_VALUES.has(joined) ? `computed access to '${joined}'` : null
+    }
+    return astIsStaticKey(key, runtimeNames) ? null : 'computed property key built at runtime'
+  }
+
+  const checkFetchCall = (call: ts.CallExpression): string | null => {
+    const arg = call.arguments[0]
+    if (!arg) return null
+    const folded = astFold(arg, consts)
+    if (typeof folded === 'string') return astIsRelativeUrl(folded) ? null : 'fetch to an external URL'
+    if (!isClient) return 'fetch with a non-literal URL in a server file'
+    // Client files: the static start of the URL must still be relative.
+    const e = astUnwrap(arg)
+    let head: string | null = null
+    if (ts.isTemplateExpression(e)) head = e.head.text
+    else if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      let left: ts.Expression = e
+      while (ts.isBinaryExpression(left) && left.operatorToken.kind === ts.SyntaxKind.PlusToken) left = astUnwrap(left.left)
+      const v = astFold(left, consts)
+      head = typeof v === 'string' ? v : null
+    }
+    if (head !== null && head.length > 0 && !astIsRelativeUrl(head)) return 'fetch to an external URL'
+    return null
+  }
+
+  const isFetchCallee = (n: ts.Node): boolean => {
+    const p = n.parent
+    return !!p && ts.isCallExpression(p) && astUnwrap(p.expression) === n
+  }
+
+  let reason: string | null = null
+  const fail = (why: string) => { if (!reason) reason = why }
+
+  const visit = (node: ts.Node): void => {
+    if (reason) return
+    // Types carry no runtime behaviour — except a class `extends <expression>`.
+    if (ts.isTypeNode(node) && !(ts.isExpressionWithTypeArguments(node) && ts.isHeritageClause(node.parent) &&
+        node.parent.token === ts.SyntaxKind.ExtendsKeyword && ts.isClassLike(node.parent.parent))) return
+    if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) return
+    if (ts.isModuleDeclaration(node)) {
+      const ambient = ts.getCombinedModifierFlags(node) & ts.ModifierFlags.Ambient
+      if (!ambient) fail('namespace/module declaration')
+      return // ambient declarations emit no code
+    }
+    if ((ts.isVariableStatement(node) || ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node) || ts.isEnumDeclaration(node)) &&
+        ts.getCombinedModifierFlags(node as ts.Declaration) & ts.ModifierFlags.Ambient) return
+
+    if (ts.isIdentifier(node)) {
+      const name = node.text
+      const role = astIdentRole(node)
+      if (role === 'member') {
+        if (AST_FORBIDDEN_PROPS.has(name) || AST_FORBIDDEN_MEMBER_NAMES.has(name)) fail(`access to '.${name}'`)
+        else if (name === 'fetch' && !isFetchCallee(node.parent)) fail('fetch used as a value')
+        return
+      }
+      if (role === 'key') {
+        if (AST_FORBIDDEN_PROPS.has(name)) fail(`property key '${name}'`)
+        return
+      }
+      if (role === 'jsxAttr' || role === 'label') return
+      // decl / ref: forbidden names may be neither referenced nor shadowed.
+      if (name === 'process' && role === 'ref' && astIsAllowedProcessUse(node)) return
+      if (AST_FORBIDDEN_IDENTS.has(name)) { fail(name); return }
+      if (role !== 'ref') return
+      if (AST_CLIENT_ONLY_IDENTS.has(name) && !isClient) { fail(`${name} outside a 'use client' file`); return }
+      if (AST_AMBIGUOUS_GLOBALS.has(name) && !declared.has(name) && !isClient) { fail(`global '${name}'`); return }
+      if (name === 'fetch' && !isFetchCallee(node)) { fail('fetch used as a value'); return }
+      if (name === 'Object') {
+        const p = node.parent
+        if (!(ts.isPropertyAccessExpression(p) && p.expression === node && AST_OBJECT_ALLOWED_MEMBERS.has(p.name.text))) {
+          fail(ts.isPropertyAccessExpression(p) && p.expression === node ? `Object.${p.name.text}` : 'Object used as a value')
+        }
+      }
+      if (name === 'String') {
+        const p = node.parent
+        if (ts.isPropertyAccessExpression(p) && p.expression === node && p.name.text !== 'raw') fail(`String.${p.name.text}`)
+      }
+      return
+    }
+    if (ts.isPrivateIdentifier(node)) {
+      if (AST_FORBIDDEN_PROPS.has(node.text.slice(1))) fail(`property key '${node.text}'`)
+      return
+    }
+
+    if (ts.isStringLiteral(node) && ts.isPropertyName(node) && node.parent && !ts.isComputedPropertyName(node.parent) &&
+        (ts.isPropertyAssignment(node.parent) || ts.isBindingElement(node.parent) || ts.isMethodDeclaration(node.parent) ||
+          ts.isPropertyDeclaration(node.parent) || ts.isGetAccessorDeclaration(node.parent) || ts.isSetAccessorDeclaration(node.parent)) &&
+        (node.parent as { name?: ts.Node; propertyName?: ts.Node }).name === node ||
+        (ts.isStringLiteral(node) && node.parent && ts.isBindingElement(node.parent) && node.parent.propertyName === node)) {
+      if (AST_FORBIDDEN_PROPS.has(node.text)) { fail(`property key '${node.text}'`); return }
+    }
+
+    if (ts.isImportDeclaration(node)) {
+      const why = astCheckModuleSpecifier(filePath, node.moduleSpecifier, astIsTypeOnlyImport(node))
+      if (why) { fail(why); return }
+    } else if (ts.isExportDeclaration(node)) {
+      if (node.moduleSpecifier) {
+        const why = astCheckModuleSpecifier(filePath, node.moduleSpecifier, node.isTypeOnly)
+        if (why) { fail(why); return }
+      }
+      const clause = node.exportClause
+      if (clause && ts.isNamedExports(clause)) {
+        for (const el of clause.elements) if (AST_ROUTE_CONFIG_NAMES.has(el.name.text)) { fail('route segment config'); return }
+      }
+    } else if (ts.isImportEqualsDeclaration(node)) {
+      fail('import = require()'); return
+    } else if (ts.isExportAssignment(node) && node.isExportEquals) {
+      fail('export ='); return
+    } else if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword) {
+      fail('import.meta'); return
+    } else if (ts.isWithStatement(node)) {
+      fail('with statement'); return
+    } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+      fail('dynamic import()'); return
+    } else if (ts.isVariableStatement(node) && node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
+      for (const d of node.declarationList.declarations) {
+        if (ts.isIdentifier(d.name) && AST_ROUTE_CONFIG_NAMES.has(d.name.text)) { fail('route segment config'); return }
+      }
+    } else if (ts.isFunctionDeclaration(node) && node.name && AST_ROUTE_CONFIG_NAMES.has(node.name.text) &&
+        node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) {
+      fail('route segment config'); return
+    } else if (ts.isElementAccessExpression(node)) {
+      const obj = astUnwrap(node.expression)
+      if (ts.isIdentifier(obj) && (AST_CLIENT_ONLY_IDENTS.has(obj.text) || AST_AMBIGUOUS_GLOBALS.has(obj.text) ||
+          obj.text === 'Object' || obj.text === 'String' || obj.text === 'navigator' || obj.text === 'location')) {
+        fail(`computed member access on ${obj.text}`); return
+      }
+      const why = checkKeyExpr(node.argumentExpression)
+      if (why) { fail(why); return }
+    } else if (ts.isComputedPropertyName(node)) {
+      const why = checkKeyExpr(node.expression)
+      if (why) { fail(why); return }
+    } else if (ts.isCallExpression(node)) {
+      const callee = astUnwrap(node.expression)
+      const isFetch = (ts.isIdentifier(callee) && callee.text === 'fetch') ||
+        (ts.isPropertyAccessExpression(callee) && callee.name.text === 'fetch')
+      if (isFetch) {
+        const why = checkFetchCall(node)
+        if (why) { fail(why); return }
+      }
+      if (ts.isIdentifier(callee) && (callee.text === 'setTimeout' || callee.text === 'setInterval') &&
+          node.arguments[0] && (astIsStringish(node.arguments[0]) || typeof astFold(node.arguments[0], consts) === 'string')) {
+        fail(`${callee.text} with a string`); return
+      }
+    }
+
+    // String values: directives, plain literals, and anything folded from literals.
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+      if (node.text === 'use server') { fail("'use server' (server actions)"); return }
+      if (AST_FORBIDDEN_PLAIN_LITERALS.has(node.text) && !(node.parent && ts.isJsxAttribute(node.parent))) {
+        fail(`string '${node.text}'`); return
+      }
+    }
+    if (ts.isBinaryExpression(node) || ts.isTemplateExpression(node) || ts.isCallExpression(node) || ts.isTaggedTemplateExpression(node)) {
+      const folded = astFold(node, consts)
+      if (typeof folded === 'string' && AST_FORBIDDEN_STRING_VALUES.has(folded)) { fail(`string built to '${folded}'`); return }
+    }
+
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+  return reason
+}
+
+function checkAstStoreFile(filePath: string, src: string): string | null {
+  try {
+    return runAstStoreChecks(filePath, src)
+  } catch (err) {
+    // Fail closed on anything the walker cannot fully analyse.
+    return `could not be analysed: ${err instanceof Error ? err.message.slice(0, 80) : 'unknown error'}`
+  }
+}
+
+// Returns the reason an AI file must be dropped, or null when it is acceptable.
+export function rejectAiStoreFile(filePath: string, content: unknown): string | null {
+  if (!isAllowedStorePath(filePath)) return 'path not allowed'
+  if (typeof content !== 'string') return 'content is not text'
+  if (content.length > AI_MAX_FILE_BYTES) return 'file too large'
+  if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
+    const scanned = scanSource(content, filePath.endsWith('.tsx'))
+    const why = scanned ? checkScannedCode(filePath, scanned) : checkRawCode(filePath, content)
+    if (why) return `forbidden code: ${why}`
+    // Security boundary: the AST allowlist must accept the file as well.
+    const astWhy = checkAstStoreFile(filePath, content)
+    if (astWhy) return `forbidden code: ${astWhy}`
+  }
+  return null
+}
+
+// Splits AI output into the files that may be stored/deployed and the dropped ones.
+export function filterAiStoreFiles(codeFiles: CodeVersionFiles): {
+  files: CodeVersionFiles
+  dropped: Array<{ path: string; reason: string }>
+} {
+  const files: CodeVersionFiles = {}
+  const dropped: Array<{ path: string; reason: string }> = []
+  for (const [filePath, content] of Object.entries(codeFiles ?? {})) {
+    const reason = rejectAiStoreFile(filePath, content)
+    if (reason) dropped.push({ path: filePath, reason })
+    else files[filePath] = content
+  }
+  return { files, dropped }
+}
+
+// ─── Sandboxed custom components (legacy manifest export) ────────────────────
+// Security (R11): custom components are AI- or marketplace-authored, i.e. untrusted.
+// They used to be written into the export as native components/custom/<ref>.tsx
+// modules, so they ran during SSR/build with the store's server env
+// (STRIPE_SECRET_KEY, ADMIN_PASSWORD, QUANTE_API_KEY) and in the browser on the store
+// origin. Now each one is baked into a standalone HTML document and rendered exactly
+// like the Studio preview (app/api/preview/component + CustomComponentFrame): an
+// <iframe sandbox="allow-scripts"> WITHOUT allow-same-origin (opaque origin: no
+// cookies, storage or same-origin APIs), a CSP with connect-src 'none', and Babel
+// compiling the TSX inside the frame. Only validated design tokens (CSS custom
+// properties) cross into the frame. Keep the CDN pins in sync with the preview route.
+
+const SANDBOX_CDN = [
+  // React 19 ships no UMD build; the isolated renderer uses React 18.3.1 UMD.
+  { src: 'https://unpkg.com/react@18.3.1/umd/react.production.min.js', integrity: 'sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z' },
+  { src: 'https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js', integrity: 'sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1' },
+  { src: 'https://cdn.jsdelivr.net/npm/framer-motion@12.40.0/dist/framer-motion.js', integrity: 'sha384-CUXBBimBkXD9dbPEQX2QuMJ+sg6fDTMyOnCOLbeyMTwV5+uYt8Xi5Lf7lZ9lnPIR' },
+  { src: 'https://unpkg.com/@babel/standalone@7.28.4/babel.min.js', integrity: 'sha384-tL0JdJBWAk5nHKZhc/dtWf7bZRpYP13x4HjH85NrwCr/JkBnrZ7RNBOAdDzJlpof' },
+]
+
+// The srcdoc document carries its own CSP (a srcdoc frame does not get response headers).
+const SANDBOX_INNER_CSP = [
+  "default-src 'none'",
+  "script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net",
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  'font-src https://fonts.gstatic.com data:',
+  'img-src https: data: blob:',
+  'media-src https: data: blob:',
+  "connect-src 'none'",
+  "form-action 'none'",
+  "base-uri 'none'",
+].join('; ')
+
+// Replaced at runtime (SandboxedComponent) with validated `:root{--x:…}` declarations.
+const SANDBOX_VARS_PLACEHOLDER = '/*__QCC_VARS__*/'
+
+/** JSON-encode for embedding inside an HTML <script> element. */
+function jsonForHtmlScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}
+
+// Standalone HTML document rendering one custom component (same runtime as the
+// Studio preview). The TSX source travels as escaped JSON, never spliced raw into
+// a <script>, so a '</script>' inside it cannot break out.
+function buildSandboxedComponentHtml(code: string): string {
+  const scripts = SANDBOX_CDN
+    .map((s) => `<script src="${s.src}" integrity="${s.integrity}" crossorigin="anonymous"></script>`)
+    .join('\n')
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="${SANDBOX_INNER_CSP}">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:transparent;font-family:system-ui,sans-serif}
+${SANDBOX_VARS_PLACEHOLDER}
+</style>
+</head>
+<body>
+<div id="root"></div>
+${scripts}
+<script type="application/json" id="__qcc_src">${jsonForHtmlScript(code)}</script>
+<script>
+(function() {
+  var rootEl = document.getElementById('root');
+  function fail(msg) {
+    var p = document.createElement('p');
+    p.style.cssText = 'color:#f87171;padding:1rem;font-size:0.875rem';
+    p.textContent = msg;
+    rootEl.replaceChildren(p);
+  }
+  function requireShim(mod) {
+    if (mod === 'react') return React;
+    if (mod === 'react/jsx-runtime') return { jsx: React.createElement, jsxs: React.createElement, Fragment: React.Fragment };
+    if (mod === 'framer-motion') return window.Motion || window.FramerMotion || {};
+    return {};
+  }
+  try {
+    var source = JSON.parse(document.getElementById('__qcc_src').textContent || '""');
+    var compiled = Babel.transform(source, {
+      filename: 'component.tsx',
+      presets: ['react', ['typescript', { isTSX: true, allExtensions: true }]],
+      plugins: ['transform-modules-commonjs'],
+    }).code;
+    var mod = { exports: {} };
+    new Function('exports', 'module', 'require', 'React', compiled)(mod.exports, mod, requireShim, React);
+    var exported = mod.exports;
+    var Component = exported && (exported['default'] || exported);
+    if (typeof Component !== 'function') { fail('This section could not be displayed.'); return; }
+    ReactDOM.createRoot(rootEl).render(React.createElement(Component, {}));
+  } catch (e) {
+    fail('This section could not be displayed.');
+  }
+})();
+// Report the content height so the parent can size the frame. Target '*' is
+// required: this document has an opaque origin. The parent only accepts the
+// message from its own frame's contentWindow.
+function reportHeight() {
+  var h = document.documentElement.scrollHeight;
+  if (h > 0) window.parent.postMessage({ type: '__qcc_height', height: h }, '*');
+}
+new MutationObserver(reportHeight).observe(document.body, { childList: true, subtree: true, attributes: true });
+window.addEventListener('load', reportHeight);
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(reportHeight).observe(document.documentElement);
+reportHeight();
+</script>
+</body>
+</html>`
+}
+
+// components/custom/sources.ts — ref → sandbox document. Refs are pre-validated
+// plain identifiers; duplicates keep the first component.
+function buildCustomSourcesTs(components: CustomComponentRecord[]): string {
+  const seen = new Set<string>()
+  const entries: string[] = []
+  for (const c of components) {
+    if (seen.has(c.ref)) continue
+    seen.add(c.ref)
+    // JSON.stringify yields a valid TS string literal; U+2028/9 escaped for older parsers.
+    const literal = JSON.stringify(buildSandboxedComponentHtml(c.code))
+      .replace(/\u2028/g, '\\u2028')
+      .replace(/\u2029/g, '\\u2029')
+    entries.push(`  ${JSON.stringify(c.ref)}: ${literal},`)
+  }
+  return [
+    '// Custom sections, each a standalone HTML document rendered by SandboxedComponent',
+    '// inside <iframe sandbox="allow-scripts"> (opaque origin, no network). The component',
+    '// code never runs in this app itself — neither during the build nor on your domain.',
+    'export const customSources: Record<string, string> = {',
+    ...entries,
+    '}',
+    '',
+  ].join('\n')
+}
+
+const SANDBOXED_COMPONENT_TSX = `'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { customSources } from './sources'
+
+// SECURITY: custom section code is AI/marketplace-authored. It only ever runs inside
+// this iframe: sandbox="allow-scripts" WITHOUT allow-same-origin gives it an opaque
+// origin (no cookies, storage or same-origin APIs of this store) and the document's
+// CSP blocks fetch/XHR. Never add allow-same-origin.
+const VAR_KEY_RE = /^--[a-zA-Z0-9-]{1,40}$/
+// Colors, lengths, numbers and font stacks. Excludes < > { } ; : @, backslashes and
+// newlines so a value can neither end the declaration block nor the <style> element.
+const VAR_VALUE_RE = /^[#a-zA-Z0-9 .,%()"'+\\/-]{1,120}$/
+const VARS_PLACEHOLDER = '${SANDBOX_VARS_PLACEHOLDER}'
+
+function cssVarsBlock(vars: Record<string, string>): string {
+  const decls: string[] = []
+  for (const [k, v] of Object.entries(vars)) {
+    if (decls.length >= 40) break
+    if (VAR_KEY_RE.test(k) && typeof v === 'string' && VAR_VALUE_RE.test(v)) decls.push(k + ':' + v)
+  }
+  return decls.length ? ':root{' + decls.join(';') + '}' : ''
+}
+
+interface Props {
+  componentRef: string
+  cssVars?: Record<string, string>
+}
+
+export function SandboxedComponent({ componentRef, cssVars }: Props) {
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const [height, setHeight] = useState(200)
+  const template = Object.prototype.hasOwnProperty.call(customSources, componentRef) ? customSources[componentRef] : null
+  const varsKey = cssVars ? JSON.stringify(cssVars) : '{}'
+  const html = useMemo(
+    () => (template ? template.replace(VARS_PLACEHOLDER, () => cssVarsBlock(JSON.parse(varsKey) as Record<string, string>)) : ''),
+    [template, varsKey],
+  )
+
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      // Only trust height reports from our own frame.
+      if (!iframeRef.current || e.source !== iframeRef.current.contentWindow) return
+      const d = e.data as { type?: unknown; height?: unknown } | null
+      if (d && d.type === '__qcc_height' && typeof d.height === 'number' && Number.isFinite(d.height) && d.height > 0) {
+        setHeight(Math.min(d.height, 20000))
+      }
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
+  if (!template) return null
+
+  return (
+    <iframe
+      ref={iframeRef}
+      srcDoc={html}
+      title={'Custom section ' + componentRef}
+      sandbox="allow-scripts"
+      referrerPolicy="no-referrer"
+      loading="lazy"
+      style={{ display: 'block', width: '100%', height, border: 'none', overflow: 'hidden', transition: 'height 0.2s ease' }}
+    />
+  )
+}
+`
+
+// Export SectionRenderer. Always generated: the platform's own SectionRenderer imports
+// the Studio-only CustomComponentFrame (which fetches /api/preview/component), so a
+// verbatim copy did not build inside an exported project.
+function buildExportSectionRenderer(withCustom: boolean): string {
+  const lines: Array<string | null> = [
+    `import type { Section, ShopManifest } from '@/types/manifest'`,
+    `import { Hero } from './sections/Hero'`,
+    `import { ProductGrid } from './sections/ProductGrid'`,
+    `import { FeatureRow } from './sections/FeatureRow'`,
+    `import { Testimonials } from './sections/Testimonials'`,
+    `import { RichText } from './sections/RichText'`,
+    `import { Banner } from './sections/Banner'`,
+    `import { Newsletter } from './sections/Newsletter'`,
+    `import { Gallery } from './sections/Gallery'`,
+    `import { Faq } from './sections/Faq'`,
+    `import { Animations } from './sections/Animations'`,
+    withCustom ? `import { manifestToCssVars } from './tokens'` : null,
+    withCustom ? `import { SandboxedComponent } from '@/components/custom/SandboxedComponent'` : null,
+    ``,
+    `interface Props {`,
+    `  section: Section`,
+    `  manifest: ShopManifest`,
+    `  basePath?: string`,
+    `  projectId?: string`,
+    `}`,
+    ``,
+    `export function SectionRenderer({ section, manifest, basePath = '' }: Props) {`,
+    `  switch (section.type) {`,
+    `    case 'hero': return <Hero props={section.props} basePath={basePath} />`,
+    `    case 'productGrid': return <ProductGrid props={section.props} catalog={manifest.catalog} basePath={basePath} />`,
+    `    case 'featureRow': return <FeatureRow props={section.props} />`,
+    `    case 'testimonials': return <Testimonials props={section.props} />`,
+    `    case 'richText': return <RichText props={section.props} />`,
+    `    case 'banner': return <Banner props={section.props} basePath={basePath} />`,
+    `    case 'newsletter': return <Newsletter props={section.props} />`,
+    `    case 'gallery': return <Gallery props={section.props} />`,
+    `    case 'faq': return <Faq props={section.props} />`,
+    `    case 'animations': return <Animations props={section.props} catalog={manifest.catalog} basePath={basePath} />`,
+    withCustom
+      ? `    case 'customComponent': return <SandboxedComponent componentRef={section.ref} cssVars={manifestToCssVars(manifest)} />`
+      : `    case 'customComponent': return null`,
+    `    default: return null`,
+    `  }`,
+    `}`,
+    ``,
+  ]
+  return lines.filter((l): l is string => l !== null).join('\n')
 }
 
 // ─── Code-gen scaffold ────────────────────────────────────────────────────────
@@ -96,13 +1632,27 @@ function buildCodeGenScaffold(): GeneratedFile[] {
   }, null, 2))
 
   // ── next.config.ts ────────────────────────────────────────────────────────
-  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {\n  async headers() {\n    return [{ source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: "frame-ancestors *" }] }]\n  },\n}\nexport default nextConfig\n`)
+  // Security: only the store itself and the Studio (quantecode.com) may frame it.
+  // `frame-ancestors *` let any site overlay the checkout (clickjacking).
+  add('next.config.ts', buildNextConfig(false))
 
   // ── postcss.config.mjs ────────────────────────────────────────────────────
   add('postcss.config.mjs', `const config = { plugins: { '@tailwindcss/postcss': {} } }\nexport default config\n`)
 
   // ── next-env.d.ts ─────────────────────────────────────────────────────────
   add('next-env.d.ts', `/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n`)
+
+  // ── lib/platform.ts (LOCKED) ──────────────────────────────────────────────
+  // Hosted-mode connection helpers shared by the checkout/shipping/legal routes.
+  add('lib/platform.ts', PLATFORM_HELPER_TS)
+
+  // ── data/products.ts (fallback — Claude's version overrides this) ────────
+  // The checkout route prices every cart line from this catalog, so it must
+  // always exist even if a generation run somehow omitted it.
+  add('data/products.ts', `import type { StoreProduct } from '@/types/store-code'
+
+export const products: StoreProduct[] = []
+`)
 
   // ── types/store-code.ts ───────────────────────────────────────────────────
   add('types/store-code.ts', `export interface StoreProduct {
@@ -733,38 +2283,107 @@ export default function SuccessPage() {
   // Self-hosted mode: if this project was exported and runs outside Quante,
   // QUANTE_PROJECT_ID won't be set, so this falls back to a direct Stripe integration —
   // set STRIPE_SECRET_KEY in .env.local to activate it.
+  // Security (2026-09): prices are always taken from data/products.ts, never from
+  // the request body, and the project id always comes from env — the body can no
+  // longer override QUANTE_PROJECT_ID (it used to be spread after it). Only an
+  // allowlist of fields is forwarded, shipping is priced from the merchant's
+  // configured methods, and the payment redirect is checked before it is returned.
   add('app/api/checkout/route.ts', `import { NextResponse } from 'next/server'
+import { products } from '@/data/products'
+import { config } from '@/data/config'
+import { platformUrl, storeOriginOf, shopperIpHeader, isAllowedRedirect, cleanString, cleanAddress } from '@/lib/platform'
+
+${STORE_KEY_HEADERS_FN}
+
+interface PricedItem { id: string; name: string; price: number; currency: string; quantity: number }
+
+// Re-prices the cart from the store's own catalog. Returns null when any line is
+// unknown, unavailable or has an invalid quantity.
+function priceItems(raw: unknown): PricedItem[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 100) return null
+  const out: PricedItem[] = []
+  for (const line of raw as Array<Record<string, unknown>>) {
+    const id = typeof line?.id === 'string' ? line.id : ''
+    const quantity = Number(line?.quantity)
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) return null
+    const product = products.find((p) => p.id === id)
+    if (!product || product.available === false) return null
+    const price = Number(product.price)
+    if (!Number.isFinite(price) || price < 0) return null
+    out.push({ id: product.id, name: product.name, price, currency: config.brand.currency, quantity })
+  }
+  return out
+}
+
+const PAYMENT_METHODS = ['stripe', 'comgate', 'gopay', 'paypal', 'dobirka', 'prevod']
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   if (!body?.items?.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+  const items = priceItems(body.items)
+  if (!items) return NextResponse.json({ error: 'Some items in your cart are no longer available. Please review your cart.' }, { status: 400 })
+  const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   const projectId = process.env.QUANTE_PROJECT_ID
   if (projectId) {
-    const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quantecode.com'
+    // Fail closed: never fall back to a hard-coded platform host.
+    const quanteUrl = platformUrl()
+    if (!quanteUrl) return NextResponse.json({ error: 'Checkout is not configured for this store.' }, { status: 503 })
     // The platform builds Stripe success/cancel URLs from the Origin header of this
     // request. A server-to-server fetch() doesn't set one automatically the way a
     // browser request does, so it's forwarded explicitly from the original browser
-    // request's own Origin/Host — otherwise Stripe would redirect back to
-    // quantecode.com instead of this store's own domain.
-    const storeOrigin = request.headers.get('origin')
-      || (request.headers.get('host') ? \`https://\${request.headers.get('host')}\` : quanteUrl)
-    const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
+    // request's own Origin/Host — otherwise Stripe would redirect back to the
+    // platform instead of this store's own domain.
+    const storeOrigin = storeOriginOf(request)
+
+    // Shipping is priced from the merchant's configured methods, not the client.
+    const shippingMethod = cleanString(body.shippingMethod)
+    let shippingCents = 0
+    try {
+      const sr = await fetch(quanteUrl + '/api/store/shipping?projectId=' + encodeURIComponent(projectId), { cache: 'no-store' })
+      if (!sr.ok) throw new Error('shipping lookup failed')
+      const sd = await sr.json() as { methods?: Array<{ id: string; label: string; price: number }>; freeShippingFrom?: number }
+      const methods = sd.methods ?? []
+      if (methods.length > 0) {
+        const method = methods.find((m) => m.label === shippingMethod || m.id === shippingMethod)
+        if (!method) return NextResponse.json({ error: 'Please select a shipping method.' }, { status: 400 })
+        const freeFrom = Number(sd.freeShippingFrom ?? 0)
+        const free = freeFrom > 0 && subtotal >= freeFrom
+        shippingCents = free ? 0 : Math.max(0, Math.round(Number(method.price) * 100) || 0)
+      }
+    } catch {
+      return NextResponse.json({ error: 'Shipping options are unavailable right now. Please try again.' }, { status: 503 })
+    }
+
+    const paymentMethod = PAYMENT_METHODS.includes(body.paymentMethod) ? body.paymentMethod : undefined
+    const res = await fetch(quanteUrl + '/api/store/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Origin: storeOrigin },
-      body: JSON.stringify({ projectId, ...body }),
+      headers: storeKeyHeaders({ 'Content-Type': 'application/json', Origin: storeOrigin, ...shopperIpHeader(request) }),
+      body: JSON.stringify({
+        items,
+        paymentMethod,
+        shippingMethod,
+        shippingCents,
+        shippingCountry: cleanString(body.shippingCountry, 2),
+        customerEmail: cleanString(body.customerEmail, 254),
+        customerName: cleanString(body.customerName),
+        customerPhone: cleanString(body.customerPhone, 40),
+        shippingAddress: cleanAddress(body.shippingAddress),
+        // Last, from env only — never from the request body.
+        projectId,
+      }),
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({ error: 'Checkout failed. Please try again.' }))
+    if (data && data.url !== undefined && !isAllowedRedirect(data.url, storeOrigin)) {
+      return NextResponse.json({ error: 'Checkout failed. Please try again.' }, { status: 502 })
+    }
     return NextResponse.json(data, { status: res.status })
   }
 
   // ── Self-hosted mode ────────────────────────────────────────────────────────
-  const { items, customerEmail } = body as {
-    items: Array<{ name: string; price: number; currency: string; quantity: number }>
-    customerEmail?: string
-  }
+  const customerEmail = cleanString(body.customerEmail, 254)
   const origin = request.headers.get('origin') || 'http://localhost:3000'
-  const currency = (items[0]?.currency ?? 'USD').toLowerCase()
+  const currency = (config.brand.currency || 'USD').toLowerCase()
 
   const stripeKey = process.env.STRIPE_SECRET_KEY
   if (!stripeKey) {
@@ -813,13 +2432,14 @@ export async function POST(request: Request) {
   // app/api/checkout/route.ts. Self-hosted mode gets a single free "Standard
   // shipping" fallback (no merchant-side config to read without Quante).
   add('app/api/shipping/route.ts', `import { NextResponse } from 'next/server'
+import { platformUrl } from '@/lib/platform'
 
 export async function GET() {
   const projectId = process.env.QUANTE_PROJECT_ID
-  if (projectId) {
-    const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quantecode.com'
+  const quanteUrl = platformUrl()
+  if (projectId && quanteUrl) {
     try {
-      const res = await fetch(\`\${quanteUrl}/api/store/shipping?projectId=\${projectId}\`, { cache: 'no-store' })
+      const res = await fetch(quanteUrl + '/api/store/shipping?projectId=' + encodeURIComponent(projectId), { cache: 'no-store' })
       if (res.ok) return NextResponse.json(await res.json())
     } catch {
       // fall through to default below
@@ -840,16 +2460,17 @@ export async function GET() {
   // automatically without a redeploy whenever the merchant edits their business data.
   add('components/legal/LegalPageView.tsx', `import { config } from '@/data/config'
 import { t } from '@/lib/i18n'
+import { platformUrl } from '@/lib/platform'
 
 interface LegalSection { heading?: string; body: string[] }
 interface LegalPageData { title: string; sections: LegalSection[] }
 
 async function getLegalContent(page: string): Promise<LegalPageData | null> {
   const projectId = process.env.QUANTE_PROJECT_ID
-  if (!projectId) return null
-  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quantecode.com'
+  const quanteUrl = platformUrl()
+  if (!projectId || !quanteUrl) return null
   try {
-    const res = await fetch(\`\${quanteUrl}/api/store/legal?projectId=\${projectId}&page=\${page}\`, { cache: 'no-store' })
+    const res = await fetch(quanteUrl + '/api/store/legal?projectId=' + encodeURIComponent(projectId) + '&page=' + encodeURIComponent(page), { cache: 'no-store' })
     if (!res.ok) return null
     return await res.json()
   } catch {
@@ -1306,11 +2927,24 @@ export function buildStoreFiles(
       // must always reflect the actual dictionary, not something a generation
       // run could accidentally omit or overwrite with different keys.
       'lib/i18n.ts',
+      // Security (2026-09): build/deploy configuration and the hosted-mode helper
+      // always come from the scaffold, even for code_versions rows saved before the
+      // AI path allowlist existed.
+      'package.json', 'tsconfig.json', 'next.config.ts', 'next.config.js', 'next.config.mjs',
+      'postcss.config.mjs', 'postcss.config.js', 'tailwind.config.ts', 'tailwind.config.js',
+      'next-env.d.ts', 'vercel.json', 'lib/platform.ts',
     ])
 
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
     for (const [filePath, content] of Object.entries(codeFiles)) {
       if (LOCKED.has(filePath)) continue  // scaffold version always wins
+      // Defence in depth: drop anything outside the AI allowlist (route handlers,
+      // middleware, vercel.json, package.json, dotfiles, server-only code…).
+      const rejected = rejectAiStoreFile(filePath, content)
+      if (rejected) {
+        console.warn(`[buildStoreFiles] dropped AI file "${filePath.slice(0, 200)}": ${rejected}`)
+        continue
+      }
       const sanitized = filePath.endsWith('.css')
         ? sanitizeCss(content)
         : (filePath.endsWith('.ts') || filePath.endsWith('.tsx'))
@@ -1358,10 +2992,14 @@ export function buildStoreFiles(
       // on a Quante-hosted store stuck in a failed-build loop over this exact
       // error. Keep in sync with the root package.json's stripe version.
       stripe: '^22.2.0',
+      // Bank-transfer QR is rendered locally on the success page (it used to be
+      // fetched from a third-party QR service, leaking payment data).
+      qrcode: '^1.5.4',
     },
     devDependencies: {
       '@tailwindcss/postcss': '^4',
       '@types/node': '^20',
+      '@types/qrcode': '^1.5.5',
       '@types/react': '^19',
       '@types/react-dom': '^19',
       tailwindcss: '^4',
@@ -1392,8 +3030,13 @@ export function buildStoreFiles(
     exclude: ['node_modules'],
   }, null, 2))
 
+  const hasAdmin = (manifest as unknown as Record<string, unknown>).adminPanel === true
+
   // ── next.config.ts ────────────────────────────────────────────────────────
-  add('next.config.ts', `import type { NextConfig } from 'next'\nconst nextConfig: NextConfig = {\n  async headers() {\n    return [{ source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: "frame-ancestors *" }] }]\n  },\n}\nexport default nextConfig\n`)
+  add('next.config.ts', buildNextConfig(hasAdmin))
+
+  // ── lib/platform.ts ───────────────────────────────────────────────────────
+  add('lib/platform.ts', PLATFORM_HELPER_TS)
 
   // ── postcss.config.mjs ────────────────────────────────────────────────────
   add('postcss.config.mjs', `const config = { plugins: { '@tailwindcss/postcss': {} } }\nexport default config\n`)
@@ -1462,6 +3105,17 @@ interface Props {
   params: Promise<{ slug: string }>
 }
 
+// JSON for an inline <script> element: escapes <, >, & and U+2028/U+2029 so product
+// text such as "</script><script>…" can never close the tag (stored XSS).
+function jsonLdHtml(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\\\u003c')
+    .replace(/>/g, '\\\\u003e')
+    .replace(/&/g, '\\\\u0026')
+    .replace(/\\u2028/g, '\\\\u2028')
+    .replace(/\\u2029/g, '\\\\u2029')
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const product = manifest.catalog.products.find((p) => p.slug === slug)
@@ -1506,7 +3160,7 @@ export default async function ProductPage({ params }: Props) {
         } as React.CSSProperties
       }
     >
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }} />
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       <link rel="stylesheet" href={fontUrl} />
@@ -1669,76 +3323,19 @@ export function generateStaticParams() {
   // ShopRenderer — verbatim copy, but strip the projectId prop since the export never needs it
   addFile('components/storefront/ShopRenderer.tsx', path.join(sfBase, 'ShopRenderer.tsx'))
 
-  // Custom component files (one TSX per component)
+  // Custom components (AI / marketplace-authored). Security (R11): never compiled into
+  // the exported app — each is rendered in a sandboxed srcdoc iframe (see
+  // buildSandboxedComponentHtml). Only refs that are plain identifiers are accepted
+  // (they become object keys in sources.ts).
+  customComponents = customComponents.filter((c) => typeof c?.ref === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(c.ref) && typeof c.code === 'string')
   if (customComponents.length > 0) {
-    for (const comp of customComponents) {
-      add(`components/custom/${comp.ref}.tsx`, comp.code)
-    }
-
-    // Registry: maps ref → React component
-    const registryImports = customComponents
-      .map((c, i) => `import _C${i} from './${c.ref}'`)
-      .join('\n')
-    const registryEntries = customComponents
-      .map((c, i) => `  '${c.ref}': _C${i},`)
-      .join('\n')
-    add('components/custom/registry.ts', [
-      `import type React from 'react'`,
-      registryImports,
-      ``,
-      `export const customRegistry: Record<string, React.ComponentType<Record<string, unknown>>> = {`,
-      registryEntries,
-      `}`,
-      ``,
-    ].join('\n'))
-
-    // SectionRenderer with custom component support
-    add('components/storefront/SectionRenderer.tsx', [
-      `import type { Section, ShopManifest } from '@/types/manifest'`,
-      `import React from 'react'`,
-      `import { Hero } from './sections/Hero'`,
-      `import { ProductGrid } from './sections/ProductGrid'`,
-      `import { FeatureRow } from './sections/FeatureRow'`,
-      `import { Testimonials } from './sections/Testimonials'`,
-      `import { RichText } from './sections/RichText'`,
-      `import { Banner } from './sections/Banner'`,
-      `import { Newsletter } from './sections/Newsletter'`,
-      `import { Gallery } from './sections/Gallery'`,
-      `import { Faq } from './sections/Faq'`,
-      `import { Animations } from './sections/Animations'`,
-      `import { customRegistry } from '@/components/custom/registry'`,
-      ``,
-      `interface Props {`,
-      `  section: Section`,
-      `  manifest: ShopManifest`,
-      `  basePath?: string`,
-      `}`,
-      ``,
-      `export function SectionRenderer({ section, manifest, basePath = '' }: Props) {`,
-      `  switch (section.type) {`,
-      `    case 'hero': return <Hero props={section.props} basePath={basePath} />`,
-      `    case 'productGrid': return <ProductGrid props={section.props} catalog={manifest.catalog} basePath={basePath} />`,
-      `    case 'featureRow': return <FeatureRow props={section.props} />`,
-      `    case 'testimonials': return <Testimonials props={section.props} />`,
-      `    case 'richText': return <RichText props={section.props} />`,
-      `    case 'banner': return <Banner props={section.props} basePath={basePath} />`,
-      `    case 'newsletter': return <Newsletter props={section.props} />`,
-      `    case 'gallery': return <Gallery props={section.props} />`,
-      `    case 'faq': return <Faq props={section.props} />`,
-      `    case 'animations': return <Animations props={section.props} catalog={manifest.catalog} basePath={basePath} />`,
-      `    case 'customComponent': {`,
-      `      const C = customRegistry[section.ref]`,
-      `      return C ? <C /> : null`,
-      `    }`,
-      `    default: return null`,
-      `  }`,
-      `}`,
-      ``,
-    ].join('\n'))
-  } else {
-    // No custom components — use the plain verbatim copy (which returns null for customComponent)
-    addFile('components/storefront/SectionRenderer.tsx', path.join(sfBase, 'SectionRenderer.tsx'))
+    add('components/custom/sources.ts', buildCustomSourcesTs(customComponents))
+    add('components/custom/SandboxedComponent.tsx', SANDBOXED_COMPONENT_TSX)
   }
+  add('components/storefront/SectionRenderer.tsx', buildExportSectionRenderer(customComponents.length > 0))
+  // Imported by StoreNavbar and ProductGallery — the export failed to build without it.
+  addFile('lib/scroll-lock.ts', path.join(cwd, 'lib', 'scroll-lock.ts'))
+
   // ── Motion primitives ─────────────────────────────────────────────────────
   addFile('components/storefront/motion/config.ts', path.join(sfBase, 'motion', 'config.ts'))
   addFile('components/storefront/motion/context.tsx', path.join(sfBase, 'motion', 'context.tsx'))
@@ -2189,42 +3786,129 @@ export default function CartPage() {
 `)
 
   // ── app/api/checkout/route.ts ─────────────────────────────────────────────
+  // Security (2026-09): every price (items, shipping, COD fee) is computed here
+  // from the baked manifest — never taken from the request body — and the
+  // project id always comes from env (the body used to be able to override it).
   add('app/api/checkout/route.ts', `\
 import { NextResponse } from 'next/server'
+import { manifest } from '@/data/manifest'
+import { platformUrl, storeOriginOf, shopperIpHeader, isAllowedRedirect, cleanString, cleanAddress } from '@/lib/platform'
+
+${STORE_KEY_HEADERS_FN}
+
+interface PricedItem { id: string; productId: string; variantId?: string; name: string; price: number; currency: string; quantity: number }
+
+// Re-prices the cart from the store's own catalog. Returns null when any line is
+// unknown, unavailable or has an invalid quantity.
+function priceItems(raw: unknown): PricedItem[] | null {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 100) return null
+  const out: PricedItem[] = []
+  for (const line of raw as Array<Record<string, unknown>>) {
+    const lineId = typeof line?.id === 'string' ? line.id : ''
+    const productId = typeof line?.productId === 'string' ? line.productId : lineId.split(':')[0]
+    const variantId = typeof line?.variantId === 'string' && line.variantId ? line.variantId : undefined
+    const quantity = Number(line?.quantity)
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 999) return null
+    const product = manifest.catalog.products.find((p) => p.id === productId)
+    if (!product || product.available === false) return null
+    const variant = variantId ? product.variants?.find((v) => v.id === variantId) : undefined
+    if (variantId && !variant) return null
+    const price = Number(variant?.price ?? product.price)
+    if (!Number.isFinite(price) || price < 0) return null
+    out.push({
+      id: variant ? product.id + ':' + variant.id : product.id,
+      productId: product.id,
+      variantId: variant?.id,
+      name: variant ? product.name + ' (' + variant.name + ')' : product.name,
+      price,
+      currency: manifest.catalog.currency,
+      quantity,
+    })
+  }
+  return out
+}
+
+// Payment methods this store actually offers (mirrors app/cart/page.tsx).
+function allowedPaymentMethods(): string[] {
+  const providers: string[] = manifest.payments?.providers ?? []
+  const dobirka = manifest.payments?.dobirka?.enabled ?? false
+  const prevod = manifest.payments?.prevod?.enabled ?? false
+  return [
+    ...providers,
+    ...(dobirka ? ['dobirka'] : []),
+    ...(prevod || (!providers.length && !dobirka) ? ['prevod'] : []),
+  ]
+}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   if (!body?.items?.length) return NextResponse.json({ error: 'Cart is empty' }, { status: 400 })
+
+  const items = priceItems(body.items)
+  if (!items) return NextResponse.json({ error: 'Některé položky v košíku již nejsou dostupné. Zkontrolujte prosím košík.' }, { status: 400 })
+
+  const allowed = allowedPaymentMethods()
+  const paymentMethod: string = typeof body.paymentMethod === 'string' ? body.paymentMethod : (allowed[0] ?? 'prevod')
+  if (!allowed.includes(paymentMethod)) return NextResponse.json({ error: 'Zvolený způsob platby není dostupný.' }, { status: 400 })
+
+  const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0)
+  const shippingMethods = manifest.shipping?.methods ?? []
+  const shippingMethod = cleanString(body.shippingMethod, 50)
+  let shippingCents = 0
+  if (shippingMethods.length > 0) {
+    const method = shippingMethods.find((m) => m.type === shippingMethod)
+    if (!method) return NextResponse.json({ error: 'Vyberte prosím způsob doručení.' }, { status: 400 })
+    const freeFrom = manifest.shipping?.doprava_zdarma_od_czk ?? 0
+    shippingCents = freeFrom > 0 && subtotal >= freeFrom ? 0 : Math.max(0, Math.round(Number(method.cena_czk) * 100) || 0)
+  }
+  const dobirkaCents = paymentMethod === 'dobirka'
+    ? Math.max(0, Math.round(Number(manifest.payments?.dobirka?.priplatek_czk ?? 0) * 100) || 0)
+    : 0
+  const customerEmail = cleanString(body.customerEmail, 254)
 
   // ── Hosted mode (Quante manages payments) ─────────────────────────────────
   // QUANTE_PROJECT_ID is injected automatically when deployed via Quante.
   // Money is collected by Quante and shown in your Quante payout dashboard.
   const projectId = process.env.QUANTE_PROJECT_ID
   if (projectId) {
-    const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
-    const res = await fetch(\`\${quanteUrl}/api/store/checkout\`, {
+    // Fail closed: never fall back to a hard-coded platform host.
+    const quanteUrl = platformUrl()
+    if (!quanteUrl) return NextResponse.json({ error: 'Checkout is not configured for this store.' }, { status: 503 })
+    // Forward the shopper's origin so payment return URLs point back at this store.
+    const storeOrigin = storeOriginOf(request)
+    const res = await fetch(quanteUrl + '/api/store/checkout', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId, ...body }),
+      headers: storeKeyHeaders({ 'Content-Type': 'application/json', Origin: storeOrigin, ...shopperIpHeader(request) }),
+      body: JSON.stringify({
+        items,
+        paymentMethod,
+        shippingMethod,
+        shippingCents,
+        dobirkaCents,
+        zasilkovnaBranchId: cleanString(body.zasilkovnaBranchId, 40),
+        zasilkovnaBranchName: cleanString(body.zasilkovnaBranchName),
+        zasilkovnaBranchCountry: cleanString(body.zasilkovnaBranchCountry, 2),
+        shippingCountry: cleanString(body.shippingCountry, 2),
+        customerEmail,
+        customerName: cleanString(body.customerName),
+        customerPhone: cleanString(body.customerPhone, 40),
+        shippingAddress: cleanAddress(body.shippingAddress),
+        // Last, from env only — never from the request body.
+        projectId,
+      }),
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => ({ error: 'Chyba při odesílání objednávky.' }))
+    if (data && data.url !== undefined && !isAllowedRedirect(data.url, storeOrigin)) {
+      return NextResponse.json({ error: 'Chyba při odesílání objednávky.' }, { status: 502 })
+    }
     return NextResponse.json(data, { status: res.status })
   }
 
   // ── Self-hosted mode (your own payment credentials) ────────────────────────
   // Set the relevant env vars in .env.local to activate each provider.
-  const { paymentMethod = 'stripe', items, customerEmail, shippingCents = 0, dobirkaCents = 0 } = body as {
-    paymentMethod?: string
-    items: Array<{ name: string; price: number; currency: string; quantity: number }>
-    customerEmail?: string
-    shippingCents?: number
-    dobirkaCents?: number
-  }
   const origin = request.headers.get('origin') || 'http://localhost:3000'
-  const currency = (items[0]?.currency ?? 'CZK').toLowerCase()
-  const totalCents = Math.round(
-    (items.reduce((s, i) => s + i.price * i.quantity, 0) + shippingCents / 100 + dobirkaCents / 100) * 100
-  )
+  const currency = (manifest.catalog.currency || 'CZK').toLowerCase()
+  const totalCents = Math.round(subtotal * 100) + shippingCents + dobirkaCents
 
   // ── Stripe ──────────────────────────────────────────────────────────────────
   if (paymentMethod === 'stripe') {
@@ -2308,39 +3992,61 @@ export async function POST(request: Request) {
 `)
 
   // ── app/success/page.tsx ───────────────────────────────────────────────────
+  // Security (2026-09): payment instructions (account, amount, variable symbol,
+  // QR) are never read from the URL — anyone can mail customers a crafted
+  // /success link. They are fetched via app/api/order-status, which asks the
+  // platform to verify the per-order token, and the QR is rendered locally.
   add('app/success/page.tsx', `'use client'
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { toDataURL } from 'qrcode'
 import { useCart } from '@/context/cart'
 import { manifest } from '@/data/manifest'
 import { manifestToCssVars, buildFontUrl } from '@/components/storefront/tokens'
 import { StoreNavbar } from '@/components/storefront/layout/StoreNavbar'
 import { StoreFooter } from '@/components/storefront/layout/StoreFooter'
 
+interface PaymentInfo { orderNumber: string; method: string; amount: number; currency: string; vs: string; account: string }
+
 export default function SuccessPage() {
   const { clear } = useCart()
   const [method, setMethod] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
-  const [qr, setQr] = useState('')
-  const [amount, setAmount] = useState('')
-  const [acc, setAcc] = useState('')
+  const [info, setInfo] = useState<PaymentInfo | null>(null)
   const [qrSrc, setQrSrc] = useState('')
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search)
-    setMethod(p.get('method') ?? '')
-    setOrderNumber(p.get('order') ?? '')
-    setQr(p.get('qr') ?? '')
-    setAmount(p.get('amount') ?? '')
-    setAcc(p.get('acc') ? decodeURIComponent(p.get('acc')!) : '')
+    const m = p.get('method') ?? ''
+    const order = p.get('order') ?? ''
+    const orderId = p.get('orderId') ?? ''
+    const token = p.get('t') ?? ''
+    setMethod(m)
+    setOrderNumber(/^[A-Za-z0-9-]{1,40}$/.test(order) ? order : '')
     clear()
+    if (m === 'prevod' && order && token) {
+      const q = new URLSearchParams({ order, t: token })
+      if (/^[0-9a-fA-F-]{36}$/.test(orderId)) q.set('orderId', orderId)
+      fetch('/api/order-status?' + q.toString(), { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: PaymentInfo | null) => { if (d && typeof d.amount === 'number' && d.amount > 0) setInfo(d) })
+        .catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // The merchant's own account is baked into the store, so it is safe to show
+  // even when the order could not be verified; amount/VS/QR need verification.
+  const account = info?.account || manifest.merchant?.bankovni_ucet || ''
+  const amount = info ? info.amount.toFixed(2) : ''
+  const vs = info ? info.vs : ''
+
   useEffect(() => {
-    if (method === 'prevod' && qr) {
-      setQrSrc(\`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=\${qr}\`)
-    }
-  }, [method, qr])
+    if (!info || !account) return
+    const spd = 'SPD*1.0*ACC:' + account + '*AM:' + info.amount.toFixed(2) + '*CC:' + (info.currency || manifest.catalog.currency) +
+      '*MSG:Platba ' + info.orderNumber + (info.vs ? '*X-VS:' + info.vs : '')
+    toDataURL(spd, { width: 180, margin: 1 }).then(setQrSrc).catch(() => setQrSrc(''))
+  }, [info, account])
 
   const cssVars = manifestToCssVars(manifest)
   const fontUrl = buildFontUrl(manifest)
@@ -2383,16 +4089,24 @@ export default function SuccessPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9375rem', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--s-muted)' }}>Číslo účtu</span>
-                <strong style={{ fontFamily: 'monospace' }}>{acc || '—'}</strong>
+                <strong style={{ fontFamily: 'monospace' }}>{account || '—'}</strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--s-muted)' }}>Částka</span>
-                <strong>{amount} {manifest.catalog.currency}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--s-muted)' }}>Variabilní symbol</span>
-                <strong style={{ fontFamily: 'monospace' }}>{orderNumber?.replace(/\\D/g, '') ?? ''}</strong>
-              </div>
+              {info ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--s-muted)' }}>Částka</span>
+                    <strong>{amount} {info.currency || manifest.catalog.currency}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--s-muted)' }}>Variabilní symbol</span>
+                    <strong style={{ fontFamily: 'monospace' }}>{vs || '—'}</strong>
+                  </div>
+                </>
+              ) : (
+                <p style={{ fontSize: '0.875rem', color: 'var(--s-muted)', margin: 0, lineHeight: 1.5 }}>
+                  Částku a variabilní symbol najdete v potvrzovacím e-mailu objednávky.
+                </p>
+              )}
             </div>
             {qrSrc && (
               <div style={{ textAlign: 'center' }}>
@@ -2427,6 +4141,50 @@ export default function SuccessPage() {
 }
 `)
 
+  // ── app/api/order-status/route.ts ──────────────────────────────────────────
+  // Hosted mode only: asks the platform for the verified payment instructions of
+  // one order (the platform checks the unguessable per-order token `t` that it put
+  // in the /success redirect). Returns only the fields the success page renders.
+  add('app/api/order-status/route.ts', `import { NextResponse } from 'next/server'
+import { platformUrl } from '@/lib/platform'
+
+${STORE_KEY_HEADERS_FN}
+
+function notFound() {
+  return NextResponse.json({ error: 'Not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const order = searchParams.get('order') ?? ''
+  const orderId = searchParams.get('orderId') ?? ''
+  const token = searchParams.get('t') ?? ''
+  const projectId = process.env.QUANTE_PROJECT_ID
+  const base = platformUrl()
+  if (!projectId || !base) return notFound()
+  if (!/^[A-Za-z0-9-]{1,40}$/.test(order) || !/^[A-Za-z0-9_-]{16,200}$/.test(token)) return notFound()
+  try {
+    // The platform checks the token (and this store's key) before answering.
+    const qs = new URLSearchParams({ projectId, order, t: token })
+    if (/^[0-9a-fA-F-]{36}$/.test(orderId)) qs.set('orderId', orderId)
+    const res = await fetch(base + '/api/store/order-status?' + qs.toString(), { headers: storeKeyHeaders(), cache: 'no-store' })
+    if (!res.ok) return notFound()
+    const d = await res.json() as Record<string, unknown>
+    const amount = Number(d.amount)
+    if (!Number.isFinite(amount) || amount <= 0) return notFound()
+    return NextResponse.json({
+      orderNumber: typeof d.orderNumber === 'string' ? d.orderNumber.slice(0, 40) : order,
+      method: typeof d.method === 'string' ? d.method.slice(0, 20) : '',
+      amount,
+      currency: typeof d.currency === 'string' ? d.currency.toUpperCase().slice(0, 3) : '',
+      vs: String(d.vs ?? '').replace(/\\D/g, '').slice(0, 10),
+      account: typeof d.account === 'string' ? d.account.slice(0, 64) : '',
+    }, { headers: { 'Cache-Control': 'no-store' } })
+  } catch {
+    return notFound()
+  }
+}
+`)
 
   // ── data/manifest.ts — baked manifest ─────────────────────────────────────
   add('data/manifest.ts', [
@@ -2437,7 +4195,6 @@ export default function SuccessPage() {
   ].join('\n'))
 
   // ── .env.example ──────────────────────────────────────────────────────────
-  const hasAdmin = (manifest as unknown as Record<string, unknown>).adminPanel === true
   const hasZasilkovna = manifest.shipping?.methods?.some((m) => m.type === 'zasilkovna') ?? false
   const hasComgate = manifest.payments?.providers?.includes('comgate') ?? false
   const hasGopay = manifest.payments?.providers?.includes('gopay') ?? false
@@ -2446,17 +4203,18 @@ export default function SuccessPage() {
     '# ════════════════════════════════════════════════════════════════════════════',
     '# HOSTED MODE (deployed via Quante)',
     '# ════════════════════════════════════════════════════════════════════════════',
-    '# These three vars are injected automatically — you do NOT need to set them.',
-    '# Payments go through Quante; earnings appear in your Quante payout dashboard.',
+    '# These three vars are injected automatically when Quante hosts the store —',
+    '# leave them commented out for a self-hosted store. Payments then go through',
+    '# Quante; earnings appear in your Quante payout dashboard.',
     '#',
-    'QUANTE_API_URL=https://quante.vercel.app',
-    'QUANTE_PROJECT_ID=your-project-id',
-    'QUANTE_API_KEY=your-api-key',
+    '# QUANTE_API_URL=https://quantecode.com',
+    '# QUANTE_PROJECT_ID=',
+    '# QUANTE_API_KEY=',
     '',
     '# ════════════════════════════════════════════════════════════════════════════',
     '# SELF-HOSTED MODE (your own server / Vercel account)',
     '# ════════════════════════════════════════════════════════════════════════════',
-    '# Remove QUANTE_PROJECT_ID above and set your own payment credentials below.',
+    '# Keep QUANTE_PROJECT_ID above unset and set your own payment credentials below.',
     '# The checkout route auto-detects which mode to use.',
     '',
     '# ── Stripe (card, Apple Pay, Google Pay) ─────────────────────────────────',
@@ -2501,7 +4259,13 @@ export default function SuccessPage() {
   ]
   if (hasAdmin) {
     envLines.push('# ── Admin panel ──────────────────────────────────────────────────────────')
-    envLines.push('ADMIN_PASSWORD=your-strong-admin-password')
+    envLines.push('# Required for /admin. At least 12 characters; changing it signs everyone out.')
+    envLines.push('ADMIN_PASSWORD=')
+    envLines.push('# Optional extra secret mixed into the admin session signature.')
+    envLines.push('# ADMIN_SESSION_SECRET=')
+    envLines.push('# Optional: public origin(s) of the store when a reverse proxy rewrites the')
+    envLines.push('# Host header and does not send X-Forwarded-Host (comma-separated).')
+    envLines.push('# ADMIN_ALLOWED_ORIGINS=https://shop.example.com')
     envLines.push('')
   }
   add('.env.example', envLines.join('\n'))
@@ -2517,7 +4281,7 @@ export default function SuccessPage() {
   }
 
   // ── README.md ─────────────────────────────────────────────────────────────
-  add('README.md', buildReadme(manifest, hasAdmin, slug))
+  add('README.md', buildReadme(manifest, hasAdmin, slug, customComponents.length))
 
   return files
 }
@@ -2529,18 +4293,160 @@ function addAdminFiles(files: GeneratedFile[], manifest: ShopManifest) {
     files.push({ path: name, content, encoding: 'utf-8' })
   }
 
+  // Brand name as a JSX string expression — never spliced raw into TSX source.
+  const brandNameJsx = `{${JSON.stringify(manifest.brand.name)}}`
+
+  // Security (2026-09): the admin panel used to trust a static `admin_auth=true`
+  // cookie that anyone could set by hand, exposing every customer's PII and the
+  // ship/Packeta actions. Sessions are now HMAC-signed, short-lived, httpOnly,
+  // SameSite=Strict tokens bound to ADMIN_PASSWORD, verified on every admin page
+  // and API route; login is rate-limited and compared in constant time.
+  add('lib/admin-session.ts', `\
+import crypto from 'crypto'
+import { cookies } from 'next/headers'
+
+export const ADMIN_COOKIE = 'admin_session'
+export const ADMIN_SESSION_MAX_AGE = 12 * 60 * 60 // seconds
+export const ADMIN_PASSWORD_MIN_LENGTH = 12
+
+// Signing key bound to ADMIN_PASSWORD (plus the optional ADMIN_SESSION_SECRET), so
+// changing the password immediately invalidates every existing session.
+function signingKey(): Buffer | null {
+  const password = process.env.ADMIN_PASSWORD
+  if (!password || password.length < ADMIN_PASSWORD_MIN_LENGTH) return null
+  return crypto.createHash('sha256')
+    .update('admin-session:' + (process.env.ADMIN_SESSION_SECRET ?? '') + ':' + password)
+    .digest()
+}
+
+export function adminConfigured(): boolean {
+  return signingKey() !== null
+}
+
+export function createAdminSession(): string | null {
+  const key = signingKey()
+  if (!key) return null
+  const now = Math.floor(Date.now() / 1000)
+  const payload = Buffer.from(JSON.stringify({
+    iat: now, exp: now + ADMIN_SESSION_MAX_AGE, n: crypto.randomBytes(16).toString('hex'),
+  })).toString('base64url')
+  const sig = crypto.createHmac('sha256', key).update(payload).digest('base64url')
+  return payload + '.' + sig
+}
+
+export function verifyAdminSession(token: string | undefined | null): boolean {
+  const key = signingKey()
+  if (!key || !token) return false
+  const parts = token.split('.')
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return false
+  const expected = crypto.createHmac('sha256', key).update(parts[0]).digest()
+  const given = Buffer.from(parts[1], 'base64url')
+  if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) return false
+  try {
+    const data = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8')) as { iat?: unknown; exp?: unknown }
+    const now = Math.floor(Date.now() / 1000)
+    return typeof data.iat === 'number' && typeof data.exp === 'number'
+      && data.exp > now && data.iat <= now + 60 && data.exp - data.iat <= ADMIN_SESSION_MAX_AGE
+  } catch {
+    return false
+  }
+}
+
+export async function isAdmin(): Promise<boolean> {
+  const cookieStore = await cookies()
+  return verifyAdminSession(cookieStore.get(ADMIN_COOKIE)?.value)
+}
+
+// Constant-time password check (hashing first equalises the lengths).
+export function checkAdminPassword(input: unknown): boolean {
+  const expected = process.env.ADMIN_PASSWORD
+  if (!expected || expected.length < ADMIN_PASSWORD_MIN_LENGTH || typeof input !== 'string') return false
+  const a = crypto.createHash('sha256').update(input).digest()
+  const b = crypto.createHash('sha256').update(expected).digest()
+  return crypto.timingSafeEqual(a, b)
+}
+
+// Rejects cross-site state-changing requests (on top of SameSite=Strict).
+// The Origin host must match the Host header or, behind a reverse proxy that
+// rewrites Host (e.g. nginx proxy_pass to localhost:3000), X-Forwarded-Host.
+// A cross-site page cannot set X-Forwarded-Host on a browser request, so
+// accepting it does not weaken the CSRF check. Extra public origins can be
+// listed in ADMIN_ALLOWED_ORIGINS (comma-separated, e.g. https://shop.example.com).
+export function isSameOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin')
+  if (!origin) return request.headers.get('sec-fetch-site') !== 'cross-site'
+  let originUrl: URL
+  try { originUrl = new URL(origin) } catch { return false }
+  const hosts = [
+    request.headers.get('host'),
+    (request.headers.get('x-forwarded-host') ?? '').split(',')[0].trim(),
+  ].filter((h): h is string => !!h).map((h) => h.toLowerCase())
+  if (hosts.includes(originUrl.host.toLowerCase())) return true
+  const extra = (process.env.ADMIN_ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+  return extra.some((o) => { try { return new URL(o).origin === originUrl.origin } catch { return false } })
+}
+
+// Best-effort client IP for the login throttle. On Vercel the platform sets
+// x-real-ip / x-forwarded-for itself. Self-hosted without a proxy these headers
+// are client-controlled, so a global failure cap (below) backs up the per-IP one.
+export function clientIp(request: Request): string {
+  return request.headers.get('x-real-ip')?.trim()
+    || (request.headers.get('x-forwarded-for') ?? '').split(',')[0].trim()
+    || 'unknown'
+}
+
+// Login throttle (per server instance): 5 failed attempts per IP per 15 minutes,
+// plus 50 failed attempts in total per 15 minutes so spoofed IP headers cannot
+// buy unlimited guesses.
+const MAX_ATTEMPTS = 5
+const MAX_GLOBAL_ATTEMPTS = 50
+const WINDOW_MS = 15 * 60 * 1000
+const GLOBAL_KEY = '*'
+const failures = new Map<string, { count: number; resetAt: number }>()
+
+function over(key: string, limit: number): boolean {
+  const entry = failures.get(key)
+  if (!entry) return false
+  if (entry.resetAt <= Date.now()) { failures.delete(key); return false }
+  return entry.count >= limit
+}
+
+export function loginBlocked(ip: string): boolean {
+  return over(GLOBAL_KEY, MAX_GLOBAL_ATTEMPTS) || over('ip:' + ip, MAX_ATTEMPTS)
+}
+
+function bump(key: string, now: number): void {
+  const entry = failures.get(key)
+  if (!entry || entry.resetAt <= now) failures.set(key, { count: 1, resetAt: now + WINDOW_MS })
+  else entry.count += 1
+}
+
+export function recordLoginFailure(ip: string): void {
+  const now = Date.now()
+  bump('ip:' + ip, now)
+  bump(GLOBAL_KEY, now)
+  if (failures.size > 10000) {
+    for (const [k, v] of failures) if (v.resetAt <= now) failures.delete(k)
+  }
+}
+
+export function clearLoginFailures(ip: string): void {
+  failures.delete('ip:' + ip)
+}
+`)
+
   // Protected layout — wraps /admin/dashboard, /admin/products, /admin/orders
   // Route group (protected) keeps URLs clean (/admin/dashboard etc.) while
   // separating the auth-gated layout from the public login page.
   add('app/admin/(protected)/layout.tsx', `\
-import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import React from 'react'
+import { isAdmin } from '@/lib/admin-session'
+
+export const dynamic = 'force-dynamic'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies()
-  const auth = cookieStore.get('admin_auth')
-  if (!auth?.value) redirect('/admin')
+  if (!(await isAdmin())) redirect('/admin')
 
   return (
     <div style={{ margin: 0, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', background: '#080810', color: '#f4f4f6', minHeight: '100vh' }}>
@@ -2548,7 +4454,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <aside style={{ width: 220, flexShrink: 0, background: '#0f0f1a', borderRight: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', padding: '1.5rem 0' }}>
           <div style={{ padding: '0 1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', color: '#f4f4f6' }}>Admin</span>
-            <p style={{ fontSize: 11, color: '#6b6b78', marginTop: 2 }}>${manifest.brand.name}</p>
+            <p style={{ fontSize: 11, color: '#6b6b78', marginTop: 2 }}>${brandNameJsx}</p>
           </div>
           <nav style={{ padding: '1rem 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
             {[
@@ -2614,7 +4520,7 @@ export default function AdminLoginPage() {
       <div style={{ width: '100%', maxWidth: 360, padding: '0 1rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 0.25rem' }}>Admin</h1>
-          <p style={{ fontSize: 13, color: '#6b6b78', margin: 0 }}>${manifest.brand.name} — store management</p>
+          <p style={{ fontSize: 13, color: '#6b6b78', margin: 0 }}>${brandNameJsx} — store management</p>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus placeholder="Password" style={{ width: '100%', padding: '0.75rem 0.875rem', background: '#0f0f1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#f4f4f6', fontSize: 14, outline: 'none', boxSizing: 'border-box' }} />
@@ -2743,12 +4649,12 @@ export default function OrdersPage() {
   async function markShipped(orderId: string) {
     const s = shipping[orderId] ?? {}
     setSending(orderId)
-    await fetch(\`/api/admin/orders/\${orderId}/ship\`, {
+    const res = await fetch(\`/api/admin/orders/\${encodeURIComponent(orderId)}/ship\`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ trackingCode: s.tracking, trackingUrl: s.url }),
-    })
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'shipped' } : o))
+    }).catch(() => null)
+    if (res?.ok) setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'shipped' } : o))
     setSending(null)
   }
 
@@ -2828,18 +4734,35 @@ export default function OrdersPage() {
   add('app/api/admin/auth/route.ts', `\
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import {
+  ADMIN_COOKIE, ADMIN_SESSION_MAX_AGE, ADMIN_PASSWORD_MIN_LENGTH, adminConfigured, createAdminSession,
+  checkAdminPassword, isSameOrigin, clientIp, loginBlocked, recordLoginFailure, clearLoginFailures,
+} from '@/lib/admin-session'
 
 export async function POST(request: Request) {
-  const { password } = await request.json()
-  const adminPassword = process.env.ADMIN_PASSWORD
-  if (!adminPassword) return NextResponse.json({ error: 'ADMIN_PASSWORD env var not set.' }, { status: 500 })
-  if (password !== adminPassword) return NextResponse.json({ error: 'Invalid password.' }, { status: 401 })
+  if (!isSameOrigin(request)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!adminConfigured()) {
+    return NextResponse.json({ error: 'Set ADMIN_PASSWORD (at least ' + ADMIN_PASSWORD_MIN_LENGTH + ' characters) to enable the admin panel.' }, { status: 503 })
+  }
+  const ip = clientIp(request)
+  if (loginBlocked(ip)) return NextResponse.json({ error: 'Too many attempts. Try again in 15 minutes.' }, { status: 429 })
 
+  const body = await request.json().catch(() => ({})) as { password?: unknown }
+  if (!checkAdminPassword(body.password)) {
+    recordLoginFailure(ip)
+    await new Promise((resolve) => setTimeout(resolve, 750))
+    return NextResponse.json({ error: 'Invalid password.' }, { status: 401 })
+  }
+  clearLoginFailures(ip)
+
+  const token = createAdminSession()
+  if (!token) return NextResponse.json({ error: 'Admin panel is not configured.' }, { status: 503 })
   const cookieStore = await cookies()
-  cookieStore.set('admin_auth', 'true', {
+  cookieStore.set(ADMIN_COOKIE, token, {
     httpOnly: true, secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax', maxAge: 60 * 60 * 24 * 7, path: '/',
+    sameSite: 'strict', maxAge: ADMIN_SESSION_MAX_AGE, path: '/',
   })
+  cookieStore.delete('admin_auth') // pre-2026-09 unsigned cookie
   return NextResponse.json({ ok: true })
 }
 `)
@@ -2847,76 +4770,98 @@ export async function POST(request: Request) {
   add('app/api/admin/signout/route.ts', `\
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { ADMIN_COOKIE, isSameOrigin } from '@/lib/admin-session'
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   const cookieStore = await cookies()
+  cookieStore.delete(ADMIN_COOKIE)
   cookieStore.delete('admin_auth')
-  return NextResponse.redirect(new URL('/admin', request.url))
+  // 303 so the browser follows with a GET (a 307 would re-POST to /admin).
+  return NextResponse.redirect(new URL('/admin', request.url), 303)
 }
 `)
 
   add('app/api/admin/orders/route.ts', `\
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { isAdmin } from '@/lib/admin-session'
+import { platformUrl } from '@/lib/platform'
+
+${STORE_KEY_HEADERS_FN}
+
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const cookieStore = await cookies()
-  const auth = cookieStore.get('admin_auth')
-  if (!auth?.value) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
-  const apiKey = process.env.QUANTE_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
+  // Fail closed: the API key is only ever sent to an explicitly configured host.
+  const quanteUrl = platformUrl()
+  if (!quanteUrl) return NextResponse.json({ error: 'QUANTE_API_URL not configured' }, { status: 400 })
+  if (!process.env.QUANTE_API_KEY) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
 
   try {
-    const res = await fetch(\`\${quanteUrl}/api/store/orders\`, {
-      headers: { Authorization: \`Bearer \${apiKey}\` },
-    })
-    const data = await res.json()
+    const res = await fetch(quanteUrl + '/api/store/orders', { headers: storeKeyHeaders(), cache: 'no-store' })
+    const data = await res.json().catch(() => ({ error: 'Invalid response' }))
     return NextResponse.json(data, { status: res.status })
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Fetch error'
-    return NextResponse.json({ error: msg }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Failed to load orders.' }, { status: 502 })
   }
 }
 `)
 
   add('app/api/admin/orders/[orderId]/ship/route.ts', `\
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+import { isAdmin, isSameOrigin } from '@/lib/admin-session'
+import { platformUrl } from '@/lib/platform'
+
+${STORE_KEY_HEADERS_FN}
 
 interface Context { params: Promise<{ orderId: string }> }
 
 export async function POST(request: Request, { params }: Context) {
-  const cookieStore = await cookies()
-  const auth = cookieStore.get('admin_auth')
-  if (!auth?.value) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isSameOrigin(request)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!(await isAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { orderId } = await params
-  const quanteUrl = process.env.QUANTE_API_URL ?? 'https://quante.vercel.app'
-  const apiKey = process.env.QUANTE_API_KEY
-  if (!apiKey) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
+  // orderId is spliced into the upstream URL — no slashes/dots (path traversal).
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(orderId)) return NextResponse.json({ error: 'Invalid order id' }, { status: 400 })
 
-  const body = await request.json().catch(() => ({})) as { trackingCode?: string; trackingUrl?: string; useZasilkovna?: boolean; weight?: number }
+  const quanteUrl = platformUrl()
+  if (!quanteUrl) return NextResponse.json({ error: 'QUANTE_API_URL not configured' }, { status: 400 })
+  if (!process.env.QUANTE_API_KEY) return NextResponse.json({ error: 'QUANTE_API_KEY not configured' }, { status: 400 })
+
+  const raw = await request.json().catch(() => ({})) as Record<string, unknown>
+  const trackingCode = typeof raw.trackingCode === 'string' && raw.trackingCode.trim() ? raw.trackingCode.trim().slice(0, 100) : undefined
+  // Only https tracking links are forwarded (they end up in customer e-mails).
+  let trackingUrl: string | undefined
+  if (typeof raw.trackingUrl === 'string' && raw.trackingUrl.trim()) {
+    try {
+      const u = new URL(raw.trackingUrl.trim())
+      if (u.protocol === 'https:') trackingUrl = u.toString().slice(0, 500)
+    } catch {}
+  }
+  const weight = Number(raw.weight)
+  const validWeight = Number.isFinite(weight) && weight > 0 && weight <= 100 ? weight : undefined
+  const headers = storeKeyHeaders({ 'Content-Type': 'application/json' })
 
   // For Zásilkovna orders without a manual tracking code, try the Packeta API
-  if (body.useZasilkovna && !body.trackingCode) {
-    const zRes = await fetch(\`\${quanteUrl}/api/store/orders/\${orderId}/zasilkovna-shipment\`, {
+  if (raw.useZasilkovna === true && !trackingCode) {
+    const zRes = await fetch(quanteUrl + '/api/store/orders/' + orderId + '/zasilkovna-shipment', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${apiKey}\` },
-      body: JSON.stringify({ weight: body.weight }),
+      headers,
+      body: JSON.stringify({ weight: validWeight }),
     })
-    const zData = await zRes.json()
+    const zData = await zRes.json().catch(() => ({}))
     if (zRes.ok) return NextResponse.json(zData, { status: 200 })
     // Fall through to manual PATCH if Packeta API not configured
   }
 
-  const res = await fetch(\`\${quanteUrl}/api/store/orders/\${orderId}\`, {
+  const res = await fetch(quanteUrl + '/api/store/orders/' + orderId, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: \`Bearer \${apiKey}\` },
-    body: JSON.stringify({ status: 'shipped', trackingCode: body.trackingCode, trackingUrl: body.trackingUrl }),
+    headers,
+    body: JSON.stringify({ status: 'shipped', trackingCode, trackingUrl }),
   })
-  const data = await res.json()
+  const data = await res.json().catch(() => ({}))
   return NextResponse.json(data, { status: res.status })
 }
 `)
@@ -2924,7 +4869,7 @@ export async function POST(request: Request, { params }: Context) {
 
 // ─── README ──────────────────────────────────────────────────────────────────
 
-function buildReadme(manifest: ShopManifest, hasAdmin: boolean, slug: string): string {
+function buildReadme(manifest: ShopManifest, hasAdmin: boolean, slug: string, customSectionCount = 0): string {
   const lines: string[] = [
     `# ${manifest.brand.name}`, '',
     `> ${manifest.brand.tagline}`, '',
@@ -2942,22 +4887,37 @@ function buildReadme(manifest: ShopManifest, hasAdmin: boolean, slug: string): s
     `| \`QUANTE_API_URL\` | For checkout | Quante platform URL |`,
     `| \`QUANTE_PROJECT_ID\` | For checkout | Your project ID on Quante |`,
     `| \`QUANTE_API_KEY\` | For admin | API key for order access |`,
-    ...(hasAdmin ? [`| \`ADMIN_PASSWORD\` | **Required for admin** | Password for /admin |`] : []),
+    ...(hasAdmin ? [
+      `| \`ADMIN_PASSWORD\` | **Required for admin** | Password for /admin (min. 12 characters) |`,
+      `| \`ADMIN_SESSION_SECRET\` | Optional | Extra secret mixed into admin session signatures |`,
+      `| \`ADMIN_ALLOWED_ORIGINS\` | Optional | Public store origin(s) for /admin when a reverse proxy rewrites the Host header |`,
+    ] : []),
     '', '> Never commit `.env.local`. It is in `.gitignore`.', '', '---', '',
     '## Customizing', '',
     '`data/manifest.ts` is the single source for all content — products, copy, colors, fonts, sections, nav, footer, SEO.',
     'Edit it and refresh. Type definitions are in `types/manifest.ts`.', '', '---',
   ]
 
+  if (customSectionCount > 0) {
+    lines.push(
+      '', '## Custom sections', '',
+      'Custom sections are rendered in a sandboxed iframe (`components/custom/SandboxedComponent.tsx`,',
+      'source in `components/custom/sources.ts`). Their code never runs inside your app itself —',
+      'not during the build and not on your domain — and it has no network access. To turn one',
+      'into a regular component, review its code first and rewrite it as a normal React section.', '', '---',
+    )
+  }
+
   if (hasAdmin) {
     lines.push(
       '', '## Admin panel', '',
       'Your store ships with a professional admin panel at `/admin`.', '',
-      '1. Set `ADMIN_PASSWORD` in `.env.local` to a strong password',
+      '1. Set `ADMIN_PASSWORD` in `.env.local` to a strong password (at least 12 characters)',
       '2. Restart the dev server', '3. Open **http://localhost:3000/admin**',
       '4. Enter your password', '',
       'Features: dashboard, product management, orders view.',
-      'Session lasts 7 days via a secure cookie.', '', '---',
+      'Sessions are signed, httpOnly cookies that expire after 12 hours. Changing `ADMIN_PASSWORD`',
+      'signs everyone out. Login attempts are rate-limited per IP.', '', '---',
     )
   }
 

@@ -86,14 +86,18 @@ export function computeGeneratorCost(input: GeneratorCostInput): GeneratorCostBr
   const { outputTypes, formats, variantsPerFormat, videoDurationSeconds } = input
   const wantImages = outputTypes.includes('image')
   const wantVideos = outputTypes.includes('video')
-  const formatCount = formats.length
+  // Duplicate formats are one slot, not two — must match how the API builds items.
+  const formatCount = new Set(formats).size
   const variantsTotal = formatCount * variantsPerFormat
 
+  // Totals are exactly Σ creditsPerItem over the slots, so the reservation always
+  // equals the sum of per-item charges (+ strategy) and per-item refunds can
+  // never exceed what was reserved.
   const imageCredits = wantImages
-    ? variantsTotal * QADS_GENERATOR_CREDIT_COSTS.imagePerVariant
+    ? variantsTotal * creditsPerItem('image', 0)
     : 0
   const videoCredits = wantVideos
-    ? Math.ceil(variantsTotal * QADS_GENERATOR_CREDIT_COSTS.videoPerSecond * videoDurationSeconds)
+    ? variantsTotal * creditsPerItem('video', videoDurationSeconds)
     : 0
   const strategyCredits = QADS_GENERATOR_CREDIT_COSTS.strategyPerGeneration
 
@@ -119,5 +123,7 @@ export function computeGeneratorCost(input: GeneratorCostInput): GeneratorCostBr
 // variant) slot.
 export function creditsPerItem(kind: HiggsfieldOutputKind, videoDurationSeconds: number): number {
   if (kind === 'image') return QADS_GENERATOR_CREDIT_COSTS.imagePerVariant
-  return Math.ceil(QADS_GENERATOR_CREDIT_COSTS.videoPerSecond * videoDurationSeconds)
+  // Never 0: a missing/invalid duration must not make a video free.
+  const seconds = Number.isFinite(videoDurationSeconds) ? Math.max(0, videoDurationSeconds) : 0
+  return Math.max(1, Math.ceil(QADS_GENERATOR_CREDIT_COSTS.videoPerSecond * seconds))
 }

@@ -1,4 +1,4 @@
-// PATCH /api/project/secrets — update per-project secrets/settings.
+// PATCH /api/project/secrets — update (or create) per-project secrets/settings.
 // Payment gateway secrets (Comgate/GoPay/PayPal) are AES-256-GCM encrypted
 // at rest via lib/crypto.ts. All other fields are ignored to prevent
 // privilege escalation. GET never returns secret values — only has-flags.
@@ -14,12 +14,14 @@ import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { encryptSecret, isEncryptionConfigured } from '@/lib/crypto'
+import { isUuid } from '@/lib/auth/project'
 
+// zasilkovna_api_password is deliberately NOT here: it is a carrier credential and is
+// encrypted like the payment secrets (it used to be stored in plaintext via this route).
 const PLAIN_FIELDS = [
   'resend_from_email',
   'payment_test_mode',
   'zasilkovna_api_key',
-  'zasilkovna_api_password',
   'comgate_merchant_id',
   'gopay_client_id',
   'gopay_go_id',
@@ -31,7 +33,28 @@ const PLAIN_FIELDS = [
   'market_language',
 ] as const
 
+const JSON_FIELDS = new Set<string>(['merchant_json', 'payments_json', 'shipping_json'])
+const MAX_STRING_LEN = 500
+const MAX_JSON_BYTES = 64 * 1024
+
+// Type/size check for plain fields — the service-role client would otherwise write
+// whatever shape the caller sends into these columns.
+function isValidPlainValue(field: string, value: unknown): boolean {
+  if (value === null) return true
+  if (field === 'payment_test_mode') return typeof value === 'boolean'
+  if (JSON_FIELDS.has(field)) {
+    if (typeof value !== 'object' || Array.isArray(value)) return false
+    try {
+      return JSON.stringify(value).length <= MAX_JSON_BYTES
+    } catch {
+      return false
+    }
+  }
+  return typeof value === 'string' && value.length <= MAX_STRING_LEN
+}
+
 const ENCRYPTED_FIELDS = [
+  'zasilkovna_api_password',
   'comgate_secret',
   'gopay_client_secret',
   'paypal_client_secret',
@@ -45,6 +68,7 @@ export async function PATCH(request: Request) {
   const { projectId } = body
 
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
+  if (!isUuid(projectId)) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   const { data: project } = await supabaseAdmin
     .from('projects')
@@ -57,7 +81,11 @@ export async function PATCH(request: Request) {
 
   const updates: Record<string, unknown> = {}
   for (const field of PLAIN_FIELDS) {
-    if (field in body) updates[field] = body[field]
+    if (!(field in body)) continue
+    if (!isValidPlainValue(field, body[field])) {
+      return NextResponse.json({ error: `Invalid value for ${field}` }, { status: 400 })
+    }
+    updates[field] = body[field]
   }
   for (const field of ENCRYPTED_FIELDS) {
     if (!(field in body)) continue
@@ -66,7 +94,7 @@ export async function PATCH(request: Request) {
       updates[field] = null
       continue
     }
-    if (typeof value !== 'string') continue
+    if (typeof value !== 'string' || value.length > MAX_STRING_LEN) continue
     if (!isEncryptionConfigured()) {
       return NextResponse.json({ error: 'Server misconfiguration: SECRETS_ENCRYPTION_KEY is not set.' }, { status: 500 })
     }
@@ -77,12 +105,20 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
   }
 
+  // Upsert, not update: a project that has never been deployed has no project_secrets
+  // row yet, and a plain UPDATE would match 0 rows and silently drop the save.
+  // Ownership was verified above, so the row is (re)stamped with the owner's id.
   const { error } = await supabaseAdmin
     .from('project_secrets')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('project_id', projectId)
+    .upsert(
+      { project_id: projectId, user_id: userId, ...updates, updated_at: new Date().toISOString() },
+      { onConflict: 'project_id' },
+    )
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('[project/secrets] update failed:', error.message)
+    return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
@@ -94,6 +130,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const projectId = searchParams.get('projectId')
   if (!projectId) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
+  if (!isUuid(projectId)) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   const { data: project } = await supabaseAdmin
     .from('projects')
@@ -112,7 +149,9 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     resendFromEmail: (data?.resend_from_email as string | null) ?? null,
-    paymentTestMode: (data?.payment_test_mode as boolean | null) ?? true,
+    // Only an explicit `true` is test mode — matches lib/payments/project-providers.ts,
+    // which treats null as LIVE (so the UI never shows "test" while real money moves).
+    paymentTestMode: data?.payment_test_mode === true,
     hasZasilkovnaKey: !!data?.zasilkovna_api_key,
     comgateMerchantId: (data?.comgate_merchant_id as string | null) ?? null,
     hasComgateSecret: !!data?.comgate_secret,

@@ -41,15 +41,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
   const { id: projectId } = await params
 
-  const body: { productId: string; variantId?: string; stockQty: number; lowStockThreshold?: number } =
-    await request.json()
+  const body = await request.json().catch(() => ({})) as {
+    productId?: unknown; variantId?: unknown; stockQty?: unknown; lowStockThreshold?: unknown
+  }
 
-  if (!body.productId || typeof body.stockQty !== 'number') {
+  if (typeof body.productId !== 'string' || !body.productId || body.productId.length > 200 || typeof body.stockQty !== 'number') {
     return NextResponse.json({ error: 'productId and stockQty are required' }, { status: 400 })
   }
-  if (body.stockQty < 0) {
-    return NextResponse.json({ error: 'stockQty must be >= 0' }, { status: 400 })
+  if (!Number.isInteger(body.stockQty) || body.stockQty < 0 || body.stockQty > 1_000_000) {
+    return NextResponse.json({ error: 'stockQty must be an integer between 0 and 1000000' }, { status: 400 })
   }
+  if (body.variantId !== undefined && body.variantId !== null && (typeof body.variantId !== 'string' || body.variantId.length > 200)) {
+    return NextResponse.json({ error: 'Invalid variantId' }, { status: 400 })
+  }
+  if (
+    body.lowStockThreshold !== undefined &&
+    (typeof body.lowStockThreshold !== 'number' || !Number.isInteger(body.lowStockThreshold) || body.lowStockThreshold < 0 || body.lowStockThreshold > 1_000_000)
+  ) {
+    return NextResponse.json({ error: 'lowStockThreshold must be an integer between 0 and 1000000' }, { status: 400 })
+  }
+  const variantId = typeof body.variantId === 'string' && body.variantId ? body.variantId : null
 
   const { data: project } = await supabaseAdmin
     .from('projects')
@@ -66,7 +77,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       {
         project_id: projectId,
         product_id: body.productId,
-        variant_id: body.variantId ?? null,
+        variant_id: variantId,
         stock_qty: body.stockQty,
         ...(typeof body.lowStockThreshold === 'number'
           ? { low_stock_threshold: body.lowStockThreshold }

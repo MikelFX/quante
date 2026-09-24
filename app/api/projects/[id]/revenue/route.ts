@@ -12,7 +12,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 
   const { id: projectId } = await params
   const url = new URL(request.url)
-  const days = Math.min(parseInt(url.searchParams.get('days') ?? '30', 10), 365)
+  const parsedDays = parseInt(url.searchParams.get('days') ?? '30', 10)
+  const days = Number.isFinite(parsedDays) ? Math.min(Math.max(parsedDays, 1), 365) : 30
 
   const { data: project } = await supabaseAdmin
     .from('projects')

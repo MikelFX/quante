@@ -1,9 +1,8 @@
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { requireAdmin } from '@/lib/admin'
 import { ChangelogAdmin, type ChangelogEntry } from './ChangelogAdmin'
-
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -24,9 +23,8 @@ export default async function AdminPage() {
   const { userId } = await auth()
   if (!userId) redirect('/login')
 
-  const user = await currentUser()
-  const email = user?.emailAddresses?.[0]?.emailAddress?.toLowerCase() ?? ''
-  if (!ADMIN_EMAILS.includes(email)) redirect('/dashboard')
+  // Shared gate: verified primary email in ADMIN_EMAILS (fails closed if unset).
+  if (!(await requireAdmin())) redirect('/dashboard')
 
   const { data: agencyUsers } = await supabaseAdmin
     .from('users')

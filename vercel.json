@@ -4,6 +4,7 @@
     { "path": "/api/cron/fulfillment-tracking", "schedule": "0 3 * * *" },
     { "path": "/api/cron/fulfillment-reconcile", "schedule": "15 3 * * *" },
     { "path": "/api/cron/fulfillment-stock", "schedule": "30 3 * * *" },
-    { "path": "/api/qads/cron/sweep-stuck", "schedule": "45 3 * * *" }
+    { "path": "/api/qads/cron/sweep-stuck", "schedule": "45 3 * * *" },
+    { "path": "/api/payments/paypal/reconcile", "schedule": "0 4 * * *" }
   ]
 }

@@ -103,6 +103,8 @@ export default function NewProjectPage() {
   const [projectName, setProjectName] = useState('')
   const [statusText, setStatusText] = useState('')
   const [error, setError] = useState('')
+  // True when the last generate attempt failed for lack of credits (402) — shows a Billing link.
+  const [errorNeedsCredits, setErrorNeedsCredits] = useState(false)
   const [codeChunks, setCodeChunks] = useState('')
   const [stageIndex, setStageIndex] = useState(0)
 
@@ -275,6 +277,15 @@ export default function NewProjectPage() {
         body: JSON.stringify({ history }),
         signal: abort.signal,
       })
+      // Non-stream failures (e.g. a 401/429 from middleware or the platform) come back as a
+      // plain JSON/text body — surface their message instead of a generic "No stream".
+      if (!res.ok) {
+        const data = await res.json().catch(() => null) as { error?: string; message?: string } | null
+        throw new Error(
+          data?.error || data?.message ||
+          (res.status === 429 ? 'Too many messages — please wait a while and try again.' : 'Something went wrong. Please try again.')
+        )
+      }
       if (!res.body) throw new Error('No stream')
 
       const reader = res.body.getReader()
@@ -284,35 +295,50 @@ export default function NewProjectPage() {
       setMessages(prev => [...prev, { role: 'quante', content: '', streaming: true }])
       setThinking(false)
 
+      // The server reports failures (rate limit, invalid history, Claude errors…) as an
+      // in-stream {type:'error'} event. Record it here rather than throwing inside the
+      // per-line try, whose catch exists only to skip malformed lines and used to swallow it.
+      const streamState: { error: string | null } = { error: null }
+      // NDJSON lines can be split across network chunks — keep the trailing partial line.
+      let buffer = ''
+      const handleLine = (line: string) => {
+        let evt: { type?: string; text?: string; brief?: string; message?: string }
+        try { evt = JSON.parse(line) } catch { return /* skip malformed JSON lines */ }
+        if (evt.type === 'text_chunk' && typeof evt.text === 'string') {
+          const text = evt.text
+          setMessages(prev => {
+            const last = prev[prev.length - 1]
+            return [...prev.slice(0, -1), { ...last, content: last.content + text }]
+          })
+        } else if (evt.type === 'ready' && typeof evt.brief === 'string') {
+          const readyBrief = evt.brief
+          // Finalize Quante's message (stop streaming cursor)
+          setMessages(prev => {
+            const last = prev[prev.length - 1]
+            return [...prev.slice(0, -1), { ...last, streaming: false }]
+          })
+          setBrief(readyBrief)
+          // Try to extract a project name from the brief
+          const m = readyBrief.match(/^([A-Z][A-Za-z0-9\s&'.-]{1,28}?) (?:is |are |–|—)/)
+          if (m) setProjectName(m[1].trim())
+          setStage('ready')
+        } else if (evt.type === 'error') {
+          streamState.error = evt.message ||'Something went wrong. Please try again.'
+        }
+      }
+
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const raw = dec.decode(value, { stream: true })
-        for (const line of raw.split('\n').filter(l => l.trim())) {
-          try {
-            const evt = JSON.parse(line)
-            if (evt.type === 'text_chunk') {
-              setMessages(prev => {
-                const last = prev[prev.length - 1]
-                return [...prev.slice(0, -1), { ...last, content: last.content + evt.text }]
-              })
-            } else if (evt.type === 'ready') {
-              // Finalize Quante's message (stop streaming cursor)
-              setMessages(prev => {
-                const last = prev[prev.length - 1]
-                return [...prev.slice(0, -1), { ...last, streaming: false }]
-              })
-              setBrief(evt.brief)
-              // Try to extract a project name from the brief
-              const m = evt.brief.match(/^([A-Z][A-Za-z0-9\s&'.-]{1,28}?) (?:is |are |–|—)/)
-              if (m) setProjectName(m[1].trim())
-              setStage('ready')
-            } else if (evt.type === 'error') {
-              throw new Error(evt.message)
-            }
-          } catch { /* skip malformed JSON lines */ }
-        }
+        buffer += dec.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) if (line.trim()) handleLine(line)
       }
+      buffer += dec.decode()
+      if (buffer.trim()) handleLine(buffer)
+
+      if (streamState.error) throw new Error(streamState.error)
 
       // Stop streaming cursor if no <ready> was received
       setMessages(prev => {
@@ -327,6 +353,8 @@ export default function NewProjectPage() {
       setMessages(prev => {
         const last = prev[prev.length - 1]
         if (last?.role === 'quante' && !last.content) return prev.slice(0, -1)
+        // Partial reply before the error — keep the text but stop the streaming cursor.
+        if (last?.streaming) return [...prev.slice(0, -1), { ...last, streaming: false }]
         return prev
       })
     }
@@ -347,6 +375,7 @@ export default function NewProjectPage() {
     setStage('generating')
     setStatusText('Designing your store…')
     setError('')
+    setErrorNeedsCredits(false)
     setCodeChunks('')
 
     // A fresh generation is starting now, so any stale resume banner from a previous reload
@@ -376,7 +405,18 @@ export default function NewProjectPage() {
       const data = await res.json().catch(() => null)
       if (!res.ok || !data?.jobId) {
         clearPending()
-        setError(data?.error || 'Could not start generation. Please try again.')
+        const code = typeof data?.code === 'string' ? data.code : typeof data?.error === 'string' ? data.error : ''
+        if (code === 'billing_hold') {
+          // Account flagged after a chargeback — spending is paused until support reviews it.
+          setError('Your account is on a billing hold, so credits can’t be spent right now. Please contact support@quantecode.com.')
+        } else if (res.status === 402) {
+          setError(data?.error || 'Not enough credits to generate a store.')
+          setErrorNeedsCredits(true)
+        } else if (res.status === 429) {
+          setError(data?.error || 'Too many generations — please wait a while and try again.')
+        } else {
+          setError(data?.error || 'Could not start generation. Please try again.')
+        }
         setStage('ready')
         return
       }
@@ -744,7 +784,15 @@ export default function NewProjectPage() {
             </div>
 
             {error && (
-              <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{error}</p>
+              <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>
+                {error}
+                {errorNeedsCredits && (
+                  <>
+                    {' '}
+                    <a href="/billing" style={{ color: '#D4FF3F', fontWeight: 600 }}>Buy credits →</a>
+                  </>
+                )}
+              </p>
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

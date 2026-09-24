@@ -54,9 +54,19 @@ export function validateRegistrant(registrant: DomainRegistrant, domain: string)
     ['email', 'Email'],
   ]
   for (const [key, label] of required) {
-    if (!registrant[key] || !registrant[key].trim()) {
+    if (typeof registrant[key] !== 'string' || !registrant[key].trim()) {
       return `${label} is required.`
     }
+  }
+  // Bound every field — this is stored server-side and sent to the registrar.
+  for (const key of Object.keys(registrant) as Array<keyof DomainRegistrant>) {
+    const value = registrant[key]
+    if (value != null && (typeof value !== 'string' || value.length > 200)) {
+      return 'Contact details are too long.'
+    }
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registrant.email.trim())) {
+    return 'Enter a valid email address.'
   }
   if (!PHONE_FORMAT.test(registrant.phone.trim())) {
     return 'Phone must be in the format +CountryCode.Number, e.g. +420.777123456.'

@@ -1,59 +1,19 @@
-// POST /api/payments/paypal/notify
-// Handles PayPal order capture after buyer approval.
+// /api/payments/paypal/notify
+// PayPal's return_url (GET) — the buyer lands here after approving the payment; we
+// capture the order and send them on to the store's own success / cart page. POST is
+// kept for a client-side capture call ({ orderID }).
 //
-// Security: the payload is never trusted. We call PayPal's capture API with the
-// merchant's own credentials and only mark the order paid when PayPal's
-// authoritative response says COMPLETED, the captured amount matches our order
-// total, and the reference_id matches our order — a forged request cannot mark
-// anything paid without a real completed PayPal payment of the right amount.
+// Security: the request is never trusted — see lib/payments/paypal-capture.ts. A forged
+// request cannot mark anything paid without a real completed PayPal capture of the
+// right amount. Redirect targets come only from the signed `ret` / `back` params that
+// lib/payments/paypal.ts attached to the return_url at payment creation (HMAC with the
+// merchant's PayPal client secret over our order id), so this is no open redirect —
+// and the buyer never lands on a Quante page (white-label).
 
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase/admin'
-import { getProjectPaymentCreds, paypalForProject } from '@/lib/payments/project-providers'
-import { sendPaymentSuccessEmails, type PaidOrderRow } from '@/lib/order-emails'
-
-async function captureAndMarkPaid(paypalOrderId: string): Promise<{ ok: boolean; error?: string; status?: number }> {
-  const { data: order } = await supabaseAdmin
-    .from('store_orders')
-    .select('id, project_id, order_number, customer_name, customer_email, customer_phone, total_cents, currency, items, payment_method, shipping_method, shipping_address, payment_status')
-    .eq('payment_ref', paypalOrderId)
-    .maybeSingle()
-  if (!order) return { ok: false, error: 'Unknown order', status: 404 }
-  if (order.payment_status === 'paid') return { ok: true } // idempotent retry
-
-  const creds = await getProjectPaymentCreds(order.project_id)
-  const provider = paypalForProject(creds)
-  if (!provider) return { ok: false, error: 'PayPal not configured', status: 503 }
-
-  const capture = await provider.captureOrder(paypalOrderId)
-
-  if (capture.status !== 'COMPLETED') {
-    return { ok: false, error: `Capture not completed (${capture.status})`, status: 409 }
-  }
-  const expected = order.total_cents / 100
-  if (capture.amountValue === null || Math.abs(capture.amountValue - expected) > 0.01) {
-    console.error(`[paypal/notify] amount mismatch: captured ${capture.amountValue}, expected ${expected} (order ${order.id})`)
-    return { ok: false, error: 'Amount mismatch', status: 409 }
-  }
-  if (capture.referenceId && capture.referenceId !== order.id) {
-    console.error(`[paypal/notify] reference mismatch: ${capture.referenceId} vs ${order.id}`)
-    return { ok: false, error: 'Reference mismatch', status: 409 }
-  }
-
-  const { data: updated } = await supabaseAdmin
-    .from('store_orders')
-    .update({ payment_status: 'paid', status: 'paid', updated_at: new Date().toISOString() })
-    .eq('id', order.id)
-    .neq('payment_status', 'paid')
-    .select('id')
-    .maybeSingle()
-
-  if (updated) {
-    await sendPaymentSuccessEmails(order as PaidOrderRow)
-  }
-
-  return { ok: true }
-}
+import { getProjectPaymentCreds } from '@/lib/payments/project-providers'
+import { captureAndMarkPaid, findPayPalOrder } from '@/lib/payments/paypal-capture'
+import { verifyPayPalReturn } from '@/lib/payments/paypal'
 
 export async function POST(request: Request) {
   let body: { orderID?: string; token?: string } = {}
@@ -64,7 +24,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await captureAndMarkPaid(orderId)
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status ?? 500 })
+    if (!result.ok) return NextResponse.json({ error: result.error, ...(result.pending ? { pending: true } : {}) }, { status: result.status ?? 500 })
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[paypal/notify] capture failed:', err)
@@ -72,18 +32,67 @@ export async function POST(request: Request) {
   }
 }
 
-// PayPal also calls GET on return URL — handle the success redirect
+// Neutral, unbranded fallback when there's no verified store URL to go back to.
+function plainPage(message: string, status: number): Response {
+  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment</title><body style="font-family:system-ui,sans-serif;max-width:32rem;margin:4rem auto;padding:0 1rem;line-height:1.5"><p>${message}</p></body>`
+  return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } })
+}
+
+function withParam(target: string, key: string, value: string): string {
+  const u = new URL(target)
+  u.searchParams.set(key, value)
+  return u.toString()
+}
+
+function isHttpUrl(value: string): boolean {
+  try {
+    const u = new URL(value)
+    return u.protocol === 'https:' || u.protocol === 'http:'
+  } catch {
+    return false
+  }
+}
+
+// PayPal redirects the buyer here: ?ret=…&back=…&sig=…&token=<PayPal order id>&PayerID=…
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const token = url.searchParams.get('token')
-  if (!token) return NextResponse.json({ error: 'Missing token' }, { status: 400 })
+  if (!token) return plainPage('Missing payment reference.', 400)
 
+  const order = await findPayPalOrder(token).catch(() => null)
+  if (!order) return plainPage('Unknown payment.', 404)
+
+  // Resolve where to send the buyer — only URLs we signed for THIS order.
+  const ret = url.searchParams.get('ret') ?? ''
+  const back = url.searchParams.get('back') ?? ''
+  const sig = url.searchParams.get('sig') ?? ''
+  let verified = false
+  if (ret && back && sig && isHttpUrl(ret) && isHttpUrl(back)) {
+    const creds = await getProjectPaymentCreds(order.project_id).catch(() => null)
+    verified = !!creds?.paypalClientSecret && verifyPayPalReturn(creds.paypalClientSecret, order.id, ret, back, sig)
+  }
+
+  let outcome: 'paid' | 'pending' | 'failed'
   try {
     const result = await captureAndMarkPaid(token)
-    if (!result.ok) return NextResponse.redirect(new URL(`/?paypal_error=1`, request.url))
-    return NextResponse.redirect(new URL(`/?paypal_success=1`, request.url))
+    outcome = result.ok ? 'paid' : result.pending ? 'pending' : 'failed'
   } catch (err) {
     console.error('[paypal/notify GET] capture failed:', err)
-    return NextResponse.redirect(new URL(`/?paypal_error=1`, request.url))
+    outcome = 'failed'
   }
+
+  if (!verified) {
+    // Payment state is recorded either way; there's just nowhere safe to redirect.
+    return plainPage(
+      outcome === 'failed'
+        ? 'The payment could not be completed. Please return to the store and try again.'
+        : 'Thank you — your payment has been received. You can close this window.',
+      outcome === 'failed' ? 409 : 200,
+    )
+  }
+
+  // Paid, or captured-but-pending (PayPal is reviewing; the reconcile cron marks it paid
+  // once the money arrives) → the store's success page. Failed → back to the cart.
+  if (outcome === 'failed') return NextResponse.redirect(withParam(back, 'payment', 'failed'), 303)
+  return NextResponse.redirect(outcome === 'pending' ? withParam(ret, 'payment', 'pending') : ret, 303)
 }

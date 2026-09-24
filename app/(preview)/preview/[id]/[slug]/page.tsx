@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { loadOwnedPreviewManifest } from '@/app/(preview)/_lib/owned-manifest'
 import { ShopRenderer } from '@/components/storefront/ShopRenderer'
 import type { ShopManifest } from '@/types/manifest'
 
@@ -7,10 +7,8 @@ interface Props { params: Promise<{ id: string; slug: string }> }
 
 export default async function PreviewCustomPage({ params }: Props) {
   const { id, slug } = await params
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('manifest_versions').select('manifest')
-    .eq('project_id', id).order('version_no', { ascending: false }).limit(1).maybeSingle()
+  const manifestRow = await loadOwnedPreviewManifest(id)
+  const data = manifestRow ? { manifest: manifestRow } : null
 
   if (!data?.manifest) return <div style={{ padding: '4rem', textAlign: 'center', color: '#666' }}>No manifest.</div>
 

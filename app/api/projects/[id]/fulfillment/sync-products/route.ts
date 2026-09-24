@@ -50,10 +50,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'byrd API credentials not configured. Add them in Admin → Settings.' }, { status: 422 })
   }
 
-  const body = await request.json().catch(() => ({})) as { products?: SyncProductInput[] }
-  const products = body.products ?? []
+  const body = await request.json().catch(() => ({})) as { products?: unknown }
+  const products = (Array.isArray(body.products) ? body.products : []) as SyncProductInput[]
   if (products.length === 0) {
     return NextResponse.json({ error: 'products array is required and must be non-empty' }, { status: 400 })
+  }
+  if (products.length > 200) {
+    return NextResponse.json({ error: 'At most 200 products per sync' }, { status: 400 })
+  }
+  const malformed = products.some((p) =>
+    typeof p !== 'object' || p === null ||
+    (p.productId !== undefined && typeof p.productId !== 'string') ||
+    (p.variantId !== undefined && p.variantId !== null && typeof p.variantId !== 'string') ||
+    typeof p.name !== 'string' || p.name.length > 300 ||
+    !Number.isInteger(p.priceCents) || p.priceCents < 0 || p.priceCents > 1_000_000_000 ||
+    typeof p.currency !== 'string' || !/^[A-Za-z]{3}$/.test(p.currency) ||
+    (p.weightKg !== undefined && (typeof p.weightKg !== 'number' || !Number.isFinite(p.weightKg) || p.weightKg < 0 || p.weightKg > 1000)))
+  if (malformed) {
+    return NextResponse.json({ error: 'Invalid product entry (name, integer priceCents, 3-letter currency required)' }, { status: 400 })
   }
   const withoutSku = products.filter((p) => !p.productId)
   if (withoutSku.length > 0) {

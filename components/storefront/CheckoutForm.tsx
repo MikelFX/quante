@@ -21,8 +21,13 @@ export function CheckoutForm({ manifest, projectId, basePath }: Props) {
   const hasComgate = payments?.providers.includes('comgate') ?? false
   const hasGopay = payments?.providers.includes('gopay') ?? false
   const hasPayPal = payments?.providers.includes('paypal') ?? false
-  const hasDobirka = payments?.dobirka?.enabled ?? false
-  const hasPrevod = payments?.prevod?.enabled ?? true
+  const hasDobirka = payments?.dobirka?.enabled === true
+  // Mirrors the server (app/api/store/_lib/pricing.ts) and the deployed template:
+  // bank transfer only when enabled explicitly, or as the fallback when the store
+  // offers no provider and no COD. The COD fee defaults to 0, like the server.
+  const providers = payments?.providers ?? []
+  const hasPrevod = payments?.prevod?.enabled === true || (!providers.length && !hasDobirka)
+  const codFee = Number(payments?.dobirka?.priplatek_czk ?? 0) || 0
 
   const [step, setStep] = useState<Step>('info')
   const [submitting, setSubmitting] = useState(false)
@@ -39,17 +44,15 @@ export function CheckoutForm({ manifest, projectId, basePath }: Props) {
   // Shipping
   const [shippingMethod, setShippingMethod] = useState(shippingMethods[0]?.type ?? '')
   const selectedShipping = shippingMethods.find((m) => m.type === shippingMethod)
-  const shippingCents = selectedShipping ? Math.round(selectedShipping.cena_czk * 100) : 0
 
   // Free shipping
   const freeFrom = manifest.shipping?.doprava_zdarma_od_czk
   const isFreeShipping = !!(freeFrom && total >= freeFrom)
-  const effectiveShippingCents = isFreeShipping ? 0 : shippingCents
 
   // Payment
   const defaultPayment = hasStripe ? 'stripe' : hasComgate ? 'comgate' : hasGopay ? 'gopay' : hasPayPal ? 'paypal' : hasDobirka ? 'dobirka' : 'prevod'
   const [paymentMethod, setPaymentMethod] = useState<string>(defaultPayment)
-  const dobirkaFee = paymentMethod === 'dobirka' ? (payments?.dobirka?.priplatek_czk ?? 49) : 0
+  const dobirkaFee = paymentMethod === 'dobirka' ? codFee : 0
   const orderTotal = total + (isFreeShipping ? 0 : selectedShipping ? selectedShipping.cena_czk : 0) + dobirkaFee
 
   if (items.length === 0) {
@@ -80,20 +83,18 @@ export function CheckoutForm({ manifest, projectId, basePath }: Props) {
       const res = await fetch('/api/store/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // The server re-prices everything (items, shipping, COD fee, currency) from
+        // the merchant's own data, so only ids, quantities and choices are sent.
         body: JSON.stringify({
           projectId,
-          returnBasePath: basePath,
           items: items.map((i) => ({
             id: i.id,
-            name: i.name + (i.variantLabel ? ` (${i.variantLabel})` : ''),
-            price: i.price,
-            currency,
+            productId: i.productId || i.id.split(':')[0],
+            ...(i.variantId ? { variantId: i.variantId } : {}),
             quantity: i.quantity,
           })),
           paymentMethod,
           shippingMethod: selectedShipping?.type,
-          shippingCents: effectiveShippingCents,
-          dobirkaCents: Math.round(dobirkaFee * 100),
           customerEmail: email,
           customerName: name,
           customerPhone: phone,
@@ -269,7 +270,7 @@ export function CheckoutForm({ manifest, projectId, basePath }: Props) {
             {hasComgate && paymentLabel('comgate', 'Online platba (Comgate)')}
             {hasGopay && paymentLabel('gopay', 'Online platba (GoPay)')}
             {hasPayPal && paymentLabel('paypal', 'PayPal')}
-            {hasDobirka && paymentLabel('dobirka', `Dobírka (+${currency} ${(payments?.dobirka?.priplatek_czk ?? 49).toFixed(2)})`)}
+            {hasDobirka && paymentLabel('dobirka', codFee > 0 ? `Dobírka (+${currency} ${codFee.toFixed(2)})` : 'Dobírka')}
             {hasPrevod && paymentLabel('prevod', 'Bankovní převod')}
           </div>
         </section>

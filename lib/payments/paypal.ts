@@ -1,7 +1,31 @@
+import { createHmac, timingSafeEqual } from 'crypto'
 import type { PaymentProvider, CreatePaymentParams, CreatePaymentResult, PaymentStatusResult } from './types'
 
 const PAYPAL_LIVE_BASE = 'https://api-m.paypal.com'
 const PAYPAL_SANDBOX_BASE = 'https://api-m.sandbox.paypal.com'
+
+// PayPal takes no decimals for these currencies; our amounts are always sent (and
+// checked in the notify handler) as 2-decimal values, so they are refused outright.
+// (Checkout only allows two-decimal currencies anyway — app/api/store/_lib/pricing.ts.)
+const PAYPAL_ZERO_DECIMAL = new Set(['HUF', 'JPY', 'TWD'])
+
+// ─── Return-URL routing ──────────────────────────────────────────────────────
+// Nothing captures a PayPal order unless our server is called after the buyer
+// approves it, so PayPal's return_url is our notify endpoint (GET captures), not the
+// store's success page. The store URLs to send the buyer on to ride along as query
+// params, HMAC-signed with the merchant's own PayPal client secret over our order id —
+// the notify handler only redirects to URLs it signed itself (no open redirect).
+
+function returnSignature(secret: string, orderId: string, ret: string, back: string): string {
+  return createHmac('sha256', secret).update(`quante-paypal-return\n${orderId}\n${ret}\n${back}`).digest('hex')
+}
+
+export function verifyPayPalReturn(secret: string, orderId: string, ret: string, back: string, sig: string): boolean {
+  const expected = Buffer.from(returnSignature(secret, orderId, ret, back), 'hex')
+  let got: Buffer
+  try { got = Buffer.from(sig, 'hex') } catch { return false }
+  return got.length === expected.length && timingSafeEqual(got, expected)
+}
 
 interface PayPalConfig {
   clientId: string
@@ -31,9 +55,22 @@ export class PayPalProvider implements PaymentProvider {
   }
 
   async createPayment(p: CreatePaymentParams): Promise<CreatePaymentResult> {
-    const token = await this.getAccessToken()
-    const amountDecimal = (p.amount / 100).toFixed(2)
     const currency = p.currency.toUpperCase()
+    if (PAYPAL_ZERO_DECIMAL.has(currency)) throw new Error(`PayPal: zero-decimal currency ${currency} is not supported`)
+    if (!Number.isInteger(p.amount) || p.amount <= 0) throw new Error('PayPal: invalid amount')
+    const amountDecimal = (p.amount / 100).toFixed(2)
+
+    // Buyer returns to our notify endpoint (which captures), then on to the store.
+    const returnUrl = new URL(p.notifyUrl)
+    returnUrl.searchParams.set('ret', p.returnUrl)
+    returnUrl.searchParams.set('back', p.cancelUrl)
+    returnUrl.searchParams.set('sig', returnSignature(this.cfg.clientSecret, p.orderId, p.returnUrl, p.cancelUrl))
+
+    // White-label: the store's own name, or nothing (PayPal then shows the merchant's
+    // PayPal business name) — never a Quante brand.
+    const brandName = p.brandName?.trim().slice(0, 127)
+
+    const token = await this.getAccessToken()
 
     const res = await fetch(`${this.base}/v2/checkout/orders`, {
       method: 'POST',
@@ -52,10 +89,10 @@ export class PayPalProvider implements PaymentProvider {
         payment_source: {
           paypal: {
             experience_context: {
-              return_url: p.returnUrl,
+              return_url: returnUrl.toString(),
               cancel_url: p.cancelUrl,
               user_action: 'PAY_NOW',
-              brand_name: 'Quante Store',
+              ...(brandName ? { brand_name: brandName } : {}),
             },
           },
         },
@@ -90,9 +127,25 @@ export class PayPalProvider implements PaymentProvider {
     return { transactionId, status }
   }
 
+  // Raw PayPal order status (CREATED / APPROVED / PAYER_ACTION_REQUIRED / COMPLETED /
+  // VOIDED …), or null when PayPal no longer knows the order (expired, never approved).
+  async getOrderState(transactionId: string): Promise<string | null> {
+    const token = await this.getAccessToken()
+    const res = await fetch(`${this.base}/v2/checkout/orders/${encodeURIComponent(transactionId)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error(`PayPal get order failed: ${res.status}`)
+    const order = await res.json()
+    return typeof order.status === 'string' ? order.status : null
+  }
+
   // Captures an approved order and returns the authoritative result so the
   // caller can verify status + amount before marking anything as paid.
-  async captureOrder(transactionId: string): Promise<{ status: string; amountValue: number | null; currency: string | null; referenceId: string | null }> {
+  // `status` is the ORDER status; `captureStatus` the status of the capture itself — an
+  // order can be COMPLETED while its capture is still PENDING (eCheck, risk review), in
+  // which case no money has arrived yet.
+  async captureOrder(transactionId: string): Promise<{ status: string; captureStatus: string | null; amountValue: number | null; currency: string | null; referenceId: string | null }> {
     const token = await this.getAccessToken()
     const res = await fetch(`${this.base}/v2/checkout/orders/${transactionId}/capture`, {
       method: 'POST',
@@ -115,12 +168,15 @@ export class PayPalProvider implements PaymentProvider {
     const unit = (data.purchase_units as Array<{
       reference_id?: string
       amount?: { value?: string; currency_code?: string }
-      payments?: { captures?: Array<{ amount?: { value?: string; currency_code?: string } }> }
+      payments?: { captures?: Array<{ status?: string; amount?: { value?: string; currency_code?: string } }> }
     }> | undefined)?.[0]
-    const captureAmount = unit?.payments?.captures?.[0]?.amount ?? unit?.amount
+    const firstCapture = unit?.payments?.captures?.[0]
+    // Only the capture's own amount counts as paid — never the order's requested amount.
+    const captureAmount = firstCapture?.amount
 
     return {
       status: (data.status as string) ?? 'UNKNOWN',
+      captureStatus: firstCapture?.status ?? null,
       amountValue: captureAmount?.value ? parseFloat(captureAmount.value) : null,
       currency: captureAmount?.currency_code ?? null,
       referenceId: unit?.reference_id ?? null,

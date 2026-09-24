@@ -30,7 +30,11 @@ export async function POST(request: Request) {
     mode: 'payment',
     success_url: `${origin}/billing?success=1&credits=${pack.credits}`,
     cancel_url: `${origin}/billing?cancelled=1`,
-    metadata: { userId, credits: String(pack.credits), packId: pack.id },
+    // `type` routes the webhook explicitly. The webhook derives the credit amount from
+    // the server-side pack definition + the amount actually paid — metadata.credits is
+    // informational only.
+    metadata: { type: 'credits', userId, credits: String(pack.credits), packId: pack.id },
+    payment_intent_data: { metadata: { type: 'credits', userId, packId: pack.id } },
   })
 
   return NextResponse.json({ url: session.url })

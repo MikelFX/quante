@@ -9,9 +9,16 @@
 // would need consent/invitation flow from the client's side, which was out of scope for
 // this pass — the `referral_code` column on `partners` is reserved for exactly that, but
 // no signup-flow wiring exists yet). See docs/update-log.md.
+//
+// SECURITY: because the partner owns every project they can assign here, NO commission
+// accrues on these assignments — getActivePartnerForProject() in lib/partner-commission.ts
+// refuses commission whenever the partner is the project owner or payer (otherwise any
+// approved partner earned a kickback on their own hosting spend). Assignment is kept for
+// grouping/reporting only; commission needs the referral model (different owner).
 
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { getOwnedProject, isUuid } from '@/lib/auth/project'
 
 async function getOwnPartner(userId: string) {
   const { data } = await supabaseAdmin
@@ -33,12 +40,7 @@ export async function POST(request: Request) {
   const partner = await getOwnPartner(userId)
   if (!partner) return Response.json({ error: 'You do not have a partner account yet' }, { status: 404 })
 
-  const { data: project } = await supabaseAdmin
-    .from('projects')
-    .select('id')
-    .eq('id', projectId)
-    .eq('user_id', userId)
-    .maybeSingle()
+  const project = await getOwnedProject(projectId, userId, 'id')
   if (!project) return Response.json({ error: 'Project not found' }, { status: 404 })
 
   const { data, error } = await supabaseAdmin
@@ -60,6 +62,7 @@ export async function DELETE(request: Request) {
 
   const projectId = new URL(request.url).searchParams.get('projectId')
   if (!projectId) return Response.json({ error: 'projectId is required' }, { status: 400 })
+  if (!isUuid(projectId)) return Response.json({ error: 'Project not found' }, { status: 404 })
 
   const partner = await getOwnPartner(userId)
   if (!partner) return Response.json({ error: 'You do not have a partner account yet' }, { status: 404 })

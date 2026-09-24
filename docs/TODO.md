@@ -1,4 +1,27 @@
-# Quante — souhrnný TODO list (stav k 2026-08-28)
+# Quante — souhrnný TODO list (stav k 2026-08-28, doplněno 2026-09-24)
+
+---
+
+## 🔐 Security audit 2026-09 — owner actions (doplněno 2026-09-24)
+
+Kompletní bezpečnostní audit + 4 kola oprav (detail v `docs/update-log.md`, záznam 2026-09-23 – 09-24). Kód je hotový, `tsc` čistý, 212/212 testů, `next build` prochází. **Všech 19 migrací je spuštěných v produkci a ověřených (2026-09-24).**
+
+**Musí se udělat, jinak to na produkci neběží:**
+- [ ] **Commit + deploy** nového kódu (zatím necommitnuto na větvi `theme-green-accent`).
+- [ ] **Vercel env vars:** `CRON_SECRET` (bez něj všechny crony vrací 401), `NEXT_PUBLIC_APP_URL` (https — bez něj checkout/e-maily fail closed), `VERCEL_TOKEN`, `HIGGSFIELD_WEBHOOK_SECRET`, `SECRETS_ENCRYPTION_KEY`.
+- [ ] **Stripe dashboard → webhook:** přidat eventy `invoice.paid`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`; odebrat `account.updated` (Stripe Connect routy jsou smazané).
+- [ ] **Clerk:** přepnout produkci z development instance (`pk_test_`) na production; v Restrictions zapnout blokování e-mailových subadres (`+tag`) a jednorázových domén.
+- [ ] **Po deployi přenasadit všechny hostované obchody** (nový scaffold: klíč posílaný serverem, sandbox komponent, success stránka bez bankovních údajů v URL). Až v logu nebudou řádky `[store/checkout] keyless legacy checkout`, nastavit `STORE_CHECKOUT_REQUIRE_KEY=true`.
+- [ ] **Jeden testovací deploy obchodu:** ověřit, že Vercel API přijme nastavení store projektů (`npm install --ignore-scripts`, `oidcTokenConfig.enabled=false`, `ssoProtection: null`).
+- [ ] **Úklid lokálně:** smazat probe skripty v kořeni repa (`__probe_tmp.mjs`, `__test-iterate-image-tmp.mjs`, `extract-scaffold-tmp.mts`, `_audit-*.mjs`) — některé používají service-role klíč; vypnout Obsidian plugin *Local REST API* (vystavuje složku včetně `.env.local`).
+- [ ] **Data:** projít kontrolní dotazy v `supabase/migration-security-foundation.sql` (projekty sdílející jeden Vercel projekt, nejednoznačné `store_slug`); v adminu přezkoumat marketplace komponenty, které byly dřív auto-listed.
+
+**Byznysová rozhodnutí (v kódu je bezpečný default):**
+- [ ] Peníze za objednávky v obchodech jdou přes Stripe účet Quante → zvážit Stripe Connect destination charges (peníze rovnou obchodníkovi).
+- [ ] Agency = hosting zdarma pro všechny jejich obchody — potvrdit.
+- [ ] Rebuild po skutečné úpravě produktů u neživého/pozastaveného obchodu je zdarma — nechat, nebo účtovat `preview_deploy`?
+- [ ] Mazání starých vstupních fotek v `qads-inputs` (retence) a vracení zboží na sklad po refundu.
+- [ ] Neaudit bezpečnosti, ale z prvního auditu: nepravdivé ceny/texty v UI a na webu („Push to Live 5 cr“, „ZIP 5 cr“, Terms s EUR a starými cenami, FAQ o doménách, „kredity jen při úspěchu“).
 
 Tento dokument spojuje nálezy z dřívějšího velkého auditu s nálezy z dnešní session (Namecheap doménové vyhledávání, byrd fulfillment migrace). Řazeno podle toho, co je potřeba udělat dál — ne podle důležitosti.
 

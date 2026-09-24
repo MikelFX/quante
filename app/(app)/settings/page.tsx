@@ -1,6 +1,6 @@
 import { auth, currentUser } from '@clerk/nextjs/server'
 import { SignOutButton } from '@clerk/nextjs'
-import { createClient } from '@/lib/supabase/server'
+import { getBalance } from '@/lib/credits'
 import Link from 'next/link'
 
 export const metadata = { title: 'Settings — Quante' }
@@ -29,13 +29,8 @@ export default async function SettingsPage() {
   const { userId } = await auth()
   if (!userId) return null
 
-  const [user, supabase] = await Promise.all([currentUser(), createClient()])
-
-  const { data: ledger } = await supabase
-    .from('credit_ledger').select('balance_after')
-    .eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle()
-
-  const balance = ledger?.balance_after ?? 0
+  // getBalance reads the latest ledger row by seq (created_at can be out of write order).
+  const [user, balance] = await Promise.all([currentUser(), getBalance(userId)])
   const email = user?.emailAddresses[0]?.emailAddress ?? '—'
   const createdAt = user?.createdAt
     ? new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })

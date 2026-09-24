@@ -96,15 +96,33 @@ export async function submitMarketingStudioImage(
   return higgsfieldFetch<HiggsfieldSubmitResponse>(url, creds, { method: 'POST', body })
 }
 
+// status_url / cancel_url come back from Higgsfield and are stored in the DB; they are
+// fetched WITH our API key in the Authorization header, so refuse anything that is not
+// an https URL on a higgsfield.ai host — a tampered URL must never receive the key.
+function assertHiggsfieldApiUrl(raw: string): void {
+  let u: URL
+  try {
+    u = new URL(raw)
+  } catch {
+    throw new Error('Invalid Higgsfield URL')
+  }
+  const host = u.hostname.toLowerCase()
+  if (u.protocol !== 'https:' || (host !== 'higgsfield.ai' && !host.endsWith('.higgsfield.ai'))) {
+    throw new Error(`Refusing to send Higgsfield credentials to ${host}`)
+  }
+}
+
 // Per docs.higgsfield.ai/docs/concepts/requests: "Use the URLs from the response instead
 // of constructing them manually" — callers pass the exact status_url/cancel_url a submit
 // call returned, not a URL rebuilt from request_id.
 export async function getRequestStatus(creds: HiggsfieldCredentials, statusUrl: string): Promise<HiggsfieldStatusResponse> {
+  assertHiggsfieldApiUrl(statusUrl)
   return higgsfieldFetch<HiggsfieldStatusResponse>(statusUrl, creds)
 }
 
 export async function cancelRequest(creds: HiggsfieldCredentials, cancelUrl: string): Promise<{ canceled: boolean }> {
   try {
+    assertHiggsfieldApiUrl(cancelUrl)
     await higgsfieldFetch<unknown>(cancelUrl, creds, { method: 'POST' })
     return { canceled: true }
   } catch (err) {

@@ -23,10 +23,14 @@ function escapeXml(s: string): string {
 }
 
 export async function GET() {
-  const site = process.env.NEXT_PUBLIC_APP_URL ?? 'https://quante.vercel.app'
+  // Canonical public site. Never fall back to a legacy/raw deployment host.
+  const site = (process.env.NEXT_PUBLIC_APP_URL || 'https://quantecode.com').replace(/\/+$/, '')
   const { data, error } = await supabaseAdmin
     .from('changelog_entries')
     .select('id, date, title, description, slug')
+    // Only admin-approved entries. The deploy webhook auto-creates unpublished drafts
+    // titled from raw commit messages — those must never reach the public feed.
+    .eq('published', true)
     .order('date', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(50)
@@ -35,12 +39,12 @@ export async function GET() {
   const rows = (data ?? []) as Row[]
 
   const items = rows.map((r) => {
-    const link = `${site}/changelog#${r.slug ?? r.id}`
+    const link = escapeXml(`${site}/changelog#${r.slug ?? r.id}`)
     const pubDate = new Date(`${r.date}T00:00:00Z`).toUTCString()
     return `    <item>
       <title>${escapeXml(r.title)}</title>
       <link>${link}</link>
-      <guid isPermaLink="false">${r.id}</guid>
+      <guid isPermaLink="false">${escapeXml(String(r.id))}</guid>
       <pubDate>${pubDate}</pubDate>
       <description>${escapeXml(r.description)}</description>
     </item>`
