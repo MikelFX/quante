@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { rateLimit } from '@/lib/rate-limit'
 import { getDeploymentStatus } from '@/lib/hosting/vercel'
+import { isUnknownColumnError } from '@/lib/hosting/deployments'
 import { getOwnedProject, isUuid } from '@/lib/auth/project'
 import { MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
 import { refundCapped } from './capped'
@@ -197,13 +198,23 @@ export async function POST(request: Request) {
 
   // 3. Server-side validation: the project's latest deployment must actually be failed,
   // and must be a build of the newest version of this chain (the last fix's outcome).
-  const { data: latestDeploy } = await supabaseAdmin
-    .from('deployments')
-    .select('id, status, vercel_deployment_id, code_version_id')
-    .eq('project_id', version.project_id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // Scaffold rollout builds (rollout_trigger set) are platform updates, not the owner's
+  // builds — a failed one is never "the last fix's outcome".
+  const latestDeployQuery = (excludeRollout: boolean) => {
+    let q = supabaseAdmin
+      .from('deployments')
+      .select('id, status, vercel_deployment_id, code_version_id')
+      .eq('project_id', version.project_id)
+    if (excludeRollout) q = q.is('rollout_trigger', null)
+    return q.order('created_at', { ascending: false }).limit(1).maybeSingle()
+  }
+  let latestDeployResult = await latestDeployQuery(true)
+  // Before migration-scaffold-version.sql there is no rollout_trigger column (and no
+  // rollout builds).
+  if (latestDeployResult.error && isUnknownColumnError(latestDeployResult.error)) {
+    latestDeployResult = await latestDeployQuery(false)
+  }
+  const latestDeploy = latestDeployResult.data
 
   if (!latestDeploy) {
     return NextResponse.json({ error: 'No deployment found.' }, { status: 409 })

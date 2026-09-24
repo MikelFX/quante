@@ -571,3 +571,30 @@ IDORs (`generate` projectId, `generate/status`, `quante/section`, `domains/conne
 See `docs/TODO.md` → "Security audit 2026-09 — owner actions".
 
 **Files:** 147 modified + ~50 new (see `git status`).
+
+---
+
+## 2026-09-24 — Automatic store scaffold rollout
+
+**Why:** hosted stores = platform-owned scaffold (LOCKED files from `buildCodeGenScaffold` / `buildStoreFiles`) + the merchant's AI files (`code_versions.files`). The 2026-09 security refactor changed the scaffold (keyed checkout proxy, AI file filter, locked config), but live stores only got it when their owner happened to redeploy — and `STORE_CHECKOUT_REQUIRE_KEY=true` can't be switched on until every store runs the new scaffold.
+
+**What:**
+- `SCAFFOLD_VERSION = 2` in `lib/store-template/build.ts` (bump on every LOCKED/scaffold change; pre-versioning builds = 1).
+- `supabase/migration-scaffold-version.sql` (**file only, not run**): `deployments.target` (production/preview/maintenance) + `deployments.scaffold_version` + `deployments.rollout_trigger`; `projects.scaffold_version`, `scaffold_update_attempts`, `scaffold_update_error`, `scaffold_update_at`; indexes.
+- `lib/hosting/deployments.ts` `insertDeploymentRow()` — now the only writer of new `deployments` rows (deploy preview/production, redeploy, iterate/fix auto-deploy, generate, webhook restore, rollout); sets `target` + `scaffold_version`, retries without them before the migration (42703 / PGRST204). The hosting cron's maintenance deploys still write no row (unchanged behaviour).
+- `lib/hosting/store-env.ts` — `platformApiUrl` / store API key / env setup extracted from `/api/deploy` (shared with the rollout).
+- `lib/hosting/scaffold-rollout.ts` (+ pure `scaffold-rollout-rules.ts`) — rebuilds a store's **live** code version (newest READY production build; never the latest draft, so unpublished edits stay unpublished) with the new scaffold as a production deployment, free, hosting-gate checked. A failed Vercel build leaves the previous production deployment live; failures are recorded and retried at most 3× by the cron. Stale `building` rows are confirmed with Vercel first (fail closed) so a restore that was never polled can't make the rollout pick an older version.
+- Routes: `GET /api/cron/scaffold-rollout` (daily 04:30 UTC, ≤ 15 stores / run), `GET|POST /api/admin/scaffold-rollout` (summary, dry run, update), `GET /api/projects/[id]/scaffold-status`, `POST /api/projects/[id]/scaffold-update` (owner; 3 / project / h + per-user deploy caps).
+- UI: Admin → **Store updates** card (`StoreUpdatesAdmin.tsx`); Studio banner "A store update is available…" with **Update now** (follows the build with the Push to Live polling).
+- Tests: `__tests__/scaffold-rollout.test.mjs` (32) — `npm run test:scaffold-rollout`.
+
+**Review fixes (same day):**
+- `deployments.rollout_trigger` (admin/cron/owner) marks rollout builds: `/api/quante/fix` and `/api/credits/refund` ignore them in their "latest failed build" checks (a failed platform update can't unlock free fixes), and only rollout failures are recorded as `projects.scaffold_update_error` (not failed builds of the owner's own edits).
+- Attempts no longer pile up across successful updates: builds settled by the Studio poll / log stream are picked up by `findOutdatedStores` / `updateStoreScaffold` (up to date → attempts 0, version set, error cleared) and by the reconcile pass (now 48 h window — the cron is daily — and it also handles rows settled elsewhere).
+- Stores whose live build has no `code_version_id` are skipped while finding stores (they no longer take cron slots forever or show as "would be updated").
+- More than 5 unsettled builds no longer blocks a store permanently: settles 5 per evaluation, progress persisted.
+- One "is this deployment production" classifier (`classifyDeploymentRow` / `isProductionRow`) shared by the rollout and checkout pricing. Legacy rows with domain null + raw `*.vercel.app` url are ambiguous (preview OR a production build whose subdomain attach failed); the rollout asks Vercel for their real target (`getDeploymentStatus().target`) before choosing the live version, so it can't redeploy older content.
+- `ensureStoreApiKey` is race-safe (never overwrites an existing key). A rollout build whose `deployments` row couldn't be written blocks re-triggering for 1 h. Background settle only attaches `*.<HOSTING_ROOT_DOMAIN>` hosts.
+- `GET /api/projects/[id]/scaffold-status` and the admin summary GET are DB-only (no Vercel calls / writes). Cron + admin stop starting stores at 210 s. Admin shows stores the run didn't reach (`notStarted`). Studio: a failed store update says the current store stays live (not "credits were not charged").
+
+**Owner actions:** run `supabase/migration-scaffold-version.sql` → Admin → Store updates (dry run first) → after all stores are up to date set `STORE_CHECKOUT_REQUIRE_KEY=true` (see `docs/TODO.md`).

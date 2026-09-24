@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { requireAdmin } from '@/lib/admin'
 import { ChangelogAdmin, type ChangelogEntry } from './ChangelogAdmin'
+import { StoreUpdatesAdmin } from './StoreUpdatesAdmin'
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -117,6 +118,8 @@ export default async function AdminPage() {
           ))}
         </div>
       )}
+
+      <StoreUpdatesAdmin />
 
       <ChangelogAdmin entries={changelogEntries} />
     </div>

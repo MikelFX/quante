@@ -1,0 +1,36 @@
+# Files that must never be uploaded by `vercel` / `vercel --prod` from this folder.
+# (A .vercelignore replaces the CLI's default handling, so the .gitignore essentials
+# are repeated here.)
+
+# secrets / local config
+.env
+.env.*
+!.env.local.example
+*.pem
+.vercel
+.claude
+
+# build output & caches
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+
+# local notes, Obsidian vault, mockups
+.obsidian
+QuanteCode
+mockups
+/*.md
+/*.canvas
+/*.base
+/quante_scroll_cinematic_bloom.html
+docs
+
+# local probe / audit scripts (some use the service-role key via .env.local)
+/__probe*
+/__test-*
+/_audit-*
+/extract-scaffold-tmp.mts
+/.verify-*
+/.vc-*

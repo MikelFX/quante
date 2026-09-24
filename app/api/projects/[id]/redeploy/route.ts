@@ -1,7 +1,8 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { buildStoreFiles, toStoreSlug } from '@/lib/store-template/build'
+import { buildStoreFiles, toStoreSlug, SCAFFOLD_VERSION } from '@/lib/store-template/build'
+import { insertDeploymentRow } from '@/lib/hosting/deployments'
 import {
   ensureProjectVercel,
   getOrClaimStoreSlug,
@@ -282,7 +283,7 @@ export async function POST(_request: Request, { params }: Params) {
     return NextResponse.json({ error: 'Deployment failed.' }, { status: 500 })
   }
 
-  const { error: insertErr } = await supabaseAdmin.from('deployments').insert({
+  const { error: insertErr } = await insertDeploymentRow({
     project_id: project.id,
     user_id: userId,
     vercel_project_id: vercelProjectId,
@@ -292,6 +293,8 @@ export async function POST(_request: Request, { params }: Params) {
     domain: null,
     version: current.version_no,
     code_version_id: current.id,
+    target: toProduction && storeSlug ? 'production' : 'preview',
+    scaffold_version: SCAFFOLD_VERSION,
   })
   if (insertErr) console.error('[redeploy] failed to insert deployment row:', insertErr)
 

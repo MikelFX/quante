@@ -14,7 +14,8 @@ import { registerDomain, setDnsToVercel } from '@/lib/namecheap'
 import { attachDomain, createPreviewDeployment, ensureProjectVercel, getOrClaimStoreSlug } from '@/lib/hosting/vercel'
 import { detachFromVercel } from '@/app/api/domains/_lib/release'
 import { getHostingGate } from '@/lib/hosting/gate'
-import { buildStoreFiles } from '@/lib/store-template/build'
+import { buildStoreFiles, SCAFFOLD_VERSION } from '@/lib/store-template/build'
+import { insertDeploymentRow } from '@/lib/hosting/deployments'
 import type { CodeVersionFiles } from '@/types/store-code'
 import { getActivePartnerForProject, recordCommission } from '@/lib/partner-commission'
 import { decrementStockForOrder } from '@/lib/payments/stock'
@@ -1300,9 +1301,9 @@ async function restoreSuspendedStore(projectId: string): Promise<void> {
       .update({ hosting_suspended_at: null, updated_at: new Date().toISOString() })
       .eq('id', projectId)
 
-    await supabaseAdmin.from('deployments').insert({
+    const { error: restoreInsertErr } = await insertDeploymentRow({
       project_id: projectId,
-      user_id: project.user_id,
+      user_id: project.user_id as string,
       vercel_project_id: vercelProjectId,
       vercel_deployment_id: result.deploymentId,
       status: 'building',
@@ -1310,7 +1311,10 @@ async function restoreSuspendedStore(projectId: string): Promise<void> {
       domain: result.url.replace('https://', ''),
       version: version.version_no,
       code_version_id: version.id,
+      target: 'production',
+      scaffold_version: SCAFFOLD_VERSION,
     })
+    if (restoreInsertErr) console.error(`[webhook] restore deployments insert failed for ${projectId}:`, restoreInsertErr.message)
 
     console.log(`[webhook] restored suspended store ${projectId} → ${result.url}`)
   } catch (err) {

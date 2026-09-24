@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { buildStoreFiles, toStoreSlug } from '@/lib/store-template/build'
+import { buildStoreFiles, toStoreSlug, SCAFFOLD_VERSION } from '@/lib/store-template/build'
 import { CREDIT_COSTS } from '@/lib/config'
 import { debitCredits, refundDebit } from '@/lib/credits'
 import { getOwnedProject } from '@/lib/auth/project'
@@ -10,7 +10,6 @@ import { getHostingGate, hasUsedHostingTrial, claimHostingTrial, releaseHostingT
 import {
   ensureProjectVercel,
   getOrClaimStoreSlug,
-  setEnvVars,
   createDeployment,
   createVercelPreviewDeploy,
   getDeploymentStatus,
@@ -19,6 +18,8 @@ import {
   HOSTING_ROOT_DOMAIN,
 } from '@/lib/hosting/vercel'
 import type { CodeVersionFiles } from '@/types/store-code'
+import { insertDeploymentRow } from '@/lib/hosting/deployments'
+import { platformApiUrl, ensureStoreApiKey, setStoreConnectionEnv } from '@/lib/hosting/store-env'
 
 export const maxDuration = 60
 
@@ -42,20 +43,8 @@ const MAX_DEPLOYS_PER_WINDOW = 20
 // reaches a Vercel API path.
 const DEPLOYMENT_ID_RE = /^dpl_[A-Za-z0-9]+$/
 
-// The URL the deployed store calls back to for managed checkout/orders. Fails closed:
-// no hard-coded fallback host (a stale one would route shoppers' orders to a server
-// we may not control). https only, except localhost for local development.
-function platformApiUrl(): string | null {
-  const raw = process.env.NEXT_PUBLIC_APP_URL
-  if (!raw) return null
-  try {
-    const u = new URL(raw)
-    if (u.protocol !== 'https:' && !(u.protocol === 'http:' && u.hostname === 'localhost')) return null
-    return u.origin
-  } catch {
-    return null
-  }
-}
+// platformApiUrl() — the URL the deployed store calls back to (fails closed; https only,
+// except localhost) — lives in lib/hosting/store-env.ts, shared with the scaffold rollout.
 
 // ─── First-deploy trial release ───────────────────────────────────────────────
 // A first Push to Live stamps hosting_trial_ends_at (and claims the user's one free
@@ -221,11 +210,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to start preview deployment.' }, { status: 500 })
     }
 
-    const { error: previewInsertErr } = await supabaseAdmin.from('deployments').insert({
+    const { error: previewInsertErr } = await insertDeploymentRow({
       project_id: project.id, user_id: userId,
       vercel_project_id: vercelProjectId, vercel_deployment_id: deploymentId,
       status: 'building', url: previewUrl, domain: null,
       version: version.version_no, code_version_id: version.id,
+      target: 'preview', scaffold_version: SCAFFOLD_VERSION,
     })
     if (previewInsertErr) console.error('[deploy/preview] failed to insert deployment row:', previewInsertErr)
 
@@ -320,36 +310,19 @@ export async function POST(request: Request) {
   const intendedDomain = `${slug}.${HOSTING_ROOT_DOMAIN}`
 
   // Generate / retrieve per-project API key for store → Quante communication
-  const { data: existingSecrets } = await supabaseAdmin
-    .from('project_secrets')
-    .select('quante_api_key')
-    .eq('project_id', project.id)
-    .maybeSingle()
-
-  const quanteApiKey = (existingSecrets as { quante_api_key?: string | null } | null)?.quante_api_key
-    ?? randomUUID()
-
-  const { error: secretsErr } = await supabaseAdmin.from('project_secrets').upsert({
-    project_id: project.id,
-    user_id: userId,
-    quante_api_key: quanteApiKey,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'project_id', ignoreDuplicates: false })
-  if (secretsErr) {
+  // (shared with the scaffold rollout: lib/hosting/store-env.ts).
+  let quanteApiKey: string
+  try {
+    quanteApiKey = await ensureStoreApiKey(project.id, userId)
+  } catch (err) {
     // A key the store holds but Quante doesn't know would break managed checkout.
-    console.error('[deploy] failed to persist project secrets:', secretsErr)
+    console.error('[deploy] failed to persist project secrets:', err)
     return NextResponse.json({ error: 'Failed to prepare store credentials.' }, { status: 500 })
   }
 
   // Managed payments — store calls back to Quante, no Stripe keys in deployed store
-  const envVars: Record<string, string> = {
-    QUANTE_API_URL: appUrl,
-    QUANTE_PROJECT_ID: project.id,
-    QUANTE_API_KEY: quanteApiKey,
-  }
-
   try {
-    await setEnvVars(vercelProjectId, envVars, { encrypted: ['QUANTE_API_KEY'] })
+    await setStoreConnectionEnv(vercelProjectId, project.id, appUrl, quanteApiKey)
   } catch (err) {
     console.warn('[deploy] setEnvVars failed (non-fatal):', err)
   }
@@ -433,30 +406,28 @@ export async function POST(request: Request) {
   }
 
   // Persist deployment row (domain set so the hosting cron sees the store as live)
-  const { data: deployRow, error: insertErr } = await supabaseAdmin
-    .from('deployments')
-    .insert({
-      project_id: project.id,
-      user_id: userId,
-      vercel_project_id: vercelProjectId,
-      vercel_deployment_id: deploymentId,
-      status: 'building',
-      url: vercelUrl.startsWith('https://') ? vercelUrl : `https://${vercelUrl}`,
-      domain: intendedDomain,
-      version: version.version_no,
-      code_version_id: version.id,
-    })
-    .select('id')
-    .single()
+  const { id: deployRowId, error: insertErr } = await insertDeploymentRow({
+    project_id: project.id,
+    user_id: userId,
+    vercel_project_id: vercelProjectId,
+    vercel_deployment_id: deploymentId,
+    status: 'building',
+    url: vercelUrl.startsWith('https://') ? vercelUrl : `https://${vercelUrl}`,
+    domain: intendedDomain,
+    version: version.version_no,
+    code_version_id: version.id,
+    target: 'production',
+    scaffold_version: SCAFFOLD_VERSION,
+  })
 
-  if (insertErr || !deployRow) {
+  if (insertErr || !deployRowId) {
     console.error('[deploy] failed to insert deployment row:', insertErr)
     // Deployment is still running on Vercel — log but don't abort
   }
 
   return NextResponse.json({
     deploymentId,
-    dbId: deployRow?.id ?? null,
+    dbId: deployRowId,
     domain: intendedDomain,
     status: 'building',
   })

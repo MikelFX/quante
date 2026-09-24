@@ -454,6 +454,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const logStreamWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [logStreamStage, setLogStreamStage] = useState<'idle' | 'pushed' | 'building' | 'ready' | 'error' | 'timeout'>('idle')
   const [isSubscribing, setIsSubscribing] = useState(false)
+  // Platform scaffold update for a live store (/api/projects/[id]/scaffold-status|update).
+  const [storeUpdateAvailable, setStoreUpdateAvailable] = useState(false)
+  const [storeUpdateDismissed, setStoreUpdateDismissed] = useState(false)
+  const [isUpdatingStore, setIsUpdatingStore] = useState(false)
+  const [storeUpdateError, setStoreUpdateError] = useState<string | null>(null)
+  // Vercel id of the store-update build being polled (its outcome copy differs from Push to Live).
+  const storeUpdateDeployRef = useRef<string | null>(null)
   // Admin mode
   const [adminMode, setAdminMode] = useState(false)
   const [adminTab, setAdminTab] = useState<AdminTab>('dashboard')
@@ -915,6 +922,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       } catch {}
     }
     fetchLatestDeploy()
+  }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Live store running an older platform scaffold → offer the free store update.
+  useEffect(() => {
+    if (hostingInfo.trialEndsAt === null) return // never went live — nothing to update
+    fetch(`/api/projects/${projectId}/scaffold-status`)
+      .then(r => (r.ok ? r.json() : null))
+      .then((s: { outdated?: boolean; canUpdate?: boolean } | null) => {
+        if (s?.outdated && s.canUpdate) setStoreUpdateAvailable(true)
+      })
+      .catch(() => {})
   }, [projectId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => stopDeployPoll(), []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1809,19 +1827,33 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         setPreviewReady(true)
         setRightPanel('preview')
         refreshBalance()
+        const wasStoreUpdate = storeUpdateDeployRef.current === deploymentId
+        if (wasStoreUpdate) storeUpdateDeployRef.current = null
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: `Store is live at **${data.domain ?? data.url}** — open the Hosting tab to manage your domain.`, type: 'done' },
+          wasStoreUpdate
+            ? { role: 'assistant', content: `Store updated — **${data.domain ?? data.url}** now runs the latest platform version.`, type: 'done' }
+            : { role: 'assistant', content: `Store is live at **${data.domain ?? data.url}** — open the Hosting tab to manage your domain.`, type: 'done' },
         ])
       } else if (data.status === 'error' || data.status === 'canceled') {
         stopDeployPoll()
         setIsDeploying(false)
         setDeployStatus('error')
         const detail = data.errorMessage ? `\n\`\`\`\n${data.errorMessage}\n\`\`\`` : ''
-        setMessages((prev) => [
-          ...prev,
-          { role: 'assistant', content: `Deployment failed. Your credits were not charged.${detail}`, type: 'error' },
-        ])
+        if (storeUpdateDeployRef.current === deploymentId) {
+          // Free platform store update: nothing was charged and the previous build stays live.
+          storeUpdateDeployRef.current = null
+          setStoreUpdateError('The store update failed — your current store is still live and unchanged.')
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: `The store update failed. Your current store is still live and unchanged — nothing was charged.${detail}`, type: 'error' },
+          ])
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: 'assistant', content: `Deployment failed. Your credits were not charged.${detail}`, type: 'error' },
+          ])
+        }
       }
     } catch {}
   }
@@ -1882,6 +1914,45 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         updated[updated.length - 1] = { role: 'assistant', content: 'Deployment request failed. Try again.', type: 'error' }
         return updated
       })
+    }
+  }
+
+  // Free platform scaffold update: rebuilds the version that is live right now (never
+  // unpublished edits) and follows the build with the same polling as Push to Live.
+  async function handleStoreUpdate() {
+    if (isUpdatingStore || isDeploying) return
+    setIsUpdatingStore(true)
+    setStoreUpdateError(null)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/scaffold-update`, { method: 'POST' })
+      const data = await res.json().catch(() => ({} as { error?: string; deploymentId?: string; reason?: string }))
+      const deploymentId = typeof data.deploymentId === 'string' ? data.deploymentId : null
+      if (!res.ok && !(data.reason === 'already_building' && deploymentId)) {
+        const msg = serverErrorText(data, `Store update failed (${res.status}).`)
+        setStoreUpdateError(msg)
+        setMessages((prev) => [...prev, { role: 'assistant', content: msg, type: 'error' }])
+        if (data.reason === 'up_to_date') setStoreUpdateAvailable(false)
+        return
+      }
+      setStoreUpdateAvailable(false)
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: 'Updating your store… this takes 2–3 minutes. Your content stays the same, and if the update fails your current store stays live.',
+        type: 'status',
+      }])
+      if (deploymentId) {
+        stopDeployPoll()
+        storeUpdateDeployRef.current = deploymentId
+        setIsDeploying(true)
+        setDeployStatus('building')
+        deployPollRef.current = setInterval(() => pollDeployStatus(deploymentId), 12000)
+      }
+    } catch {
+      const msg = 'Store update request failed. Try again.'
+      setStoreUpdateError(msg)
+      setMessages((prev) => [...prev, { role: 'assistant', content: msg, type: 'error' }])
+    } finally {
+      setIsUpdatingStore(false)
     }
   }
 
@@ -3292,6 +3363,39 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
       >
         {isSubscribing ? '…' : '$9.99/mo'}
+      </button>
+    </div>
+  ) : null
+
+  // Dismissible "store update available" strip (platform scaffold rollout).
+  const StoreUpdateBanner = (storeUpdateAvailable || storeUpdateError) && !storeUpdateDismissed ? (
+    <div style={{
+      flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 10,
+      padding: '6px 12px', fontSize: 12, fontWeight: 500,
+      background: storeUpdateError ? 'rgba(224,86,79,.1)' : 'rgba(212,255,63,.06)',
+      borderBottom: `1px solid ${storeUpdateError ? 'rgba(224,86,79,.25)' : 'rgba(212,255,63,.18)'}`,
+      color: storeUpdateError ? '#e0564f' : '#f4f4f6',
+    }}>
+      <span>
+        {storeUpdateError
+          ? storeUpdateError
+          : 'A store update is available (security & checkout improvements). Update now — free, your content stays the same.'}
+      </span>
+      {storeUpdateAvailable && (
+        <button
+          onClick={() => void handleStoreUpdate()}
+          disabled={isUpdatingStore || isDeploying}
+          style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#D4FF3F', color: '#0a0a0e', cursor: 'pointer', opacity: isUpdatingStore || isDeploying ? 0.6 : 1 }}
+        >
+          {isUpdatingStore ? '…' : 'Update now'}
+        </button>
+      )}
+      <button
+        onClick={() => setStoreUpdateDismissed(true)}
+        aria-label="Dismiss"
+        style={{ fontSize: 13, lineHeight: 1, padding: '2px 6px', borderRadius: 5, border: 'none', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+      >
+        ×
       </button>
     </div>
   ) : null
@@ -6127,6 +6231,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: ADMIN_ACCENT, opacity: 0.35 }} />
         </div>
         {HostingBanner}
+        {StoreUpdateBanner}
 
         {isDesktop ? (
           // Desktop: sidebar + content
@@ -6256,6 +6361,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       }}>
         {TopBar}
         {HostingBanner}
+        {StoreUpdateBanner}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
 
           {/* ── Mode rail (icon + label — unified with Admin's sidebar pattern) ── */}
@@ -6365,6 +6471,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     }}>
       {TopBar}
       {HostingBanner}
+      {StoreUpdateBanner}
 
       {/* Mobile mode tabs */}
       <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', overflowX: 'auto', scrollbarWidth: 'none', background: '#0d0d11' }}>

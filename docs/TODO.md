@@ -4,16 +4,19 @@
 
 ## 🔐 Security audit 2026-09 — owner actions (doplněno 2026-09-24)
 
-Kompletní bezpečnostní audit + 4 kola oprav (detail v `docs/update-log.md`, záznam 2026-09-23 – 09-24). Kód je hotový, `tsc` čistý, 212/212 testů, `next build` prochází. **Všech 19 migrací je spuštěných v produkci a ověřených (2026-09-24).**
+Kompletní bezpečnostní audit + 4 kola oprav (detail v `docs/update-log.md`, záznam 2026-09-23 – 09-24). Kód je hotový, `tsc` čistý, 244/244 testů, `next build` prochází. **Všech 19 migrací je spuštěných v produkci a ověřených (2026-09-24).**
 
 **Musí se udělat, jinak to na produkci neběží:**
-- [ ] **Commit + deploy** nového kódu (zatím necommitnuto na větvi `theme-green-accent`).
+- [x] **Commit + deploy** bezpečnostních oprav — commit `13107ab` (větev `theme-green-accent`), produkce nasazena 2026-09-24 přes `vercel --prod`. Automatický rollout scaffoldu je v dalším commitu a čeká na nasazení.
 - [ ] **Vercel env vars:** `CRON_SECRET` (bez něj všechny crony vrací 401), `NEXT_PUBLIC_APP_URL` (https — bez něj checkout/e-maily fail closed), `VERCEL_TOKEN`, `HIGGSFIELD_WEBHOOK_SECRET`, `SECRETS_ENCRYPTION_KEY`.
 - [ ] **Stripe dashboard → webhook:** přidat eventy `invoice.paid`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`; odebrat `account.updated` (Stripe Connect routy jsou smazané).
 - [ ] **Clerk:** přepnout produkci z development instance (`pk_test_`) na production; v Restrictions zapnout blokování e-mailových subadres (`+tag`) a jednorázových domén.
-- [ ] **Po deployi přenasadit všechny hostované obchody** (nový scaffold: klíč posílaný serverem, sandbox komponent, success stránka bez bankovních údajů v URL). Až v logu nebudou řádky `[store/checkout] keyless legacy checkout`, nastavit `STORE_CHECKOUT_REQUIRE_KEY=true`.
+- [ ] **Po deployi přenasadit všechny hostované obchody** (nový scaffold: klíč posílaný serverem, sandbox komponent, success stránka bez bankovních údajů v URL) — **automaticky přes scaffold rollout (2026-09-24):**
+  1. Spustit `supabase/migration-scaffold-version.sql` v Supabase SQL Editoru (před deployem nebo spolu s ním; bez ní je rollout vypnutý — `migration_pending`).
+  2. Admin → **Store updates**: nejdřív **Preview (dry run)**, zkontrolovat seznam (a „Skipped“), pak **Update N stores** (po dávkách ≤ 25). Denní cron `/api/cron/scaffold-rollout` (04:30 UTC) dělá totéž po 15 obchodech; obchody se 3 neúspěšnými pokusy přeskakuje (v Adminu je jde zkusit znovu).
+  3. Až budou všechny obchody „Up to date“ a v logu nebudou řádky `[store/checkout] keyless legacy checkout`, nastavit `STORE_CHECKOUT_REQUIRE_KEY=true`.
 - [ ] **Jeden testovací deploy obchodu:** ověřit, že Vercel API přijme nastavení store projektů (`npm install --ignore-scripts`, `oidcTokenConfig.enabled=false`, `ssoProtection: null`).
-- [ ] **Úklid lokálně:** smazat probe skripty v kořeni repa (`__probe_tmp.mjs`, `__test-iterate-image-tmp.mjs`, `extract-scaffold-tmp.mts`, `_audit-*.mjs`) — některé používají service-role klíč; vypnout Obsidian plugin *Local REST API* (vystavuje složku včetně `.env.local`).
+- [ ] **Úklid lokálně:** smazat probe skripty v kořeni repa (`__probe_tmp.mjs`, `__test-iterate-image-tmp.mjs`, `extract-scaffold-tmp.mts`, `_audit-*.mjs`) — některé používají service-role klíč; vypnout Obsidian plugin *Local REST API* (vystavuje složku včetně `.env.local`) a resetovat jeho API klíč — nahrál se do zdrojových souborů produkčního deploye 2026-09-24 (ne veřejně, jen pro Vercel tým). Nově je v repu `.vercelignore`, takže `vercel --prod` už nenahraje probe skripty, Obsidian, poznámky ani `.env`.
 - [ ] **Data:** projít kontrolní dotazy v `supabase/migration-security-foundation.sql` (projekty sdílející jeden Vercel projekt, nejednoznačné `store_slug`); v adminu přezkoumat marketplace komponenty, které byly dřív auto-listed.
 
 **Byznysová rozhodnutí (v kódu je bezpečný default):**

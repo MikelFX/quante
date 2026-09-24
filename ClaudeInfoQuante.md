@@ -305,6 +305,10 @@
 | `/api/deploy` | GET | `?id=<dpl_…>` — caller's own deployment row only. Polls Vercel; on ready attaches `<store_slug>.<HOSTING_ROOT_DOMAIN>` (a failed attach clears `domain` instead of reporting another tenant's host); on error/cancel releases a first-deploy trial. No credits, no trial start here any more. |
 | `/api/deploy/logs` | GET | `?deploymentId=<dpl_…>` — SSE stream of Vercel build logs; ownership checked via the deployment's project; per-user cap on concurrent streams. Emits `build_error`. `maxDuration=300`. |
 | `/api/projects/[id]/redeploy` | POST | Free "Rebuild preview" / post-restore redeploy. Production only for an `everLive` store the gate allows; otherwise a true preview, and only for content (hash via `_lib/build-match.ts`) that has no working build yet. DB-backed caps: 20 / 10 min, 40 / h per user. |
+| `/api/projects/[id]/scaffold-status` | GET | **NEW 2026-09-24.** Owner only. `{ outdated, currentVersion, liveVersion, building, buildingDeploymentId, lastError, canUpdate, reason }` — whether the store's LIVE production build runs an older platform scaffold than `SCAFFOLD_VERSION` (drives the Studio "store update" banner). DB only — no Vercel calls, no writes. `reason` e.g. `migration_pending`, `not_live`, `suspended`, `hosting_inactive`, `no_live_version`, `up_to_date`, `already_building`. |
+| `/api/projects/[id]/scaffold-update` | POST | **NEW 2026-09-24.** Owner only, free. `updateStoreScaffold(trigger 'owner')`: rebuilds the **live** code version (never unpublished edits) with the current scaffold → production. Throttles: max 3 production builds of the project / h (`deployments.target='production'`), plus 20 / 10 min + 40 / h per user. Returns `{ ok, deploymentId, url, droppedFiles }`; the Studio then polls `GET /api/deploy?id=` like Push to Live. |
+| `/api/cron/scaffold-rollout` | GET | **NEW 2026-09-24, daily cron (04:30 UTC).** `CRON_SECRET`. `reconcileRolloutDeployments()` then updates ≤ 15 outdated live stores (210 s budget, `maxDuration=300`); skips stores with `scaffold_update_attempts >= 3`. No-op until `migration-scaffold-version.sql` has run. |
+| `/api/admin/scaffold-rollout` | GET/POST | **NEW 2026-09-24.** `requireAdmin()`. GET = quick DB-only summary counts (`upToDate/outdated/building/failed/skipped`, approximate). POST `{ dryRun = true, limit 1..25, projectIds? }`: dry run lists outdated stores + skipped ones with reasons; otherwise updates them (concurrency 3, 210 s budget) and returns per-store results + `notStarted` (ids cut off by the budget). Explicit `projectIds` ignore the attempt cap. UI: Admin → Store updates (`app/(app)/admin/StoreUpdatesAdmin.tsx`). |
 | `/api/preview/component` | GET | `?projectId&ref[&vars]` — standalone HTML for one custom component. **Owner only** (was public); code shipped as escaped JSON, `vars` allowlisted, response CSP `sandbox allow-scripts`; rendered by `CustomComponentFrame` in `<iframe sandbox="allow-scripts">` (no `allow-same-origin`). |
 
 ### Projects
@@ -467,6 +471,10 @@ custom_domain_verified boolean  -- refreshed from live DNS by the hosting cron
 custom_domain_set_at timestamptz -- migration-security2-deploy-domains-misc.sql; unverified claims hold the name 7 days after this
 hosting_trial_ends_at timestamptz -- added by migration-hosting-billing.sql; set = "everLive" (stamped at the first Push to Live)
 hosting_suspended_at timestamptz  -- added by migration-hosting-v2.sql; set when store paused (maintenance page deployed)
+scaffold_version int              -- migration-scaffold-version.sql (2026-09-24): scaffold version of the live build, set when a production build at SCAFFOLD_VERSION turns READY
+scaffold_update_attempts int NOT NULL DEFAULT 0 -- rollout attempts since the last success; cron/admin batch skip at >= 3
+scaffold_update_error text        -- last failed rollout (Vercel build log excerpt); cleared on success
+scaffold_update_at timestamptz    -- last rollout trigger (also a 2-min per-project trigger lock)
 created_at, updated_at
 ```
 
@@ -591,8 +599,12 @@ version int
 version_id uuid FK → manifest_versions
 code_version_id uuid FK → code_versions
 error_message text
+target text                     -- migration-scaffold-version.sql: production | preview | maintenance (NULL = pre-migration row)
+scaffold_version int            -- SCAFFOLD_VERSION the build used (NULL = version 1 / maintenance page)
+rollout_trigger text            -- admin | cron | owner on scaffold rollout builds; NULL on every other build
 created_at, updated_at
 ```
+New rows are written ONLY through `insertDeploymentRow()` (`lib/hosting/deployments.ts`), which sets `target` + `scaffold_version` (+ `rollout_trigger` for rollout builds) and retries without them before the migration. One classifier for "is this row production" — `classifyDeploymentRow` / `isProductionRow` in `lib/hosting/scaffold-rollout-rules.ts`, used by the rollout AND the checkout pricing (`app/api/store/_lib/pricing.ts`): `target` when set; legacy rows = `domain` set OR a public (non-`*.vercel.app`) url; domain null + raw `*.vercel.app` url = **ambiguous** (preview, or a production build whose subdomain attach failed) → pricing treats it as not production, the rollout asks Vercel for the deployment's real target first. `/api/quante/fix` and `/api/credits/refund` ignore rollout rows (`rollout_trigger` set) in their "latest failed build" checks. The hosting cron's maintenance deploys write no row (unchanged).
 
 ### Store secrets / settings
 
@@ -998,6 +1010,20 @@ Raw REST client (`vercelApiFetch`, not `@vercel/sdk`) using `VERCEL_TOKEN` (thro
 - `attachDomain(vercelProjectId, domain)` — success only when the domain is on THIS project (a 409 for a domain owned by another project throws)
 - `getDomainDnsConfigured(domain)` — true only when public DNS actually points at Vercel (`/v6/domains/{d}/config`); null = unknown (treat as not proven)
 - `HOSTING_ROOT_DOMAIN` = env `HOSTING_ROOT_DOMAIN` ?? 'stores.quantecode.com'
+
+### `lib/hosting/deployments.ts` — NEW 2026-09-24
+`insertDeploymentRow(row)` — the only writer of new `deployments` rows (deploy preview/production, redeploy, iterate/fix auto-deploy, generate, webhook restore, scaffold rollout). Requires `target` (`production` for every production-target build incl. `createPreviewDeployment`, `preview` for `createVercelPreviewDeploy`) and `scaffold_version` (`SCAFFOLD_VERSION`, null for maintenance); optional `rollout_trigger` (rollout builds only). Retries without those columns on 42703 / PGRST204 (migration not run). `isUnknownColumnError(error)`.
+
+### `lib/hosting/store-env.ts` — NEW 2026-09-24
+Extracted from `/api/deploy`: `platformApiUrl()` (https `NEXT_PUBLIC_APP_URL` origin, localhost http allowed; null = fail closed), `ensureStoreApiKey(projectId, ownerUserId)` (reads or creates `project_secrets.quante_api_key` — ON CONFLICT DO NOTHING / fill-only-if-NULL, then re-read, so concurrent Push to Live + rollout agree on one key; throws when it can't be persisted), `setStoreConnectionEnv(vercelProjectId, projectId, appUrl, key)` (QUANTE_API_URL / QUANTE_PROJECT_ID / QUANTE_API_KEY via `setEnvVars`).
+
+### `lib/hosting/scaffold-rollout.ts` + `scaffold-rollout-rules.ts` — NEW 2026-09-24
+Automatic store scaffold rollout. Rules (pure, no imports — tested by `__tests__/scaffold-rollout.test.mjs`): `classifyDeploymentRow` / `isProductionRow` (see deployments table above), `ambiguousRowsToResolve` (legacy rows of unknown target newer than the live candidate), `pickLiveDeployment` / `pickLiveCodeVersionId` (newest READY production row; never the draft), `evaluateScaffoldState` (`up_to_date | outdated | building | no_live_version`; ignores error/canceled rows; a current-version production build < 15 min old = building), `outdatedSkipReason` (live row without `code_version_id` → `no_live_version`; attempt cap), `projectSyncPatch` (up to date → reset attempts / version / error), `isAttemptCapped` (≥ 3), `rowsNeedingSettle`. Server side:
+- `resolveLiveCodeVersion(projectId)` — before redeploying, ambiguous legacy rows are resolved with Vercel (`getDeploymentStatus().target`, written back to `deployments.target`) and stale `building` production rows newer than the newest ready one are settled (≤ 5 lookups each per evaluation, progress persisted; fails closed while unresolved).
+- `getScaffoldStatus(projectId)` — **DB only** (no Vercel, no writes; the Studio calls it on every load). `findOutdatedStores({ limit, cursor, projectIds, deadlineMs, ignoreAttemptCap, scanAll, light })` — live = trial stamped, not deleted, Vercel project, not suspended; gate-checked; stores that can't be updated (no live code version, attempt cap, hosting inactive) are reported as skipped and never take a batch slot; syncs project bookkeeping for up-to-date stores. `light` = DB-only summary (admin GET).
+- `updateStoreScaffold(projectId, { trigger, ignoreAttemptCap })` — gate (`everLive && canDeployProduction`), live code version, `buildStoreFiles` (dropped AI files reported), `ensureProjectVercel`, `getOrClaimStoreSlug`, `ensureStoreApiKey` (race-safe: never overwrites an existing key) + env (fatal on failure), `createPreviewDeployment` (production target, subdomain; custom domains stay on the Vercel project), row via `insertDeploymentRow` (owner's `user_id`, `target 'production'`, `scaffold_version`, `rollout_trigger`, live `code_version_id`). Per-project claim = CAS on `scaffold_update_attempts` + 2-min lock on `scaffold_update_at`; if the row insert fails after the build started, triggers are blocked for 1 h. A failed Vercel build leaves the previous production deployment live. Known narrow race: an owner publish during a rollout build may be overtaken if the rollout build finishes last.
+- `reconcileRolloutDeployments()` — production rows at `SCAFFOLD_VERSION` created < 48 h ago (the cron is daily): still building/queued → settled with Vercel; already settled elsewhere (Studio poll / log stream) → READY sets `projects.scaffold_version`, attempts 0, error null; a failed ROLLOUT build (`rollout_trigger` set) records `scaffold_update_error` unless a newer attempt started. Failed builds of the owner's own edits are never recorded as rollout failures.
+- `updateStores(ids, { trigger, concurrency, deadlineMs })` — batch helper for admin/cron.
 
 ### `lib/hosting/maintenance-site.ts`
 `maintenanceSiteFiles(storeName)` — returns 3 files for a minimal white-label Next.js (pages router) app: `package.json`, `pages/index.js` (dark centered "store temporarily unavailable" page, Czech + English, no Quante branding), `pages/404.js` (re-exports index so all routes show it). Deployed to the store's existing Vercel project by the hosting cron when trial/subscription expires — keeps the domain attached, store data stays in DB (≥90-day retention).
@@ -1527,6 +1553,9 @@ Generate/iterate/fix save only files that pass `filterAiStoreFiles()`; `buildSto
 
 ### Hosting gate & trial (replaces "Deploy Credits Timing")
 Production deploys cost 0 credits and are gated by `getHostingGate()`; the 30-day trial is claimed and stamped in **POST** `/api/deploy` (not when the client polls), once per user and per identity-linked group (`hosting_trials`, `claim_hosting_trial_v2`), and released if the first live build fails. Auto-deploys (iterate/fix/redeploy/restore) go to production only when the store is already `everLive` AND the gate allows it — otherwise a true preview, so chat edits can't replace a suspended store's maintenance page or keep a store live for free. Accounts with no verified email/phone get no free trial once the identity migration is in.
+
+### Bump `SCAFFOLD_VERSION` when changing LOCKED scaffold files (2026-09-24)
+`SCAFFOLD_VERSION` (`lib/store-template/build.ts`) must be incremented whenever `buildCodeGenScaffold()` output or the LOCKED file list / forced files in `buildStoreFiles` change in a way live stores should get. Otherwise live stores keep the old scaffold until their owner happens to redeploy. After the bump, the daily `/api/cron/scaffold-rollout` (or Admin → Store updates, dry run first) rebuilds every live store from its **live** code version — never the latest draft, so unpublished edits stay unpublished. Every new `deployments` row must go through `insertDeploymentRow()` with `target` + `scaffold_version`, or the rollout misreads the store's state. Rows written before `migration-scaffold-version.sql` ran have NULL = version 1, so stores deployed in that window get one extra (harmless) rollout build.
 
 ### `STORE_CHECKOUT_REQUIRE_KEY`
 `/api/store/checkout` identifies the project by the store's `QUANTE_API_KEY` (sent server-side by the scaffold's locked checkout proxy). Stores deployed before that proxy existed still check out through logged keyless paths (`[store/checkout] keyless legacy checkout`) matched by Origin/Referer against the project's own origins. After every hosted store has been redeployed and those log lines stop, set `STORE_CHECKOUT_REQUIRE_KEY=true` to switch the keyless paths off (note: a keyed store is treated as keyless while its IP sits in the store-key failure throttle and its key was never verified on that instance).

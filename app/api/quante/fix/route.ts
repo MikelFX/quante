@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_FIX } from '@/lib/claude'
 import { getOwnedProject } from '@/lib/auth/project'
 import { getBuildError, getDeploymentStatus } from '@/lib/hosting/vercel'
+import { isUnknownColumnError } from '@/lib/hosting/deployments'
 import { rateLimit } from '@/lib/rate-limit'
 import { isAgencyUser } from '@/lib/tier'
 import { filterAiStoreFiles } from '@/lib/store-template/build'
@@ -160,11 +161,23 @@ export async function POST(request: Request) {
   // built from the CURRENT code version, recent, and in error/canceled state.
   // (Cheap DB-only checks first; nothing below here touches Vercel or Claude until the
   // attempt is recorded and all caps pass.)
-  const { data: deployment } = await supabase
-    .from('deployments')
-    .select('id, status, vercel_deployment_id, code_version_id, created_at, error_message')
-    .eq('project_id', project.id).eq('user_id', userId)
-    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  // Scaffold rollout builds (rollout_trigger set) are platform updates of an already
+  // live version, not the owner's builds — a failed one must not unlock free fixes.
+  const latestDeploymentQuery = (excludeRollout: boolean) => {
+    let q = supabase
+      .from('deployments')
+      .select('id, status, vercel_deployment_id, code_version_id, created_at, error_message')
+      .eq('project_id', project.id).eq('user_id', userId)
+    if (excludeRollout) q = q.is('rollout_trigger', null)
+    return q.order('created_at', { ascending: false }).limit(1).maybeSingle()
+  }
+  let latestDeployment = await latestDeploymentQuery(true)
+  // Before migration-scaffold-version.sql there is no rollout_trigger column (and no
+  // rollout builds).
+  if (latestDeployment.error && isUnknownColumnError(latestDeployment.error)) {
+    latestDeployment = await latestDeploymentQuery(false)
+  }
+  const deployment = latestDeployment.data
 
   const createdMs = deployment ? new Date(deployment.created_at as string).getTime() : NaN
   if (

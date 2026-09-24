@@ -12,6 +12,8 @@ export type DeploymentState = 'queued' | 'building' | 'ready' | 'error' | 'cance
 export interface DeploymentStatus {
   state: DeploymentState
   url?: string
+  /** Vercel's deployment target ('production' or null for a preview), when known. */
+  target?: string | null
 }
 
 // ─── Raw Vercel REST client (2026-08-19 fix) ───────────────────────────────────
@@ -755,12 +757,14 @@ export async function streamDeploymentLogs(
 }
 
 export async function getDeploymentStatus(deploymentId: string): Promise<DeploymentStatus> {
-  const result = await vercelApiFetch<{ readyState?: string; url?: string }>(
+  const result = await vercelApiFetch<{ readyState?: string; url?: string; target?: string | null }>(
     `/v13/deployments/${encodeURIComponent(deploymentId)}`,
   )
   return {
     state: mapReadyState(result.readyState),
     url: result.url ? `https://${result.url}` : undefined,
+    // 'production' for production-target deployments, null for previews.
+    target: typeof result.target === 'string' ? result.target : null,
   }
 }
 

@@ -23,6 +23,7 @@
     "test:identity-gate": "node --test __tests__/identity-gate.test.mjs",
     "test:mail-guards": "node --test __tests__/mail-guards.test.mjs",
     "test:security4-misc": "node --test __tests__/security4-misc.test.mjs",
+    "test:scaffold-rollout": "node --test __tests__/scaffold-rollout.test.mjs",
     "test": "node --test __tests__/*.test.mjs"
   },
   "dependencies": {

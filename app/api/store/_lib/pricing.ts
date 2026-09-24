@@ -19,6 +19,8 @@ import { parseProductsForPricing, PRODUCTS_FILE, type PricingProduct } from '@/l
 import { parseConfigFile, CONFIG_FILE } from '@/lib/store-config'
 import type { ShopManifest } from '@/types/manifest'
 import type { PaymentsInfo, ShippingInfo } from '@/types/business'
+import { isProductionRow } from '@/lib/hosting/scaffold-rollout-rules'
+import { isUnknownColumnError } from '@/lib/hosting/deployments'
 
 export interface PricedLine {
   productId: string
@@ -81,39 +83,38 @@ function normCurrency(c: unknown): string | null {
   return typeof c === 'string' && /^[A-Za-z]{3}$/.test(c.trim()) ? c.trim().toUpperCase() : null
 }
 
-function hostOf(url: string | null | undefined): string | null {
-  if (!url) return null
-  try { return new URL(url.includes('://') ? url : `https://${url}`).hostname.toLowerCase() } catch { return null }
-}
-
-// A deployment row is the live store (production) when it recorded the public domain
-// (/api/deploy Push to Live, auto-deploy of a live store, hosting restore) or when its
-// URL is not a raw *.vercel.app preview URL (production redeploys record the public
-// subdomain URL with domain = null). Preview / generate / iterate-preview rows have
-// domain = null and a *.vercel.app URL.
-function isProductionDeployment(d: { domain: string | null; url: string | null }): boolean {
-  if (d.domain) return true
-  const host = hostOf(d.url)
-  return !!host && !host.endsWith('.vercel.app')
-}
-
 interface CodeCatalog { files: Record<string, string>; live: boolean }
 
-async function loadCodeVersionFiles(projectId: string): Promise<CodeCatalog[]> {
-  const out: CodeCatalog[] = []
-  const seen = new Set<string>()
+type LiveCandidateRow = { code_version_id: string | null; domain: string | null; url: string | null; target?: string | null }
 
-  // The version that is live: the most recent ready PRODUCTION deployment.
-  const { data: deps } = await supabaseAdmin
+async function loadReadyDeployments(projectId: string): Promise<LiveCandidateRow[]> {
+  const query = (columns: string) => supabaseAdmin
     .from('deployments')
-    .select('code_version_id, domain, url')
+    .select(columns)
     .eq('project_id', projectId)
     .eq('status', 'ready')
     .not('code_version_id', 'is', null)
     .order('created_at', { ascending: false })
     .limit(50)
-  const live = ((deps ?? []) as Array<{ code_version_id: string | null; domain: string | null; url: string | null }>)
-    .find(isProductionDeployment)
+  const first = await query('code_version_id, domain, url, target')
+  // Before migration-scaffold-version.sql there is no `target` column — legacy rules only.
+  if (first.error && isUnknownColumnError(first.error)) {
+    const legacy = await query('code_version_id, domain, url')
+    return (legacy.data ?? []) as unknown as LiveCandidateRow[]
+  }
+  return (first.data ?? []) as unknown as LiveCandidateRow[]
+}
+
+async function loadCodeVersionFiles(projectId: string): Promise<CodeCatalog[]> {
+  const out: CodeCatalog[] = []
+  const seen = new Set<string>()
+
+  // The version that is live: the most recent ready PRODUCTION deployment — the same
+  // classifier the scaffold rollout uses (lib/hosting/scaffold-rollout-rules.ts): the
+  // row's `target` when recorded, else domain recorded or a public (non-*.vercel.app)
+  // URL. Legacy rows of unknown target count as previews here.
+  const live = (await loadReadyDeployments(projectId))
+    .find((d) => isProductionRow({ id: '', status: 'ready', created_at: null, ...d }))
   const deployedId = live?.code_version_id ?? null
   if (deployedId) {
     const { data: v } = await supabaseAdmin

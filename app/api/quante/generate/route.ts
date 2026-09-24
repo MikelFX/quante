@@ -4,7 +4,8 @@ import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, MODELS, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createVercelPreviewDeploy, ensureProjectVercel, summarizeDeploymentFailure } from '@/lib/hosting/vercel'
-import { buildStoreFiles, filterAiStoreFiles } from '@/lib/store-template/build'
+import { buildStoreFiles, filterAiStoreFiles, SCAFFOLD_VERSION } from '@/lib/store-template/build'
+import { insertDeploymentRow } from '@/lib/hosting/deployments'
 import { getUserRecord } from '@/lib/tier'
 import {
   AI_FILTER_PROMPT_NOTE,
@@ -538,8 +539,8 @@ async function runGeneration(params: RunParams): Promise<void> {
       deploymentId = result.deploymentId
       previewUrl = result.url
 
-      await supabaseAdmin.from('deployments').insert({
-        project_id: projectId,
+      await insertDeploymentRow({
+        project_id: projectId as string,
         user_id: userId,
         vercel_project_id: vercelProjectId,
         vercel_deployment_id: deploymentId,
@@ -549,6 +550,8 @@ async function runGeneration(params: RunParams): Promise<void> {
         version: nextVersionNo,
         version_id: version.id,
         code_version_id: version.id,
+        target: 'preview',
+        scaffold_version: SCAFFOLD_VERSION,
       })
     } catch (err) {
       // Log FULL detail (status, response body, SDK message) — not just err.message — so a

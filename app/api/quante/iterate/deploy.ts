@@ -11,7 +11,7 @@
 //     store gets a true preview deploy only, so a chat edit can't replace the
 //     maintenance page or keep a store live for free.
 
-import { supabaseAdmin } from '@/lib/supabase/admin'
+import { insertDeploymentRow } from '@/lib/hosting/deployments'
 import {
   HOSTING_ROOT_DOMAIN,
   createPreviewDeployment,
@@ -20,7 +20,7 @@ import {
   getOrClaimStoreSlug,
 } from '@/lib/hosting/vercel'
 import { getHostingGate } from '@/lib/hosting/gate'
-import { buildStoreFiles } from '@/lib/store-template/build'
+import { buildStoreFiles, SCAFFOLD_VERSION } from '@/lib/store-template/build'
 import type { CodeVersionFiles } from '@/types/store-code'
 
 export interface AutoDeployResult {
@@ -60,7 +60,7 @@ export async function autoDeployCodeVersion(params: {
   // the hosting cron can see (and suspend) what is actually live.
   const domain = production && storeDomain && url === `https://${storeDomain}` ? storeDomain : null
 
-  const { error: insertErr } = await supabaseAdmin.from('deployments').insert({
+  const { error: insertErr } = await insertDeploymentRow({
     project_id: projectId,
     user_id: userId,
     vercel_project_id: vercelProjectId,
@@ -70,6 +70,8 @@ export async function autoDeployCodeVersion(params: {
     domain,
     version: version.version_no,
     code_version_id: version.id,
+    target: production ? 'production' : 'preview',
+    scaffold_version: SCAFFOLD_VERSION,
   })
   if (insertErr) console.error(`[${logTag}] deployments insert failed:`, insertErr.message)
 

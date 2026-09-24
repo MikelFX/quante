@@ -24,6 +24,16 @@ export function toStoreSlug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+// Version of the platform-owned code-gen scaffold (buildCodeGenScaffold + the LOCKED
+// files forced in buildStoreFiles). BUMP THIS whenever the LOCKED / scaffold output
+// changes in a way live stores should receive — the scaffold rollout
+// (lib/hosting/scaffold-rollout.ts, /api/cron/scaffold-rollout, Admin → Store updates)
+// then redeploys every live store's currently LIVE code version with the new scaffold.
+// Recorded per build in deployments.scaffold_version (supabase/migration-scaffold-version.sql).
+//   1 = everything deployed before deployments.scaffold_version existed (NULL rows)
+//   2 = security refactor 2026-09 (keyed checkout proxy, AI file filter, locked config)
+export const SCAFFOLD_VERSION = 2
+
 export interface CustomComponentRecord {
   ref: string
   name: string
