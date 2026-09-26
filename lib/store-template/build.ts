@@ -3178,11 +3178,34 @@ export function withThemeTokens(css: string): string {
 }
 
 /**
- * Index just past the last @import of the leading run of @import statements (whitespace
- * and comments between them allowed). Quote- and paren-aware: Google Fonts URLs contain
- * ';' (wght@400;500). 0 when the file doesn't start with @imports.
+ * Moves external @imports (Google Fonts url(...) etc.) of the leading import run in front
+ * of `@import "tailwindcss"`. Tailwind inlines its whole stylesheet at that import, so an
+ * @import after it ends up behind hundreds of rules — invalid CSS: `next build` tolerates
+ * it, but `next dev` (Turbopack) fails every page with a 500 ("@import rules must precede
+ * all rules"), which would break the Studio's live editing sandbox. Tailwind's docs
+ * recommend exactly this order. Idempotent; files without that shape are unchanged.
  */
+export function hoistExternalImports(css: string): string {
+  const { statements, end } = leadingImports(css)
+  const isTailwind = (st: string) => /^@import\s+["']tailwindcss["']/.test(st)
+  const firstTw = statements.findIndex(isTailwind)
+  if (firstTw < 0 || statements.slice(firstTw).every(isTailwind)) return css // nothing after Tailwind
+  const ordered = [...statements.filter((st) => !isTailwind(st)), ...statements.filter(isTailwind)]
+  return ordered.join('\n') + css.slice(end)
+}
+
+/** Index just past the last @import of the leading run of @import statements. */
 function endOfLeadingImports(css: string): number {
+  return leadingImports(css).end
+}
+
+/**
+ * The leading run of @import statements (whitespace and comments between them allowed;
+ * comments are dropped from `statements`). Quote- and paren-aware: Google Fonts URLs
+ * contain ';' (wght@400;500). end = 0 when the file doesn't start with @imports.
+ */
+function leadingImports(css: string): { statements: string[]; end: number } {
+  const statements: string[] = []
   let i = 0
   let end = 0
   const n = css.length
@@ -3191,13 +3214,13 @@ function endOfLeadingImports(css: string): number {
       if (/\s/.test(css[i])) { i++; continue }
       if (css.startsWith('/*', i)) {
         const close = css.indexOf('*/', i + 2)
-        if (close < 0) return end
+        if (close < 0) return { statements, end }
         i = close + 2
         continue
       }
       break
     }
-    if (!css.startsWith('@import', i)) return end
+    if (!css.startsWith('@import', i)) return { statements, end }
     let j = i + 7
     let quote: string | null = null
     let depth = 0
@@ -3209,7 +3232,8 @@ function endOfLeadingImports(css: string): number {
       else if (c === ')') depth = Math.max(0, depth - 1)
       else if (c === ';' && depth === 0) break
     }
-    if (j >= n) return end
+    if (j >= n) return { statements, end }
+    statements.push(css.slice(i, j + 1))
     i = j + 1
     end = i
   }
@@ -3290,7 +3314,7 @@ export function buildStoreFiles(
 
     // Theme tokens (bg-accent, text-muted, rounded-store …) in the store's Tailwind entry.
     const storeCss = scaffoldMap.get('styles/store.css')
-    if (storeCss) scaffoldMap.set('styles/store.css', { ...storeCss, content: withThemeTokens(storeCss.content) })
+    if (storeCss) scaffoldMap.set('styles/store.css', { ...storeCss, content: withThemeTokens(hoistExternalImports(storeCss.content)) })
 
     return Array.from(scaffoldMap.values())
   }

@@ -117,3 +117,15 @@ test('buildStoreFiles injects the tokens into the store stylesheet (AI or scaffo
   const fallback = build.buildStoreFiles({ 'data/config.ts': 'export const config = {}' })
   assert.match(fallback.find((f) => f.path === 'styles/store.css').content, /@theme \{/)
 })
+
+test('hoistExternalImports moves font @imports in front of @import "tailwindcss" (next dev 500 otherwise)', () => {
+  const css = `@import "tailwindcss";\n@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap');\n\n:root { --a: 1; }\n`
+  const out = build.hoistExternalImports(css)
+  assert.equal(out, `@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&display=swap');\n@import "tailwindcss";\n\n:root { --a: 1; }\n`)
+  assert.equal(build.hoistExternalImports(out), out)
+  const noTw = `@import url('a.css');\n:root{}`
+  assert.equal(build.hoistExternalImports(noTw), noTw)
+  const built = build.buildStoreFiles({ 'styles/store.css': css }).find((f) => f.path === 'styles/store.css').content
+  assert.ok(built.indexOf('@import url(') < built.indexOf('@import "tailwindcss"'))
+  assert.ok(built.indexOf('@import "tailwindcss"') < built.indexOf('@theme {'))
+})
