@@ -68,6 +68,7 @@ interface ShopManifest {
     tagline: string;
     voice: 'minimal' | 'editorial' | 'playful' | 'luxury' | 'technical';
     logoText: string;          // text logo by default; image upload optional
+    // code-gen stores: config.brand.logoUrl = image logo, rendered by the scaffold Navbar
   };
 
   design: {
@@ -299,6 +300,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - **Phase 6 — Polish:** marketing pages, showcase, docs, empty/error states, rate limits.
 
 ---
+
+## 13a. What the AI may edit in a generated store (2026-09-26)
+
+- **Editable** — everything the customer sees: the pages/components the AI wrote, plus the scaffold's `app/layout.tsx`, Navbar, Footer, CartDrawer, CookieConsent, cart page and success page (`EDITABLE_SCAFFOLD_FILES` in `lib/store-template/build.ts`). An AI copy must keep what the engine needs (`EDITABLE_FILE_REQUIREMENTS`: CartProvider/children/CookieConsent in the layout, legal links in the Footer, `fetch('/api/checkout')` in the cart page, `clearCart()` on success) or it is rejected and the old version stays live.
+- **Platform-locked** (`PLATFORM_LOCKED_FILES`) — route handlers (`app/api/**`), legal pages + `LegalPageView` (live from business info), `lib/i18n.ts`, `lib/platform.ts`, build config. These are security / correctness boundaries: never unlock them for convenience.
+- Chat image uploads live in the public Supabase bucket `store-assets` under `<userId>/<projectId>/`; code only references the URL.
 
 ## 14. Security & guardrails
 

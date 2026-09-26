@@ -32,7 +32,8 @@ export function toStoreSlug(s: string): string {
 // Recorded per build in deployments.scaffold_version (supabase/migration-scaffold-version.sql).
 //   1 = everything deployed before deployments.scaffold_version existed (NULL rows)
 //   2 = security refactor 2026-09 (keyed checkout proxy, AI file filter, locked config)
-export const SCAFFOLD_VERSION = 2
+//   3 = image logo 2026-09 (locked Navbar renders config.brand.logoUrl)
+export const SCAFFOLD_VERSION = 3
 
 export interface CustomComponentRecord {
   ref: string
@@ -1285,11 +1286,80 @@ function checkAstStoreFile(filePath: string, src: string): string | null {
   }
 }
 
+// Scaffold files that always come from the platform — an AI copy is ignored at build.
+// Build/deploy config, the hosted-mode helper and route handlers are security
+// boundaries; the legal pages are live-fetched from the merchant's saved business
+// info (app/api/store/legal) and LegalPageView reads server env, which AI code may
+// not; lib/i18n.ts is the dictionary every scaffold component and future scaffold
+// update relies on.
+export const PLATFORM_LOCKED_FILES: ReadonlySet<string> = new Set([
+  'app/api/checkout/route.ts', 'app/api/shipping/route.ts',
+  'components/legal/LegalPageView.tsx',
+  'app/terms/page.tsx', 'app/privacy/page.tsx', 'app/cookies/page.tsx', 'app/contact/page.tsx',
+  'lib/i18n.ts',
+  'package.json', 'tsconfig.json', 'next.config.ts', 'next.config.js', 'next.config.mjs',
+  'postcss.config.mjs', 'postcss.config.js', 'tailwind.config.ts', 'tailwind.config.js',
+  'next-env.d.ts', 'vercel.json', 'lib/platform.ts',
+])
+
+// Scaffold UI files the AI may rewrite (locked until 2026-09). The iterate route shows
+// the model the scaffold source of any of these the store hasn't overridden yet, so it
+// edits the real component instead of writing one from scratch.
+export const EDITABLE_SCAFFOLD_FILES: readonly string[] = [
+  'app/layout.tsx',
+  'components/layout/Navbar.tsx',
+  'components/layout/Footer.tsx',
+  'components/layout/CartDrawer.tsx',
+  'components/layout/CookieConsent.tsx',
+  'app/cart/page.tsx',
+  'app/success/page.tsx',
+]
+
+// What an AI copy of an editable scaffold file must keep so the store still works:
+// the build would pass without these, but the cart would crash at runtime, checkout
+// would silently stop working, or the legally required links/banner would vanish.
+const EDITABLE_FILE_REQUIREMENTS: Record<string, Array<{ re: RegExp; why: string }>> = {
+  'app/layout.tsx': [
+    { re: /<CartProvider[\s>]/, why: 'must wrap the page in <CartProvider>' },
+    { re: /<CookieConsent[\s/>]/, why: 'must render <CookieConsent />' },
+    { re: /\{\s*children\s*\}/, why: 'must render {children}' },
+  ],
+  'components/layout/Footer.tsx': [
+    { re: /['"`]\/terms['"`]/, why: 'must link to /terms' },
+    { re: /['"`]\/privacy['"`]/, why: 'must link to /privacy' },
+    { re: /['"`]\/cookies['"`]/, why: 'must link to /cookies' },
+    { re: /['"`]\/contact['"`]/, why: 'must link to /contact' },
+  ],
+  'components/layout/CookieConsent.tsx': [
+    { re: /export\s+function\s+CookieConsent\b/, why: 'must export function CookieConsent' },
+  ],
+  'app/cart/page.tsx': [
+    { re: /fetch\(\s*['"`]\/api\/checkout['"`]/, why: "must submit the order with fetch('/api/checkout')" },
+  ],
+  'app/success/page.tsx': [
+    { re: /\bclearCart\s*\(/, why: 'must call clearCart()' },
+  ],
+}
+
+export function getEditableScaffoldFiles(): Record<string, string> {
+  const scaffold = new Map(buildCodeGenScaffold().map((f) => [f.path, f.content]))
+  const out: Record<string, string> = {}
+  for (const p of EDITABLE_SCAFFOLD_FILES) {
+    const content = scaffold.get(p)
+    if (content !== undefined) out[p] = content
+  }
+  return out
+}
+
 // Returns the reason an AI file must be dropped, or null when it is acceptable.
 export function rejectAiStoreFile(filePath: string, content: unknown): string | null {
   if (!isAllowedStorePath(filePath)) return 'path not allowed'
+  if (PLATFORM_LOCKED_FILES.has(filePath)) return 'managed by the platform'
   if (typeof content !== 'string') return 'content is not text'
   if (content.length > AI_MAX_FILE_BYTES) return 'file too large'
+  for (const req of EDITABLE_FILE_REQUIREMENTS[filePath] ?? []) {
+    if (!req.re.test(content)) return `${filePath} ${req.why}`
+  }
   if (filePath.endsWith('.ts') || filePath.endsWith('.tsx')) {
     const scanned = scanSource(content, filePath.endsWith('.tsx'))
     const why = scanned ? checkScannedCode(filePath, scanned) : checkRawCode(filePath, content)
@@ -1688,6 +1758,7 @@ export interface StoreConfig {
     language: string
     country: string
     logoText?: string
+    logoUrl?: string
   }
   seo: { title: string; description: string }
   design: {
@@ -2549,6 +2620,14 @@ import { useCart } from '@/lib/store/cart'
 import { config } from '@/data/config'
 import { CartDrawer } from './CartDrawer'
 
+// Image logo (uploaded to the platform's store-assets bucket) wins over the text logo.
+// Only absolute https URLs or same-origin paths are rendered. Read via an 'in' check so
+// stores whose own types/store-code.ts predates brand.logoUrl still type-check.
+const brand = config.brand
+const rawLogo: unknown = 'logoUrl' in brand ? brand.logoUrl : undefined
+const logoUrl = typeof rawLogo === 'string' ? rawLogo.trim() : ''
+const logoSrc = logoUrl.startsWith('https://') || (logoUrl.startsWith('/') && !logoUrl.startsWith('//')) ? logoUrl : null
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
@@ -2561,8 +2640,11 @@ export function Navbar() {
         background: 'var(--color-bg)', borderBottom: '1px solid var(--color-border)',
       }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 1.25rem', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-          <Link href="/" style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, textDecoration: 'none', color: 'var(--color-text)', letterSpacing: '-.02em', flexShrink: 0 }}>
-            {config.brand.logoText ?? config.brand.name}
+          <Link href="/" aria-label={config.brand.name} style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18, textDecoration: 'none', color: 'var(--color-text)', letterSpacing: '-.02em', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+            {logoSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoSrc} alt={config.brand.name} style={{ height: 36, width: 'auto', maxWidth: 180, objectFit: 'contain', display: 'block' }} />
+            ) : (config.brand.logoText ?? config.brand.name)}
           </Link>
 
           <nav className="hidden md:flex" style={{ gap: 28, alignItems: 'center' }}>
@@ -2917,37 +2999,14 @@ export function buildStoreFiles(
     const codeFiles = arg as CodeVersionFiles
     const scaffold = buildCodeGenScaffold()
 
-    // Merge: AI-generated files override scaffold files with the same path.
-    // Locked paths are always taken from the scaffold — Claude cannot override them.
-    // app/cart/page.tsx, app/success/page.tsx, and app/api/checkout/route.ts joined
-    // this list 2026-08-21 — checkout is core-engine behavior (cart, routing, payment
-    // wiring), not something an individual generation run should be free to omit or
-    // rewrite. Before this, nothing stopped the AI from silently not writing a cart
-    // page at all, which is exactly what happened to every store generated up to
-    // this point — the "Checkout" button in every deployed store 404'd.
-    const LOCKED = new Set([
-      'app/layout.tsx', 'components/layout/Navbar.tsx', 'components/layout/Footer.tsx', 'components/layout/CartDrawer.tsx',
-      'app/cart/page.tsx', 'app/success/page.tsx', 'app/api/checkout/route.ts', 'app/api/shipping/route.ts',
-      // Legal pages (2026-08-21) — always live-fetched from saved business info via
-      // app/api/store/legal, same rationale as checkout: correctness over AI freedom.
-      'components/legal/LegalPageView.tsx',
-      'app/terms/page.tsx', 'app/privacy/page.tsx', 'app/cookies/page.tsx', 'app/contact/page.tsx',
-      'components/layout/CookieConsent.tsx',
-      // i18n (2026-08-22) — the scaffold's fixed UI strings/locale formatting;
-      // must always reflect the actual dictionary, not something a generation
-      // run could accidentally omit or overwrite with different keys.
-      'lib/i18n.ts',
-      // Security (2026-09): build/deploy configuration and the hosted-mode helper
-      // always come from the scaffold, even for code_versions rows saved before the
-      // AI path allowlist existed.
-      'package.json', 'tsconfig.json', 'next.config.ts', 'next.config.js', 'next.config.mjs',
-      'postcss.config.mjs', 'postcss.config.js', 'tailwind.config.ts', 'tailwind.config.js',
-      'next-env.d.ts', 'vercel.json', 'lib/platform.ts',
-    ])
-
+    // Merge: AI-generated files override scaffold files with the same path, except
+    // PLATFORM_LOCKED_FILES (always the scaffold's). The storefront UI — layout,
+    // Navbar, Footer, CartDrawer, cart/success pages, cookie banner — is editable
+    // (EDITABLE_SCAFFOLD_FILES); rejectAiStoreFile keeps the parts of it the engine
+    // depends on (cart provider, checkout call, legal links …).
     const scaffoldMap = new Map(scaffold.map((f) => [f.path, f]))
     for (const [filePath, content] of Object.entries(codeFiles)) {
-      if (LOCKED.has(filePath)) continue  // scaffold version always wins
+      if (PLATFORM_LOCKED_FILES.has(filePath)) continue  // scaffold version always wins
       // Defence in depth: drop anything outside the AI allowlist (route handlers,
       // middleware, vercel.json, package.json, dotfiles, server-only code…).
       const rejected = rejectAiStoreFile(filePath, content)

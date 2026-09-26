@@ -8,7 +8,7 @@ import { debitCredits, refundDebit } from '@/lib/credits'
 import { refundCapped } from '@/app/api/credits/refund/capped'
 import { isAgencyUser } from '@/lib/tier'
 import { CREDIT_COSTS, RATE_LIMITS, AGENCY_RATE_LIMIT_PER_MIN, AGENCY_TOKEN_CAP } from '@/lib/config'
-import { filterAiStoreFiles } from '@/lib/store-template/build'
+import { filterAiStoreFiles, getEditableScaffoldFiles } from '@/lib/store-template/build'
 import { AI_FILTER_PROMPT_NOTE, describeDroppedFiles, normalizeDroppedFiles } from '@/lib/generation-checkpoint'
 import type { CodeVersionFiles } from '@/types/store-code'
 import { startAttempt, finishAttempt, countRecentAttempts, countInFlightAttempts } from './attempts'
@@ -286,7 +286,17 @@ export async function POST(request: Request) {
         .map(([path, content]) => `=== ${path} ===\n${content}`)
         .join('\n\n')
 
-      const userMessage = `CURRENT FILES:\n${fileSummary}\n\nUSER INSTRUCTION:\n${instruction}\n\n${AI_FILTER_PROMPT_NOTE}`
+      // Storefront UI the store still takes from the platform scaffold (header, footer,
+      // cart drawer, cart/checkout page …). Shown so the model edits the real component
+      // when asked — writing the same path overrides the scaffold copy.
+      const scaffoldSummary = Object.entries(getEditableScaffoldFiles())
+        .filter(([path]) => !(path in currentFiles))
+        .map(([path, content]) => `=== ${path} ===\n${content}`)
+        .join('\n\n')
+
+      const userMessage = `CURRENT FILES:\n${fileSummary}\n\n` +
+        (scaffoldSummary ? `PLATFORM DEFAULT FILES (currently live, editable — output the complete file to change one):\n${scaffoldSummary}\n\n` : '') +
+        `USER INSTRUCTION:\n${instruction}\n\n${AI_FILTER_PROMPT_NOTE}`
 
       send({ type: 'status', text: 'Updating your store…' })
 

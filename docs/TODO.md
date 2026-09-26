@@ -8,6 +8,7 @@ Kompletní bezpečnostní audit + 4 kola oprav (detail v `docs/update-log.md`, z
 
 **Musí se udělat, jinak to na produkci neběží:**
 - [x] **Commit + deploy** bezpečnostních oprav — commit `13107ab` (větev `theme-green-accent`), produkce nasazena 2026-09-24 přes `vercel --prod`. Automatický rollout scaffoldu je v dalším commitu a čeká na nasazení.
+- [ ] **Logo obrázkem + odemčený vzhled obchodu (2026-09-26, `SCAFFOLD_VERSION = 3`):** po deployi rollout přenasadí všechny živé obchody (nový Navbar s `config.brand.logoUrl`). Pak ve Studiu otestovat: přiložit fotku → „použij jako logo obchodu“; upravit hlavičku/patičku/košík chatem. U svého obchodu odstranit fotku z recenze (nebo obnovit starší verzi). Detail: `docs/update-log.md` → 2026-09-26.
 - [ ] **Vercel env vars:** `CRON_SECRET` (bez něj všechny crony vrací 401), `NEXT_PUBLIC_APP_URL` (https — bez něj checkout/e-maily fail closed), `VERCEL_TOKEN`, `HIGGSFIELD_WEBHOOK_SECRET`, `SECRETS_ENCRYPTION_KEY`.
 - [ ] **Stripe dashboard → webhook:** přidat eventy `invoice.paid`, `charge.refunded`, `charge.dispute.created`, `charge.dispute.closed`; odebrat `account.updated` (Stripe Connect routy jsou smazané).
 - [ ] **Clerk:** přepnout produkci z development instance (`pk_test_`) na production; v Restrictions zapnout blokování e-mailových subadres (`+tag`) a jednorázových domén.

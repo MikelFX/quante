@@ -598,3 +598,21 @@ See `docs/TODO.md` → "Security audit 2026-09 — owner actions".
 - `GET /api/projects/[id]/scaffold-status` and the admin summary GET are DB-only (no Vercel calls / writes). Cron + admin stop starting stores at 210 s. Admin shows stores the run didn't reach (`notStarted`). Studio: a failed store update says the current store stays live (not "credits were not charged").
 
 **Owner actions:** run `supabase/migration-scaffold-version.sql` → Admin → Store updates (dry run first) → after all stores are up to date set `STORE_CHECKOUT_REQUIRE_KEY=true` (see `docs/TODO.md`).
+
+---
+
+## 2026-09-26 — Image logo + editable storefront UI (SCAFFOLD_VERSION 3)
+
+**Why:** a merchant attached a photo in the Studio chat and asked Quante to use it as the store logo. The first try put it into the nearest image slot (a review), the second try silently did nothing. Storage was never the problem — chat uploads already go to the public Supabase bucket `store-assets` under `<userId>/<projectId>/…` (per store) and only the URL is written into code. The real cause: the header (`components/layout/Navbar.tsx`) was a LOCKED scaffold file that could only render a text logo (`config.brand.logoText`), and any AI edit of it was stored but ignored at build. The owner then asked for the whole storefront to be editable, not locked.
+
+**What:**
+- **Image logo:** `StoreConfig.brand.logoUrl?` (`types/store-code.ts` + the scaffold's copy). The scaffold Navbar renders it as `<img>` (height 36, only `https://` or same-origin paths) instead of the text logo; it reads the field via an `'logoUrl' in brand` check so stores whose own `types/store-code.ts` predates the field still type-check. Iteration prompt: "use as logo" → set `config.brand.logoUrl` to the attached URL, never put a logo into a product/review/hero slot; remove the field to go back to the text logo.
+- **Editable storefront UI:** the old LOCKED set in `buildStoreFiles` is split into:
+  - `EDITABLE_SCAFFOLD_FILES` (AI may override): `app/layout.tsx`, Navbar, Footer, CartDrawer, CookieConsent, `app/cart/page.tsx`, `app/success/page.tsx`.
+  - `PLATFORM_LOCKED_FILES` (always the scaffold's; `rejectAiStoreFile` now rejects them with "managed by the platform" so the merchant is told instead of the edit being silently ignored): `app/api/checkout|shipping` route handlers, legal pages (`app/terms|privacy|cookies|contact` + `LegalPageView`, which reads server env), `lib/i18n.ts`, `lib/platform.ts`, `package.json`, `tsconfig.json`, `next.config.*`, `postcss.config.*`, `tailwind.config.*`, `next-env.d.ts`, `vercel.json`.
+- **Engine guards** (`EDITABLE_FILE_REQUIREMENTS` in `rejectAiStoreFile`): an AI copy is rejected (old version stays live, the Studio reports why) unless layout keeps `<CartProvider>`, `{children}` and `<CookieConsent />`; Footer keeps links to `/terms`, `/privacy`, `/cookies`, `/contact`; the cart page keeps `fetch('/api/checkout')`; the success page calls `clearCart()`; CookieConsent keeps `export function CookieConsent`.
+- **Iterate context:** `/api/quante/iterate` now also sends the model the scaffold source of every editable file the store hasn't overridden (`getEditableScaffoldFiles()`, section "PLATFORM DEFAULT FILES"), so it edits the real component instead of writing one from scratch. Cost: ~29 kB / ~8k input tokens more per iterate.
+- `SCAFFOLD_VERSION` 2 → 3 (new Navbar) — after deploy the scaffold rollout rebuilds every live store.
+- Tests: 4 new in `__tests__/store-file-filter.test.mjs` (scaffold files pass the filter, AI override wins, engine guards, platform-locked paths). `tsc` clean, `npm test` 248/248.
+
+**Trade-off:** a store that overrides an editable file no longer receives future scaffold changes to that file (its own copy wins). Checked production data before unlocking (read-only): 3 projects, none has a stale AI copy of an editable file in its latest version, so nothing flips unexpectedly on rollout; 2 have an ignored AI `app/contact/page.tsx`, which stays ignored (platform-locked) and is dropped on their next iterate.

@@ -343,3 +343,38 @@ test('process reached through globalThis is rejected', () => {
 test('server-side fetch with a computed URL is rejected', () => {
   rejected(PAGE, "export default async function Page() {\n  const u = ['https:', '//example.org/x'].join('')\n  await fetch(u)\n  return <div>ok</div>\n}\n")
 })
+
+// ─── Editable storefront UI (unlocked 2026-09) ───────────────────────────────
+
+const { getEditableScaffoldFiles, EDITABLE_SCAFFOLD_FILES, PLATFORM_LOCKED_FILES } =
+  await import(new URL('../lib/store-template/build.ts', import.meta.url).href)
+
+test('every editable scaffold file passes the AI filter as shipped', () => {
+  const files = getEditableScaffoldFiles()
+  assert.deepEqual(Object.keys(files).sort(), [...EDITABLE_SCAFFOLD_FILES].sort())
+  for (const [p, src] of Object.entries(files)) allowed(p, src)
+})
+
+test('an AI copy of an editable file overrides the scaffold at build', () => {
+  const navbar = 'export function Navbar() { return <header>Custom</header> }\n'
+  const built = buildStoreFiles({ 'components/layout/Navbar.tsx': navbar })
+  assert.equal(built.find((f) => f.path === 'components/layout/Navbar.tsx').content, navbar)
+})
+
+test('editable files must keep what the engine depends on', () => {
+  const files = getEditableScaffoldFiles()
+  rejected('app/layout.tsx', files['app/layout.tsx'].replace(/<\/?CartProvider>/g, ''), /CartProvider/)
+  rejected('app/layout.tsx', files['app/layout.tsx'].replace('<CookieConsent />', ''), /CookieConsent/)
+  rejected('components/layout/Footer.tsx', files['components/layout/Footer.tsx'].replace('"/privacy"', '"/x"'), /privacy/)
+  rejected('app/cart/page.tsx', files['app/cart/page.tsx'].replace("fetch('/api/checkout'", "fetch('/api/other'"), /checkout/)
+  rejected('app/success/page.tsx', files['app/success/page.tsx'].replace('clearCart()', 'void 0'), /clearCart/)
+})
+
+test('platform-managed files are rejected and never override the scaffold', () => {
+  for (const p of ['app/contact/page.tsx', 'app/terms/page.tsx', 'lib/i18n.ts', 'components/legal/LegalPageView.tsx']) {
+    assert.ok(PLATFORM_LOCKED_FILES.has(p))
+    rejected(p, 'export default function P() { return null }\n', /managed by the platform/)
+  }
+  const built = buildStoreFiles({ 'app/contact/page.tsx': 'export default function P() { return null }\n' })
+  assert.match(built.find((f) => f.path === 'app/contact/page.tsx').content, /LegalPageView/)
+})
