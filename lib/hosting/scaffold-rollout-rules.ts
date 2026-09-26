@@ -15,8 +15,13 @@ export interface RolloutDeploymentRow {
   code_version_id: string | null
   domain: string | null
   url: string | null
-  /** 'production' | 'preview' | 'maintenance'; null/undefined on pre-migration rows. */
+  /**
+   * 'production' | 'preview' | 'maintenance' | 'staged' (draft build, domains not
+   * assigned — counts as a preview until promoted); null/undefined on pre-migration rows.
+   */
   target?: string | null
+  /** When a staged build was promoted to production (migration-draft-publish.sql). */
+  promoted_at?: string | null
   /** null/undefined = built before scaffold versioning = version 1. */
   scaffold_version?: number | null
   /** 'admin' | 'cron' | 'owner' on scaffold rollout builds; null on every other build. */
@@ -99,9 +104,18 @@ function newestFirst(rows: RolloutDeploymentRow[]): RolloutDeploymentRow[] {
   return [...rows].sort((a, b) => createdMs(b) - createdMs(a))
 }
 
-/** Production rows only, newest first. */
+/**
+ * When a row started serving production: promoted_at for a promoted staged build (it can
+ * be older than production builds that finished before it went live), else created_at.
+ */
+export function liveSinceMs(row: RolloutDeploymentRow): number {
+  const t = row.promoted_at ? Date.parse(row.promoted_at) : NaN
+  return Number.isFinite(t) ? t : createdMs(row)
+}
+
+/** Production rows only, most recently live first (promoted_at ?? created_at). */
 export function productionRowsNewestFirst(rows: RolloutDeploymentRow[]): RolloutDeploymentRow[] {
-  return newestFirst(rows.filter(isProductionRow))
+  return [...rows.filter(isProductionRow)].sort((a, b) => liveSinceMs(b) - liveSinceMs(a))
 }
 
 /**
@@ -132,7 +146,7 @@ export function pickLiveCodeVersionId(rows: RolloutDeploymentRow[]): string | nu
  */
 export function ambiguousRowsToResolve(rows: RolloutDeploymentRow[], max = 5): RolloutDeploymentRow[] {
   const boundary = pickLiveDeployment(rows)
-  const boundaryMs = boundary ? createdMs(boundary) : -Infinity
+  const boundaryMs = boundary ? liveSinceMs(boundary) : -Infinity
   const out: RolloutDeploymentRow[] = []
   for (const r of newestFirst(rows)) {
     if (createdMs(r) <= boundaryMs) break

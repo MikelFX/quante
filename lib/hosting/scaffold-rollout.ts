@@ -150,12 +150,19 @@ async function loadProject(projectId: string): Promise<RolloutProject | null> {
 }
 
 async function loadDeploymentRows(projectId: string): Promise<RolloutDeploymentRow[]> {
-  const { data, error } = await supabaseAdmin
+  // Only rows that can be (or become) the live build: production + legacy rows of
+  // unknown target. Draft ('staged') and preview builds are excluded so a run of
+  // unpublished chat edits can't push the live row out of the lookback window.
+  const query = (columns: string) => supabaseAdmin
     .from('deployments')
-    .select(DEPLOYMENT_COLUMNS)
+    .select(columns)
     .eq('project_id', projectId)
+    .or('target.is.null,target.eq.production')
     .order('created_at', { ascending: false })
     .limit(ROW_LOOKBACK)
+  let { data, error } = await query(`${DEPLOYMENT_COLUMNS}, promoted_at`)
+  // Before migration-draft-publish.sql there is no promoted_at (nothing was promoted).
+  if (error && isUnknownColumnError(error)) ({ data, error } = await query(DEPLOYMENT_COLUMNS))
   if (error) {
     if (isUnknownColumnError(error)) throw new MigrationPendingError(error.message)
     throw new LookupError(`deployments of ${projectId}: ${error.message}`)

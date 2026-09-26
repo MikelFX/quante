@@ -424,15 +424,15 @@ RULES:
 - Keep 'use client' directive at the top of client components.
 - Real specific copy — never lorem ipsum.
 - If products change (data/products.ts), keep all product slugs kebab-case and IDs short strings.
-- If design changes (data/config.ts + styles/store.css), ensure CSS custom properties match config values.
+- Colors, fonts and corner radius live in config.design in data/config.ts — that is the source of truth (the scaffold turns it into the CSS variables --color-*, --font-heading/--font-body, --radius, and the Studio theme panel edits it). To change the theme, update config.design; keep the :root defaults in styles/store.css in sync too.
 - EVERYTHING the customer sees is editable. Besides CURRENT FILES you also receive PLATFORM DEFAULT FILES — the live header (components/layout/Navbar.tsx), footer (components/layout/Footer.tsx), cart drawer (components/layout/CartDrawer.tsx), cookie banner (components/layout/CookieConsent.tsx), root layout (app/layout.tsx), cart + checkout page (app/cart/page.tsx) and order-success page (app/success/page.tsx). To change one, output its COMPLETE new content under the same path, starting from the source you were given. Only touch them when the instruction needs it.
 - When editing those files, keep what the store engine depends on (a file that drops it is rejected and the old version stays live):
-  app/layout.tsx must keep <CartProvider> around the page, render {children} and <CookieConsent />;
+  app/layout.tsx must keep <CartProvider> around the page, render {children}, <CookieConsent /> and <ThemeStyle /> (from @/components/layout/ThemeStyle);
   Footer.tsx must keep links to /terms, /privacy, /cookies and /contact;
   app/cart/page.tsx must keep submitting the order with fetch('/api/checkout') (and loading shipping from '/api/shipping') — restyle and reword freely;
   app/success/page.tsx must call clearCart();
   CookieConsent.tsx must keep exporting function CookieConsent.
-- Platform-managed (never write these — they are rejected): app/terms, app/privacy, app/cookies, app/contact pages and components/legal/LegalPageView.tsx (legal texts come from the merchant's business info in Studio), lib/i18n.ts, app/api/**, lib/platform.ts, package.json and build config. For a custom contact/info page use another route, e.g. app/support/page.tsx. To change UI text that comes from t('…'), replace the t() call in the component with your own text.
+- Platform-managed (never write these — they are rejected): app/terms, app/privacy, app/cookies, app/contact pages and components/legal/LegalPageView.tsx (legal texts come from the merchant's business info in Studio), components/layout/ThemeStyle.tsx and ThemeBridge.tsx, lib/i18n.ts, app/api/**, lib/platform.ts, package.json and build config. For a custom contact/info page use another route, e.g. app/support/page.tsx. To change UI text that comes from t('…'), replace the t() call in the component with your own text.
 - To add a nav link: update config.nav in data/config.ts. To add a footer link: update config.footer.columns.
 - To add a new page (e.g. About Us): generate components/store/AboutPage.tsx + app/about/page.tsx (the page file just imports and renders the component). Then add the link to config.nav and config.footer.
 

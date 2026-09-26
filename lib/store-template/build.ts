@@ -33,7 +33,72 @@ export function toStoreSlug(s: string): string {
 //   1 = everything deployed before deployments.scaffold_version existed (NULL rows)
 //   2 = security refactor 2026-09 (keyed checkout proxy, AI file filter, locked config)
 //   3 = image logo 2026-09 (locked Navbar renders config.brand.logoUrl)
-export const SCAFFOLD_VERSION = 3
+//   4 = theme from config 2026-09 (ThemeStyle: data/config.ts design → CSS variables +
+//       Google Fonts link; ThemeBridge: live theme preview from the Studio)
+export const SCAFFOLD_VERSION = 4
+
+// ─── Store theme (config.design → CSS variables) ──────────────────────────────
+// data/config.ts `design` is the single source of the store's colors / fonts / radius:
+// the scaffold's ThemeStyle turns it into CSS variables on <html> (overriding the
+// :root defaults in styles/store.css) and the Studio theme panel (lib/store-theme.ts,
+// /api/projects/[id]/theme) edits only that object. ThemeBridge applies unsaved panel
+// values instantly inside the Studio preview iframe via postMessage. The value rules
+// below are embedded into both scaffold files, so the store and the platform accept
+// exactly the same values — they are also what keeps the values safe to emit inside a
+// <style> element (no '<', '>', '{', '}', ';' can get through). lib/store-theme-shared.ts
+// holds the same constants for the Studio (client); __tests__/store-theme.test.mjs
+// asserts the two copies are identical.
+
+export const THEME_COLOR_VARS = {
+  bg: '--color-bg',
+  surface: '--color-surface',
+  text: '--color-text',
+  muted: '--color-muted',
+  accent: '--color-accent',
+  accentText: '--color-accent-text',
+  border: '--color-border',
+} as const
+export type ThemeColorKey = keyof typeof THEME_COLOR_VARS
+
+export const THEME_COLOR_RE = /^(?:#[0-9a-fA-F]{3,8}|(?:rgb|rgba|hsl|hsla)\([0-9.,%\s/]{1,60}\))$/
+export const THEME_FONT_RE = /^[A-Za-z0-9 ,'"-]{1,200}$/
+export const THEME_RADIUS_RE = /^(?:0|\d{1,3}(?:\.\d{1,2})?(?:px|rem|em))$/
+
+// Google Fonts the theme panel offers, with the weights each one really has (the css2
+// API rejects a request for a weight the family lacks).
+export const THEME_FONT_OPTIONS: ReadonlyArray<{ name: string; stack: string; weights: string; kind: 'sans' | 'serif' | 'mono' }> = [
+  { name: 'Inter', stack: 'Inter, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'DM Sans', stack: "'DM Sans', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Manrope', stack: 'Manrope, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Plus Jakarta Sans', stack: "'Plus Jakarta Sans', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Space Grotesk', stack: "'Space Grotesk', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Outfit', stack: 'Outfit, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Poppins', stack: 'Poppins, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Montserrat', stack: 'Montserrat, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Work Sans', stack: "'Work Sans', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'IBM Plex Sans', stack: "'IBM Plex Sans', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Jost', stack: 'Jost, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Nunito', stack: 'Nunito, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Rubik', stack: 'Rubik, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Karla', stack: 'Karla, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Archivo', stack: 'Archivo, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Bricolage Grotesque', stack: "'Bricolage Grotesque', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Syne', stack: 'Syne, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Open Sans', stack: "'Open Sans', sans-serif", weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Roboto', stack: 'Roboto, sans-serif', weights: '400;500;600;700', kind: 'sans' },
+  { name: 'Lato', stack: 'Lato, sans-serif', weights: '400;700', kind: 'sans' },
+  { name: 'Playfair Display', stack: "'Playfair Display', serif", weights: '400;500;600;700', kind: 'serif' },
+  { name: 'Cormorant Garamond', stack: "'Cormorant Garamond', serif", weights: '400;500;600;700', kind: 'serif' },
+  { name: 'Fraunces', stack: 'Fraunces, serif', weights: '400;500;600;700', kind: 'serif' },
+  { name: 'Lora', stack: 'Lora, serif', weights: '400;500;600;700', kind: 'serif' },
+  { name: 'Source Serif 4', stack: "'Source Serif 4', serif", weights: '400;500;600;700', kind: 'serif' },
+  { name: 'EB Garamond', stack: "'EB Garamond', serif", weights: '400;500;600;700', kind: 'serif' },
+  { name: 'Libre Baskerville', stack: "'Libre Baskerville', serif", weights: '400;700', kind: 'serif' },
+  { name: 'DM Serif Display', stack: "'DM Serif Display', serif", weights: '400', kind: 'serif' },
+  { name: 'Instrument Serif', stack: "'Instrument Serif', serif", weights: '400', kind: 'serif' },
+  { name: 'IBM Plex Mono', stack: "'IBM Plex Mono', monospace", weights: '400;500;600;700', kind: 'mono' },
+  { name: 'Space Mono', stack: "'Space Mono', monospace", weights: '400;700', kind: 'mono' },
+]
 
 export interface CustomComponentRecord {
   ref: string
@@ -1297,6 +1362,8 @@ export const PLATFORM_LOCKED_FILES: ReadonlySet<string> = new Set([
   'components/legal/LegalPageView.tsx',
   'app/terms/page.tsx', 'app/privacy/page.tsx', 'app/cookies/page.tsx', 'app/contact/page.tsx',
   'lib/i18n.ts',
+  // Theme (2026-09-26): config.design → CSS variables, and the Studio live-preview bridge.
+  'components/layout/ThemeStyle.tsx', 'components/layout/ThemeBridge.tsx',
   'package.json', 'tsconfig.json', 'next.config.ts', 'next.config.js', 'next.config.mjs',
   'postcss.config.mjs', 'postcss.config.js', 'tailwind.config.ts', 'tailwind.config.js',
   'next-env.d.ts', 'vercel.json', 'lib/platform.ts',
@@ -1323,6 +1390,7 @@ const EDITABLE_FILE_REQUIREMENTS: Record<string, Array<{ re: RegExp; why: string
     { re: /<CartProvider[\s>]/, why: 'must wrap the page in <CartProvider>' },
     { re: /<CookieConsent[\s/>]/, why: 'must render <CookieConsent />' },
     { re: /\{\s*children\s*\}/, why: 'must render {children}' },
+    { re: /<ThemeStyle[\s/>]/, why: 'must render <ThemeStyle /> (store colors, fonts and radius from data/config.ts)' },
   ],
   'components/layout/Footer.tsx': [
     { re: /['"`]\/terms['"`]/, why: 'must link to /terms' },
@@ -2611,6 +2679,129 @@ export default function Page() { return <LegalPageView page="cookies" /> }
 export default function Page() { return <LegalPageView page="contact" /> }
 `)
 
+  // ── components/layout/ThemeStyle.tsx (LOCKED) ────────────────────────────
+  // config.design → CSS variables on <html> (html:root beats the :root defaults in
+  // styles/store.css) + a Google Fonts link for the offered families. Values are
+  // validated with the same rules the Studio theme panel uses (see THEME_* above).
+  add('components/layout/ThemeStyle.tsx', `import { config } from '@/data/config'
+import { platformUrl } from '@/lib/platform'
+import { ThemeBridge } from './ThemeBridge'
+
+const COLOR_VARS: Record<string, string> = ${JSON.stringify(THEME_COLOR_VARS)}
+const COLOR_RE = new RegExp(${JSON.stringify(THEME_COLOR_RE.source)})
+const FONT_RE = new RegExp(${JSON.stringify(THEME_FONT_RE.source)})
+const RADIUS_RE = new RegExp(${JSON.stringify(THEME_RADIUS_RE.source)})
+const GOOGLE_FONTS: Record<string, string> = ${JSON.stringify(Object.fromEntries(THEME_FONT_OPTIONS.map((f) => [f.name, f.weights])))}
+
+interface LooseDesign {
+  colors?: Record<string, unknown>
+  fonts?: Record<string, unknown>
+  radius?: unknown
+}
+
+function firstFamily(stack: string): string {
+  return stack.split(',')[0].trim().replace(/^['"]|['"]$/g, '')
+}
+
+export function ThemeStyle() {
+  const design: LooseDesign = (config as unknown as { design?: LooseDesign }).design ?? {}
+  const decls: string[] = []
+  for (const [key, cssVar] of Object.entries(COLOR_VARS)) {
+    const v = design.colors?.[key]
+    if (typeof v === 'string' && COLOR_RE.test(v.trim())) decls.push(cssVar + ':' + v.trim())
+  }
+  const families: string[] = []
+  for (const [key, cssVar] of [['heading', '--font-heading'], ['body', '--font-body']]) {
+    const v = design.fonts?.[key]
+    if (typeof v === 'string' && FONT_RE.test(v.trim())) {
+      decls.push(cssVar + ':' + v.trim())
+      const family = firstFamily(v)
+      if (family in GOOGLE_FONTS && !families.includes(family)) families.push(family)
+    }
+  }
+  if (typeof design.radius === 'string' && RADIUS_RE.test(design.radius.trim())) decls.push('--radius:' + design.radius.trim())
+  const fontsHref = families.length > 0
+    ? 'https://fonts.googleapis.com/css2?' + families.map((f) => 'family=' + encodeURIComponent(f).replace(/%20/g, '+') + ':wght@' + GOOGLE_FONTS[f]).join('&') + '&display=swap'
+    : null
+  return (
+    <>
+      {decls.length > 0 && <style>{'html:root{' + decls.join(';') + '}'}</style>}
+      {fontsHref && <link rel="stylesheet" href={fontsHref} />}
+      <ThemeBridge platformOrigin={platformUrl()} />
+    </>
+  )
+}
+`)
+
+  // ── components/layout/ThemeBridge.tsx (LOCKED) ───────────────────────────
+  // Live theme preview: only inside an iframe, only messages from the platform's own
+  // origin (QUANTE_API_URL, or quantecode.com — the same hosts frame-ancestors allows),
+  // and only the theme CSS variables with values that pass the same rules as above.
+  add('components/layout/ThemeBridge.tsx', `'use client'
+import { useEffect } from 'react'
+
+const VAR_NAMES = new Set<string>(${JSON.stringify([...Object.values(THEME_COLOR_VARS), '--font-heading', '--font-body', '--radius'])})
+const COLOR_RE = new RegExp(${JSON.stringify(THEME_COLOR_RE.source)})
+const FONT_RE = new RegExp(${JSON.stringify(THEME_FONT_RE.source)})
+const RADIUS_RE = new RegExp(${JSON.stringify(THEME_RADIUS_RE.source)})
+const FONT_LINK_ID = 'store-theme-preview-fonts'
+const MESSAGE_SOURCE = 'store-theme-editor'
+
+function validValue(name: string, value: string): boolean {
+  if (name.startsWith('--color-')) return COLOR_RE.test(value)
+  if (name.startsWith('--font-')) return FONT_RE.test(value)
+  if (name === '--radius') return RADIUS_RE.test(value)
+  return false
+}
+
+function trustedOrigin(origin: string, platformOrigin: string | null): boolean {
+  if (platformOrigin && origin === platformOrigin) return true
+  return /^https:\\/\\/([a-z0-9-]+\\.)?quantecode\\.com$/.test(origin)
+}
+
+function resetTheme() {
+  const root = document.documentElement
+  VAR_NAMES.forEach((name) => root.style.removeProperty(name))
+  document.getElementById(FONT_LINK_ID)?.remove()
+}
+
+export function ThemeBridge({ platformOrigin }: { platformOrigin: string | null }) {
+  useEffect(() => {
+    if (window.parent === window) return
+    const onMessage = (event: MessageEvent) => {
+      if (event.source !== window.parent || !trustedOrigin(event.origin, platformOrigin)) return
+      const data = event.data as { source?: unknown; type?: unknown; vars?: unknown; fontsHref?: unknown } | null
+      if (!data || typeof data !== 'object' || data.source !== MESSAGE_SOURCE) return
+      if (data.type === 'theme-reset') { resetTheme(); return }
+      if (data.type !== 'theme') return
+      const root = document.documentElement
+      if (data.vars && typeof data.vars === 'object') {
+        for (const [name, value] of Object.entries(data.vars as Record<string, unknown>)) {
+          if (!VAR_NAMES.has(name)) continue
+          if (value === null) root.style.removeProperty(name)
+          else if (typeof value === 'string' && validValue(name, value.trim())) root.style.setProperty(name, value.trim())
+        }
+      }
+      const href = data.fontsHref
+      if (typeof href === 'string' && href.length < 1000 && href.startsWith('https://fonts.googleapis.com/css2?')) {
+        let link = document.getElementById(FONT_LINK_ID) as HTMLLinkElement | null
+        if (!link) {
+          link = document.createElement('link')
+          link.id = FONT_LINK_ID
+          link.rel = 'stylesheet'
+          document.head.appendChild(link)
+        }
+        if (link.href !== href) link.href = href
+      }
+    }
+    window.addEventListener('message', onMessage)
+    window.parent.postMessage({ source: MESSAGE_SOURCE, type: 'theme-bridge-ready' }, '*')
+    return () => window.removeEventListener('message', onMessage)
+  }, [platformOrigin])
+  return null
+}
+`)
+
   // ── components/layout/Navbar.tsx ─────────────────────────────────────────
   add('components/layout/Navbar.tsx', `'use client'
 import { useState } from 'react'
@@ -2821,6 +3012,7 @@ import { CartProvider } from '@/lib/store/cart'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { CookieConsent } from '@/components/layout/CookieConsent'
+import { ThemeStyle } from '@/components/layout/ThemeStyle'
 import { config } from '@/data/config'
 import '../styles/store.css'
 
@@ -2833,6 +3025,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang={config.brand.language ?? 'en'}>
       <body style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <ThemeStyle />
         <CartProvider>
           <Navbar />
           <main style={{ flex: 1 }}>{children}</main>

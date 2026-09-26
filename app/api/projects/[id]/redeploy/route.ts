@@ -2,11 +2,12 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { buildStoreFiles, toStoreSlug, SCAFFOLD_VERSION } from '@/lib/store-template/build'
-import { insertDeploymentRow } from '@/lib/hosting/deployments'
+import { insertDeploymentRow, isDraftPublishReady } from '@/lib/hosting/deployments'
 import {
   ensureProjectVercel,
   getOrClaimStoreSlug,
   createPreviewDeployment,
+  createStagedDeployment,
   createVercelPreviewDeploy,
   getDeploymentStatus,
 } from '@/lib/hosting/vercel'
@@ -224,6 +225,10 @@ export async function POST(_request: Request, { params }: Params) {
 
   const gate = await getHostingGate(project.id)
   const toProduction = gate.everLive && gate.canDeployProduction
+  // Draft/publish (2026-09-26): a rebuild of a live store is a staged draft — the owner
+  // publishes it explicitly (app/api/projects/[id]/publish). Direct production only
+  // until migration-draft-publish.sql has run.
+  const staged = toProduction && await isDraftPublishReady()
 
   // SECURITY (audit F4): a preview-only build (never-live store, or a store that went
   // live but may not deploy to production now — suspended / trial over) is exactly what
@@ -273,9 +278,11 @@ export async function POST(_request: Request, { params }: Params) {
   let deploymentId: string
   let previewUrl: string
   try {
-    const result = toProduction && storeSlug
-      ? await createPreviewDeployment(vercelProjectId, deployFiles, storeSlug)
-      : await createVercelPreviewDeploy(vercelProjectId, deployFiles, toStoreSlug(project.name ?? '') || 'store')
+    const result = staged && storeSlug
+      ? await createStagedDeployment(vercelProjectId, deployFiles, storeSlug)
+      : toProduction && storeSlug
+        ? await createPreviewDeployment(vercelProjectId, deployFiles, storeSlug)
+        : await createVercelPreviewDeploy(vercelProjectId, deployFiles, toStoreSlug(project.name ?? '') || 'store')
     deploymentId = result.deploymentId
     previewUrl = result.url
   } catch (err) {
@@ -293,10 +300,10 @@ export async function POST(_request: Request, { params }: Params) {
     domain: null,
     version: current.version_no,
     code_version_id: current.id,
-    target: toProduction && storeSlug ? 'production' : 'preview',
+    target: staged && storeSlug ? 'staged' : toProduction && storeSlug ? 'production' : 'preview',
     scaffold_version: SCAFFOLD_VERSION,
   })
   if (insertErr) console.error('[redeploy] failed to insert deployment row:', insertErr)
 
-  return NextResponse.json({ deploymentId, previewUrl })
+  return NextResponse.json({ deploymentId, previewUrl, staged: staged && !!storeSlug })
 }

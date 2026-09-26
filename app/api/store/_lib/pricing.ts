@@ -19,7 +19,7 @@ import { parseProductsForPricing, PRODUCTS_FILE, type PricingProduct } from '@/l
 import { parseConfigFile, CONFIG_FILE } from '@/lib/store-config'
 import type { ShopManifest } from '@/types/manifest'
 import type { PaymentsInfo, ShippingInfo } from '@/types/business'
-import { isProductionRow } from '@/lib/hosting/scaffold-rollout-rules'
+import { productionRowsNewestFirst } from '@/lib/hosting/scaffold-rollout-rules'
 import { isUnknownColumnError } from '@/lib/hosting/deployments'
 
 export interface PricedLine {
@@ -85,21 +85,32 @@ function normCurrency(c: unknown): string | null {
 
 interface CodeCatalog { files: Record<string, string>; live: boolean }
 
-type LiveCandidateRow = { code_version_id: string | null; domain: string | null; url: string | null; target?: string | null }
+type LiveCandidateRow = {
+  code_version_id: string | null; domain: string | null; url: string | null; target?: string | null
+  created_at: string | null; promoted_at?: string | null
+}
 
 async function loadReadyDeployments(projectId: string): Promise<LiveCandidateRow[]> {
-  const query = (columns: string) => supabaseAdmin
-    .from('deployments')
-    .select(columns)
-    .eq('project_id', projectId)
-    .eq('status', 'ready')
-    .not('code_version_id', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(50)
-  const first = await query('code_version_id, domain, url, target')
+  const query = (columns: string, productionOnly: boolean) => {
+    let q = supabaseAdmin
+      .from('deployments')
+      .select(columns)
+      .eq('project_id', projectId)
+      .eq('status', 'ready')
+      .not('code_version_id', 'is', null)
+    // Draft ('staged') and preview builds can never be live — excluding them keeps a run
+    // of unpublished chat edits from pushing the live build out of the window below.
+    if (productionOnly) q = q.or('target.is.null,target.eq.production')
+    return q.order('created_at', { ascending: false }).limit(50)
+  }
+  const withPromotion = await query('code_version_id, domain, url, target, created_at, promoted_at', true)
+  if (!withPromotion.error) return (withPromotion.data ?? []) as unknown as LiveCandidateRow[]
+  if (!isUnknownColumnError(withPromotion.error)) return []
+  // Before migration-draft-publish.sql: no promoted_at (nothing was ever promoted).
+  const first = await query('code_version_id, domain, url, target, created_at', true)
   // Before migration-scaffold-version.sql there is no `target` column — legacy rules only.
   if (first.error && isUnknownColumnError(first.error)) {
-    const legacy = await query('code_version_id, domain, url')
+    const legacy = await query('code_version_id, domain, url, created_at', false)
     return (legacy.data ?? []) as unknown as LiveCandidateRow[]
   }
   return (first.data ?? []) as unknown as LiveCandidateRow[]
@@ -113,8 +124,10 @@ async function loadCodeVersionFiles(projectId: string): Promise<CodeCatalog[]> {
   // classifier the scaffold rollout uses (lib/hosting/scaffold-rollout-rules.ts): the
   // row's `target` when recorded, else domain recorded or a public (non-*.vercel.app)
   // URL. Legacy rows of unknown target count as previews here.
-  const live = (await loadReadyDeployments(projectId))
-    .find((d) => isProductionRow({ id: '', status: 'ready', created_at: null, ...d }))
+  // A promoted draft build counts from when it was promoted (liveSinceMs), not created.
+  const live = productionRowsNewestFirst(
+    (await loadReadyDeployments(projectId)).map((d) => ({ id: '', status: 'ready', ...d })),
+  )[0]
   const deployedId = live?.code_version_id ?? null
   if (deployedId) {
     const { data: v } = await supabaseAdmin

@@ -655,6 +655,59 @@ export async function createPreviewDeployment(
   return { deploymentId: id, url: rawUrl }
 }
 
+// Staged production build (draft): target 'production' so it runs with the store's
+// production env vars (managed checkout, legal pages), but autoAssignCustomDomains=false
+// so the store's domains keep serving the published build. The Studio previews its raw
+// *.vercel.app URL; "Publish" promotes it (promoteDeployment) without a rebuild.
+// Verified 2026-09-26 on a throwaway project: the domain stays on the previous build
+// while this one is READY, promote switches it within ~3–10 s, and later ordinary
+// production builds (Push to Live, rollout, maintenance) still auto-assign afterwards.
+export async function createStagedDeployment(
+  vercelProjectId: string,
+  files: Array<{ path: string; data: string; encoding?: string }>,
+  projectSlug?: string,
+): Promise<{ deploymentId: string; url: string }> {
+  const deploymentName = toDeploymentName(projectSlug, vercelProjectId)
+  let result: unknown
+  try {
+    result = await vercelApiFetch<unknown>('/v13/deployments', {
+      method: 'POST',
+      body: {
+        name: deploymentName,
+        project: vercelProjectId,
+        target: 'production',
+        autoAssignCustomDomains: false,
+        projectSettings: STORE_DEPLOYMENT_SETTINGS,
+        files: files.map((f) => ({
+          file: f.path,
+          data: f.data,
+          encoding: f.encoding ?? 'utf-8',
+        })),
+      },
+    })
+  } catch (err) {
+    logDeploymentFailure('createStagedDeployment', err, { project: vercelProjectId, name: deploymentName, files: files.length })
+    throw err
+  }
+
+  const { id, url } = assertDeploymentResult(result, 'createStagedDeployment')
+  const rawUrl = url.startsWith('https://') ? url : `https://${url}`
+  console.log('[vercel] createStagedDeployment ok:', { id, url: rawUrl, project: vercelProjectId, name: deploymentName })
+  return { deploymentId: id, url: rawUrl }
+}
+
+// Points every production domain of the project (store subdomain + custom domains) at
+// an existing READY production-target deployment — no rebuild. Vercel allows promoting
+// a given deployment once; a build that already served production must be rebuilt
+// instead (callers only promote never-promoted staged builds).
+export async function promoteDeployment(vercelProjectId: string, deploymentId: string): Promise<void> {
+  if (!/^dpl_[A-Za-z0-9]+$/.test(deploymentId)) throw new Error('promoteDeployment: invalid deployment id')
+  await vercelApiFetch<unknown>(
+    `/v10/projects/${encodeURIComponent(vercelProjectId)}/promote/${encodeURIComponent(deploymentId)}`,
+    { method: 'POST' },
+  )
+}
+
 // True Vercel preview (no target): unique URL per deploy, no subdomain.
 // Used for manual "Preview deploy" (2 credits) from the Studio and for
 // the free auto-validation deploy after generate/iterate/fix.

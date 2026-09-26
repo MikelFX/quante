@@ -430,6 +430,7 @@ export async function POST(request: Request) {
     // whose hosting is active — see ../iterate/deploy.ts (audit #0 / #7).
     let deploymentId: string | null = null
     let previewUrl: string | null = null
+    let staged = false
     try {
       const result = await autoDeployCodeVersion({
         projectId: project.id,
@@ -441,6 +442,7 @@ export async function POST(request: Request) {
       })
       deploymentId = result.deploymentId
       previewUrl = result.previewUrl
+      staged = result.staged
     } catch (err) {
       console.error('[fix] preview deployment failed (non-fatal):', err)
     }
@@ -449,6 +451,7 @@ export async function POST(request: Request) {
       versionId: version.id,
       deploymentId,
       previewUrl,
+      staged,
       explanation: output.explanation,
       droppedFiles: dropped.map((d) => d.path),
       droppedFileDetails: dropped,

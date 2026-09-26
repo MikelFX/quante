@@ -10,6 +10,8 @@ import type { ShopManifest, Section } from '@/types/manifest'
 import type { StoreProduct } from '@/types/store-code'
 import type { StoreHealthResult, HealthCheckItem } from '@/lib/store-health'
 import { MerchantPanel } from './MerchantPanel'
+import { CodeThemePanel } from './CodeThemePanel'
+import { THEME_MESSAGE_SOURCE, type themePreviewPayload } from '@/lib/store-theme-shared'
 import {
   MessageCircle, Layers, Package, Paintbrush, Rocket,
   Monitor, Tablet, Smartphone, RotateCcw, ExternalLink, ChevronDown,
@@ -82,12 +84,27 @@ interface Props {
   storeUrl: string | null
   initialBalance: number
   hostingInfo: HostingInfo
-  latestDeployment: { id: string; status: string; url: string | null } | null
+  latestDeployment: { id: string; status: string; url: string | null; target?: string | null } | null
   isAgency?: boolean
   hasCodeVersion: boolean
   // Server-computed from lib/hosting/gate.ts (everLive && !canDeployProduction). When
   // passed it wins over the client-side estimate below.
   hostingPaused?: boolean
+  // Server-computed (page.tsx): the store is live, may deploy to production and the
+  // draft/publish migration has run — chat edits are staged drafts until Publish.
+  draftMode?: boolean
+}
+
+// GET /api/projects/[id]/publish
+interface PublishState {
+  draftPublishReady: boolean
+  everLive: boolean
+  canPublish: boolean
+  reason?: string
+  live: { versionId: string | null; versionNo: number | null; url: string | null } | null
+  latest: { versionId: string; versionNo: number; createdAt: string; prompt: string | null } | null
+  upToDate: boolean
+  staged: { deploymentId: string | null; status: string | null; url: string | null; current: boolean } | null
 }
 
 // Mirrors PERIOD_END_GRACE_MS in lib/hosting/gate.ts.
@@ -339,7 +356,7 @@ const QUICK_CHIPS = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function StudioClient({ projectId, projectName, storeUrl, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false, hostingPaused: hostingPausedProp }: Props) {
+export function StudioClient({ projectId, projectName, storeUrl, initialBalance, hostingInfo, latestDeployment, hasCodeVersion, isAgency = false, hostingPaused: hostingPausedProp, draftMode = false }: Props) {
   const searchParams = useSearchParams()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -363,13 +380,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     hostingInfo.suspendedAt !== null
     || (hostingInfo.trialEndsAt !== null && new Date(hostingInfo.trialEndsAt).getTime() <= Date.now())
   ))
+  // Draft/publish: chat edits of a live store are staged drafts that only exist at their
+  // own *.vercel.app URL (the store domain keeps serving the published build) — like a
+  // paused store, the preview must show that URL as-is instead of the store domain.
+  const keepRawPreview = hostingPaused || draftMode
   // Preview + logs state (new code-gen approach)
   const [previewUrl, setPreviewUrl] = useState<string | null>(
     (() => {
       const u = latestDeployment?.url ?? null
       const safe = (u && !u.includes('://null') && u !== 'null') ? u : null
       // Prefer canonical store domain URL over raw Vercel deployment URLs (which block in iframes)
-      if (safe?.includes('vercel.app') && storeUrl && !hostingPaused) return storeUrl
+      if (safe?.includes('vercel.app') && storeUrl && !hostingPaused && !(draftMode && latestDeployment?.target === 'staged')) return storeUrl
       return safe ?? storeUrl ?? null
     })()
   )
@@ -389,7 +410,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Returns the best available preview URL — prefers canonical domain URL over raw vercel.app URLs,
   // except while hosting is paused: then the vercel.app URL IS the only place the new version runs.
   const resolveUrl = (url: string | null | undefined) =>
-    (url && url.includes('vercel.app') && storeUrl && !hostingPaused) ? storeUrl : (url ?? storeUrl ?? null)
+    (url && url.includes('vercel.app') && storeUrl && !keepRawPreview) ? storeUrl : (url ?? storeUrl ?? null)
   // One-line chat notice after a paused store gets a preview-only deploy.
   const hostingPausedNotice = 'Hosting for this store is paused, so this change was deployed as a private preview only — your public store address keeps showing the paused page until you subscribe.'
   // Auto-fix stops for good (until the user sends a new message) once the server refuses
@@ -440,6 +461,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [desktopTab, setDesktopTab] = useState<DesktopTab>('chat')
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
   const [showPushToLive, setShowPushToLive] = useState(false)
+  // Draft/publish (GET /api/projects/[id]/publish) + theme live preview
+  const [publishState, setPublishState] = useState<PublishState | null>(null)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
+  // Last theme sent to the preview — re-sent when the store page (re)loads, dropped when
+  // a new build replaces the preview (that build already contains the saved theme).
+  const themePreviewRef = useRef<ReturnType<typeof themePreviewPayload> | null>(null)
   const [isDeploying, setIsDeploying] = useState(false)
   const [isPreviewDeploying, setIsPreviewDeploying] = useState(false)
   const [deployStatus, setDeployStatus] = useState<'idle' | 'building' | 'ready' | 'error'>('idle')
@@ -786,6 +814,41 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   useEffect(() => { fetchVersions() }, [fetchVersions])
 
+  const fetchPublishState = useCallback(() => {
+    if (!hasCodeVersion) return
+    fetch(`/api/projects/${projectId}/publish`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: PublishState | null) => { if (d) setPublishState(d) })
+      .catch(() => {})
+  }, [projectId, hasCodeVersion])
+
+  useEffect(() => { fetchPublishState() }, [fetchPublishState])
+
+  // ── Theme live preview (store ThemeBridge, postMessage) ─────────────────────
+  const postThemePreview = useCallback((payload: ReturnType<typeof themePreviewPayload>) => {
+    themePreviewRef.current = payload
+    const win = previewFrameRef.current?.contentWindow
+    if (!win || !previewUrl) return
+    let origin: string
+    try { origin = new URL(previewUrl).origin } catch { return }
+    win.postMessage({ source: THEME_MESSAGE_SOURCE, type: 'theme', ...payload }, origin)
+  }, [previewUrl])
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      const win = previewFrameRef.current?.contentWindow
+      if (!win || event.source !== win) return
+      const data = event.data as { source?: unknown; type?: unknown } | null
+      if (!data || data.source !== THEME_MESSAGE_SOURCE || data.type !== 'theme-bridge-ready') return
+      if (themePreviewRef.current) postThemePreview(themePreviewRef.current)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [postThemePreview])
+
+  // A new build is in the preview → it already has the saved theme.
+  useEffect(() => { themePreviewRef.current = null }, [previewUrl])
+
   useEffect(() => {
     fetch(`/api/projects/${projectId}/settings`)
       .then((r) => r.json())
@@ -836,8 +899,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         const data = await res.json()
         if (!data.latest) return
         const d = data.latest
-        setLiveDeployment(d)
-        if (d.customDomain) setCustomDomainInput(d.customDomain)
+        // The published build (draft/publish: usually not the newest row).
+        const live = data.live ?? null
+        setLiveDeployment(live ?? d)
+        if (live && live.id !== d.id) {
+          setDeployStatus('ready')
+          setDeployUrl(live.url ?? null)
+          setDeployDomain(live.domain ?? null)
+        }
+        if ((live ?? d).customDomain) setCustomDomainInput((live ?? d).customDomain)
         const isLiveDeploy = !!d.domain  // preview deployments have no domain
         if (d.status === 'ready') {
           if (isLiveDeploy) {
@@ -847,14 +917,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           } else {
             // Auto-deploy ready — always use canonical domain URL, not raw Vercel URL
             // (hosting paused → the preview deployment's own URL; the subdomain shows the paused page)
-            const pausedUrl = hostingPaused && d.url && !d.url.includes('://null') ? d.url : null
+            const pausedUrl = keepRawPreview && d.url && !d.url.includes('://null') ? d.url : null
             const readyUrl = pausedUrl ?? storeUrl ?? ((d.url && !d.url.includes('://null') && !d.url.includes('vercel.app')) ? d.url : null)
             if (readyUrl) setPreviewUrl(readyUrl)
             setPreviewReady(true)
           }
         } else if (d.status === 'building' && d.vercelDeploymentId) {
           // Show canonical URL immediately (iframe will load when build finishes)
-          if (hostingPaused && !isLiveDeploy && d.url && !d.url.includes('://null')) {
+          if (keepRawPreview && !isLiveDeploy && d.url && !d.url.includes('://null')) {
             setPreviewUrl(d.url)
           } else if (storeUrl) {
             setPreviewUrl(storeUrl)
@@ -1018,8 +1088,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             // Always point the iframe at the canonical domain URL (not a raw vercel.app URL) —
             // unless hosting is paused: then the subdomain shows the paused page and the
             // preview URL already set from the iterate/fix/redeploy response is the right one.
-            if (hostingPaused) {
-              // keep the current preview URL
+            if (keepRawPreview) {
+              // keep the current preview URL (paused store / unpublished draft)
             } else if (storeUrl) {
               setPreviewUrl(storeUrl)
             } else {
@@ -1033,7 +1103,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             }
             setPreviewReady(true)
             setRightPanel('preview')
-            setMessages((prev) => [...prev, { role: 'assistant', content: 'Preview ready.', type: 'done' }])
+            setMessages((prev) => [...prev, {
+              role: 'assistant',
+              content: draftMode ? 'Draft preview ready — your live store stays unchanged until you click **Publish**.' : 'Preview ready.',
+              type: 'done',
+            }])
+            fetchPublishState()
           } else if ((data.state === 'error' || data.type === 'error') && !buildError) {
             // Stream ended with a build error but no build_error event was received —
             // fetch the error details directly so auto-fix can trigger
@@ -1655,7 +1730,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             setMessages(prev => [...prev, { role: 'assistant', content: hostingPausedNotice, type: 'status' }])
           }
           if (deploymentId) {
-            setMessages(prev => [...prev, { role: 'assistant', content: 'Building preview in the background — watch the Logs tab on the right (~2 min).', type: 'status' }])
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: draftMode
+                ? 'Building a draft preview — your live store stays unchanged until you click Publish. Watch the Logs tab on the right (~1–2 min).'
+                : 'Building preview in the background — watch the Logs tab on the right (~2 min).',
+              type: 'status',
+            }])
             startLogStreaming(deploymentId)
           }
         },
@@ -1827,6 +1908,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         setPreviewReady(true)
         setRightPanel('preview')
         refreshBalance()
+        fetchPublishState()
         const wasStoreUpdate = storeUpdateDeployRef.current === deploymentId
         if (wasStoreUpdate) storeUpdateDeployRef.current = null
         setMessages((prev) => [
@@ -1856,6 +1938,43 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         }
       }
     } catch {}
+  }
+
+  // Draft/publish: promote the latest draft build (instant, no rebuild) — or, when there
+  // is no promotable build of the latest version (theme-only change, older scaffold, first
+  // go-live), fall back to Push to Live's full production build.
+  async function handlePublish() {
+    if (isPublishing || isDeploying) return
+    setIsPublishing(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/publish`, { method: 'POST' })
+      const data = await res.json().catch(() => ({} as Record<string, unknown>)) as {
+        mode?: string; url?: string | null; versionNo?: number; error?: string; code?: string; reason?: string
+      }
+      if (!res.ok) {
+        setMessages((prev) => [...prev, { role: 'assistant', content: data.error ?? `Publish failed (${res.status}).`, type: 'error' }])
+        return
+      }
+      if (data.mode === 'promoted') {
+        const url = data.url ?? storeUrl
+        setDeployStatus('ready')
+        if (url) { setDeployUrl(url); setPreviewUrl(url); setPreviewReady(true) }
+        setMessages((prev) => [...prev, { role: 'assistant', content: `Published v${data.versionNo} — it's live at **${(url ?? '').replace('https://', '')}**.`, type: 'done' }])
+        fetchPublishState()
+        return
+      }
+      if (data.mode === 'up_to_date') {
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Your live store already has the latest version.', type: 'done' }])
+        fetchPublishState()
+        return
+      }
+      // 'rebuild' — a full production build of the latest version.
+      await handleDeploy()
+    } catch {
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Publish request failed. Try again.', type: 'error' }])
+    } finally {
+      setIsPublishing(false)
+    }
   }
 
   async function handleDeploy() {
@@ -3617,9 +3736,26 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               </button>
             </div>
 
-            {deployStatus === 'ready' && liveUrl ? (
+            {draftMode && publishState && !publishState.upToDate && (
+              <button
+                onClick={handlePublish}
+                disabled={isPublishing || isDeploying || deployStatus === 'building'}
+                title="Make your latest changes live"
+                style={{
+                  fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 6,
+                  border: '1px solid rgba(212,255,63,.45)',
+                  background: isPublishing || isDeploying ? 'transparent' : 'rgba(212,255,63,.14)',
+                  color: '#D4FF3F', cursor: isPublishing || isDeploying ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#D4FF3F' }} />
+                {isPublishing || isDeploying || deployStatus === 'building' ? '⟳ Publishing' : 'Publish'}
+              </button>
+            )}
+            {(deployStatus === 'ready' || draftMode) && (liveUrl ?? (draftMode ? storeUrl : null)) ? (
               <a
-                href={liveUrl}
+                href={(liveUrl ?? storeUrl) as string}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -4091,6 +4227,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
 
   // ── Theme mode — direct manifest design-token controls ───────────────────────
+  const CodeThemePanelEl = hasGeneratedOnce ? (
+    <CodeThemePanel
+      projectId={projectId}
+      onPreview={postThemePreview}
+      onSaved={() => { fetchVersions(); fetchPublishState() }}
+      publishHint={draftMode
+        ? 'Changes show instantly in the preview and are saved as a draft. Click Publish to make them live.'
+        : 'Changes show instantly in the preview and are saved to your store. They go live with your next deploy.'}
+    />
+  ) : null
+
   const ThemePanel = currentManifest ? (
     <div style={{ flex: 1, overflowY: 'auto', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -4843,6 +4990,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
         {/* URL + controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {draftMode && publishState && previewUrl && (
+            <span
+              title={publishState.upToDate ? 'The preview shows what shoppers see.' : 'Unpublished changes — shoppers still see the published version.'}
+              style={{
+                fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em',
+                padding: '2px 7px', borderRadius: 99,
+                color: publishState.upToDate ? '#3ecf8e' : '#D4FF3F',
+                background: publishState.upToDate ? 'rgba(62,207,142,.08)' : 'rgba(212,255,63,.08)',
+                border: `1px solid ${publishState.upToDate ? 'rgba(62,207,142,.25)' : 'rgba(212,255,63,.25)'}`,
+              }}
+            >
+              {publishState.upToDate ? 'Live' : 'Draft'}
+            </span>
+          )}
           {previewUrl && (
             <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {previewUrl.replace('https://', '')}
@@ -4980,6 +5141,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           })()
         ) : previewDevice === 'desktop' ? (
           <iframe
+            ref={previewFrameRef}
             src={previewUrl}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="Store preview"
@@ -4998,6 +5160,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             transformOrigin: 'top center',
           }}>
             <iframe
+              ref={previewFrameRef}
               src={previewUrl}
               style={{ width: '100%', height: '100%', border: 'none' }}
               title="Store preview"
@@ -6378,7 +6541,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {/* Sections/Theme only shown for legacy manifest-type stores — for code-gen
                 stores (the current default), design changes go through Chat instead, so
                 those two panels would otherwise be dead-ends here. */}
-            {STUDIO_MODES.filter(m => (m.id === 'sections' || m.id === 'theme') ? !!currentManifest : true).map(({ id, icon: Icon, label }) => {
+            {STUDIO_MODES.filter(m => m.id === 'sections' ? !!currentManifest : m.id === 'theme' ? (!!currentManifest || hasGeneratedOnce) : true).map(({ id, icon: Icon, label }) => {
               const active = desktopTab === id
               return (
                 <button
@@ -6435,7 +6598,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {desktopTab === 'chat'     && ChatPanel}
               {desktopTab === 'sections' && SectionsPanel}
               {desktopTab === 'products' && ProductsPanel}
-              {desktopTab === 'theme'    && ThemePanel}
+              {desktopTab === 'theme'    && (currentManifest ? ThemePanel : CodeThemePanelEl)}
               {desktopTab === 'publish'  && (
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                   {PublishPanel}
@@ -6515,7 +6678,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {activeTab === 'logs'     && LogsPane}
         {activeTab === 'sections' && SectionsPanel}
         {activeTab === 'products' && ProductsPanel}
-        {activeTab === 'theme'    && ThemePanel}
+        {activeTab === 'theme'    && (currentManifest ? ThemePanel : CodeThemePanelEl)}
         {activeTab === 'publish'  && (
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {PublishPanel}

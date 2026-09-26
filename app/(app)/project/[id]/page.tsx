@@ -8,6 +8,7 @@ import { toStoreSlug } from '@/lib/store-template/build'
 import { HOSTING_ROOT_DOMAIN } from '@/lib/hosting/vercel'
 import { getHostingGate } from '@/lib/hosting/gate'
 import { getBalance } from '@/lib/credits'
+import { isDraftPublishReady } from '@/lib/hosting/deployments'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -20,12 +21,12 @@ export default async function StudioPage({ params }: Props) {
 
   const supabase = await createClient()
 
-  const [projectResult, balance, hostingSubResult, latestDeploymentResult, codeVersionResult, agencyFlag, gate] = await Promise.all([
+  const [projectResult, balance, hostingSubResult, latestDeploymentResult, codeVersionResult, agencyFlag, gate, draftPublishReady] = await Promise.all([
     supabase.from('projects').select('*').eq('id', id).eq('user_id', userId).single(),
     getBalance(userId),
     supabase.from('hosting_subscriptions').select('status, current_period_end, cancel_at_period_end')
       .eq('project_id', id).in('status', ['active', 'trialing']).maybeSingle(),
-    supabase.from('deployments').select('id, vercel_deployment_id, status, url')
+    supabase.from('deployments').select('id, vercel_deployment_id, status, url, target')
       .eq('project_id', id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('code_versions').select('id')
       .eq('project_id', id).limit(1).maybeSingle(),
@@ -33,6 +34,7 @@ export default async function StudioPage({ params }: Props) {
     // Same gate every deploy path uses. Keyed only by project id (service-role), so its
     // result is used only after the owner-scoped project query above succeeded.
     getHostingGate(id),
+    isDraftPublishReady(),
   ])
 
   if (projectResult.error || !projectResult.data) redirect('/dashboard')
@@ -52,6 +54,9 @@ export default async function StudioPage({ params }: Props) {
   // (StudioClient has no separate "never had a trial" state, so this reads "Free trial
   // ended" — the Subscribe buttons it renders are what matters.)
   const trialUsedElsewhere = !gate.everLive && gate.reason === 'trial_used'
+  // Draft/publish (2026-09-26): chat edits of this live store are staged drafts, shown in
+  // the preview by their own URL until the owner publishes them.
+  const draftMode = gate.everLive && gate.canDeployProduction && draftPublishReady
   // An active Agency plan covers hosting for every store (getHostingGate allows them),
   // so present it like a hosting subscription: no trial countdown, no "trial ended →
   // subscribe" upsell, no "first deploy starts your trial" hint. Without this an Agency
@@ -73,6 +78,7 @@ export default async function StudioPage({ params }: Props) {
         id: latestDeploy.vercel_deployment_id as string,
         status: latestDeploy.status as string,
         url: latestDeploy.url as string | null,
+        target: (latestDeploy.target as string | null | undefined) ?? null,
       }
     : null
 
@@ -98,6 +104,7 @@ export default async function StudioPage({ params }: Props) {
         hasCodeVersion={hasCodeVersion}
         isAgency={isAgency}
         hostingPaused={hostingPaused}
+        draftMode={draftMode}
       />
     </Suspense>
   )

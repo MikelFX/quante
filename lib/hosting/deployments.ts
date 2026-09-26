@@ -12,7 +12,7 @@
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-export type DeploymentTarget = 'production' | 'preview' | 'maintenance'
+export type DeploymentTarget = 'production' | 'preview' | 'maintenance' | 'staged'
 
 export interface DeploymentRowInput {
   project_id: string
@@ -25,7 +25,11 @@ export interface DeploymentRowInput {
   version?: number | null
   version_id?: string | null
   code_version_id?: string | null
-  /** 'production' for every production-target build, 'preview' for true previews. */
+  /**
+   * 'production' for every production-target build that serves the store's domains,
+   * 'staged' for draft builds (production target, domains not assigned — see
+   * createStagedDeployment), 'preview' for true previews.
+   */
   target: DeploymentTarget
   /** SCAFFOLD_VERSION for store builds, null for maintenance pages. */
   scaffold_version: number | null
@@ -58,4 +62,20 @@ export async function insertDeploymentRow(
   const retry = await supabaseAdmin.from('deployments').insert(legacy).select('id').single()
   if (retry.error) return { id: null, error: retry.error }
   return { id: (retry.data as { id: string } | null)?.id ?? null, error: null }
+}
+
+// Draft/publish (supabase/migration-draft-publish.sql) — until it has run there is no
+// deployments.promoted_at and the target check constraint rejects 'staged', so callers
+// keep the old behaviour (chat edits of live stores deploy straight to production).
+// Cached per instance once confirmed; a failed lookup is retried on the next call.
+let draftPublishReady: boolean | null = null
+export async function isDraftPublishReady(): Promise<boolean> {
+  if (draftPublishReady) return true
+  const { error } = await supabaseAdmin.from('deployments').select('promoted_at').limit(1)
+  if (!error) {
+    draftPublishReady = true
+    return true
+  }
+  if (!isUnknownColumnError(error)) console.error('[deployments] draft/publish check failed:', error.message)
+  return false
 }

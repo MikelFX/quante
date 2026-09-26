@@ -16,6 +16,7 @@ import { detachFromVercel } from '@/app/api/domains/_lib/release'
 import { getHostingGate } from '@/lib/hosting/gate'
 import { buildStoreFiles, SCAFFOLD_VERSION } from '@/lib/store-template/build'
 import { insertDeploymentRow } from '@/lib/hosting/deployments'
+import { resolveLiveCodeVersion } from '@/lib/hosting/scaffold-rollout'
 import type { CodeVersionFiles } from '@/types/store-code'
 import { getActivePartnerForProject, recordCommission } from '@/lib/partner-commission'
 import { decrementStockForOrder } from '@/lib/payments/stock'
@@ -1257,8 +1258,9 @@ async function handleInvoicePaid(eventInvoice: Stripe.Invoice): Promise<void> {
 }
 
 // ─── Hosting restore: redeploy a suspended store after resubscribe ───────────
-// Store data is never deleted — the maintenance page is replaced by the latest
-// generated code version. Free (no credit debit); failures are non-fatal and the
+// Store data is never deleted — the maintenance page is replaced by the version that was
+// published before the suspension (never an unpublished draft; the latest code version
+// only when no published build can be found). Free (no credit debit); failures are non-fatal and the
 // user can always redeploy manually from the Studio.
 async function restoreSuspendedStore(projectId: string): Promise<void> {
   try {
@@ -1275,13 +1277,19 @@ async function restoreSuspendedStore(projectId: string): Promise<void> {
 
     if (!project?.hosting_suspended_at) return
 
-    const { data: version } = await supabaseAdmin
+    let publishedId: string | null = null
+    try {
+      publishedId = (await resolveLiveCodeVersion(projectId)).codeVersionId
+    } catch (err) {
+      console.warn(`[webhook] restore: published version lookup failed for ${projectId}, using the latest version:`, err)
+    }
+    const versionQuery = supabaseAdmin
       .from('code_versions')
       .select('id, files, version_no')
       .eq('project_id', projectId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    const { data: version } = publishedId
+      ? await versionQuery.eq('id', publishedId).maybeSingle()
+      : await versionQuery.order('created_at', { ascending: false }).limit(1).maybeSingle()
 
     if (!version) return
 

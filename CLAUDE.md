@@ -307,6 +307,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - **Platform-locked** (`PLATFORM_LOCKED_FILES`) — route handlers (`app/api/**`), legal pages + `LegalPageView` (live from business info), `lib/i18n.ts`, `lib/platform.ts`, build config. These are security / correctness boundaries: never unlock them for convenience.
 - Chat image uploads live in the public Supabase bucket `store-assets` under `<userId>/<projectId>/`; code only references the URL.
 
+## 13b. Draft / publish + theme (2026-09-26)
+
+- Chat edits, auto-fixes and rebuilds of a **live** store are *staged* Vercel builds (production target, domains not assigned). The Studio previews them by their own URL; **Publish** (`/api/projects/[id]/publish`) promotes the build — no rebuild. Shoppers never see an unpublished or broken change.
+- The live build is the ready production deployment with the newest `coalesce(promoted_at, created_at)` — never "the latest deployment".
+- `config.design` in the store's `data/config.ts` is the single source of colors, fonts and radius (scaffold `ThemeStyle` → CSS variables). The Studio Theme panel edits only that object (AST, `lib/store-theme.ts`) and previews live through the store's `ThemeBridge` (postMessage).
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.
