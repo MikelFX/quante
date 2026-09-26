@@ -9,6 +9,7 @@ import { isUnknownColumnError } from '@/lib/hosting/deployments'
 import { rateLimit } from '@/lib/rate-limit'
 import { isAgencyUser } from '@/lib/tier'
 import { filterAiStoreFiles } from '@/lib/store-template/build'
+import { withTokenClasses } from '@/lib/store-template/style-codemod'
 import { AI_FILTER_PROMPT_NOTE, describeDroppedFiles, normalizeDroppedFiles } from '@/lib/generation-checkpoint'
 import type { CodeVersionFiles } from '@/types/store-code'
 import {
@@ -390,7 +391,7 @@ export async function POST(request: Request) {
     // code filter as generate and iterate before it is saved or deployed. A rejected fix
     // saves nothing. 409 so the Studio's auto-fix loop treats it as terminal — a retry of
     // the same fix would most likely be rejected again (each retry is a free Claude call).
-    const fixed = filterAiStoreFiles({ [output.file]: output.content })
+    const fixed = filterAiStoreFiles(withTokenClasses({ [output.file]: output.content }))
     if (fixed.dropped.length > 0) {
       const dropped = normalizeDroppedFiles(fixed.dropped)
       console.warn('[fix] rejected fix that failed safety checks:', dropped)

@@ -638,3 +638,16 @@ See `docs/TODO.md` → "Security audit 2026-09 — owner actions".
 - Studio: new code-gen **Theme** panel (`CodeThemePanel.tsx`: 7 colors, heading/body font, radius slider) — each change goes to the preview iframe instantly via postMessage and is saved (debounced) as a draft. Top bar **Publish** button + Draft/Live chip in the preview toolbar when the live store has unpublished changes; the preview shows the draft build's own URL (`keepRawPreview`), not the store domain.
 - `SCAFFOLD_VERSION` 3 → 4.
 - Verified: `tsc` clean, `npm test` 262/262 (new: `store-theme.test.mjs` 9, `draft-publish.test.mjs` 5), `next build` passes, scaffold v4 of a real store built on a throwaway Vercel project (HTML carries the `html:root` theme + fonts link). Not yet exercised end-to-end in the deployed Studio (needs the migration + deploy).
+
+---
+
+## 2026-09-26 — Theme tokens + inline-style codemod (SCAFFOLD_VERSION 5)
+
+**Why:** step 3 of the visual-editor plan — the editor should only have to understand `className`, not a second styling system in `style={{…}}`. Generated pages styled theme colors inline (258 `style=` attributes across the 3 live stores, almost all `var(--color-*)`).
+
+**What:**
+- **Tokens:** `withThemeTokens()` (build.ts) injects an `@theme` block into `styles/store.css` at build time, right after the last leading `@import` (quote/paren-aware — Google Fonts URLs contain `;`). Utilities: `bg-/text-/border-{bg,surface,text,muted,accent,accent-text,border}`, `font-heading`, `font-body`, `rounded-store` (`--radius-store: var(--radius)`). The defaults live in Tailwind's theme layer, so store.css `:root` values and ThemeStyle's `html:root` (config.design) always win. Never stored in code_versions; old stores get it on their next build.
+- **Codemod** (`lib/store-template/style-codemod.ts`): exact token values only (`'var(--color-X)'`, `'1px solid var(--color-X)'`, `'var(--radius)'`, `'var(--font-heading|body)'`, `50%/9999px → rounded-full`, `0 → rounded-none`) become classes; everything else stays inline. Text-range edits on the original source, className string / `{'…'}` / template literal extended, complex className expressions left alone, result must re-parse.
+- **Self-repair rule:** every new AI output (generate / iterate / fix) goes through `withTokenClasses()` before the safety filter — deterministic, no extra model call. Prompts (generation rule 9 + iteration rules) now require token classes for theme values and allow `style={}` only for runtime values. **Not** a hard ban: after the codemod 17 of 258 inline styles are left in the live stores and all are legitimately dynamic (conditionals, gradients, transforms, computed colors) — rejecting them would force an extra paid model round-trip for nothing.
+- **Existing stores:** `node scripts/codemod-inline-styles.mjs` (dry run) / `--apply` saves a new code version per store (a draft — publish from the Studio). Dry run: Dulpra 145, Svit 65, Dorty 103 properties converted; 5 / 9 / 3 style attributes left.
+- Verified: Dorty built twice on a throwaway Vercel project (original vs codemod) — computed styles (colors, backgrounds, borders, radius, fonts, fill/stroke) of all 312 page elements identical; DOM inline styles 143 → 71 (the rest are framer-motion). `style-codemod.test.mjs` (10), `npm test` 272/272, `tsc` clean.

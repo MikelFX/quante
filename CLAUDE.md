@@ -313,6 +313,8 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - The live build is the ready production deployment with the newest `coalesce(promoted_at, created_at)` — never "the latest deployment".
 - `config.design` in the store's `data/config.ts` is the single source of colors, fonts and radius (scaffold `ThemeStyle` → CSS variables). The Studio Theme panel edits only that object (AST, `lib/store-theme.ts`) and previews live through the store's `ThemeBridge` (postMessage).
 
+- Styling in generated stores: theme values are Tailwind token classes (`bg-accent`, `text-muted`, `font-heading`, `rounded-store` …, from the `@theme` block injected at build). New AI output is normalized by a deterministic codemod (`withTokenClasses`); `style={}` only for runtime values.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

@@ -360,7 +360,7 @@ The scaffold provides these — import freely:
   Info, AlertCircle, CheckCircle, XCircle, Facebook, Youtube, Linkedin, Github, Link
   DO NOT use Instagram, Twitter, Music, or any other icon — they don't exist in v1.
 - "framer-motion": motion, AnimatePresence
-- Tailwind CSS v4 classes (use freely in className props)
+- Tailwind CSS v4 classes (use freely in className props) — including the store theme tokens bg-accent, text-muted, border-border, font-heading, rounded-store …
 - "react": useState, useEffect, useCallback, useRef, etc.
 - "next/image": Image component
 - "next/link": Link component
@@ -391,7 +391,7 @@ DO NOT generate app/layout.tsx, components/layout/Navbar.tsx, components/layout/
 6. StoreProduct.images: use empty arrays [] — user will add images later.
 7. The "summary" field: 1-2 sentences describing what you built (brand name, product count, design direction).
 8. All component files must have 'use client' at the top if they use hooks (useState, useEffect, useCart, etc.).
-9. Use the CSS custom properties (--color-bg, etc.) in your components for consistent theming.
+9. Theme styling = Tailwind token classes that resolve to the store theme: bg-bg, bg-surface, bg-text, bg-accent, text-text, text-muted, text-accent, text-accent-text, text-bg, border-border, border-accent, font-heading, font-body, rounded-store. Never write inline styles for theme values (no style={{ color: 'var(--color-accent)' }}, no style={{ borderRadius: 'var(--radius)' }}); use style={} only for values that change at runtime and no class can express (computed widths, conditional gradients, transforms).
 10. Make the generated store genuinely beautiful and conversion-oriented for the brief given.
 11. config.nav: include links to all relevant pages. Common: [{label:"Products",href:"/collections/all"},{label:"About",href:"/about"}]
 12. config.footer.columns: include at least one column with Shop / Company links matching config.nav.
@@ -423,6 +423,7 @@ RULES:
 - Preserve imports from @/lib/store/cart, @/data/products, @/data/config — these always exist.
 - Keep 'use client' directive at the top of client components.
 - Real specific copy — never lorem ipsum.
+- Theme styling = Tailwind token classes that resolve to the store theme: bg-bg, bg-surface, bg-text, bg-accent, text-text, text-muted, text-accent, text-accent-text, text-bg, border-border, border-accent, font-heading, font-body, rounded-store. Never write inline styles for theme values (no style={{ color: 'var(--color-accent)' }}, no style={{ borderRadius: 'var(--radius)' }}); use style={} only for values that change at runtime and no class can express (computed widths, conditional gradients, transforms).
 - If products change (data/products.ts), keep all product slugs kebab-case and IDs short strings.
 - Colors, fonts and corner radius live in config.design in data/config.ts — that is the source of truth (the scaffold turns it into the CSS variables --color-*, --font-heading/--font-body, --radius, and the Studio theme panel edits it). To change the theme, update config.design; keep the :root defaults in styles/store.css in sync too.
 - EVERYTHING the customer sees is editable. Besides CURRENT FILES you also receive PLATFORM DEFAULT FILES — the live header (components/layout/Navbar.tsx), footer (components/layout/Footer.tsx), cart drawer (components/layout/CartDrawer.tsx), cookie banner (components/layout/CookieConsent.tsx), root layout (app/layout.tsx), cart + checkout page (app/cart/page.tsx) and order-success page (app/success/page.tsx). To change one, output its COMPLETE new content under the same path, starting from the source you were given. Only touch them when the instruction needs it.

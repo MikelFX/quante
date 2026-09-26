@@ -5,6 +5,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { anthropic, MODELS, SYSTEM_PROMPT_CODE_GENERATION } from '@/lib/claude'
 import { createVercelPreviewDeploy, ensureProjectVercel, summarizeDeploymentFailure } from '@/lib/hosting/vercel'
 import { buildStoreFiles, filterAiStoreFiles, SCAFFOLD_VERSION } from '@/lib/store-template/build'
+import { withTokenClasses } from '@/lib/store-template/style-codemod'
 import { insertDeploymentRow } from '@/lib/hosting/deployments'
 import { getUserRecord } from '@/lib/tier'
 import {
@@ -117,7 +118,7 @@ function parseCodeOutput(raw: string): StoreCodeOutput & { dropped: DroppedFile[
   // SECURITY (audit #23): only allowlisted store paths with no server-side capabilities
   // may be saved to code_versions or deployed. Everything else is dropped here, before
   // anything is persisted; buildStoreFiles() re-applies the same filter at deploy time.
-  const { files, dropped } = filterAiStoreFiles(extracted)
+  const { files, dropped } = filterAiStoreFiles(withTokenClasses(extracted))
   if (dropped.length > 0) {
     console.warn('[generate:bg] dropped disallowed AI files:', dropped)
   }

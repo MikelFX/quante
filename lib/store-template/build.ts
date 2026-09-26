@@ -35,7 +35,9 @@ export function toStoreSlug(s: string): string {
 //   3 = image logo 2026-09 (locked Navbar renders config.brand.logoUrl)
 //   4 = theme from config 2026-09 (ThemeStyle: data/config.ts design → CSS variables +
 //       Google Fonts link; ThemeBridge: live theme preview from the Studio)
-export const SCAFFOLD_VERSION = 4
+//   5 = theme tokens 2026-09-26 (@theme in styles/store.css: bg-accent, text-muted,
+//       font-heading, rounded-store … — withThemeTokens)
+export const SCAFFOLD_VERSION = 5
 
 // ─── Store theme (config.design → CSS variables) ──────────────────────────────
 // data/config.ts `design` is the single source of the store's colors / fonts / radius:
@@ -3142,6 +3144,77 @@ const LUCIDE_REPLACEMENTS: Record<string, string> = {
   Medium: 'ExternalLink',
 }
 
+// Tailwind v4 theme tokens for the store theme (2026-09-26): bg-accent, text-muted,
+// border-border, font-heading, rounded-store … The store's own --color-* / --font-* /
+// --radius variables already live in Tailwind's namespaces, so registering them makes
+// the utilities resolve to var(--color-accent) etc. The defaults here sit in Tailwind's
+// theme layer, so the store's :root values (styles/store.css) and ThemeStyle's html:root
+// values (config.design) always win. Injected at build time into styles/store.css right
+// after its last top-level @import (an @import must precede every other rule), so every
+// store — including ones generated before this existed — gets the tokens in the same
+// Tailwind compilation. Never stored in code_versions.
+export const THEME_TOKENS_MARKER = '/* store theme tokens (platform) */'
+const THEME_TOKENS_CSS = `${THEME_TOKENS_MARKER}
+@theme {
+  --color-bg: #ffffff;
+  --color-surface: #f9fafb;
+  --color-text: #111111;
+  --color-muted: #6b7280;
+  --color-accent: #111111;
+  --color-accent-text: #ffffff;
+  --color-border: #e5e7eb;
+  --font-heading: ui-sans-serif, system-ui, sans-serif;
+  --font-body: ui-sans-serif, system-ui, sans-serif;
+  --radius-store: var(--radius, 8px);
+}
+`
+
+export function withThemeTokens(css: string): string {
+  if (css.includes(THEME_TOKENS_MARKER)) return css
+  if (!/@import\s+["']tailwindcss["']/.test(css)) return css
+  const at = endOfLeadingImports(css)
+  if (at <= 0) return css
+  return css.slice(0, at) + '\n\n' + THEME_TOKENS_CSS + css.slice(at)
+}
+
+/**
+ * Index just past the last @import of the leading run of @import statements (whitespace
+ * and comments between them allowed). Quote- and paren-aware: Google Fonts URLs contain
+ * ';' (wght@400;500). 0 when the file doesn't start with @imports.
+ */
+function endOfLeadingImports(css: string): number {
+  let i = 0
+  let end = 0
+  const n = css.length
+  for (;;) {
+    while (i < n) {
+      if (/\s/.test(css[i])) { i++; continue }
+      if (css.startsWith('/*', i)) {
+        const close = css.indexOf('*/', i + 2)
+        if (close < 0) return end
+        i = close + 2
+        continue
+      }
+      break
+    }
+    if (!css.startsWith('@import', i)) return end
+    let j = i + 7
+    let quote: string | null = null
+    let depth = 0
+    for (; j < n; j++) {
+      const c = css[j]
+      if (quote) { if (c === '\\') j++; else if (c === quote) quote = null; continue }
+      if (c === '"' || c === "'") quote = c
+      else if (c === '(') depth++
+      else if (c === ')') depth = Math.max(0, depth - 1)
+      else if (c === ';' && depth === 0) break
+    }
+    if (j >= n) return end
+    i = j + 1
+    end = i
+  }
+}
+
 function sanitizeCss(content: string): string {
   // Strip any HTML <style> / </style> tags Claude may accidentally inject into .css files
   return content.replace(/<\/?style[^>]*>/gi, '').trim()
@@ -3214,6 +3287,10 @@ export function buildStoreFiles(
           : content
       scaffoldMap.set(filePath, { path: filePath, content: sanitized, encoding: 'utf-8' })
     }
+
+    // Theme tokens (bg-accent, text-muted, rounded-store …) in the store's Tailwind entry.
+    const storeCss = scaffoldMap.get('styles/store.css')
+    if (storeCss) scaffoldMap.set('styles/store.css', { ...storeCss, content: withThemeTokens(storeCss.content) })
 
     return Array.from(scaffoldMap.values())
   }

@@ -9,6 +9,7 @@ import { refundCapped } from '@/app/api/credits/refund/capped'
 import { isAgencyUser } from '@/lib/tier'
 import { CREDIT_COSTS, RATE_LIMITS, AGENCY_RATE_LIMIT_PER_MIN, AGENCY_TOKEN_CAP } from '@/lib/config'
 import { filterAiStoreFiles, getEditableScaffoldFiles } from '@/lib/store-template/build'
+import { withTokenClasses } from '@/lib/store-template/style-codemod'
 import { AI_FILTER_PROMPT_NOTE, describeDroppedFiles, normalizeDroppedFiles } from '@/lib/generation-checkpoint'
 import type { CodeVersionFiles } from '@/types/store-code'
 import { startAttempt, finishAttempt, countRecentAttempts, countInFlightAttempts } from './attempts'
@@ -361,7 +362,7 @@ export async function POST(request: Request) {
       // capabilities may be saved or deployed. Filter the model's new files first (so a
       // rejected rewrite keeps the previous good version of that file), then the merged
       // set, which also strips disallowed files saved by older versions.
-      const newFiles = filterAiStoreFiles(output.files)
+      const newFiles = filterAiStoreFiles(withTokenClasses(output.files))
       const rejectedNew = normalizeDroppedFiles(newFiles.dropped)
 
       // Every file the model wrote was rejected: saving would store an unchanged copy
