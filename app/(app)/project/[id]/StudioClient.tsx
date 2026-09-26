@@ -11,6 +11,7 @@ import type { StoreProduct } from '@/types/store-code'
 import type { StoreHealthResult, HealthCheckItem } from '@/lib/store-health'
 import { MerchantPanel } from './MerchantPanel'
 import { CodeThemePanel } from './CodeThemePanel'
+import { VisualEditor } from './VisualEditor'
 import { THEME_MESSAGE_SOURCE, type themePreviewPayload } from '@/lib/store-theme-shared'
 import {
   MessageCircle, Layers, Package, Paintbrush, Rocket,
@@ -464,6 +465,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   // Draft/publish (GET /api/projects/[id]/publish) + theme live preview
   const [publishState, setPublishState] = useState<PublishState | null>(null)
   const [isPublishing, setIsPublishing] = useState(false)
+  // Visual editor v1 (sandboxed live preview with click-to-edit, VisualEditor.tsx)
+  const [visualEdit, setVisualEdit] = useState(false)
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
   // Last theme sent to the preview — re-sent when the store page (re)loads, dropped when
   // a new build replaces the preview (that build already contains the saved theme).
@@ -4990,6 +4993,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
         {/* URL + controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isDesktop && hasGeneratedOnce && (
+            <button
+              onClick={() => setVisualEdit(true)}
+              title="Click elements in your store to edit text, classes and order"
+              style={{
+                fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
+                border: '1px solid rgba(212,255,63,.35)', background: 'rgba(212,255,63,.08)', color: '#D4FF3F',
+              }}
+            >
+              ✎ Edit visually
+            </button>
+          )}
           {draftMode && publishState && previewUrl && (
             <span
               title={publishState.upToDate ? 'The preview shows what shoppers see.' : 'Unpublished changes — shoppers still see the published version.'}
@@ -6608,7 +6623,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </div>
 
           {/* ── Right panel: Preview or Logs ────────────────────────── */}
-          {rightPanel === 'logs' ? LogsPane : PreviewPane}
+          {visualEdit ? (
+            <VisualEditor
+              projectId={projectId}
+              onExit={() => { setVisualEdit(false); fetchVersions(); fetchPublishState() }}
+              onSaved={() => { fetchVersions(); fetchPublishState() }}
+            />
+          ) : rightPanel === 'logs' ? LogsPane : PreviewPane}
         </div>
         {showCommandPalette && (
           <CommandPalette
