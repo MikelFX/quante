@@ -651,3 +651,23 @@ See `docs/TODO.md` → "Security audit 2026-09 — owner actions".
 - **Self-repair rule:** every new AI output (generate / iterate / fix) goes through `withTokenClasses()` before the safety filter — deterministic, no extra model call. Prompts (generation rule 9 + iteration rules) now require token classes for theme values and allow `style={}` only for runtime values. **Not** a hard ban: after the codemod 17 of 258 inline styles are left in the live stores and all are legitimately dynamic (conditionals, gradients, transforms, computed colors) — rejecting them would force an extra paid model round-trip for nothing.
 - **Existing stores:** `node scripts/codemod-inline-styles.mjs` (dry run) / `--apply` saves a new code version per store (a draft — publish from the Studio). Dry run: Dulpra 145, Svit 65, Dorty 103 properties converted; 5 / 9 / 3 style attributes left.
 - Verified: Dorty built twice on a throwaway Vercel project (original vs codemod) — computed styles (colors, backgrounds, borders, radius, fonts, fill/stroke) of all 312 page elements identical; DOM inline styles 143 → 71 (the rest are framer-motion). `style-codemod.test.mjs` (10), `npm test` 272/272, `tsc` clean.
+
+---
+
+## 2026-09-26 — Production rollout of draft/publish + theme + tokens; Vercel Sandbox spike
+
+**Production:** main fast-forwarded to a650c0f (owner push) → production deploy READY. Codemod applied to the 3 live stores (`scripts/codemod-inline-styles.mjs --apply` → Dulpra v5, Svit v12, Dorty v5, 313 properties) and each published from the Studio (Publish → no promotable draft build → Push to Live rebuild at SCAFFOLD_VERSION 5). All three domains 200. Studio verified in the browser: Draft/Live chip, Publish button, Theme tab; live theme preview via ThemeBridge on dorty.stores.quantecode.com (colors/font/radius change instantly, reset works, a message with a wrong `source` is ignored). Seen along the way: rollout builds nobody polled stay `building` in the DB — the Studio then shows "deploying…" for ~12 s on load until its poll settles them (Dorty even had no recognisable live row until its publish).
+
+**Bug found by the spike (fixed in b83f2d6, on the branch — not yet in production):** `@import url(fonts)` after `@import "tailwindcss"` is invalid CSS once Tailwind inlines itself; `next build` tolerates it but `next dev` 500s every page. `hoistExternalImports()` in `buildStoreFiles` now moves external imports first.
+
+**Vercel Sandbox spike** (Svit, scaffold v5, 2 vCPU / 4 GB, iad1, measured from CZ):
+
+| | |
+|---|---|
+| cold start (create 0.4 s + write 0.3 s + `npm install` 15.9 s + first `next dev` page 6.2 s) | **22.8 s** |
+| snapshot with node_modules (448 MB) | 3.3 s to create |
+| warm start from snapshot (create 1.4 s + write 0.2 s + first page 6.7 s) | **8.6 s** (2nd run, other store: 8.5 s) |
+| HMR: file write → changed server HTML | **0.4–0.5 s** |
+| 5.3-min session, 13 edits | **22.9 s Active CPU** |
+
+Cost of a 20-min editing session (Pro, iad1): memory 4 GB × 1/3 h × $0.0212 ≈ **$0.028**, Active CPU ≈ 90 s × $0.128/h ≈ **$0.003**, port traffic ~50 MB × $0.15/GB ≈ **$0.008** → **≈ $0.04 / session** (≈ 0.2 credit at the cheapest pack price $0.20/credit). Memory dominates — the sandbox must be stopped after a few idle minutes. One shared snapshot per scaffold version is enough (package.json is identical for every store); per-store files are written at start (0.2 s). Remaining first-page time is Turbopack's cold compile — could be cut by snapshotting a warmed `.next` cache. Consider `fra1` for lower HMR latency from Europe (regional pricing differs).
