@@ -23,14 +23,15 @@ export function cleanStoreFiles(codeFiles: CodeVersionFiles): { text: Record<str
  * The sandbox copy of next.config: the dev server must accept its own public host
  * (*.vercel.run). Without allowedDevOrigins Next.js blocks the HMR websocket as
  * cross-origin and its client falls into a full-page reload loop — the preview never
- * hydrates. Sandbox only; the deployed config is untouched.
+ * hydrates. devIndicators: false hides the Next.js "N" badge, which would cover the
+ * store (e.g. the cookie bar). Sandbox only; the deployed config is untouched.
  */
 export function withEditorDevOrigins(nextConfig: string): string {
   if (nextConfig.includes('allowedDevOrigins')) return nextConfig
   const anchor = nextConfig.match(/const nextConfig(?::\s*NextConfig)?\s*=\s*\{/)
   if (!anchor || anchor.index === undefined) return nextConfig
   const at = anchor.index + anchor[0].length
-  return nextConfig.slice(0, at) + "\n  allowedDevOrigins: ['*.vercel.run']," + nextConfig.slice(at)
+  return nextConfig.slice(0, at) + "\n  allowedDevOrigins: ['*.vercel.run'],\n  devIndicators: false," + nextConfig.slice(at)
 }
 
 export function prepareEditorFiles(codeFiles: CodeVersionFiles, parentOrigins: string[]): {
