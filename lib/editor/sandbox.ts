@@ -103,13 +103,19 @@ async function devServerUp(url: string): Promise<boolean> {
 }
 
 async function startDevServer(sb: Sandbox): Promise<string> {
-  await sb.runCommand({
-    cmd: 'sh',
-    args: ['-c', 'npx next dev -p 3000 -H 0.0.0.0 > /tmp/next-dev.log 2>&1'],
-    cwd: ROOT,
-    env: { NEXT_TELEMETRY_DISABLED: '1' },
-    detached: true,
-  })
+  // A dev server that is still starting (or restarting after a next.config change) must
+  // not get a twin — the second one only dies with EADDRINUSE.
+  // "[n]ext dev" so pgrep doesn't match this very shell command line.
+  const running = await sb.runCommand({ cmd: 'sh', args: ['-c', 'pgrep -f "[n]ext dev" >/dev/null && echo yes || echo no'], cwd: ROOT })
+  if ((await running.stdout()).trim() !== 'yes') {
+    await sb.runCommand({
+      cmd: 'sh',
+      args: ['-c', 'npx next dev -p 3000 -H 0.0.0.0 >> /tmp/next-dev.log 2>&1'],
+      cwd: ROOT,
+      env: { NEXT_TELEMETRY_DISABLED: '1' },
+      detached: true,
+    })
+  }
   const url = sb.domain(PORT)
   const deadline = Date.now() + DEV_READY_TIMEOUT_MS
   while (Date.now() < deadline) {

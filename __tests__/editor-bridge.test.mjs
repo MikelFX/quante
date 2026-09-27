@@ -43,3 +43,19 @@ test('a "use client" prologue stays first', () => {
   const out = B.injectEditorBridge(`'use client'\nimport x from 'y'\nexport default function L({children}) { return <html><body>{children}</body></html> }\n`)
   assert.match(out, /^'use client'\nimport \{ EditorBridge \}/)
 })
+
+test('the sandbox next.config allows the sandbox host for dev resources (HMR)', async () => {
+  const { registerHooks } = await import('node:module')
+  const ROOT = new URL('../', import.meta.url)
+  registerHooks({ resolve(s, c, n) { if (s.startsWith('@/')) { const b = s.slice(2); return n(new URL(b.endsWith('.ts') ? b : `${b}.ts`, ROOT).href, c) } return n(s, c) } })
+  const F = await import(new URL('../lib/editor/files.ts', import.meta.url).href)
+  const cfg = build.buildStoreFiles({}).find((f) => f.path === 'next.config.ts').content
+  const out = F.withEditorDevOrigins(cfg)
+  assert.match(out, /const nextConfig: NextConfig = \{\n  allowedDevOrigins: \['\*\.vercel\.run'\],/)
+  assert.ok(parses(out, 'next.config.ts'))
+  assert.equal(F.withEditorDevOrigins(out), out)
+  const prepared = F.prepareEditorFiles({}, ['https://quantecode.com'])
+  assert.match(prepared.files.find((f) => f.path === 'next.config.ts').content, /allowedDevOrigins/)
+  // The deployed build never gets it.
+  assert.doesNotMatch(cfg, /allowedDevOrigins/)
+})
