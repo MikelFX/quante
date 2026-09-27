@@ -51,9 +51,7 @@ test('the sandbox next.config allows the sandbox host for dev resources (HMR)', 
   const F = await import(new URL('../lib/editor/files.ts', import.meta.url).href)
   const cfg = build.buildStoreFiles({}).find((f) => f.path === 'next.config.ts').content
   const out = F.withEditorDevOrigins(cfg)
-  assert.match(out, /const nextConfig: NextConfig = {
-  allowedDevOrigins: ['*.vercel.run'],
-  devIndicators: false,/)
+  assert.ok(out.includes("const nextConfig: NextConfig = {\n  allowedDevOrigins: ['*.vercel.run'],\n  devIndicators: false,"))
   assert.ok(parses(out, 'next.config.ts'))
   assert.equal(F.withEditorDevOrigins(out), out)
   const prepared = F.prepareEditorFiles({}, ['https://quantecode.com'])
