@@ -7,11 +7,14 @@
 // is applied to the CLEAN source as a text-range replacement (no TypeScript printer, so
 // formatting is kept), then the file is re-instrumented and a fresh map is returned.
 //
-// v1 operations: change an element's text, change its class list, move it up/down among
-// its sibling elements. Cart / checkout / success / legal / layout files get no oids.
+// Operations: change an element's text, change its class list, move it up/down among its
+// sibling elements (v1); insert a snippet after / inside it, replace a static element,
+// delete it (v2, 2026-09-27 — snippets are validated by lib/editor/snippet.ts).
+// Cart / checkout / success / legal / layout files get no oids.
 // No '@/…' imports: tests load this file through Node's type stripping.
 
 import ts from 'typescript'
+import { ensureSnippetImports, indentSnippet, isVoidTag, validateSnippet } from './snippet.ts'
 
 /** Files the visual editor never instruments (engine-critical or platform-managed). */
 export const EDITOR_EXCLUDED_PATHS: ReadonlySet<string> = new Set([
@@ -48,6 +51,12 @@ export interface EditorNode {
   canMoveDown: boolean
   /** Rendered inside a .map() callback — an edit changes every item. */
   repeated: boolean
+  /** No code expressions inside (only markup + text) — the AI may rewrite it as a whole. */
+  static: boolean
+  /** Has a JSX parent (not the root a component returns) — can be deleted / get siblings. */
+  canDelete: boolean
+  /** Not self-closing / void — new elements can be added inside it. */
+  canInsertInside: boolean
 }
 
 type JsxEl = ts.JsxElement | ts.JsxSelfClosingElement
@@ -148,6 +157,24 @@ function isRepeated(found: Found): boolean {
   return false
 }
 
+function isStatic(found: Found): boolean {
+  let ok = true
+  const visit = (n: ts.Node) => {
+    if (!ok) return
+    if (ts.isJsxExpression(n)) {
+      if (n.expression && !(ts.isStringLiteral(n.expression) || ts.isNoSubstitutionTemplateLiteral(n.expression))) {
+        // className={'x'} / href={"/x"} are still static
+        ok = false
+        return
+      }
+    }
+    if (ts.isJsxSpreadAttribute(n)) { ok = false; return }
+    ts.forEachChild(n, visit)
+  }
+  visit(found.element)
+  return ok
+}
+
 function describe(found: Found, file: string, key: string, index: number): EditorNode {
   const sibs = siblingsOf(found)
   const at = sibs ? sibs.indexOf(found.element as ts.JsxChild) : -1
@@ -161,6 +188,9 @@ function describe(found: Found, file: string, key: string, index: number): Edito
     canMoveUp: at > 0 && isMovable(sibs?.[at - 1]),
     canMoveDown: at >= 0 && !!sibs && at < sibs.length - 1 && isMovable(sibs[at + 1]),
     repeated: isRepeated(found),
+    static: isStatic(found),
+    canDelete: sibs !== null,
+    canInsertInside: ts.isJsxElement(found.element) && !isVoidTag(found.tag),
   }
 }
 
@@ -199,6 +229,11 @@ export type EditorOp =
   | { kind: 'text'; value: string }
   | { kind: 'classes'; value: string }
   | { kind: 'move'; direction: 'up' | 'down' }
+  /** Adds a validated snippet (lib/editor/snippet.ts) after the element or as its last child. */
+  | { kind: 'insert'; position: 'after' | 'inside'; snippet: string }
+  /** Replaces a static element with a validated snippet (AI rewrite). */
+  | { kind: 'replace'; snippet: string }
+  | { kind: 'delete' }
 
 /** Class lists the editor accepts: Tailwind utilities incl. arbitrary values, no quotes/braces/backslashes. */
 export const EDITOR_CLASS_RE = /^[A-Za-z0-9_\-:/.[\]#%(),!@+*= ]{0,1000}$/
@@ -219,6 +254,7 @@ export function applyEditorOp(path: string, source: string, index: number, tag: 
 
   let edits: Array<{ start: number; end: number; text: string }> = []
   let newStart = target.element.getStart(sf)
+  let importsNeeded: { icons: string[]; usesLink: boolean } | null = null
 
   if (op.kind === 'text') {
     if (typeof op.value !== 'string' || op.value.length > 5000 || op.value.includes('\u0000')) return { ok: false, error: 'Text is too long.' }
@@ -269,6 +305,46 @@ export function applyEditorOp(path: string, source: string, index: number, tag: 
     const tText = source.slice(t0, t1), nText = source.slice(n0, n1)
     edits = [{ start: t0, end: t1, text: nText }, { start: n0, end: n1, text: tText }]
     newStart = op.direction === 'up' ? n0 : t0 + (n1 - n0) + (n0 - t1)
+  } else if (op.kind === 'insert' || op.kind === 'replace') {
+    const snip = validateSnippet(op.snippet)
+    if (!snip.ok) return { ok: false, error: snip.error }
+    const elStart = target.element.getStart(sf)
+    const lineStart = source.lastIndexOf('\n', elStart - 1) + 1
+    const indent = (source.slice(lineStart, elStart).match(/^[ \t]*/)?.[0]) ?? ''
+    if (op.kind === 'replace') {
+      if (!isStatic(target)) return { ok: false, error: 'This element contains live data (products, prices …) — it can only be rewritten in Chat.' }
+      edits = [{ start: elStart, end: target.element.getEnd(), text: indentSnippet(snip.code, indent) }]
+      newStart = elStart
+    } else if (op.position === 'after') {
+      if (!siblingsOf(target)) return { ok: false, error: "Nothing can be added next to this element — add it inside instead." }
+      const at = target.element.getEnd()
+      const text = '\n' + indent + indentSnippet(snip.code, indent)
+      edits = [{ start: at, end: at, text }]
+      newStart = at + 1 + indent.length
+    } else {
+      if (!ts.isJsxElement(target.element) || isVoidTag(target.tag)) return { ok: false, error: "This element can't contain other elements." }
+      const closing = target.element.closingElement.getStart(sf)
+      const inner = indent + '  '
+      const text = '  ' + indentSnippet(snip.code, inner) + '\n' + indent
+      // Closing tag on its own line → the new child goes on a new line before it.
+      const ownLine = /\n[ \t]*$/.test(source.slice(0, closing))
+      if (ownLine) {
+        edits = [{ start: closing, end: closing, text }]
+        newStart = closing + 2
+      } else {
+        const t = '\n' + inner + indentSnippet(snip.code, inner) + '\n' + indent
+        edits = [{ start: closing, end: closing, text: t }]
+        newStart = closing + 1 + inner.length
+      }
+    }
+    importsNeeded = { icons: snip.icons, usesLink: snip.usesLink }
+  } else if (op.kind === 'delete') {
+    if (!siblingsOf(target)) return { ok: false, error: "The page's outermost element can't be deleted." }
+    let s0 = target.element.getStart(sf)
+    while (s0 > 0 && /[ \t]/.test(source[s0 - 1])) s0--
+    if (s0 > 0 && source[s0 - 1] === '\n') s0--
+    edits = [{ start: s0, end: target.element.getEnd(), text: '' }]
+    newStart = -1
   } else {
     return { ok: false, error: 'Unknown operation.' }
   }
@@ -277,8 +353,24 @@ export function applyEditorOp(path: string, source: string, index: number, tag: 
   let code = source
   for (const e of [...edits].sort((a, b) => b.start - a.start)) code = code.slice(0, e.start) + e.text + code.slice(e.end)
 
+  if (importsNeeded) {
+    // Imports go at the top — shift the remembered position by what was added before it.
+    const before = code.length
+    code = ensureSnippetImports(code, importsNeeded.icons, importsNeeded.usesLink)
+    if (newStart >= 0) newStart += code.length - before
+  }
+
   const after = parse(path, code)
   if (hasParseErrors(after)) return { ok: false, error: 'The edit would break this file.' }
+  if (newStart < 0) return { ok: true, code, index: -1 }
   const newIndex = collect(after).findIndex((f) => f.element.getStart(after) === newStart)
   return { ok: true, code, index: newIndex >= 0 ? newIndex : index }
+}
+
+/** Source text of the element with this pre-order index (context for the AI), or null. */
+export function elementSource(path: string, source: string, index: number): string | null {
+  const sf = parse(path, source)
+  if (hasParseErrors(sf)) return null
+  const f = collect(sf)[index]
+  return f ? source.slice(f.element.getStart(sf), f.element.getEnd()) : null
 }

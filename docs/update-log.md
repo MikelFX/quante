@@ -671,3 +671,18 @@ See `docs/TODO.md` → "Security audit 2026-09 — owner actions".
 | 5.3-min session, 13 edits | **22.9 s Active CPU** |
 
 Cost of a 20-min editing session (Pro, iad1): memory 4 GB × 1/3 h × $0.0212 ≈ **$0.028**, Active CPU ≈ 90 s × $0.128/h ≈ **$0.003**, port traffic ~50 MB × $0.15/GB ≈ **$0.008** → **≈ $0.04 / session** (≈ 0.2 credit at the cheapest pack price $0.20/credit). Memory dominates — the sandbox must be stopped after a few idle minutes. One shared snapshot per scaffold version is enough (package.json is identical for every store); per-store files are written at start (0.2 s). Remaining first-page time is Turbopack's cold compile — could be cut by snapshotting a warmed `.next` cache. Consider `fra1` for lower HMR latency from Europe (regional pricing differs).
+
+---
+
+## 2026-09-26 / 27 — Visual editor v1 + v2
+
+**v1 (da8dcde, 837a09a):** "✎ Edit visually" in the Studio preview toolbar. The store runs in a Vercel Sandbox (persistent base per package.json with node_modules, per-project fork ~1.3 s, next dev, HMR ~0.5 s); editable files get data-oid attributes in the sandbox copy only (lib/editor/oid.ts); the in-preview EditorBridge (lib/editor/bridge.ts) outlines / selects elements and talks to the Studio over postMessage (platform origins only). Inspector: text, classes (+ token hints), move up/down. Edits = text-range edits on the clean source → AI safety filter → draft code version "Visual edits" (updated in place until built) → hot reload. Cart / checkout / success / legal / layout get no oids. Sessions: 2 per user, heartbeat-extended idle timeout (8 min), stop on Done / pagehide. Bug found in the first real test and fixed: next dev blocked the HMR websocket from *.vercel.run → full-reload loop (preview never hydrated) — the sandbox copy of next.config now sets allowedDevOrigins; plus a pgrep self-match that prevented the dev server from starting.
+
+**v2 (2026-09-27):** merchants create their own elements.
+- **Add element:** ready-made blocks (button, outline button, heading, text, divider, section) and image upload (/api/upload), after or inside the selected element; the new element is selected right away.
+- **✦ Create with AI** (1 credit, refunded on failure, agency free, 30 / 10 min): add after / add inside / rewrite this (static elements only). lib/editor/ai.ts asks ITERATION_MODEL for ONE static JSX snippet; one retry with the validation error.
+- **Delete** (two-step, no browser dialog).
+- **Safety:** every snippet (palette or AI) passes lib/editor/snippet.ts — allowlisted tags, next/link, a set of lucide icons, string-literal attributes only (href relative / https / mailto / tel; src relative / https), no expressions, handlers, spreads, style or other components — then the store-file filter. Needed lucide / Link imports are added automatically. tsconfig: allowImportingTsExtensions (oid.ts imports ./snippet.ts so Node tests can load it).
+- Live test: "zlaté tlačítko Chci novinky se šipkou" 3.1 s, "tři karty s výhodami s ikonami" 7.9 s — Czech copy, theme tokens, valid, filter OK. Tests: editor-snippet (6) + editor-oid (8) + editor-bridge (5).
+
+Next: "My elements" — save a selected element as a reusable block (needs a table), instant Publish after visual edits (staged build on Done).

@@ -6627,7 +6627,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <VisualEditor
               projectId={projectId}
               onExit={() => { setVisualEdit(false); fetchVersions(); fetchPublishState() }}
-              onSaved={() => { fetchVersions(); fetchPublishState() }}
+              onSaved={() => { fetchVersions(); fetchPublishState(); refreshBalance() }}
             />
           ) : rightPanel === 'logs' ? LogsPane : PreviewPane}
         </div>

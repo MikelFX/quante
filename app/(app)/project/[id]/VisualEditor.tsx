@@ -1,12 +1,13 @@
 'use client'
 
-// Visual editor v1 (2026-09-26): the store runs in a Vercel Sandbox (`next dev`, hot
-// reload) with data-oid instrumentation; clicking an element selects it, and text /
-// class / order edits are written straight into the store's code as a draft version
-// (/api/projects/[id]/editor). Nothing reaches shoppers until Publish.
+// Visual editor (v1 2026-09-26, v2 2026-09-27): the store runs in a Vercel Sandbox
+// (`next dev`, hot reload) with data-oid instrumentation; clicking an element selects it.
+// Text / class / order edits, ready-made blocks, images, 'Create with AI' and deletes are
+// written straight into the store's code as a draft version (/api/projects/[id]/editor).
+// Nothing reaches shoppers until Publish.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check } from 'lucide-react'
+import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate } from 'lucide-react'
 import { EDITOR_MESSAGE_SOURCE } from '@/lib/editor/bridge'
 import type { EditorNode, EditorOp } from '@/lib/editor/oid'
 
@@ -118,25 +119,44 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
 
   const node = selected ? nodes[selected] : undefined
 
-  async function edit(op: EditorOp) {
-    if (!node || !versionId || busy) return
+  async function run(payload: Record<string, unknown>): Promise<boolean> {
+    if (!node || !versionId || busy) return false
     setBusy(true)
     setEditError(null)
     try {
-      const { res, data } = await api({ action: 'edit', oid: node.oid, tag: node.tag, op, baseVersionId: versionId })
-      if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return }
-      if (!res.ok) { setEditError(data.error ?? `Edit failed (${res.status}).`); return }
+      const { res, data } = await api({ ...payload, oid: node.oid, tag: node.tag, baseVersionId: versionId })
+      if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return false }
+      if (!res.ok) { setEditError(data.error ?? `Edit failed (${res.status}).`); return false }
       setNodes(data.nodes ?? {})
       setVersionId(data.versionId)
       setSelected(data.selectOid ?? null)
-      post({ type: 'select', oid: data.selectOid })
+      post({ type: 'select', oid: data.selectOid ?? null })
       setSavedNote(`Saved to draft v${data.versionNo}`)
       onSaved(data.versionNo)
       if (data.sessionLost) await start()
+      return true
     } catch {
       setEditError('Edit failed — check your connection.')
+      return false
     } finally {
       setBusy(false)
+    }
+  }
+  const edit = (op: EditorOp) => run({ action: 'edit', op })
+
+  async function insertImage(file: File, position: 'after' | 'inside') {
+    setEditError(null)
+    const form = new FormData()
+    form.append('file', file)
+    form.append('projectId', projectId)
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: form })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || typeof data.url !== 'string') { setEditError(data.error ?? 'Upload failed.'); return }
+      const alt = file.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').replace(/["<>{}\\]/g, '').slice(0, 80)
+      await edit({ kind: 'insert', position, snippet: `<img src="${data.url}" alt="${alt}" className="w-full h-auto rounded-store" />` })
+    } catch {
+      setEditError('Upload failed — check your connection.')
     }
   }
 
@@ -210,8 +230,21 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
                 </div>
               </div>
 
+              <AddBlock
+                key={`add|${node.oid}`}
+                node={node}
+                busy={busy}
+                onInsert={(position, snippet) => void edit({ kind: 'insert', position, snippet })}
+                onImage={(file, position) => void insertImage(file, position)}
+              />
+
+              <AiBlock key={`ai|${node.oid}`} node={node} busy={busy} onRun={(mode, instruction) => run({ action: 'ai', mode, instruction })} />
+
               {editError && <p style={{ fontSize: 11, color: '#f87171', margin: 0, lineHeight: 1.5 }}>{editError}</p>}
-              <button onClick={() => { setSelected(null); post({ type: 'select', oid: null }) }} style={{ ...btn, alignSelf: 'flex-start', color: '#8a8a93' }}><X size={11} /> Deselect</button>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button onClick={() => { setSelected(null); post({ type: 'select', oid: null }) }} style={{ ...btn, color: '#8a8a93' }}><X size={11} /> Deselect</button>
+                <DeleteButton key={`del|${node.oid}`} disabled={busy || !node.canDelete} onDelete={() => void edit({ kind: 'delete' })} />
+              </div>
             </>
           )}
         </div>
@@ -257,5 +290,121 @@ function NodeFields({ node, busy, onEdit }: { node: EditorNode; busy: boolean; o
         )}
       </div>
     </>
+  )
+}
+
+// Ready-made blocks (validated server-side like AI snippets — lib/editor/snippet.ts).
+// Texts are placeholders the merchant overwrites right away (the new element is selected).
+const PALETTE: Array<{ id: string; label: string; icon: React.ElementType; snippet: string }> = [
+  { id: 'button', label: 'Button', icon: RectangleHorizontal, snippet: '<Link href="/collections/all" className="inline-flex items-center gap-2 bg-accent text-accent-text rounded-store px-6 py-3 font-semibold hover:opacity-90 transition">Button text <ArrowRight size={16} /></Link>' },
+  { id: 'outline', label: 'Outline button', icon: RectangleHorizontal, snippet: '<Link href="/collections/all" className="inline-flex items-center gap-2 border border-border text-text rounded-store px-6 py-3 font-semibold hover:bg-surface transition">Button text</Link>' },
+  { id: 'heading', label: 'Heading', icon: Heading, snippet: '<h2 className="font-heading text-3xl md:text-4xl text-text">New heading</h2>' },
+  { id: 'text', label: 'Text', icon: Type, snippet: '<p className="text-muted leading-relaxed">New paragraph — click it to write your text.</p>' },
+  { id: 'divider', label: 'Divider', icon: Minus, snippet: '<hr className="border-border my-8" />' },
+  {
+    id: 'section',
+    label: 'Section',
+    icon: LayoutTemplate,
+    snippet: [
+      '<section className="py-16 px-6 bg-surface">',
+      '  <div className="max-w-3xl mx-auto text-center">',
+      '    <h2 className="font-heading text-3xl md:text-4xl text-text mb-4">New section</h2>',
+      '    <p className="text-muted leading-relaxed mb-8">Describe what this section is about.</p>',
+      '    <Link href="/collections/all" className="inline-flex items-center gap-2 bg-accent text-accent-text rounded-store px-6 py-3 font-semibold">Button text <ArrowRight size={16} /></Link>',
+      '  </div>',
+      '</section>',
+    ].join('\n'),
+  },
+]
+
+function PositionToggle({ node, value, onChange }: { node: EditorNode; value: 'after' | 'inside'; onChange: (v: 'after' | 'inside') => void }) {
+  return (
+    <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden', alignSelf: 'flex-start' }}>
+      {(['after', 'inside'] as const).map((p) => {
+        const allowed = p === 'after' ? node.canDelete : node.canInsertInside
+        return (
+          <button key={p} disabled={!allowed} onClick={() => onChange(p)} style={{ ...btn, border: 'none', borderRadius: 0, fontSize: 10, padding: '3px 8px', opacity: allowed ? 1 : 0.35, background: value === p ? 'rgba(212,255,63,.16)' : 'transparent' }}>
+            {p === 'after' ? 'After this' : 'Inside this'}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** "Add element": ready-made blocks and an image upload, after / inside the selection. */
+function AddBlock({ node, busy, onInsert, onImage }: {
+  node: EditorNode
+  busy: boolean
+  onInsert: (position: 'after' | 'inside', snippet: string) => void
+  onImage: (file: File, position: 'after' | 'inside') => void
+}) {
+  const [position, setPosition] = useState<'after' | 'inside'>(node.canDelete ? 'after' : 'inside')
+  const fileRef = useRef<HTMLInputElement | null>(null)
+  const possible = node.canDelete || node.canInsertInside
+  return (
+    <div>
+      <p style={label}>Add element</p>
+      {!possible ? (
+        <p style={{ fontSize: 11, color: '#5b5b64', margin: 0 }}>Nothing can be added here — select a container or a neighbouring element.</p>
+      ) : (
+        <>
+          <PositionToggle node={node} value={position} onChange={setPosition} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginTop: 8 }}>
+            {PALETTE.map((b) => (
+              <button key={b.id} disabled={busy} onClick={() => onInsert(position, b.snippet)} style={{ ...btn, justifyContent: 'flex-start', fontWeight: 500, opacity: busy ? 0.5 : 1 }}>
+                <b.icon size={11} /> {b.label}
+              </button>
+            ))}
+            <button disabled={busy} onClick={() => fileRef.current?.click()} style={{ ...btn, justifyContent: 'flex-start', fontWeight: 500, opacity: busy ? 0.5 : 1 }}>
+              <ImagePlus size={11} /> Image
+            </button>
+          </div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+            style={{ display: 'none' }}
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onImage(f, position) }}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+/** "Create with AI": the model writes a static element after / inside / instead of the selection. */
+function AiBlock({ node, busy, onRun }: { node: EditorNode; busy: boolean; onRun: (mode: 'after' | 'inside' | 'replace', instruction: string) => Promise<boolean> }) {
+  const [prompt, setPrompt] = useState('')
+  const ready = prompt.trim().length >= 3 && !busy
+  const go = async (mode: 'after' | 'inside' | 'replace') => { if (await onRun(mode, prompt.trim())) setPrompt('') }
+  return (
+    <div>
+      <p style={label}>✦ Create with AI <span style={{ color: '#5b5b64', textTransform: 'none', letterSpacing: 0 }}>· 1 credit</span></p>
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        rows={3}
+        disabled={busy}
+        placeholder="e.g. a gold “Shop now” button with an arrow · three benefit cards with icons · a customer quote"
+        style={input}
+      />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+        <button disabled={!ready || !node.canDelete} onClick={() => void go('after')} style={{ ...btn, opacity: ready && node.canDelete ? 1 : 0.4 }}><Sparkles size={11} /> Add after</button>
+        <button disabled={!ready || !node.canInsertInside} onClick={() => void go('inside')} style={{ ...btn, opacity: ready && node.canInsertInside ? 1 : 0.4 }}><Sparkles size={11} /> Add inside</button>
+        <button disabled={!ready || !node.static} title={node.static ? '' : 'Shows live data — rewrite it in Chat'} onClick={() => void go('replace')} style={{ ...btn, opacity: ready && node.static ? 1 : 0.4 }}><Sparkles size={11} /> Rewrite this</button>
+      </div>
+      {busy && <p style={{ fontSize: 11, color: '#8a8a93', margin: '6px 0 0' }}>Working…</p>}
+    </div>
+  )
+}
+
+/** Two-step delete (no browser confirm dialog). */
+function DeleteButton({ disabled, onDelete }: { disabled: boolean; onDelete: () => void }) {
+  const [armed, setArmed] = useState(false)
+  return armed ? (
+    <button onClick={() => { setArmed(false); onDelete() }} style={{ ...btn, color: '#f87171', borderColor: 'rgba(248,113,113,.5)' }}><Trash2 size={11} /> Confirm delete</button>
+  ) : (
+    <button disabled={disabled} onClick={() => setArmed(true)} style={{ ...btn, color: '#f87171', opacity: disabled ? 0.4 : 1 }}><Trash2 size={11} /> Delete</button>
   )
 }
