@@ -685,7 +685,9 @@ Cost of a 20-min editing session (Pro, iad1): memory 4 GB × 1/3 h × $0.0212 �
 - **Safety:** every snippet (palette or AI) passes lib/editor/snippet.ts — allowlisted tags, next/link, a set of lucide icons, string-literal attributes only (href relative / https / mailto / tel; src relative / https), no expressions, handlers, spreads, style or other components — then the store-file filter. Needed lucide / Link imports are added automatically. tsconfig: allowImportingTsExtensions (oid.ts imports ./snippet.ts so Node tests can load it).
 - Live test: "zlaté tlačítko Chci novinky se šipkou" 3.1 s, "tři karty s výhodami s ikonami" 7.9 s — Czech copy, theme tokens, valid, filter OK. Tests: editor-snippet (6) + editor-oid (8) + editor-bridge (5).
 
-Next: "My elements" — save a selected element as a reusable block (needs a table), instant Publish after visual edits (staged build on Done).
+**v3 "My elements" (2026-09-27):** in the editor, "Save to My elements" stores the selected plain element (a button, card, whole section — hand-made, palette or AI) under a name; "Add element → My elements" inserts it after / inside the selection, in any store of the same user. Table `editor_blocks` (supabase/migration-editor-blocks.sql, service role only, max 100 per user); lib/editor/blocks.ts; GET/DELETE /api/editor-blocks; save = editor action `save_block` (reads the element from the clean source → validateSnippet → dedent). Elements with live data / code / other components are refused with a clear message. Inserting uses the normal `edit` insert op, so every saved block is validated again on use. Without the migration the list is hidden and saving answers 503. Test: editor-blocks (2).
+
+Next: instant Publish after visual edits (staged build on Done).
 
 ## 2026-09-27 — Model switch: Opus 5.5 for generation + edits
 

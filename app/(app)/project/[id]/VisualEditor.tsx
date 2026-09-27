@@ -1,13 +1,14 @@
 'use client'
 
-// Visual editor (v1 2026-09-26, v2 2026-09-27): the store runs in a Vercel Sandbox
+// Visual editor (v1 2026-09-26, v2 + v3 2026-09-27): the store runs in a Vercel Sandbox
 // (`next dev`, hot reload) with data-oid instrumentation; clicking an element selects it.
 // Text / class / order edits, ready-made blocks, images, 'Create with AI' and deletes are
 // written straight into the store's code as a draft version (/api/projects/[id]/editor).
-// Nothing reaches shoppers until Publish.
+// "My elements" (v3): any plain element can be saved (/api/editor-blocks) and inserted
+// again in any of the merchant's stores. Nothing reaches shoppers until Publish.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate } from 'lucide-react'
+import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate, Bookmark, BookmarkPlus } from 'lucide-react'
 import { EDITOR_MESSAGE_SOURCE } from '@/lib/editor/bridge'
 import type { EditorNode, EditorOp } from '@/lib/editor/oid'
 
@@ -19,6 +20,9 @@ interface Props {
 }
 
 type Phase = 'starting' | 'ready' | 'error'
+
+/** A saved "My elements" block (lib/editor/blocks.ts). */
+interface SavedBlock { id: string; name: string; snippet: string }
 
 const TOKEN_HINTS = ['bg-accent', 'text-accent', 'text-muted', 'bg-surface', 'border-border', 'rounded-store', 'font-heading']
 
@@ -40,8 +44,23 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   const [editError, setEditError] = useState<string | null>(null)
   const [savedNote, setSavedNote] = useState<string | null>(null)
   const [frameKey, setFrameKey] = useState(0)
+  const [blocks, setBlocks] = useState<SavedBlock[]>([])
+  const [blocksAvailable, setBlocksAvailable] = useState(false)
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const startedRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/editor-blocks')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return
+        setBlocks(Array.isArray(d.blocks) ? d.blocks : [])
+        setBlocksAvailable(d.available === true)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
 
   const api = useCallback(async (payload: Record<string, unknown>, keepalive = false) => {
     const res = await fetch(`/api/projects/${projectId}/editor`, {
@@ -160,6 +179,36 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     }
   }
 
+  async function saveBlock(name: string): Promise<boolean> {
+    if (!node || !versionId || busy) return false
+    setBusy(true)
+    setEditError(null)
+    try {
+      const { res, data } = await api({ action: 'save_block', oid: node.oid, tag: node.tag, name, baseVersionId: versionId })
+      if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return false }
+      if (!res.ok || !data.block) { setEditError(data.error ?? `Saving failed (${res.status}).`); return false }
+      setBlocks((b) => [data.block as SavedBlock, ...b])
+      setSavedNote(`Saved “${(data.block as SavedBlock).name}” to My elements`)
+      return true
+    } catch {
+      setEditError('Saving failed — check your connection.')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeBlock(id: string) {
+    setEditError(null)
+    try {
+      const res = await fetch(`/api/editor-blocks?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (res.ok || res.status === 404) setBlocks((b) => b.filter((x) => x.id !== id))
+      else setEditError(((await res.json().catch(() => ({}))) as { error?: string }).error ?? 'Delete failed.')
+    } catch {
+      setEditError('Delete failed — check your connection.')
+    }
+  }
+
   const fileLabel = node ? node.file.replace(/^components\/store\//, '').replace(/\.tsx$/, '') : ''
 
   return (
@@ -236,9 +285,13 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
                 busy={busy}
                 onInsert={(position, snippet) => void edit({ kind: 'insert', position, snippet })}
                 onImage={(file, position) => void insertImage(file, position)}
+                blocks={blocksAvailable ? blocks : null}
+                onRemoveBlock={(id) => void removeBlock(id)}
               />
 
               <AiBlock key={`ai|${node.oid}`} node={node} busy={busy} onRun={(mode, instruction) => run({ action: 'ai', mode, instruction })} />
+
+              {blocksAvailable && <SaveBlock key={`save|${node.oid}`} node={node} busy={busy} onSave={saveBlock} />}
 
               {editError && <p style={{ fontSize: 11, color: '#f87171', margin: 0, lineHeight: 1.5 }}>{editError}</p>}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -333,11 +386,14 @@ function PositionToggle({ node, value, onChange }: { node: EditorNode; value: 'a
 }
 
 /** "Add element": ready-made blocks and an image upload, after / inside the selection. */
-function AddBlock({ node, busy, onInsert, onImage }: {
+function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
   node: EditorNode
   busy: boolean
   onInsert: (position: 'after' | 'inside', snippet: string) => void
   onImage: (file: File, position: 'after' | 'inside') => void
+  /** The merchant's saved elements; null = feature not set up (migration pending). */
+  blocks: SavedBlock[] | null
+  onRemoveBlock: (id: string) => void
 }) {
   const [position, setPosition] = useState<'after' | 'inside'>(node.canDelete ? 'after' : 'inside')
   const fileRef = useRef<HTMLInputElement | null>(null)
@@ -360,6 +416,26 @@ function AddBlock({ node, busy, onInsert, onImage }: {
               <ImagePlus size={11} /> Image
             </button>
           </div>
+          {blocks && (
+            <>
+              <p style={{ ...label, margin: '12px 0 6px' }}>My elements</p>
+              {blocks.length === 0 ? (
+                <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>Nothing saved yet — select an element you like and use “Save to My elements”.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
+                  {blocks.map((b) => (
+                    <div key={b.id} style={{ display: 'flex', gap: 4 }}>
+                      <button disabled={busy} onClick={() => onInsert(position, b.snippet)} title="Insert" style={{ ...btn, flex: 1, minWidth: 0, justifyContent: 'flex-start', fontWeight: 500, opacity: busy ? 0.5 : 1 }}>
+                        <Bookmark size={11} style={{ flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>
+                      </button>
+                      <button onClick={() => onRemoveBlock(b.id)} title="Remove from My elements (the store is not changed)" style={{ ...btn, color: '#8a8a93', padding: '5px 7px' }}><X size={11} /></button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -395,6 +471,28 @@ function AiBlock({ node, busy, onRun }: { node: EditorNode; busy: boolean; onRun
         <button disabled={!ready || !node.static} title={node.static ? '' : 'Shows live data — rewrite it in Chat'} onClick={() => void go('replace')} style={{ ...btn, opacity: ready && node.static ? 1 : 0.4 }}><Sparkles size={11} /> Rewrite this</button>
       </div>
       {busy && <p style={{ fontSize: 11, color: '#8a8a93', margin: '6px 0 0' }}>Working…</p>}
+    </div>
+  )
+}
+
+/** "Save to My elements": stores the selected plain element for reuse in any store. */
+function SaveBlock({ node, busy, onSave }: { node: EditorNode; busy: boolean; onSave: (name: string) => Promise<boolean> }) {
+  const [name, setName] = useState((node.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 40))
+  const [saved, setSaved] = useState(false)
+  const ready = name.trim().length > 0 && !busy && node.static
+  return (
+    <div>
+      <p style={label}>Save to My elements</p>
+      {!node.static ? (
+        <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>This element shows live data or code — only plain elements (text, buttons, images, sections you built) can be saved.</p>
+      ) : (
+        <div style={{ display: 'flex', gap: 5 }}>
+          <input value={name} onChange={(e) => { setName(e.target.value); setSaved(false) }} maxLength={60} placeholder="Name, e.g. Gold CTA button" disabled={busy} style={{ ...input, flex: 1, minWidth: 0 }} />
+          <button disabled={!ready || saved} onClick={() => void onSave(name.trim()).then((ok) => setSaved(ok))} style={{ ...btn, opacity: ready && !saved ? 1 : 0.4, flexShrink: 0 }}>
+            {saved ? <><Check size={11} /> Saved</> : <><BookmarkPlus size={11} /> Save</>}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -8,6 +8,9 @@
 //   ai         → { oid, tag, mode: after|inside|replace, instruction, baseVersionId }:
 //                the model writes a validated snippet (lib/editor/ai.ts); 1 credit,
 //                refunded on failure; then saved like an edit
+//   save_block → { oid, tag, name, baseVersionId }: saves the selected (static) element to
+//                the user's "My elements" (lib/editor/blocks.ts); inserting one later is
+//                an ordinary 'edit' insert op, validated again
 //   heartbeat  → keeps the sandbox alive while the editor is open
 //   stop       → stops and deletes the sandbox
 // Edits land in code_versions like any other change, so the AI sees them on the next
@@ -23,6 +26,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { filterAiStoreFiles } from '@/lib/store-template/build'
 import { applyEditorOp, elementSource, instrumentFiles, type EditorNode, type EditorOp } from '@/lib/editor/oid'
 import { generateEditorSnippet } from '@/lib/editor/ai'
+import { BlocksUnavailableError, normalizeBlockName, saveBlock } from '@/lib/editor/blocks'
 import { debitCredits, refundDebit } from '@/lib/credits'
 import { isAgencyUser } from '@/lib/tier'
 import { CREDIT_COSTS } from '@/lib/config'
@@ -133,6 +137,38 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ url: session.url, reused: session.reused, nodes: prepared.nodes, versionId: latest.id, versionNo: latest.version_no })
     } catch (err) {
       return unavailable(err)
+    }
+  }
+
+  if (action === 'save_block') {
+    if (!rateLimit(`editor-save-block:${userId}`, 30, 10 * 60 * 1000).allowed) {
+      return NextResponse.json({ error: 'Too many saves — try again in a few minutes.' }, { status: 429 })
+    }
+    const oid = typeof body?.oid === 'string' ? body.oid : ''
+    const tag = typeof body?.tag === 'string' ? body.tag : ''
+    const name = normalizeBlockName(body?.name)
+    if (!/^[0-9a-z]+\.[0-9a-z]+$/.test(oid) || !tag) return NextResponse.json({ error: 'Invalid element.' }, { status: 400 })
+    if (!name) return NextResponse.json({ error: 'Give the element a name.' }, { status: 400 })
+    const latest = await loadLatest(project.id)
+    if (!latest) return NextResponse.json({ error: 'No generated store found.' }, { status: 404 })
+    if (body?.baseVersionId !== latest.id) {
+      return NextResponse.json({ error: 'The store changed (e.g. a chat edit) — the editor will reload.', code: 'stale' }, { status: 409 })
+    }
+    const { text } = cleanStoreFiles(latest.files)
+    const current = instrumentFiles(text).nodes[oid] ?? null
+    if (!current || current.tag !== tag) {
+      return NextResponse.json({ error: 'That element changed meanwhile — the editor will reload.', code: 'stale' }, { status: 409 })
+    }
+    const source = elementSource(current.file, text[current.file], current.index)
+    if (!source) return NextResponse.json({ error: 'That element could not be read.' }, { status: 422 })
+    try {
+      const saved = await saveBlock(userId, name, source)
+      if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: saved.status })
+      return NextResponse.json({ block: saved.block })
+    } catch (err) {
+      if (err instanceof BlocksUnavailableError) return NextResponse.json({ error: err.message }, { status: 503 })
+      console.error('[editor] save block failed:', err)
+      return NextResponse.json({ error: 'Failed to save the element.' }, { status: 500 })
     }
   }
 
