@@ -11,7 +11,7 @@ import type { ShopManifest } from '@/types/manifest'
 
 const SECTION_COST = 2
 const SECTION_RATE_LIMIT = 15 // per hour
-const MAX_TOKENS = 2048
+const MAX_TOKENS = 16000 // Opus 5.5 always thinks — thinking tokens count toward this
 const MAX_INSTRUCTION_CHARS = 2000
 const SOFT_TIMEOUT_MS = 100_000
 const PAGES = ['home', 'product', 'collection', 'about', 'contact'] as const

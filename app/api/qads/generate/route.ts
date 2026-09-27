@@ -222,7 +222,7 @@ export async function POST(request: Request) {
     const response = await anthropic.messages.create(
       {
         model: MODELS.generation,
-        max_tokens: 8000,
+        max_tokens: 16000,
         system: GENERATOR_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userMessage }],
       },

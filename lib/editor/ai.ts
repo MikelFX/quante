@@ -4,7 +4,7 @@
 // one retry with the validation error. The caller applies it through applyEditorOp, so
 // the result also passes the AI store-file filter before it is saved.
 
-import { anthropic, ITERATION_MODEL } from '@/lib/claude'
+import { anthropic, ITERATION_MODEL, messageText } from '@/lib/claude'
 import { SNIPPET_ICONS, SNIPPET_TAGS, validateSnippet } from '@/lib/editor/snippet'
 
 export type AiSnippetMode = 'after' | 'inside' | 'replace'
@@ -44,8 +44,8 @@ export async function generateEditorSnippet(opts: {
       messages.push({ role: 'assistant', content: lastError.split('\n\nREJECTED:')[0] })
       messages.push({ role: 'user', content: `That snippet was rejected: ${lastError.split('\n\nREJECTED:')[1] ?? 'invalid'}. Output a corrected snippet that follows every rule.` })
     }
-    const msg = await anthropic.messages.create({ model: ITERATION_MODEL, max_tokens: 2500, system: SYSTEM, messages })
-    const text = msg.content.map((c) => (c.type === 'text' ? c.text : '')).join('').trim()
+    const msg = await anthropic.messages.create({ model: ITERATION_MODEL, max_tokens: 12000, output_config: { effort: 'low' }, system: SYSTEM, messages })
+    const text = messageText(msg)
     const v = validateSnippet(text)
     if (v.ok) return { ok: true, snippet: v.code }
     lastError = `${text}\n\nREJECTED:${v.error}`

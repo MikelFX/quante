@@ -7,21 +7,30 @@ export const anthropic = new Anthropic({
 
 // Single source of truth for every model ID this app uses.
 // Primary generation can be overridden per-environment via GENERATION_MODEL;
-// everything else is pinned in code because we don't want silent drift on the
-// cheap/fast tiers.
+// everything else is pinned in code so the tiers never drift silently.
+//
+// Opus 5.5 thinks on every request (thinking can't be disabled; `temperature`,
+// prefill and forced tool_choice are rejected). Its thinking blocks come BEFORE
+// the text in `content` and count toward max_tokens — read replies with
+// messageText(), never `content[0]`, and give short calls headroom.
 export const MODELS = {
-  generation: process.env.GENERATION_MODEL ?? 'claude-opus-4-7',
-  fallback:   'claude-sonnet-5',
-  iteration:  'claude-sonnet-4-6',
-  intake:     'claude-haiku-4-5-20251001',
-  fix:        'claude-sonnet-4-6',
+  generation: process.env.GENERATION_MODEL ?? 'claude-opus-5-5', // whole-store generation (+ QAds)
+  fallback:   'claude-opus-4-7',   // generation retry on refusal / hard API error
+  iteration:  'claude-opus-5-5',   // chat edits, visual-editor AI, sections, components, vision
+  intake:     'claude-sonnet-4-6', // intake questionnaire, insights, changelog drafts
+  fix:        'claude-opus-4-7',   // build-error auto-fix
 } as const
 
-// Back-compat aliases — existing import sites (iterate, intake, section, fix,
+// Back-compat aliases — existing import sites (iterate, intake, section,
 // custom-component, vision, image-suggest, insights, changelog webhook) keep
 // working unchanged.
 export const ITERATION_MODEL = MODELS.iteration
 export const INTAKE_MODEL = MODELS.intake
+
+/** All text blocks of a reply, joined (skips thinking blocks, which may come first). */
+export function messageText(msg: Anthropic.Message): string {
+  return msg.content.map((c) => (c.type === 'text' ? c.text : '')).join('').trim()
+}
 
 export const SYSTEM_PROMPT_INTAKE = `You are Quante — an expert e-commerce designer conducting a brief intake interview. Your goal is to gather enough context to generate an outstanding online store for the user.
 

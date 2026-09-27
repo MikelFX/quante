@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_CODE_FIX } from '@/lib/claude'
+import { anthropic, MODELS, SYSTEM_PROMPT_CODE_FIX, messageText } from '@/lib/claude'
 import { getOwnedProject } from '@/lib/auth/project'
 import { getBuildError, getDeploymentStatus } from '@/lib/hosting/vercel'
 import { isUnknownColumnError } from '@/lib/hosting/deployments'
@@ -347,7 +347,7 @@ export async function POST(request: Request) {
     let timedOut = false
     try {
       const stream = anthropic.messages.stream({
-        model: ITERATION_MODEL,
+        model: MODELS.fix,
         max_tokens: MAX_TOKENS,
         system: SYSTEM_PROMPT_CODE_FIX,
         messages: [{ role: 'user', content: userMessage }],
@@ -357,7 +357,7 @@ export async function POST(request: Request) {
       const softTimeout = setTimeout(() => { timedOut = true; stream.abort() }, budget)
       try {
         const response = await stream.finalMessage()
-        rawOutput = response.content[0]?.type === 'text' ? response.content[0].text : ''
+        rawOutput = messageText(response)
       } finally {
         clearTimeout(softTimeout)
       }

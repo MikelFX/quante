@@ -287,10 +287,10 @@
 
 | Route | Method | Cost | maxDuration | Description |
 |---|---|---|---|---|
-| `/api/quante/intake` | POST | Free | 60s | Conversational intake: streams `text_chunk` events; on enough info emits `{ type: 'ready', brief }`. Uses `INTAKE_MODEL` (`claude-haiku-4-5-20251001`). Input: `{ history: [{role,content}] }`. **2026-09:** verified accounts only (same bar as the welcome grant), no billing hold, caps on conversation length/size; DB-backed limits via `quante_request_attempts` (route `'intake'`): 60/h + 300/day per user, 120/h per IP, max 3 in flight. |
-| `/api/quante/generate` | POST | 10 cr | 300s | Full store generation (`MODELS.generation`, default `claude-opus-4-7`, `MAX_TOKENS=128000`). **Level 3 architecture (2026-08-11):** POST does auth/rate-limit checks, inserts a `generation_jobs` row, schedules `runGeneration()` via `after()`, returns `202 { jobId, projectId }`. **2026-09:** an existing `projectId` must be owned (`getOwnedProject`); the 10 cr are debited atomically at POST (`debitCredits(..., 'generate', jobId)`) — not minutes later; rate limit counts jobs of every status (5/h) and one in-flight job per user; AI files pass `filterAiStoreFiles()` before saving (dropped paths stored in `generation_jobs.dropped_files`; a dropped core file fails the job); failures refunded via `refundDebit`, model-caused failures via the daily-capped `refundCapped()`. Soft abort at 270s with partial recovery (4 core files). Auto-deploy after save is a **true Vercel preview** (`createVercelPreviewDeploy`, no subdomain) into the project's own Vercel project (`ensureProjectVercel`). Input: `{ brief, projectName?, projectId? }`. |
+| `/api/quante/intake` | POST | Free | 60s | Conversational intake: streams `text_chunk` events; on enough info emits `{ type: 'ready', brief }`. Uses `INTAKE_MODEL` (`claude-sonnet-4-6`). Input: `{ history: [{role,content}] }`. **2026-09:** verified accounts only (same bar as the welcome grant), no billing hold, caps on conversation length/size; DB-backed limits via `quante_request_attempts` (route `'intake'`): 60/h + 300/day per user, 120/h per IP, max 3 in flight. |
+| `/api/quante/generate` | POST | 10 cr | 300s | Full store generation (`MODELS.generation`, default `claude-opus-5-5`, fallback `claude-opus-4-7`, `MAX_TOKENS=128000`). **Level 3 architecture (2026-08-11):** POST does auth/rate-limit checks, inserts a `generation_jobs` row, schedules `runGeneration()` via `after()`, returns `202 { jobId, projectId }`. **2026-09:** an existing `projectId` must be owned (`getOwnedProject`); the 10 cr are debited atomically at POST (`debitCredits(..., 'generate', jobId)`) — not minutes later; rate limit counts jobs of every status (5/h) and one in-flight job per user; AI files pass `filterAiStoreFiles()` before saving (dropped paths stored in `generation_jobs.dropped_files`; a dropped core file fails the job); failures refunded via `refundDebit`, model-caused failures via the daily-capped `refundCapped()`. Soft abort at 270s with partial recovery (4 core files). Auto-deploy after save is a **true Vercel preview** (`createVercelPreviewDeploy`, no subdomain) into the project's own Vercel project (`ensureProjectVercel`). Input: `{ brief, projectName?, projectId? }`. |
 | `/api/quante/generate/status` | GET | Free | — | Level 3 polling channel. `?jobId=<uuid>` — service-role read filtered by `.eq('user_id', userId)` (other users' jobs = 404). Returns `{ status, phase, files: {} (always empty since 2026-09), rawOutputTail (only while running), summary, error, projectId, deploymentId, previewUrl, codeVersionId, deployError, droppedFiles, droppedFileDetails }`. A failed job returns no output. |
-| `/api/quante/iterate` | POST | 1 cr (agency: free) | 300s | Update existing store (`ITERATION_MODEL`, `claude-sonnet-4-6`): owned project only, debit before the Claude call, hard input caps, concurrency cap; agency iterate is bounded by the DB attempt log (`quante_request_attempts`, per-minute/hour/day). AI files filtered (`filterAiStoreFiles`). **2026-09-26:** the prompt also carries the scaffold source of every editable storefront file the store hasn't overridden yet (`getEditableScaffoldFiles()`, "PLATFORM DEFAULT FILES"), so the model can restyle the header/footer/cart/checkout page. Saves a new `code_versions` row, then `autoDeployCodeVersion()` (`app/api/quante/iterate/deploy.ts`): production (`<store_slug>` subdomain) only when the store is `everLive` AND `getHostingGate()` allows it, otherwise a true preview. Input: `{ projectId, instruction }`. |
+| `/api/quante/iterate` | POST | 1 cr (agency: free) | 300s | Update existing store (`ITERATION_MODEL`, `claude-opus-5-5`, `MAX_TOKENS=64000`): owned project only, debit before the Claude call, hard input caps, concurrency cap; agency iterate is bounded by the DB attempt log (`quante_request_attempts`, per-minute/hour/day). AI files filtered (`filterAiStoreFiles`). **2026-09-26:** the prompt also carries the scaffold source of every editable storefront file the store hasn't overridden yet (`getEditableScaffoldFiles()`, "PLATFORM DEFAULT FILES"), so the model can restyle the header/footer/cart/checkout page. Saves a new `code_versions` row, then `autoDeployCodeVersion()` (`app/api/quante/iterate/deploy.ts`): production (`<store_slug>` subdomain) only when the store is `everLive` AND `getHostingGate()` allows it, otherwise a true preview. Input: `{ projectId, instruction }`. |
 | `/api/quante/fix` | POST | Free (`CREDIT_COSTS.fix = 0`) | 300s | Auto-fix a build error. **2026-09:** must be tied to a real failed build of the caller's own project (latest deployment of the latest code version, recent, error/canceled); error text fetched from Vercel server-side; DB-capped attempts (`quante_request_attempts`, route `'fix'`, `executed_at` set right before the Claude call); fails closed if that table is missing. Same `autoDeployCodeVersion()` as iterate. Input: `{ projectId, errorMessage, filePath }`. |
 | `/api/quante/section` | POST | 2 cr | 120s | Regenerate a single manifest section. Owned project; debit before (ref = new version id), refund if nothing delivered. Input: `{ projectId, sectionIndex, instruction }`. |
 | `/api/quante/custom-component` | POST | 3 cr | 120s | Generate a sandboxed custom React component (owned project; debit before, refund on failure). |
@@ -897,7 +897,7 @@ All tables have RLS enabled. Server-side code uses `supabaseAdmin` (service role
 ### `lib/claude.ts`
 Exports:
 - `anthropic` — Anthropic client instance (`import 'server-only'`)
-- `MODELS = { generation: process.env.GENERATION_MODEL ?? 'claude-opus-4-7', fallback: 'claude-sonnet-5', iteration: 'claude-sonnet-4-6', intake: 'claude-haiku-4-5-20251001', fix: 'claude-sonnet-4-6' }` — single source of truth for model ids
+- `MODELS = { generation: process.env.GENERATION_MODEL ?? 'claude-opus-5-5', fallback: 'claude-opus-4-7', iteration: 'claude-opus-5-5', intake: 'claude-sonnet-4-6', fix: 'claude-opus-4-7' }` — single source of truth for model ids (2026-09-27). Opus 5.5 always thinks: read replies with `messageText()` (never `content[0]`), leave max_tokens headroom, no temperature/prefill/forced tool_choice
 - `ITERATION_MODEL` / `INTAKE_MODEL` — back-compat aliases of `MODELS.iteration` / `MODELS.intake`
 - `SYSTEM_PROMPT_INTAKE` — conversational intake; ends response with `<ready>[brief]</ready>` when enough info collected
 - `SYSTEM_PROMPT_GENERATION` — legacy manifest-mode generation prompt (raw JSON output)
@@ -906,7 +906,7 @@ Exports:
 - `SYSTEM_PROMPT_CODE_FIX` — fix prompt; output: `<explanation>...</explanation>` + one `<file>` block
 - `SYSTEM_PROMPT_SECTION` — section-level regeneration (legacy manifest mode); output raw JSON section
 - `SYSTEM_PROMPT_ITERATION` — legacy manifest iteration; output `<reply>` + `<patch>` JSON
-- `SYSTEM_PROMPT_CHANGELOG_DRAFT` — **NEW, V3 (2026-08-07)**. Turns a raw git commit message into `{"title": string, "description": string, "tags": string[]}` JSON, tags constrained to `CHANGELOG_TAGS`. Used by `/api/webhooks/vercel-deploy` via `INTAKE_MODEL` (Haiku — cheap, this is a best-effort polish step, not the safety gate). Output is always saved as `published: false`; a human approves via `/admin` before it goes live — the model is never trusted to publish directly.
+- `SYSTEM_PROMPT_CHANGELOG_DRAFT` — **NEW, V3 (2026-08-07)**. Turns a raw git commit message into `{"title": string, "description": string, "tags": string[]}` JSON, tags constrained to `CHANGELOG_TAGS`. Used by `/api/webhooks/vercel-deploy` via `INTAKE_MODEL` (Sonnet 4.6 — cheap, this is a best-effort polish step, not the safety gate). Output is always saved as `published: false`; a human approves via `/admin` before it goes live — the model is never trusted to publish directly.
 
 ### `lib/changelog.ts`
 `CHANGELOG_TAGS` (whitelist: `feature`, `bugfix`, `platform`, `ai`, `design`, `domains`, `reliability`), `TAG_BG`/`TAG_FG` color maps per tag, `isChangelogTag()`, `slugify()`. Shared by the public changelog page, `ChangelogAdmin.tsx`, `/api/admin/changelog`, and `SYSTEM_PROMPT_CHANGELOG_DRAFT`'s tag constraint.
@@ -1326,7 +1326,7 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
 ## 8. Generation Pipeline
 
 ```
-1. /new → intake chat (/api/quante/intake, claude-haiku)
+1. /new → intake chat (/api/quante/intake, claude-sonnet-4-6)
    └── streams text_chunk events
    └── on <ready>brief</ready>: moves to "ready" stage
 
@@ -1338,7 +1338,7 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
        │   (402 insufficient_credits / billing_hold)
        ├── (Level 3, 2026-08-11) POST returns 202 { jobId, projectId } immediately;
        │   runGeneration() is scheduled via after() and runs decoupled from the client fetch
-       ├── call MODELS.generation (claude-opus-4-7) with SYSTEM_PROMPT_CODE_GENERATION
+       ├── call MODELS.generation (claude-opus-5-5; fallback claude-opus-4-7) with SYSTEM_PROMPT_CODE_GENERATION
        │   + AI_FILTER_PROMPT_NOTE (MAX_TOKENS=128000)
        │   raw_output + parsed files checkpointed to generation_jobs every 4s
        │   client polls GET /api/quante/generate/status?jobId=... for phase + rawOutputTail
@@ -1373,7 +1373,7 @@ AI-generated files override scaffold files with the same path. Lucide icon sanit
    └── POST /api/quante/iterate
        ├── getOwnedProject; debitCredits(1) BEFORE the Claude call
        ├── load current code_versions.files
-       ├── call claude-sonnet-4-6 with all files + instruction (+ AI_FILTER_PROMPT_NOTE)
+       ├── call ITERATION_MODEL (claude-opus-5-5) with all files + instruction (+ AI_FILTER_PROMPT_NOTE)
        ├── parse <reply> + <file> blocks, filterAiStoreFiles()
        ├── merge changed files with current, save new code_versions row
        ├── autoDeployCodeVersion(): production to <store_slug> subdomain only if
@@ -1539,7 +1539,7 @@ Calls Vercel add-domain API. Returns `{ verified: boolean, dnsInstructions? }`. 
 ## 12. Known Bugs / Gotchas
 
 ### maxDuration Limits (Vercel)
-- `/api/quante/generate`: `maxDuration = 300` (Vercel Pro hard cap; Enterprise allows up to 800 but the project is not on Enterprise as of 2026-08-12). Uses `claude-opus-4-7` at `MAX_TOKENS=128000` (model ceiling). A **soft abort** fires at 270s: the Claude stream is killed and the route attempts to use whatever files were generated so far (requires the 4 core files: `data/products.ts`, `data/config.ts`, `styles/store.css`, `components/store/HomePage.tsx`). Since Level 3 (2026-08-11), the entire generation runs inside `Next.js after()` — the HTTP handler returns 202 immediately and the client polls `/api/quante/generate/status` for progress; there is no long-lived stream that could idle-drop, so the old 15s keepalive ping is gone. The client-side `isJobStuck` circuit breaker in `lib/generation-poll.ts` treats a job still `running` past 400s as terminal.
+- `/api/quante/generate`: `maxDuration = 300` (Vercel Pro hard cap; Enterprise allows up to 800 but the project is not on Enterprise as of 2026-08-12). Uses `claude-opus-5-5` at `MAX_TOKENS=128000` (model ceiling). A **soft abort** fires at 270s: the Claude stream is killed and the route attempts to use whatever files were generated so far (requires the 4 core files: `data/products.ts`, `data/config.ts`, `styles/store.css`, `components/store/HomePage.tsx`). Since Level 3 (2026-08-11), the entire generation runs inside `Next.js after()` — the HTTP handler returns 202 immediately and the client polls `/api/quante/generate/status` for progress; there is no long-lived stream that could idle-drop, so the old 15s keepalive ping is gone. The client-side `isJobStuck` circuit breaker in `lib/generation-poll.ts` treats a job still `running` past 400s as terminal.
 - `/api/quante/iterate`: `maxDuration = 300`. With large stores (many files), sending all files as context can be slow.
 - `/api/deploy/logs`: `maxDuration = 300`. Build logs stream for the duration of the Vercel build (~2-3 min typically).
 
@@ -1602,7 +1602,7 @@ The project has TWO generation approaches:
 Export route (`/api/export`) checks `code_versions` first, falls back to `manifest_versions`.
 
 ### Token Limits
-`AGENCY_TOKEN_CAP = 64_000` for agency users. Free users also use 64,000 in iterate. **Generation uses 128,000** (`MAX_TOKENS` in `app/api/quante/generate/route.ts`, set to the `claude-opus-4-7` output ceiling). These are `max_tokens` values — the actual response may be shorter. If output is truncated (no closing `</file>` tag), parsing fails and returns error, but Level 3 checkpointing preserves partially-parsed files so a resumed poll can still see what got through.
+`AGENCY_TOKEN_CAP = 64_000` for agency users. Free users also use 64,000 in iterate. **Generation uses 128,000** (`MAX_TOKENS` in `app/api/quante/generate/route.ts`, set to the `claude-opus-5-5` output ceiling). These are `max_tokens` values — the actual response may be shorter. If output is truncated (no closing `</file>` tag), parsing fails and returns error, but Level 3 checkpointing preserves partially-parsed files so a resumed poll can still see what got through.
 
 ### Agency Project Archiving
 On Agency plan cancellation webhook, projects beyond the free limit (3) are set to `status='archived'`. They're hidden but not deleted. User sees a warning to reactivate. If they upgrade again, archives are NOT automatically restored — they need to be unarchived manually.
@@ -1668,7 +1668,7 @@ All defined in `.env.local.example`:
 | `RESEND_API_KEY` | Resend API key (transactional emails, contact/waitlist forms) |
 | `NEXT_PUBLIC_APP_URL` | **Required, https** (http only for localhost). Public URL of this platform (e.g. `https://quantecode.com`). Becomes the stores' `QUANTE_API_URL`, Stripe redirect base, invoice/Higgsfield webhook base and an allowed Origin in `proxy.ts`. Fails closed when missing — the old `https://quante.vercel.app` fallbacks were removed. |
 | `NEXT_PUBLIC_SITE_URL` | Optional second platform origin (accepted by the `proxy.ts` Origin check and the checkout's platform origins; also used by `lib/seo.ts` and the domain blocklist). |
-| `GENERATION_MODEL` | Optional override of `MODELS.generation` (default `claude-opus-4-7`). |
+| `GENERATION_MODEL` | Optional override of `MODELS.generation` (default `claude-opus-5-5`). |
 | `VERCEL_TOKEN` | Vercel API token (must have project + deployment + domain scopes) |
 | `VERCEL_TEAM_ID` | Vercel team ID (for pro teams) |
 | `HOSTING_ROOT_DOMAIN` | Root domain for store subdomains (default `stores.quantecode.com`). Wildcard `*.stores.quantecode.com` must be pointed at Vercel. |

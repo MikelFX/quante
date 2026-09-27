@@ -7,7 +7,7 @@ import { auth } from '@clerk/nextjs/server'
 import { randomUUID } from 'crypto'
 import { getOwnedProject } from '@/lib/auth/project'
 import { debitCredits, refundDebit } from '@/lib/credits'
-import { anthropic, ITERATION_MODEL } from '@/lib/claude'
+import { anthropic, ITERATION_MODEL, messageText } from '@/lib/claude'
 import { NextResponse } from 'next/server'
 
 const SUGGEST_COST = 1
@@ -61,7 +61,8 @@ export async function POST(request: Request) {
     // Ask Claude for the best Unsplash search query
     const msg = await anthropic.messages.create({
       model: ITERATION_MODEL,
-      max_tokens: 128,
+      max_tokens: 4000,
+      output_config: { effort: 'low' },
       messages: [{
         role: 'user',
         content: `Generate the best Unsplash photo search query for this e-commerce product.
@@ -74,9 +75,7 @@ Good examples: "ceramic coffee mug white", "leather wallet flat lay", "skincare 
       }],
     })
 
-    const query = (msg.content[0]?.type === 'text'
-      ? msg.content[0].text.trim().replace(/^["']|["']$/g, '')
-      : productName).slice(0, 100)
+    const query = (messageText(msg).replace(/^["']|["']$/g, '') || productName).slice(0, 100)
 
     // Fetch from Unsplash
     const unsplashRes = await fetch(

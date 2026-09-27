@@ -686,3 +686,17 @@ Cost of a 20-min editing session (Pro, iad1): memory 4 GB × 1/3 h × $0.0212 �
 - Live test: "zlaté tlačítko Chci novinky se šipkou" 3.1 s, "tři karty s výhodami s ikonami" 7.9 s — Czech copy, theme tokens, valid, filter OK. Tests: editor-snippet (6) + editor-oid (8) + editor-bridge (5).
 
 Next: "My elements" — save a selected element as a reusable block (needs a table), instant Publish after visual edits (staged build on Done).
+
+## 2026-09-27 — Model switch: Opus 5.5 for generation + edits
+
+`MODELS` in lib/claude.ts:
+
+| Role | Before | Now |
+|---|---|---|
+| generation (whole store, QAds) | claude-opus-4-7 | **claude-opus-5-5** (still overridable via `GENERATION_MODEL`) |
+| fallback (generation refusal / hard API error) | claude-sonnet-5 | **claude-opus-4-7** |
+| iteration (chat edits, visual-editor AI, section, custom component, vision, image-suggest) | claude-sonnet-4-6 | **claude-opus-5-5** |
+| fix (build-error auto-fix) | claude-sonnet-4-6 (the route actually used ITERATION_MODEL) | **claude-opus-4-7** — `/api/quante/fix` now uses `MODELS.fix` |
+| intake (questionnaire, insights, changelog drafts) | claude-haiku-4-5 | **claude-sonnet-4-6** |
+
+Compatibility work for Opus 5.5 (thinking is always on, its blocks come before the text and count toward max_tokens): new `messageText()` helper replaces every `content[0]` read (custom-component, fix, image-suggest, vision, editor AI); max_tokens raised where thinking would starve the answer (image-suggest 128→4000, vision 1024→12000, custom-component 4096→16000, section 2048→16000, editor AI 2500→12000, iterate 32000→64000, QAds 8000→16000); `output_config.effort: 'low'` on the tiny calls (image-suggest, editor snippets). No temperature / prefill / forced tool_choice anywhere. Live smoke test: all three model IDs answer. Costs: Opus 5.5 $4/$20 per MTok + thinking tokens (vs Sonnet 4.6 $3/$15); intake ~3× Haiku; free auto-fixes now on Opus 4.7 ($5/$25).

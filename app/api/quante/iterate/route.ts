@@ -21,7 +21,7 @@ const ITERATE_COST = CREDIT_COSTS.iterate
 const ITERATE_RATE_LIMIT = RATE_LIMITS.iterate
 // At Sonnet output speed ~30k tokens is all that fits in maxDuration anyway; a higher
 // cap only let a crafted instruction burn tokens until the function was killed.
-const MAX_TOKENS = 32000
+const MAX_TOKENS = 64000 // Opus 5.5 always thinks — thinking tokens count toward this
 // Abort the Claude stream well before maxDuration so we can still refund, save and
 // deploy (audit #47) instead of being killed mid-flight.
 const SOFT_TIMEOUT_MS = 230_000

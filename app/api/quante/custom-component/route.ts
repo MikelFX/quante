@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getOwnedProject } from '@/lib/auth/project'
 import { debitCredits, refundDebit } from '@/lib/credits'
-import { anthropic, ITERATION_MODEL } from '@/lib/claude'
+import { anthropic, ITERATION_MODEL, messageText } from '@/lib/claude'
 import { validateCustomComponent } from '@/lib/sandbox/validate-component'
 import { rateLimit } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     // Generate component
     const msg = await anthropic.messages.create({
       model: ITERATION_MODEL,
-      max_tokens: 4096,
+      max_tokens: 16000,
       system: COMPONENT_SYSTEM,
       messages: [{
         role: 'user',
@@ -113,9 +113,7 @@ export async function POST(request: Request) {
       }],
     })
 
-    const rawCode = msg.content[0]?.type === 'text'
-      ? msg.content[0].text.trim().replace(/^```(?:tsx?|jsx?)?\n?/, '').replace(/\n?```$/, '').trim()
-      : ''
+    const rawCode = messageText(msg).replace(/^```(?:tsx?|jsx?)?\n?/, '').replace(/\n?```$/, '').trim()
 
     if (!rawCode) {
       await refund()
