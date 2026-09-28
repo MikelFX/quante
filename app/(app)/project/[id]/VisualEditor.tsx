@@ -1,16 +1,21 @@
 'use client'
 
-// Visual editor (v1 2026-09-26, v2 + v3 2026-09-27): the store runs in a Vercel Sandbox
-// (`next dev`, hot reload) with data-oid instrumentation; clicking an element selects it.
-// Text / class / order edits, ready-made blocks, images, 'Create with AI' and deletes are
-// written straight into the store's code as a draft version (/api/projects/[id]/editor).
-// "My elements" (v3): any plain element can be saved (/api/editor-blocks) and inserted
-// again in any of the merchant's stores. Nothing reaches shoppers until Publish.
+// Visual editor (v1 2026-09-26, v2 + v3 2026-09-27, design panel 2026-09-28): the store
+// runs in a Vercel Sandbox (`next dev`, hot reload) with data-oid instrumentation; clicking
+// an element selects it, double-clicking a text edits it in place.
+//   Design tab — Framer-style panel (DesignPanel.tsx): typography, fill, layout, size,
+//   spacing, border — per device (Desktop / Tablet / Phone), previewed instantly.
+//   Content tab — text, order, ready-made blocks, images, 'Create with AI', "My elements"
+//   (/api/editor-blocks), delete.
+// Everything is written straight into the store's code as a draft version
+// (/api/projects/[id]/editor). Nothing reaches shoppers until Publish.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate, Bookmark, BookmarkPlus } from 'lucide-react'
+import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate, Bookmark, BookmarkPlus, Monitor, Tablet, Smartphone, ChevronDown, ChevronRight } from 'lucide-react'
 import { EDITOR_MESSAGE_SOURCE } from '@/lib/editor/bridge'
 import type { EditorNode, EditorOp } from '@/lib/editor/oid'
+import { applyStyleEdits, DEVICE_WIDTH, type Device, type StyleEdit } from '@/lib/editor/styles'
+import { DesignPanel, type Styles } from './DesignPanel'
 
 interface Props {
   projectId: string
@@ -20,6 +25,7 @@ interface Props {
 }
 
 type Phase = 'starting' | 'ready' | 'error'
+type Tab = 'design' | 'content'
 
 /** A saved "My elements" block (lib/editor/blocks.ts). */
 interface SavedBlock { id: string; name: string; snippet: string }
@@ -31,23 +37,47 @@ const label: React.CSSProperties = { fontSize: 10, fontFamily: 'var(--font-geist
 const input: React.CSSProperties = { width: '100%', background: '#08080a', border: '1px solid rgba(255,255,255,.1)', borderRadius: 7, color: '#f4f4f6', fontSize: 12, padding: '7px 8px', outline: 'none', resize: 'vertical' }
 const btn: React.CSSProperties = { fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#f4f4f6', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }
 
+const DEVICES: Array<{ id: Device; icon: React.ElementType; title: string }> = [
+  { id: 'desktop', icon: Monitor, title: 'Desktop' },
+  { id: 'tablet', icon: Tablet, title: 'Tablet (768 px +)' },
+  { id: 'phone', icon: Smartphone, title: 'Phone' },
+]
+
+interface SaveResult { versionId: string; versionNo: number; nodes: Record<string, EditorNode>; selectOid: string | null; sessionLost?: boolean }
+
 export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   const [phase, setPhase] = useState<Phase>('starting')
   const [error, setError] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
   const [nodes, setNodes] = useState<Record<string, EditorNode>>({})
-  const [versionId, setVersionId] = useState<string | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
   const [selectedCount, setSelectedCount] = useState(1)
   const [selectMode, setSelectMode] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
   const [savedNote, setSavedNote] = useState<string | null>(null)
   const [frameKey, setFrameKey] = useState(0)
   const [blocks, setBlocks] = useState<SavedBlock[]>([])
   const [blocksAvailable, setBlocksAvailable] = useState(false)
+  const [device, setDevice] = useState<Device>('desktop')
+  const [tab, setTab] = useState<Tab>('design')
+  const [styles, setStyles] = useState<Styles | null>(null)
+  const [theme, setTheme] = useState<Styles>({})
+  const [stamp, setStamp] = useState(0)
+  const [area, setArea] = useState({ w: 0, h: 0 })
   const frameRef = useRef<HTMLIFrameElement | null>(null)
+  const areaRef = useRef<HTMLDivElement | null>(null)
   const startedRef = useRef(false)
+  // Saves run one at a time and always read the newest state through these refs, so a
+  // burst of style changes never works on an outdated className or version.
+  const nodesRef = useRef<Record<string, EditorNode>>({})
+  const selectedRef = useRef<string | null>(null)
+  const versionIdRef = useRef<string | null>(null)
+  const deviceRef = useRef<Device>('desktop')
+  const lockRef = useRef<Promise<unknown>>(Promise.resolve())
+  const styleQueue = useRef<Array<{ edits: StyleEdit[]; device: Device }>>([])
+  const styleRunning = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -62,6 +92,15 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     return () => { cancelled = true }
   }, [])
 
+  // Preview area size (for the device frame).
+  useEffect(() => {
+    const el = areaRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([e]) => setArea({ w: e.contentRect.width, h: e.contentRect.height }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [phase])
+
   const api = useCallback(async (payload: Record<string, unknown>, keepalive = false) => {
     const res = await fetch(`/api/projects/${projectId}/editor`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), keepalive,
@@ -70,16 +109,24 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     return { res, data }
   }, [projectId])
 
+  const applyNodes = (next: Record<string, EditorNode>, versionId: string | null, sel: string | null) => {
+    nodesRef.current = next
+    versionIdRef.current = versionId
+    selectedRef.current = sel
+    setNodes(next)
+    setSelected(sel)
+  }
+
   const start = useCallback(async () => {
     setPhase('starting')
     setError(null)
-    setSelected(null)
+    applyNodes({}, null, null)
+    setStyles(null)
     try {
       const { res, data } = await api({ action: 'start' })
       if (!res.ok) { setPhase('error'); setError(data.error ?? `The editor could not start (${res.status}).`); return }
       setUrl(data.url)
-      setNodes(data.nodes ?? {})
-      setVersionId(data.versionId)
+      applyNodes(data.nodes ?? {}, data.versionId, null)
       setFrameKey((k) => k + 1)
       setPhase('ready')
     } catch {
@@ -114,54 +161,137 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     win.postMessage({ source: EDITOR_MESSAGE_SOURCE, ...msg }, new URL(url).origin)
   }, [url])
 
+  /** Runs saves one after another. */
+  const locked = useCallback(<T,>(fn: () => Promise<T>): Promise<T> => {
+    const p = lockRef.current.then(fn, fn)
+    lockRef.current = p.catch(() => {})
+    return p
+  }, [])
+
+  /** One editor API call for an element; updates nodes / version on success. */
+  const send = useCallback(async (payload: Record<string, unknown>, target: EditorNode): Promise<boolean> => {
+    const versionId = versionIdRef.current
+    if (!versionId) return false
+    try {
+      const { res, data } = await api({ ...payload, oid: target.oid, tag: target.tag, baseVersionId: versionId })
+      if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return false }
+      if (!res.ok) { setEditError(data.error ?? `Edit failed (${res.status}).`); return false }
+      const r = data as SaveResult
+      applyNodes(r.nodes ?? {}, r.versionId, r.selectOid ?? null)
+      post({ type: 'select', oid: r.selectOid ?? null })
+      setSavedNote(`Saved to draft v${r.versionNo}`)
+      onSaved(r.versionNo)
+      if (r.sessionLost) await start()
+      return true
+    } catch {
+      setEditError('Edit failed — check your connection.')
+      return false
+    }
+  }, [api, onSaved, post, start])
+
+  const textEdit = useCallback((oid: string, value: string) => locked(async () => {
+    const n = nodesRef.current[oid]
+    if (!n || n.text === null) {
+      post({ type: 'text-rejected', oid, value })
+      setEditError('This text comes from your store data (products, settings …) — change it in Chat or in Products.')
+      return
+    }
+    setEditError(null)
+    setSaving(true)
+    const ok = await send({ action: 'edit', op: { kind: 'text', value } }, n)
+    setSaving(false)
+    if (!ok) post({ type: 'text-rejected', oid, value })
+  }), [locked, post, send])
+
   useEffect(() => {
     if (!url) return
     const origin = new URL(url).origin
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== origin || e.source !== frameRef.current?.contentWindow) return
-      const d = e.data as { source?: unknown; type?: unknown; oid?: unknown; count?: unknown } | null
+      const d = e.data as { source?: unknown; type?: unknown; oid?: unknown; count?: unknown; styles?: unknown; theme?: unknown; value?: unknown } | null
       if (!d || d.source !== EDITOR_MESSAGE_SOURCE) return
+      const oid = typeof d.oid === 'string' ? d.oid : null
+      const report = () => {
+        if (d.styles && typeof d.styles === 'object') setStyles(d.styles as Styles)
+        if (d.theme && typeof d.theme === 'object') setTheme(d.theme as Styles)
+        setStamp((n) => n + 1)
+      }
       if (d.type === 'ready') {
         post({ type: 'mode', edit: selectMode })
-        if (selected) post({ type: 'select', oid: selected })
-      } else if (d.type === 'select' && typeof d.oid === 'string') {
-        setSelected(d.oid)
+        if (selectedRef.current) post({ type: 'select', oid: selectedRef.current })
+      } else if (d.type === 'select' && oid) {
+        selectedRef.current = oid
+        setSelected(oid)
         setSelectedCount(typeof d.count === 'number' ? d.count : 1)
         setEditError(null)
+        report()
+      } else if (d.type === 'styles' && oid && oid === selectedRef.current) {
+        report()
+      } else if (d.type === 'text' && oid && typeof d.value === 'string') {
+        void textEdit(oid, d.value)
       }
     }
     window.addEventListener('message', onMessage)
     return () => window.removeEventListener('message', onMessage)
-  }, [url, post, selectMode, selected])
+  }, [url, post, selectMode, textEdit])
 
   useEffect(() => { post({ type: 'mode', edit: selectMode }) }, [selectMode, post])
+
+  // Another device width → other breakpoint styles: re-read them once the frame re-laid out.
+  useEffect(() => {
+    deviceRef.current = device
+    const id = selectedRef.current
+    if (!id) return
+    const t = window.setTimeout(() => post({ type: 'inspect', oid: id }), 250)
+    return () => window.clearTimeout(t)
+  }, [device, post])
 
   const node = selected ? nodes[selected] : undefined
 
   async function run(payload: Record<string, unknown>): Promise<boolean> {
-    if (!node || !versionId || busy) return false
+    if (!selectedRef.current || busy) return false
     setBusy(true)
     setEditError(null)
     try {
-      const { res, data } = await api({ ...payload, oid: node.oid, tag: node.tag, baseVersionId: versionId })
-      if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return false }
-      if (!res.ok) { setEditError(data.error ?? `Edit failed (${res.status}).`); return false }
-      setNodes(data.nodes ?? {})
-      setVersionId(data.versionId)
-      setSelected(data.selectOid ?? null)
-      post({ type: 'select', oid: data.selectOid ?? null })
-      setSavedNote(`Saved to draft v${data.versionNo}`)
-      onSaved(data.versionNo)
-      if (data.sessionLost) await start()
-      return true
-    } catch {
-      setEditError('Edit failed — check your connection.')
-      return false
+      return await locked(async () => {
+        const n = selectedRef.current ? nodesRef.current[selectedRef.current] : undefined
+        return n ? send(payload, n) : false
+      })
     } finally {
       setBusy(false)
     }
   }
   const edit = (op: EditorOp) => run({ action: 'edit', op })
+
+  // Design panel: preview instantly, save the classes in the background (queued).
+  const previewStyle = (css: Record<string, string>) => {
+    if (selectedRef.current) post({ type: 'preview-style', oid: selectedRef.current, style: css })
+  }
+  const commitStyle = (edits: StyleEdit[], css?: Record<string, string>) => {
+    if (css && Object.keys(css).length > 0) previewStyle(css)
+    styleQueue.current.push({ edits, device: deviceRef.current })
+    if (styleRunning.current) return
+    styleRunning.current = true
+    setSaving(true)
+    setEditError(null)
+    void locked(async () => {
+      try {
+        while (styleQueue.current.length > 0) {
+          const batch = styleQueue.current.splice(0)
+          const n = selectedRef.current ? nodesRef.current[selectedRef.current] : undefined
+          if (!n || n.className === null) { post({ type: 'clear-preview' }); break }
+          const before = n.className.split(/\s+/).filter(Boolean).join(' ')
+          const next = batch.reduce((cls, b) => applyStyleEdits(cls, b.edits, b.device, n.tag), before)
+          if (next === before) { post({ type: 'clear-preview', oid: n.oid }); continue }
+          const ok = await send({ action: 'edit', op: { kind: 'classes', value: next } }, n)
+          post({ type: ok ? 'commit-preview' : 'clear-preview', oid: selectedRef.current ?? n.oid })
+        }
+      } finally {
+        styleRunning.current = false
+        setSaving(false)
+      }
+    })
+  }
 
   async function insertImage(file: File, position: 'after' | 'inside') {
     setEditError(null)
@@ -180,11 +310,12 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   }
 
   async function saveBlock(name: string): Promise<boolean> {
-    if (!node || !versionId || busy) return false
+    const n = selectedRef.current ? nodesRef.current[selectedRef.current] : undefined
+    if (!n || !versionIdRef.current || busy) return false
     setBusy(true)
     setEditError(null)
     try {
-      const { res, data } = await api({ action: 'save_block', oid: node.oid, tag: node.tag, name, baseVersionId: versionId })
+      const { res, data } = await api({ action: 'save_block', oid: n.oid, tag: n.tag, name, baseVersionId: versionIdRef.current })
       if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return false }
       if (!res.ok || !data.block) { setEditError(data.error ?? `Saving failed (${res.status}).`); return false }
       setBlocks((b) => [data.block as SavedBlock, ...b])
@@ -211,26 +342,47 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
 
   const fileLabel = node ? node.file.replace(/^components\/store\//, '').replace(/\.tsx$/, '') : ''
 
+  // Device frame: Desktop uses the available width (1024–1279 px, so exactly `lg:` applies)
+  // or 1200 px scaled down on small screens; Tablet / Phone are fixed widths, centered.
+  const pad = device === 'desktop' ? 0 : 24
+  const frameW = device === 'desktop'
+    ? (area.w >= 1024 ? Math.min(area.w, 1279) : DEVICE_WIDTH.desktop)
+    : DEVICE_WIDTH[device]
+  const scale = area.w > 0 ? Math.min(1, (area.w - pad * 2) / frameW) : 1
+  const frameH = area.h > 0 ? (area.h - pad * 2) / scale : 800
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#09090c' }}>
       {/* Toolbar */}
       <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,.06)', background: '#0d0d11' }}>
         <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 700, letterSpacing: '.05em', color: '#D4FF3F', textTransform: 'uppercase' }}>Visual edit</span>
         <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden' }}>
-          <button onClick={() => setSelectMode(true)} title="Click elements to select them" style={{ ...btn, border: 'none', borderRadius: 0, background: selectMode ? 'rgba(212,255,63,.16)' : 'transparent' }}><MousePointer2 size={11} /> Select</button>
-          <button onClick={() => setSelectMode(false)} title="Use the store normally (links, menus)" style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: '1px solid rgba(255,255,255,.08)', background: !selectMode ? 'rgba(212,255,63,.16)' : 'transparent' }}><Hand size={11} /> Browse</button>
+          <button onClick={() => setSelectMode(true)} title="Click elements to select them, double-click text to edit it" style={{ ...btn, border: 'none', borderRadius: 0, background: selectMode ? 'rgba(212,255,63,.16)' : 'transparent' }}><MousePointer2 size={11} /> Select</button>
+          <button onClick={() => setSelectMode(false)} title="Use the store normally (links, menus) — nothing is selectable" style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: '1px solid rgba(255,255,255,.08)', background: !selectMode ? 'rgba(212,255,63,.16)' : 'transparent' }}><Hand size={11} /> Browse</button>
         </div>
         <button onClick={() => setFrameKey((k) => k + 1)} title="Reload the preview" style={btn}><RotateCcw size={11} /></button>
         <span style={{ flex: 1 }} />
-        {savedNote && <span style={{ fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>{savedNote}</span>}
+        <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden' }}>
+          {DEVICES.map((d, i) => (
+            <button key={d.id} onClick={() => setDevice(d.id)} title={d.title} style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: i ? '1px solid rgba(255,255,255,.08)' : 'none', padding: '5px 9px', background: device === d.id ? 'rgba(212,255,63,.16)' : 'transparent', color: device === d.id ? '#D4FF3F' : '#8a8a93' }}>
+              <d.icon size={12} />
+            </button>
+          ))}
+        </div>
+        <span style={{ flex: 1 }} />
+        {saving ? (
+          <span style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>Saving…</span>
+        ) : savedNote && <span style={{ fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>{savedNote}</span>}
         <button onClick={done} style={{ ...btn, borderColor: 'rgba(212,255,63,.35)', color: '#D4FF3F' }}><Check size={11} /> Done</button>
       </div>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Preview */}
-        <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+        <div ref={areaRef} style={{ flex: 1, position: 'relative', minWidth: 0, overflow: 'hidden', background: device === 'desktop' ? '#09090c' : '#141418' }}>
           {phase === 'ready' && url ? (
-            <iframe key={frameKey} ref={frameRef} src={url} title="Visual editor preview" style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }} />
+            <div style={{ position: 'absolute', top: pad, left: '50%', width: frameW * scale, height: frameH * scale, transform: 'translateX(-50%)', borderRadius: device === 'desktop' ? 0 : 14, overflow: 'hidden', boxShadow: device === 'desktop' ? 'none' : '0 0 0 1px rgba(255,255,255,.1), 0 20px 50px rgba(0,0,0,.5)' }}>
+              <iframe key={frameKey} ref={frameRef} src={url} title="Visual editor preview" style={{ width: frameW, height: frameH, border: 'none', background: '#fff', transform: `scale(${scale})`, transformOrigin: '0 0' }} />
+            </div>
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
               {phase === 'starting' ? (
@@ -249,55 +401,81 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
         </div>
 
         {/* Inspector */}
-        <div style={{ ...panel, width: 290, flexShrink: 0, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>
-            Click any element in the preview. Changes are written into your store&apos;s code as a <b style={{ color: '#D4FF3F' }}>draft</b> — click Publish to make them live.
-          </p>
-
+        <div style={{ ...panel, width: 300, flexShrink: 0, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!node ? (
-            <p style={{ fontSize: 12, color: '#5b5b64', margin: 0 }}>{phase === 'ready' ? 'Nothing selected.' : ''}</p>
+            <div>
+              <p style={{ fontSize: 12, color: '#f4f4f6', margin: '0 0 8px', fontWeight: 600 }}>{phase === 'ready' ? (selectMode ? 'Click any element in the preview' : 'Browse mode') : ''}</p>
+              {phase === 'ready' && (
+                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>
+                  {selectMode
+                    ? <>Click to select · double-click a text to rewrite it · switch Desktop / Tablet / Phone above to style each screen size. Changes are saved as a <b style={{ color: '#D4FF3F' }}>draft</b> — Publish makes them live.</>
+                    : <>The store works normally (links, menus). Switch to <b style={{ color: '#D4FF3F' }}>Select</b> to edit elements.</>}
+                </p>
+              )}
+              {editError && <p style={{ fontSize: 11, color: '#f87171', margin: '10px 0 0', lineHeight: 1.5 }}>{editError}</p>}
+            </div>
           ) : (
             <>
               <div>
-                <p style={label}>Selected</p>
-                <p style={{ fontSize: 13, color: '#f4f4f6', margin: 0, fontFamily: 'var(--font-geist-mono)' }}>&lt;{node.tag}&gt;</p>
-                <p style={{ fontSize: 10, color: '#5b5b64', margin: '3px 0 0', fontFamily: 'var(--font-geist-mono)' }}>{fileLabel}</p>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <p style={{ fontSize: 13, color: '#f4f4f6', margin: 0, fontFamily: 'var(--font-geist-mono)' }}>&lt;{node.tag}&gt;</p>
+                  <p style={{ fontSize: 10, color: '#5b5b64', margin: 0, fontFamily: 'var(--font-geist-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileLabel}</p>
+                  <span style={{ flex: 1 }} />
+                  <button onClick={() => { applyNodes(nodesRef.current, versionIdRef.current, null); post({ type: 'select', oid: null }) }} title="Deselect" style={{ ...btn, padding: '3px 5px', color: '#8a8a93' }}><X size={11} /></button>
+                </div>
                 {(node.repeated || selectedCount > 1) && (
                   <p style={{ fontSize: 11, color: '#e0a04f', margin: '6px 0 0', lineHeight: 1.5 }}>
-                    This element repeats (list item) — an edit changes every copy.
+                    This element repeats (list item) — a change applies to every copy.
                   </p>
                 )}
               </div>
 
-              <NodeFields key={`${node.oid}|${node.text}|${node.className}`} node={node} busy={busy} onEdit={(op) => void edit(op)} />
-
-              <div>
-                <p style={label}>Order</p>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => void edit({ kind: 'move', direction: 'up' })} disabled={busy || !node.canMoveUp} style={{ ...btn, opacity: busy || !node.canMoveUp ? 0.4 : 1 }}><ArrowUp size={11} /> Move up</button>
-                  <button onClick={() => void edit({ kind: 'move', direction: 'down' })} disabled={busy || !node.canMoveDown} style={{ ...btn, opacity: busy || !node.canMoveDown ? 0.4 : 1 }}><ArrowDown size={11} /> Move down</button>
-                </div>
+              <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden', flexShrink: 0 }}>
+                {(['design', 'content'] as const).map((t) => (
+                  <button key={t} onClick={() => setTab(t)} style={{ ...btn, flex: 1, justifyContent: 'center', border: 'none', borderRadius: 0, background: tab === t ? 'rgba(255,255,255,.1)' : 'transparent', color: tab === t ? '#f4f4f6' : '#8a8a93' }}>
+                    {t === 'design' ? 'Design' : 'Content'}
+                  </button>
+                ))}
               </div>
-
-              <AddBlock
-                key={`add|${node.oid}`}
-                node={node}
-                busy={busy}
-                onInsert={(position, snippet) => void edit({ kind: 'insert', position, snippet })}
-                onImage={(file, position) => void insertImage(file, position)}
-                blocks={blocksAvailable ? blocks : null}
-                onRemoveBlock={(id) => void removeBlock(id)}
-              />
-
-              <AiBlock key={`ai|${node.oid}`} node={node} busy={busy} onRun={(mode, instruction) => run({ action: 'ai', mode, instruction })} />
-
-              {blocksAvailable && <SaveBlock key={`save|${node.oid}`} node={node} busy={busy} onSave={saveBlock} />}
 
               {editError && <p style={{ fontSize: 11, color: '#f87171', margin: 0, lineHeight: 1.5 }}>{editError}</p>}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <button onClick={() => { setSelected(null); post({ type: 'select', oid: null }) }} style={{ ...btn, color: '#8a8a93' }}><X size={11} /> Deselect</button>
-                <DeleteButton key={`del|${node.oid}`} disabled={busy || !node.canDelete} onDelete={() => void edit({ kind: 'delete' })} />
-              </div>
+
+              {tab === 'design' ? (
+                <>
+                  <DesignPanel key={node.oid} node={node} styles={styles} theme={theme} stamp={stamp} device={device} onPreview={previewStyle} onCommit={commitStyle} />
+                  <ClassesField key={`cls|${node.oid}|${node.className}`} node={node} busy={busy || saving} onEdit={(op) => void edit(op)} />
+                </>
+              ) : (
+                <>
+                  <TextField key={`${node.oid}|${node.text}`} node={node} busy={busy} onEdit={(op) => void edit(op)} />
+
+                  <div>
+                    <p style={label}>Order</p>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => void edit({ kind: 'move', direction: 'up' })} disabled={busy || !node.canMoveUp} style={{ ...btn, opacity: busy || !node.canMoveUp ? 0.4 : 1 }}><ArrowUp size={11} /> Move up</button>
+                      <button onClick={() => void edit({ kind: 'move', direction: 'down' })} disabled={busy || !node.canMoveDown} style={{ ...btn, opacity: busy || !node.canMoveDown ? 0.4 : 1 }}><ArrowDown size={11} /> Move down</button>
+                    </div>
+                  </div>
+
+                  <AddBlock
+                    key={`add|${node.oid}`}
+                    node={node}
+                    busy={busy}
+                    onInsert={(position, snippet) => void edit({ kind: 'insert', position, snippet })}
+                    onImage={(file, position) => void insertImage(file, position)}
+                    blocks={blocksAvailable ? blocks : null}
+                    onRemoveBlock={(id) => void removeBlock(id)}
+                  />
+
+                  <AiBlock key={`ai|${node.oid}`} node={node} busy={busy} onRun={(mode, instruction) => run({ action: 'ai', mode, instruction })} />
+
+                  {blocksAvailable && <SaveBlock key={`save|${node.oid}`} node={node} busy={busy} onSave={saveBlock} />}
+
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <DeleteButton key={`del|${node.oid}`} disabled={busy || !node.canDelete} onDelete={() => void edit({ kind: 'delete' })} />
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
@@ -306,43 +484,49 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   )
 }
 
-/** Text + class inputs of the selected element; remounted (fresh drafts) when it changes. */
-function NodeFields({ node, busy, onEdit }: { node: EditorNode; busy: boolean; onEdit: (op: EditorOp) => void }) {
+/** Text of the selected element (also editable in place by double-click). */
+function TextField({ node, busy, onEdit }: { node: EditorNode; busy: boolean; onEdit: (op: EditorOp) => void }) {
   const [textDraft, setTextDraft] = useState(node.text ?? '')
-  const [classDraft, setClassDraft] = useState(node.className ?? '')
   const textSame = textDraft === node.text
-  const classSame = classDraft.trim() === (node.className ?? '').trim()
   return (
-    <>
-      <div>
-        <p style={label}>Text</p>
-        {node.text === null ? (
-          <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>Mixed or dynamic content — select an inner element, or change it in Chat.</p>
-        ) : (
-          <>
-            <textarea value={textDraft} onChange={(e) => setTextDraft(e.target.value)} rows={3} style={input} disabled={busy} />
-            <button onClick={() => onEdit({ kind: 'text', value: textDraft })} disabled={busy || textSame} style={{ ...btn, marginTop: 6, opacity: busy || textSame ? 0.5 : 1 }}>Save text</button>
-          </>
-        )}
-      </div>
+    <div>
+      <p style={label}>Text</p>
+      {node.text === null ? (
+        <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>Mixed or dynamic content — select an inner element, or change it in Chat.</p>
+      ) : (
+        <>
+          <textarea value={textDraft} onChange={(e) => setTextDraft(e.target.value)} rows={3} style={input} disabled={busy} />
+          <button onClick={() => onEdit({ kind: 'text', value: textDraft })} disabled={busy || textSame} style={{ ...btn, marginTop: 6, opacity: busy || textSame ? 0.5 : 1 }}>Save text</button>
+          <p style={{ fontSize: 10, color: '#5b5b64', margin: '6px 0 0' }}>Tip: double-click the text in the preview to edit it right there.</p>
+        </>
+      )}
+    </div>
+  )
+}
 
-      <div>
-        <p style={label}>Classes</p>
-        {node.className === null ? (
-          <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>Classes are built in code here — change them in Chat.</p>
-        ) : (
-          <>
-            <textarea value={classDraft} onChange={(e) => setClassDraft(e.target.value)} rows={3} spellCheck={false} style={{ ...input, fontFamily: 'var(--font-geist-mono)', fontSize: 11 }} disabled={busy} />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
-              {TOKEN_HINTS.map((t) => (
-                <button key={t} onClick={() => setClassDraft((c) => (c.split(/\s+/).includes(t) ? c : `${c} ${t}`.trim()))} style={{ ...btn, fontSize: 10, padding: '2px 6px', fontFamily: 'var(--font-geist-mono)' }}>+ {t}</button>
-              ))}
-            </div>
-            <button onClick={() => onEdit({ kind: 'classes', value: classDraft })} disabled={busy || classSame} style={{ ...btn, marginTop: 8, opacity: busy || classSame ? 0.5 : 1 }}>Save classes</button>
-          </>
-        )}
-      </div>
-    </>
+/** Raw Tailwind classes (advanced, collapsed by default). */
+function ClassesField({ node, busy, onEdit }: { node: EditorNode; busy: boolean; onEdit: (op: EditorOp) => void }) {
+  const [open, setOpen] = useState(false)
+  const [classDraft, setClassDraft] = useState(node.className ?? '')
+  const classSame = classDraft.trim() === (node.className ?? '').trim()
+  if (node.className === null) return null
+  return (
+    <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 10 }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#8a8a93', fontSize: 11, fontWeight: 600 }}>
+        {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />} Advanced — classes
+      </button>
+      {open && (
+        <div style={{ marginTop: 8 }}>
+          <textarea value={classDraft} onChange={(e) => setClassDraft(e.target.value)} rows={3} spellCheck={false} style={{ ...input, fontFamily: 'var(--font-geist-mono)', fontSize: 11 }} disabled={busy} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+            {TOKEN_HINTS.map((t) => (
+              <button key={t} onClick={() => setClassDraft((c) => (c.split(/\s+/).includes(t) ? c : `${c} ${t}`.trim()))} style={{ ...btn, fontSize: 10, padding: '2px 6px', fontFamily: 'var(--font-geist-mono)' }}>+ {t}</button>
+            ))}
+          </div>
+          <button onClick={() => onEdit({ kind: 'classes', value: classDraft })} disabled={busy || classSame} style={{ ...btn, marginTop: 8, opacity: busy || classSame ? 0.5 : 1 }}>Save classes</button>
+        </div>
+      )}
+    </div>
   )
 }
 

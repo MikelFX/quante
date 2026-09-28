@@ -236,7 +236,10 @@ export type EditorOp =
   | { kind: 'delete' }
 
 /** Class lists the editor accepts: Tailwind utilities incl. arbitrary values, no quotes/braces/backslashes. */
-export const EDITOR_CLASS_RE = /^[A-Za-z0-9_\-:/.[\]#%(),!@+*= ]{0,1000}$/
+// The value is written as a double-quoted JSX string attribute (no escape sequences there,
+// HTML entities are decoded): refuse ", \, braces, <, line breaks and entity-like `&x;`.
+// ' & > * ~ stay allowed — real Tailwind classes use them ([&>svg]:size-4, font-['Inter']).
+export const EDITOR_CLASS_RE = /^(?![^]*&[#a-zA-Z0-9]+;)[^"\\{}<\r\n]{0,1000}$/
 
 export type EditorEditResult = { ok: true; code: string; index: number } | { ok: false; error: string }
 
@@ -280,7 +283,7 @@ export function applyEditorOp(path: string, source: string, index: number, tag: 
     }
   } else if (op.kind === 'classes') {
     const value = typeof op.value === 'string' ? op.value.replace(/\s+/g, ' ').trim() : ''
-    if (!EDITOR_CLASS_RE.test(value)) return { ok: false, error: 'Classes may not contain quotes, braces or backslashes.' }
+    if (!EDITOR_CLASS_RE.test(value)) return { ok: false, error: 'Classes may not contain double quotes, braces, < or backslashes.' }
     if (classOf(target) === null) return { ok: false, error: 'This element builds its classes in code — edit it in Chat.' }
     const attr = classAttr(target.opening)
     if (attr && attr.initializer) {
