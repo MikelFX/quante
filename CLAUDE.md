@@ -315,6 +315,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 
 - Styling in generated stores: theme values are Tailwind token classes (`bg-accent`, `text-muted`, `font-heading`, `rounded-store` …, from the `@theme` block injected at build). New AI output is normalized by a deterministic codemod (`withTokenClasses`); `style={}` only for runtime values.
 
+## 13c. Visual editor + AI models (2026-09-27)
+
+- **Visual editor** (Studio → "✎ Edit visually"): the store runs as `next dev` in a Vercel Sandbox (`lib/editor/*`, `/api/projects/[id]/editor`). Code stays the source of truth: `data-oid` attributes exist only in the sandbox copy; every edit is a text-range edit on the clean source → `filterAiStoreFiles` → a DRAFT code version ("Visual edits"). Nothing reaches shoppers until Publish. Cart / checkout / success / legal / contact / layout are never instrumented.
+- Inserted elements (palette, AI, "My elements") are **static snippets only** (`lib/editor/snippet.ts` allowlist: plain tags, `next/link`, listed lucide icons, string-literal attributes). Saved blocks (`editor_blocks`) are validated again on every insert — never trust a stored snippet.
+- **Models** live only in `MODELS` (`lib/claude.ts`): generation + iteration `claude-opus-5-5`, fallback + fix `claude-opus-4-7`, intake `claude-sonnet-4-6`. Opus 5.5 always thinks: read replies with `messageText()` (never `content[0]`), give `max_tokens` headroom, never send `temperature` / prefill / forced `tool_choice` / `thinking: disabled`.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

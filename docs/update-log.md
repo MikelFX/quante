@@ -674,7 +674,9 @@ Cost of a 20-min editing session (Pro, iad1): memory 4 GB × 1/3 h × $0.0212 �
 
 ---
 
-## 2026-09-26 / 27 — Visual editor v1 + v2
+## 2026-09-26 / 27 — Visual editor v1 + v2 (+ v3)
+
+**Production status (2026-09-28):** everything below is on `main` and deployed — v1 at 837a09a, v2 + v3 + the model switch pushed as 942993d (2026-09-27), the dev-indicator fix as 7f24d2f. Still open: `supabase/migration-editor-blocks.sql` must be run for "My elements"; v2 / v3 not yet exercised by the owner in the production Studio. First production screenshot showed the editor loading fine but in **Browse** mode (Browse = use the store normally, nothing is selectable — switch to **Select**), and the Next.js dev "N" badge covering the store's cookie bar → fixed: the sandbox copy of next.config also gets `devIndicators: false` (lib/editor/files.ts `withEditorDevOrigins`; test updated). An open editor picks it up after Done + reopen.
 
 **v1 (da8dcde, 837a09a):** "✎ Edit visually" in the Studio preview toolbar. The store runs in a Vercel Sandbox (persistent base per package.json with node_modules, per-project fork ~1.3 s, next dev, HMR ~0.5 s); editable files get data-oid attributes in the sandbox copy only (lib/editor/oid.ts); the in-preview EditorBridge (lib/editor/bridge.ts) outlines / selects elements and talks to the Studio over postMessage (platform origins only). Inspector: text, classes (+ token hints), move up/down. Edits = text-range edits on the clean source → AI safety filter → draft code version "Visual edits" (updated in place until built) → hot reload. Cart / checkout / success / legal / layout get no oids. Sessions: 2 per user, heartbeat-extended idle timeout (8 min), stop on Done / pagehide. Bug found in the first real test and fixed: next dev blocked the HMR websocket from *.vercel.run → full-reload loop (preview never hydrated) — the sandbox copy of next.config now sets allowedDevOrigins; plus a pgrep self-match that prevented the dev server from starting.
 
@@ -687,7 +689,7 @@ Cost of a 20-min editing session (Pro, iad1): memory 4 GB × 1/3 h × $0.0212 �
 
 **v3 "My elements" (2026-09-27):** in the editor, "Save to My elements" stores the selected plain element (a button, card, whole section — hand-made, palette or AI) under a name; "Add element → My elements" inserts it after / inside the selection, in any store of the same user. Table `editor_blocks` (supabase/migration-editor-blocks.sql, service role only, max 100 per user); lib/editor/blocks.ts; GET/DELETE /api/editor-blocks; save = editor action `save_block` (reads the element from the clean source → validateSnippet → dedent). Elements with live data / code / other components are refused with a clear message. Inserting uses the normal `edit` insert op, so every saved block is validated again on use. Without the migration the list is hidden and saving answers 503. Test: editor-blocks (2).
 
-Next: instant Publish after visual edits (staged build on Done).
+Next: instant Publish after visual edits (staged build on Done); clearer publish status in the Studio. Known live content bug: Svit hero reads "Svíčky pro pomal večery." (a v1 test edit saved "pomalé" → "pomal") — fix it in the editor and Publish.
 
 ## 2026-09-27 — Model switch: Opus 5.5 for generation + edits
 
