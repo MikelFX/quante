@@ -43,7 +43,8 @@ const DEVICES: Array<{ id: Device; icon: React.ElementType; title: string }> = [
   { id: 'phone', icon: Smartphone, title: 'Phone' },
 ]
 
-interface SaveResult { versionId: string; versionNo: number; nodes: Record<string, EditorNode>; selectOid: string | null; sessionLost?: boolean }
+interface SaveResult { versionId: string; versionNo: number; nodes: Record<string, EditorNode>; selectOid: string | null; sessionLost?: boolean; reply?: string; warning?: string | null; unchanged?: boolean }
+type SendResult = { ok: true; data: SaveResult } | { ok: false; error: string }
 
 export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   const [phase, setPhase] = useState<Phase>('starting')
@@ -66,6 +67,12 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   const [theme, setTheme] = useState<Styles>({})
   const [stamp, setStamp] = useState(0)
   const [area, setArea] = useState({ w: 0, h: 0 })
+  const [selRect, setSelRect] = useState<{ left: number; top: number; width: number; height: number } | null>(null)
+  const [askBusySince, setAskBusySince] = useState<number | null>(null)
+  const [askResult, setAskResult] = useState<{ ok: boolean; text: string } | null>(null)
+  const [askHidden, setAskHidden] = useState(false)
+  const pathRef = useRef('/')
+  const askRef = useRef(false)
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const areaRef = useRef<HTMLDivElement | null>(null)
   const startedRef = useRef(false)
@@ -169,23 +176,24 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
   }, [])
 
   /** One editor API call for an element; updates nodes / version on success. */
-  const send = useCallback(async (payload: Record<string, unknown>, target: EditorNode): Promise<boolean> => {
+  const send = useCallback(async (payload: Record<string, unknown>, target: EditorNode, quiet = false): Promise<SendResult> => {
     const versionId = versionIdRef.current
-    if (!versionId) return false
+    if (!versionId) return { ok: false, error: 'The editor is not ready yet.' }
+    const failed = (error: string): SendResult => { if (!quiet) setEditError(error); return { ok: false, error } }
     try {
       const { res, data } = await api({ ...payload, oid: target.oid, tag: target.tag, baseVersionId: versionId })
-      if (res.status === 409 && data.code === 'stale') { setEditError(data.error); await start(); return false }
-      if (!res.ok) { setEditError(data.error ?? `Edit failed (${res.status}).`); return false }
+      if (res.status === 409 && data.code === 'stale') { const r = failed(data.error); await start(); return r }
+      if (!res.ok) return failed(data.error ?? `Edit failed (${res.status}).`)
       const r = data as SaveResult
+      if (r.unchanged) return { ok: true, data: r }
       applyNodes(r.nodes ?? {}, r.versionId, r.selectOid ?? null)
       post({ type: 'select', oid: r.selectOid ?? null })
       setSavedNote(`Saved to draft v${r.versionNo}`)
       onSaved(r.versionNo)
       if (r.sessionLost) await start()
-      return true
+      return { ok: true, data: r }
     } catch {
-      setEditError('Edit failed — check your connection.')
-      return false
+      return failed('Edit failed — check your connection.')
     }
   }, [api, onSaved, post, start])
 
@@ -198,7 +206,7 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     }
     setEditError(null)
     setSaving(true)
-    const ok = await send({ action: 'edit', op: { kind: 'text', value } }, n)
+    const ok = (await send({ action: 'edit', op: { kind: 'text', value } }, n)).ok
     setSaving(false)
     if (!ok) post({ type: 'text-rejected', oid, value })
   }), [locked, post, send])
@@ -208,7 +216,7 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     const origin = new URL(url).origin
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== origin || e.source !== frameRef.current?.contentWindow) return
-      const d = e.data as { source?: unknown; type?: unknown; oid?: unknown; count?: unknown; styles?: unknown; theme?: unknown; value?: unknown } | null
+      const d = e.data as { source?: unknown; type?: unknown; oid?: unknown; count?: unknown; styles?: unknown; theme?: unknown; value?: unknown; path?: unknown; rect?: unknown } | null
       if (!d || d.source !== EDITOR_MESSAGE_SOURCE) return
       const oid = typeof d.oid === 'string' ? d.oid : null
       const report = () => {
@@ -217,6 +225,7 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
         setStamp((n) => n + 1)
       }
       if (d.type === 'ready') {
+        if (typeof d.path === 'string') pathRef.current = d.path
         post({ type: 'mode', edit: selectMode })
         if (selectedRef.current) post({ type: 'select', oid: selectedRef.current })
       } else if (d.type === 'select' && oid) {
@@ -224,9 +233,14 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
         setSelected(oid)
         setSelectedCount(typeof d.count === 'number' ? d.count : 1)
         setEditError(null)
+        if (!askRef.current) { setAskResult(null); setAskHidden(false) }
         report()
       } else if (d.type === 'styles' && oid && oid === selectedRef.current) {
         report()
+      } else if (d.type === 'rect') {
+        const r = d.rect as { left?: unknown; top?: unknown; width?: unknown; height?: unknown } | null
+        setSelRect(r && typeof r.left === 'number' && typeof r.top === 'number' && typeof r.width === 'number' && typeof r.height === 'number'
+          ? { left: r.left, top: r.top, width: r.width, height: r.height } : null)
       } else if (d.type === 'text' && oid && typeof d.value === 'string') {
         void textEdit(oid, d.value)
       }
@@ -255,7 +269,7 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     try {
       return await locked(async () => {
         const n = selectedRef.current ? nodesRef.current[selectedRef.current] : undefined
-        return n ? send(payload, n) : false
+        return n ? (await send(payload, n)).ok : false
       })
     } finally {
       setBusy(false)
@@ -283,7 +297,7 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
           const before = n.className.split(/\s+/).filter(Boolean).join(' ')
           const next = batch.reduce((cls, b) => applyStyleEdits(cls, b.edits, b.device, n.tag), before)
           if (next === before) { post({ type: 'clear-preview', oid: n.oid }); continue }
-          const ok = await send({ action: 'edit', op: { kind: 'classes', value: next } }, n)
+          const ok = (await send({ action: 'edit', op: { kind: 'classes', value: next } }, n)).ok
           post({ type: ok ? 'commit-preview' : 'clear-preview', oid: selectedRef.current ?? n.oid })
         }
       } finally {
@@ -291,6 +305,30 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
         setSaving(false)
       }
     })
+  }
+
+  // "Ask Quante" — the floating chat next to the selected element (a real code edit).
+  async function askQuante(instruction: string): Promise<boolean> {
+    if (!selectedRef.current || askRef.current) return false
+    askRef.current = true
+    setAskBusySince(Date.now())
+    setAskResult(null)
+    try {
+      const r = await locked(async (): Promise<SendResult> => {
+        const n = selectedRef.current ? nodesRef.current[selectedRef.current] : undefined
+        if (!n) return { ok: false, error: 'Select an element first.' }
+        return send({ action: 'ai_edit', instruction, path: pathRef.current }, n, true)
+      })
+      if (!r.ok) { setAskResult({ ok: false, text: r.error }); return false }
+      const text = [r.data.reply, r.data.warning].filter(Boolean).join(' ')
+      setAskResult({ ok: !r.data.unchanged, text: text || 'Done.' })
+      const again = selectedRef.current
+      if (again) window.setTimeout(() => post({ type: 'inspect', oid: again }), 1500)
+      return true
+    } finally {
+      askRef.current = false
+      setAskBusySince(null)
+    }
   }
 
   async function insertImage(file: File, position: 'after' | 'inside') {
@@ -383,7 +421,23 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
             <div style={{ position: 'absolute', top: pad, left: '50%', width: frameW * scale, height: frameH * scale, transform: 'translateX(-50%)', borderRadius: device === 'desktop' ? 0 : 14, overflow: 'hidden', boxShadow: device === 'desktop' ? 'none' : '0 0 0 1px rgba(255,255,255,.1), 0 20px 50px rgba(0,0,0,.5)' }}>
               <iframe key={frameKey} ref={frameRef} src={url} title="Visual editor preview" style={{ width: frameW, height: frameH, border: 'none', background: '#fff', transform: `scale(${scale})`, transformOrigin: '0 0' }} />
             </div>
-          ) : (
+          ) : null}
+          {phase === 'ready' && url && node && selectMode && !askHidden && (selRect || askBusySince) ? (
+            <AskQuante
+              tag={node.tag}
+              anchor={selRect ? {
+                left: (area.w - frameW * scale) / 2 + selRect.left * scale,
+                top: pad + selRect.top * scale,
+                bottom: pad + (selRect.top + selRect.height) * scale,
+              } : null}
+              area={area}
+              busySince={askBusySince}
+              result={askResult}
+              onSubmit={askQuante}
+              onClose={() => setAskHidden(true)}
+            />
+          ) : null}
+          {phase !== 'ready' || !url ? (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
               {phase === 'starting' ? (
                 <div>
@@ -397,7 +451,7 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
                 </div>
               )}
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Inspector */}
@@ -480,6 +534,85 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Seconds since mount (remounted per request through its key). */
+function Elapsed() {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t = window.setInterval(() => setSecs((s) => s + 1), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+  return <>{secs} s</>
+}
+
+/**
+ * "Ask Quante" — a small chat box next to the selected element. Whatever the merchant
+ * writes is done to that element by the AI (1 credit, refunded when it fails).
+ */
+function AskQuante({ tag, anchor, area, busySince, result, onSubmit, onClose }: {
+  tag: string
+  /** Selected element in preview-area coordinates (null = not visible). */
+  anchor: { left: number; top: number; bottom: number } | null
+  area: { w: number; h: number }
+  busySince: number | null
+  result: { ok: boolean; text: string } | null
+  onSubmit: (instruction: string) => Promise<boolean>
+  onClose: () => void
+}) {
+  const [text, setText] = useState('')
+  const busy = busySince !== null
+  const W = Math.min(360, Math.max(240, area.w - 16))
+  const H = result ? 172 : 124
+  let left = anchor ? anchor.left : area.w / 2 - W / 2
+  left = Math.max(8, Math.min(left, area.w - W - 8))
+  let top = anchor ? anchor.bottom + 8 : area.h - H - 12
+  if (anchor && top + H > area.h - 8) top = anchor.top - H - 8
+  if (top < 8) top = Math.max(8, area.h - H - 12)
+  const ready = text.trim().length >= 2 && !busy
+  const submit = async () => {
+    if (!ready) return
+    if (await onSubmit(text.trim())) setText('')
+  }
+  return (
+    <div style={{ position: 'absolute', left, top, width: W, zIndex: 5, background: '#111114', border: '1px solid rgba(212,255,63,.35)', borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,.55)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <Sparkles size={12} color="#D4FF3F" />
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#f4f4f6' }}>Ask Quante</span>
+        <span style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>&lt;{tag}&gt;</span>
+        <span style={{ flex: 1 }} />
+        <button onClick={onClose} title="Hide (comes back when you select another element)" style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#8a8a93', display: 'flex' }}><X size={12} /></button>
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void submit() }
+          else if (e.key === 'Escape') onClose()
+        }}
+        rows={2}
+        maxLength={2000}
+        disabled={busy}
+        placeholder="What should change here? e.g. make it bigger and gold · add a “Sale” badge · change the price to 299 Kč · turn this into 3 columns"
+        style={{ ...input, fontSize: 12, resize: 'none', opacity: busy ? 0.6 : 1 }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {busy ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#8a8a93' }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(255,255,255,.12)', borderTopColor: '#D4FF3F', animation: 'spin .8s linear infinite' }} />
+            Quante is editing… <Elapsed key={busySince} />
+          </span>
+        ) : (
+          <span style={{ fontSize: 10, color: '#5b5b64' }}>Enter to send · Shift+Enter new line · 1 credit</span>
+        )}
+        <span style={{ flex: 1 }} />
+        <button onClick={() => void submit()} disabled={!ready} style={{ ...btn, padding: '4px 10px', borderColor: 'rgba(212,255,63,.45)', color: '#D4FF3F', opacity: ready ? 1 : 0.4 }}><Sparkles size={11} /> Do it</button>
+      </div>
+      {result && (
+        <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: result.ok ? '#3ecf8e' : '#f87171', maxHeight: 60, overflowY: 'auto' }}>{result.text}</p>
+      )}
     </div>
   )
 }

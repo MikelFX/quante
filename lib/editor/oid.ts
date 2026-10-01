@@ -370,6 +370,20 @@ export function applyEditorOp(path: string, source: string, index: number, tag: 
   return { ok: true, code, index: newIndex >= 0 ? newIndex : index }
 }
 
+/** Start / end offsets of the element with this pre-order index, or null. */
+export function elementRange(path: string, source: string, index: number): { start: number; end: number } | null {
+  const sf = parse(path, source)
+  if (hasParseErrors(sf)) return null
+  const f = collect(sf)[index]
+  return f ? { start: f.element.getStart(sf), end: f.element.getEnd() } : null
+}
+
+/** true when the file parses without syntax errors (TS / TSX by extension). */
+export function parsesCleanly(path: string, source: string): boolean {
+  const kind = path.endsWith('.tsx') ? ts.ScriptKind.TSX : path.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS
+  return !hasParseErrors(ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, kind))
+}
+
 /** Source text of the element with this pre-order index (context for the AI), or null. */
 export function elementSource(path: string, source: string, index: number): string | null {
   const sf = parse(path, source)

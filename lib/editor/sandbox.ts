@@ -202,6 +202,26 @@ export async function writeEditorFiles(projectId: string, files: SandboxFile[]):
   return true
 }
 
+/**
+ * Requests a page of the running preview right after a code change, so next dev compiles
+ * it: ok false (with the end of the dev-server log) when it answers 5xx — the change
+ * broke the build. A session that is gone or slow counts as ok (nothing to judge).
+ */
+export async function checkEditorPage(projectId: string, path: string): Promise<{ ok: boolean; log?: string }> {
+  const sb = await tryGet(sessionName(projectId))
+  if (!sb || sb.status !== 'running') return { ok: true }
+  await sleep(700) // let the file watcher see the write before the request compiles
+  const safePath = /^\/[A-Za-z0-9\-._~/%]*$/.test(path) ? path : '/'
+  try {
+    const res = await fetch(sb.domain(PORT) + safePath, { cache: 'no-store', signal: AbortSignal.timeout(45_000) })
+    if (res.status < 500) return { ok: true }
+    const log = await sb.runCommand({ cmd: 'sh', args: ['-c', 'tail -c 1500 /tmp/next-dev.log'], cwd: ROOT })
+    return { ok: false, log: (await log.stdout()).slice(-1200) }
+  } catch {
+    return { ok: true }
+  }
+}
+
 /** Keeps a session alive (up to EDITOR_MAX_SESSION_MS). */
 export async function heartbeatEditorSession(projectId: string): Promise<{ running: boolean; capped?: boolean }> {
   const sb = await tryGet(sessionName(projectId))

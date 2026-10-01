@@ -235,10 +235,18 @@ export function EditorBridge() {
       else if (d.type === 'ping') post({ type: 'ready', path: location.pathname })
     }
     let raf = 0
+    let lastRect = ''
     const follow = () => {
       const el = find(selected)
       place(sel, el)
       placeLabel(label, editing ? null : el, el ? el.tagName.toLowerCase() : '')
+      // Where the selection is (the Studio places the "Ask Quante" box next to it).
+      const r = el ? el.getBoundingClientRect() : null
+      const k = r ? [r.left, r.top, r.width, r.height].map(Math.round).join(',') : ''
+      if (k !== lastRect) {
+        lastRect = k
+        post({ type: 'rect', oid: selected, rect: r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null })
+      }
       raf = requestAnimationFrame(follow)
     }
     raf = requestAnimationFrame(follow)
