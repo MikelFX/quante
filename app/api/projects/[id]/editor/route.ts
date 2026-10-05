@@ -15,6 +15,9 @@
 //   save_block → { oid, tag, name, baseVersionId }: saves the selected (static) element to
 //                the user's "My elements" (lib/editor/blocks.ts); inserting one later is
 //                an ordinary 'edit' insert op, validated again
+//   build_draft→ on Done / Publish (2026-10-05): builds the "Visual edits" version right away
+//                (staged build for a live store, preview otherwise — autoDeployCodeVersion),
+//                so Publish is an instant promote; { built, deploymentId?, previewUrl?, staged? }
 //   heartbeat  → keeps the sandbox alive while the editor is open
 //   stop       → stops and deletes the sandbox
 // Edits land in code_versions like any other change, so the AI sees them on the next
@@ -49,6 +52,7 @@ import {
   writeEditorFiles,
 } from '@/lib/editor/sandbox'
 import { platformApiUrl } from '@/lib/hosting/store-env'
+import { autoDeployCodeVersion } from '@/app/api/quante/iterate/deploy'
 import type { CodeVersionFiles } from '@/types/store-code'
 
 export const maxDuration = 300
@@ -107,7 +111,7 @@ export async function POST(request: Request, { params }: Params) {
   const { id } = await params
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const project = await getOwnedProject<{ id: string }>(id, userId, 'id')
+  const project = await getOwnedProject<{ id: string; name: string | null }>(id, userId, 'id, name')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
 
   const body = await request.json().catch(() => null) as Record<string, unknown> | null
@@ -145,6 +149,31 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ url: session.url, reused: session.reused, nodes: prepared.nodes, versionId: latest.id, versionNo: latest.version_no })
     } catch (err) {
       return unavailable(err)
+    }
+  }
+
+  if (action === 'build_draft') {
+    if (!rateLimit(`editor-build:${userId}`, 10, 10 * 60 * 1000).allowed) {
+      return NextResponse.json({ error: 'Too many builds — try again in a few minutes.' }, { status: 429 })
+    }
+    const latest = await loadLatest(project.id)
+    if (!latest || latest.prompt !== VISUAL_EDIT_PROMPT) return NextResponse.json({ built: false, reason: 'no_visual_edits' })
+    const { count } = await supabaseAdmin
+      .from('deployments').select('id', { count: 'exact', head: true }).eq('code_version_id', latest.id)
+    if ((count ?? 0) > 0) return NextResponse.json({ built: false, reason: 'already_built' })
+    try {
+      const r = await autoDeployCodeVersion({
+        projectId: project.id,
+        projectName: project.name,
+        userId,
+        files: latest.files,
+        version: { id: latest.id, version_no: latest.version_no },
+        logTag: 'editor',
+      })
+      return NextResponse.json({ built: true, deploymentId: r.deploymentId, previewUrl: r.previewUrl, staged: r.staged, versionNo: latest.version_no })
+    } catch (err) {
+      console.error('[editor] draft build failed:', err)
+      return NextResponse.json({ error: 'The draft build could not start — use Publish in the Studio to retry.' }, { status: 502 })
     }
   }
 

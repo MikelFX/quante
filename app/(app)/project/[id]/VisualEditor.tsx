@@ -11,15 +11,21 @@
 // (/api/projects/[id]/editor). Nothing reaches shoppers until Publish.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate, Bookmark, BookmarkPlus, Monitor, Tablet, Smartphone, ChevronDown, ChevronRight } from 'lucide-react'
+import { ArrowDown, ArrowUp, MousePointer2, Hand, RotateCcw, X, Check, ImagePlus, Sparkles, Trash2, Heading, Type, Minus, RectangleHorizontal, LayoutTemplate, Bookmark, BookmarkPlus, Monitor, Tablet, Smartphone, ChevronDown, ChevronRight, Rocket } from 'lucide-react'
 import { EDITOR_MESSAGE_SOURCE } from '@/lib/editor/bridge'
 import type { EditorNode, EditorOp } from '@/lib/editor/oid'
 import { applyStyleEdits, DEVICE_WIDTH, type Device, type StyleEdit } from '@/lib/editor/styles'
 import { DesignPanel, type Styles } from './DesignPanel'
 
+/** The draft build the editor started on close (build_draft), or null when nothing was built. */
+export interface EditorDraftBuild { deploymentId: string | null; previewUrl: string | null }
+
 interface Props {
   projectId: string
-  onExit: () => void
+  /** Live store with draft/publish — shows the Publish button. */
+  canPublish?: boolean
+  /** Closed with Done (publish false) or Publish (publish true). */
+  onExit: (build: EditorDraftBuild | null, publish: boolean) => void
   /** A draft version was saved (refresh version list / publish state). */
   onSaved: (versionNo: number) => void
 }
@@ -46,7 +52,7 @@ const DEVICES: Array<{ id: Device; icon: React.ElementType; title: string }> = [
 interface SaveResult { versionId: string; versionNo: number; nodes: Record<string, EditorNode>; selectOid: string | null; sessionLost?: boolean; reply?: string; warning?: string | null; unchanged?: boolean }
 type SendResult = { ok: true; data: SaveResult } | { ok: false; error: string }
 
-export function VisualEditor({ projectId, onExit, onSaved }: Props) {
+export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }: Props) {
   const [phase, setPhase] = useState<Phase>('starting')
   const [error, setError] = useState<string | null>(null)
   const [url, setUrl] = useState<string | null>(null)
@@ -157,9 +163,20 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
     return () => { window.clearInterval(beat); window.removeEventListener('pagehide', stop) }
   }, [api])
 
-  const done = () => {
+  // Done / Publish: wait for pending saves, build the draft right away (so Publish is an
+  // instant promote instead of a full rebuild), stop the sandbox.
+  const [closing, setClosing] = useState<null | 'done' | 'publish'>(null)
+  const done = async (publish: boolean) => {
+    if (closing) return
+    setClosing(publish ? 'publish' : 'done')
+    await lockRef.current.catch(() => {})
+    let build: EditorDraftBuild | null = null
+    try {
+      const { res, data } = await api({ action: 'build_draft' })
+      if (res.ok && data.built) build = { deploymentId: data.deploymentId ?? null, previewUrl: data.previewUrl ?? null }
+    } catch { /* Publish in the Studio rebuilds anyway */ }
     void api({ action: 'stop' }, true)
-    onExit()
+    onExit(build, publish)
   }
 
   const post = useCallback((msg: Record<string, unknown>) => {
@@ -411,7 +428,12 @@ export function VisualEditor({ projectId, onExit, onSaved }: Props) {
         {saving ? (
           <span style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>Saving…</span>
         ) : savedNote && <span style={{ fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>{savedNote}</span>}
-        <button onClick={done} style={{ ...btn, borderColor: 'rgba(212,255,63,.35)', color: '#D4FF3F' }}><Check size={11} /> Done</button>
+        <button onClick={() => void done(false)} disabled={!!closing} title="Close the editor — your edits stay saved as a draft" style={{ ...btn, opacity: closing ? 0.5 : 1 }}><Check size={11} /> {closing === 'done' ? 'Closing…' : 'Done'}</button>
+        {canPublish && (
+          <button onClick={() => void done(true)} disabled={!!closing} title="Close the editor and make your edits live (as soon as they are built, ~1 min)" style={{ ...btn, borderColor: 'rgba(212,255,63,.45)', background: 'rgba(212,255,63,.14)', color: '#D4FF3F', opacity: closing ? 0.5 : 1 }}>
+            <Rocket size={11} /> {closing === 'publish' ? 'Publishing…' : 'Publish'}
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>

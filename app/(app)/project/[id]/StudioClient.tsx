@@ -827,6 +827,40 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   useEffect(() => { fetchPublishState() }, [fetchPublishState])
 
+  // "Publish when ready" (2026-10-05): Publish clicked while the draft of the latest
+  // version is still building (editor Done + Publish, or the top-bar button) — follow the
+  // draft build and promote it the moment it is ready.
+  const [pendingPublish, setPendingPublish] = useState(false)
+  const handlePublishRef = useRef<(() => Promise<void>) | null>(null)
+  useEffect(() => { handlePublishRef.current = handlePublish })
+  useEffect(() => {
+    if (!pendingPublish) return
+    const started = Date.now()
+    const t = window.setInterval(() => {
+      if (Date.now() - started > 10 * 60 * 1000) {
+        setPendingPublish(false)
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'The draft is taking unusually long — click **Publish** once the preview is ready.', type: 'status' }])
+        return
+      }
+      fetch(`/api/projects/${projectId}/publish`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: PublishState | null) => {
+          if (!d) return
+          setPublishState(d)
+          if (d.upToDate) { setPendingPublish(false); return }
+          if (d.staged?.status === 'ready') {
+            setPendingPublish(false)
+            void handlePublishRef.current?.()
+          } else if (!d.staged) {
+            setPendingPublish(false)
+            setMessages((prev) => [...prev, { role: 'assistant', content: 'The build of your latest changes failed, so nothing was published — check the Logs tab.', type: 'error' }])
+          }
+        })
+        .catch(() => {})
+    }, 8000)
+    return () => window.clearInterval(t)
+  }, [pendingPublish, projectId])
+
   // ── Theme live preview (store ThemeBridge, postMessage) ─────────────────────
   const postThemePreview = useCallback((payload: ReturnType<typeof themePreviewPayload>) => {
     themePreviewRef.current = payload
@@ -1954,6 +1988,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       const data = await res.json().catch(() => ({} as Record<string, unknown>)) as {
         mode?: string; url?: string | null; versionNo?: number; error?: string; code?: string; reason?: string
       }
+      if (res.status === 409 && data.code === 'draft_building') {
+        setPendingPublish(true)
+        setMessages((prev) => [...prev, { role: 'assistant', content: 'Your latest changes are still building — they go live automatically as soon as the build is ready (~1 min).', type: 'status' }])
+        return
+      }
       if (!res.ok) {
         setMessages((prev) => [...prev, { role: 'assistant', content: data.error ?? `Publish failed (${res.status}).`, type: 'error' }])
         return
@@ -1977,6 +2016,32 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       setMessages((prev) => [...prev, { role: 'assistant', content: 'Publish request failed. Try again.', type: 'error' }])
     } finally {
       setIsPublishing(false)
+    }
+  }
+
+  // Visual editor closed (Done / Publish). Its edits were already built as a draft by the
+  // editor (build_draft) — show that build like a chat edit's, and with Publish go live as
+  // soon as it is ready.
+  function handleEditorExit(build: { deploymentId: string | null; previewUrl: string | null } | null, publish: boolean) {
+    setVisualEdit(false)
+    fetchVersions()
+    fetchPublishState()
+    if (build?.deploymentId) {
+      const url = resolveUrl(build.previewUrl)
+      if (url) { setPreviewUrl(url); setPreviewReady(false) }
+      setMessages((prev) => [...prev, {
+        role: 'assistant',
+        content: publish
+          ? 'Building your visual edits (~1 min) — they go live automatically as soon as the build is ready.'
+          : draftMode
+            ? 'Building a draft of your visual edits (~1 min) — your live store stays unchanged until you click **Publish**.'
+            : 'Building a preview of your visual edits (~1 min).',
+        type: 'status',
+      }])
+      startLogStreaming(build.deploymentId)
+      if (publish) setPendingPublish(true)
+    } else if (publish) {
+      void handlePublish()
     }
   }
 
@@ -3742,7 +3807,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {draftMode && publishState && !publishState.upToDate && (
               <button
                 onClick={handlePublish}
-                disabled={isPublishing || isDeploying || deployStatus === 'building'}
+                disabled={isPublishing || isDeploying || pendingPublish || deployStatus === 'building'}
                 title="Make your latest changes live"
                 style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 6,
@@ -3753,7 +3818,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 }}
               >
                 <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#D4FF3F' }} />
-                {isPublishing || isDeploying || deployStatus === 'building' ? '⟳ Publishing' : 'Publish'}
+                {pendingPublish ? '⟳ Publishing when ready' : isPublishing || isDeploying || deployStatus === 'building' ? '⟳ Publishing' : 'Publish'}
               </button>
             )}
             {(deployStatus === 'ready' || draftMode) && (liveUrl ?? (draftMode ? storeUrl : null)) ? (
@@ -6626,7 +6691,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {visualEdit ? (
             <VisualEditor
               projectId={projectId}
-              onExit={() => { setVisualEdit(false); fetchVersions(); fetchPublishState() }}
+              canPublish={draftMode}
+              onExit={handleEditorExit}
               onSaved={() => { fetchVersions(); fetchPublishState(); refreshBalance() }}
             />
           ) : rightPanel === 'logs' ? LogsPane : PreviewPane}
