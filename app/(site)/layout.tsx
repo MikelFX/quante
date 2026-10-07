@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import '@ad/ui/styles/assetra.css'
+import './site.css'
 import { adFontVars } from '@ad/ui/fonts'
 import { Grain, ParticleMode, PointerFx } from '@ad/ui'
 

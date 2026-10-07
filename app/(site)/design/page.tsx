@@ -4,7 +4,8 @@ import {
   ParticleZone, Pill, SectionLabel, SectionTitle, StackCards, Sub, Tapes, ThemeToggle, Timeline, delay,
 } from '@ad/ui'
 import { glass, ease, radii, tokenLabels, tokens, type TokenName } from '@ad/ui/tokens'
-import { FormDemo, PricingDemo } from './DesignInteractive'
+import { FormDemo } from './DesignInteractive'
+import { Pricing } from '../_components/home/Pricing'
 import s from './design.module.css'
 
 export const metadata: Metadata = {
@@ -199,7 +200,7 @@ export default function DesignPage() {
 
         <InView className="sec">
           <div className="w">
-            <PricingDemo />
+            <Pricing ctaHref="#formular" />
           </div>
         </InView>
 

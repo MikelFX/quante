@@ -327,6 +327,8 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - `packages/ui` (alias `@ad/ui`) is the design system: `styles/assetra.css` is the design's CSS ported 1:1, **every selector under `.ad` and every keyframe prefixed `ad-`** (global CSS is never unloaded on client navigation, so nothing may leak into the Quante app — `__tests__/ad-design-system.test.mjs` enforces it). Components are plain React; `tokens.ts` mirrors the CSS tokens.
 - Particles: one `<ParticleField>` in the root layout (survives navigation), idle until a `<ParticleMode mode="site|app">` mounts; `<ParticleZone shapes={[…]}>` marks landing spots. `engine.ts` is the port of the design's `fx()` (its `particles()` is obsolete). Theme/motion are `data-theme` / `data-motion` on `<html>`, set pre-paint by `ThemeScript`.
 - Quante-only chrome (announcement banner) is skipped on site routes via `lib/site-routes.ts`. Generated storefronts never use `@ad/ui`.
+- Site copy is data (`content/assetra/site.ts`, `content/assetra/modules.ts`); unknown facts are `null` and render as visible `[placeholders]` — never invent them. Module status there must match what the code ships.
+- Lead form → `POST /api/leads` (honeypot + min fill time + per-IP/global limits) → table `leads` (`supabase/migration-assetra-leads.sql`, service-role only) + e-mail to `LEAD_NOTIFY_EMAIL` (sender `LEAD_NOTIFY_FROM`). Either copy keeps the lead.
 
 ## 14. Security & guardrails
 

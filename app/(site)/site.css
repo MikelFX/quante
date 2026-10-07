@@ -1,0 +1,28 @@
+/* AssetraDigital website — pieces that are not in the design file but are required by the
+   brief (two paths, a working lead form, legal pages). Built only from the design's tokens and
+   proportions, scoped under .ad like the design system. */
+
+/* ── Two paths: done for you / do it yourself ───────────────────────────── */
+.ad .paths-sec{position:relative;padding:clamp(56px,7vw,96px) 0 0}
+.ad .paths{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr));gap:16px}
+.ad .path{gap:16px}
+.ad .path h2{margin:0;font-family:var(--disp);font-stretch:70%;font-weight:850;font-size:clamp(34px,3.4vw,52px);line-height:.95;text-transform:uppercase}
+.ad .path p{margin:0;max-width:30em;color:var(--fg2)}
+.ad .path .btn{align-self:flex-start;margin-top:8px}
+
+/* ── Lead form ──────────────────────────────────────────────────────────── */
+/* Honeypot: off screen, out of the tab order, hidden from assistive tech. */
+.ad .hpot{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}
+.ad .frm-note{margin:-4px 0 0;font:500 12px/1.5 var(--mono);color:var(--fg3)}
+.ad .frm-note a{color:var(--fg2);text-decoration:underline;text-underline-offset:3px}
+.ad .frm-note a:hover{color:var(--accText)}
+.ad .frm-err{margin:0;padding:14px 16px;border-radius:14px;font:500 13px/1.5 var(--mono);color:var(--fg);border:1px solid #f0a73a;background:color-mix(in srgb,#f0a73a 10%,transparent);animation:ad-rise .5s var(--ease) both}
+.ad .frm .btn[disabled]{cursor:default;opacity:.85}
+
+/* ── Legal / document pages ─────────────────────────────────────────────── */
+.ad .doc-page{padding:clamp(120px,14vw,200px) 0 clamp(80px,10vw,140px)}
+.ad .doc-page .sub{max-width:40em}
+.ad .doc-page .doc-body{margin-top:clamp(32px,4vw,56px);padding:clamp(22px,3vw,40px);border-radius:28px;max-width:52em}
+.ad .doc-page .doc-body p{margin:0;color:var(--fg2)}
+/* the bento .card spans 12 columns by default; here the two path cards share one row */
+.ad .paths .card{grid-column:auto}

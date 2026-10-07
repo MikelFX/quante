@@ -599,7 +599,13 @@ function normalizeFrom(from: string): string {
   return name ? `"${name}" <${addr}>` : addr
 }
 
-export async function sendEmail(to: string, subject: string, html: string, from = PLATFORM_ORDER_SENDER): Promise<boolean> {
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  from = PLATFORM_ORDER_SENDER,
+  opts: { replyTo?: string | null } = {},
+): Promise<boolean> {
   const key = process.env.RESEND_API_KEY
   if (!key) return false
   // Exactly one plain recipient — never a list, a display-name string or a header injection.
@@ -608,11 +614,13 @@ export async function sendEmail(to: string, subject: string, html: string, from 
     return false
   }
   const safeSubject = String(subject ?? '').replace(/[\r\n\u0000-\u001f\u007f]+/g, ' ').slice(0, 250)
+  // Reply-To must be one plain valid address too; anything else is dropped, not sent.
+  const replyTo = opts.replyTo && isValidEmail(opts.replyTo) ? opts.replyTo : undefined
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ from: normalizeFrom(from), to, subject: safeSubject, html }),
+      body: JSON.stringify({ from: normalizeFrom(from), to, subject: safeSubject, html, ...(replyTo ? { reply_to: replyTo } : {}) }),
     })
     if (!res.ok) console.error('[email] Resend error:', res.status, await res.text())
     return res.ok

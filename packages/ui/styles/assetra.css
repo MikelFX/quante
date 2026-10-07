@@ -311,14 +311,16 @@
 .ad .hp small{font:500 1.1cqw/1 var(--mono);color:#6f705f}
 .ad .food{display:flex;align-items:center;justify-content:center;height:13cqw;border-radius:1cqw;background:radial-gradient(circle at 50% 35%,#f7f2e6,#e1d7c2)}
 .ad .food.fz{background:radial-gradient(circle at 50% 35%,#eef5f9,#c9dae6)}
+/* .food.fN (not .fN as in the design file): bare .f1–.f3 also matched the hero chips .fc.f1–.f3
+   and turned their mint status dots into the Harwo cheese and butter. */
 .ad .food i{display:block;transition:transform .6s var(--ease)}
 .ad .hp div:hover .food i{transform:scale(1.12) rotate(-6deg)}
-.ad .f1 i{width:8cqw;height:8cqw;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f7d978,#e0a531 60%,#b9781c);box-shadow:inset -.6cqw -.8cqw 0 rgba(0,0,0,.12),0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.4)}
-.ad .f2 i{width:9cqw;height:5.6cqw;border-radius:.8cqw;background:linear-gradient(180deg,#f2d37a,#dcb04a);box-shadow:0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.4)}
-.ad .f3 i{width:8cqw;height:4.4cqw;border-radius:.4cqw;background:linear-gradient(180deg,#ecca70 0 30%,#d6aa45 30%);box-shadow:0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.4)}
-.ad .f4 i{width:6cqw;height:6cqw;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9e6dd 70%,#cfcabd);box-shadow:3.4cqw .4cqw 0 -.8cqw #ece8de,0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.35)}
-.ad .f5 i{width:5cqw;height:8cqw;border-radius:.4cqw;background:linear-gradient(90deg,#fff,#e6e4de);border-top:1.6cqw solid #3d6fa0;box-shadow:0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.35)}
-.ad .f6 i{width:6.6cqw;height:8.6cqw;border-radius:.5cqw .5cqw .9cqw .9cqw;background:linear-gradient(90deg,rgba(255,255,255,.3),transparent 40%,rgba(0,0,0,.2)),#4f86b8}
+.ad .food.f1 i{width:8cqw;height:8cqw;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f7d978,#e0a531 60%,#b9781c);box-shadow:inset -.6cqw -.8cqw 0 rgba(0,0,0,.12),0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.4)}
+.ad .food.f2 i{width:9cqw;height:5.6cqw;border-radius:.8cqw;background:linear-gradient(180deg,#f2d37a,#dcb04a);box-shadow:0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.4)}
+.ad .food.f3 i{width:8cqw;height:4.4cqw;border-radius:.4cqw;background:linear-gradient(180deg,#ecca70 0 30%,#d6aa45 30%);box-shadow:0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.4)}
+.ad .food.f4 i{width:6cqw;height:6cqw;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#e9e6dd 70%,#cfcabd);box-shadow:3.4cqw .4cqw 0 -.8cqw #ece8de,0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.35)}
+.ad .food.f5 i{width:5cqw;height:8cqw;border-radius:.4cqw;background:linear-gradient(90deg,#fff,#e6e4de);border-top:1.6cqw solid #3d6fa0;box-shadow:0 1cqw 1.2cqw -.6cqw rgba(0,0,0,.35)}
+.ad .food.f6 i{width:6.6cqw;height:8.6cqw;border-radius:.5cqw .5cqw .9cqw .9cqw;background:linear-gradient(90deg,rgba(255,255,255,.3),transparent 40%,rgba(0,0,0,.2)),#4f86b8}
 .ad .sat{position:absolute;width:30%;padding:20px;border-radius:22px;color:var(--fg)}
 .ad .s1{left:-3%;top:4%;rotate:-4deg;transform:translateZ(140px);animation:ad-fl 7s ease-in-out infinite}
 .ad .s2{right:-3%;top:-2%;rotate:3deg;transform:translateZ(180px);animation:ad-fl 8s -2s ease-in-out infinite}
