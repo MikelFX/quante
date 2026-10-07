@@ -58,7 +58,7 @@ test('site.css does not reuse a class name of the design stylesheet by accident'
   // A site-level rule on a design class leaks into every design component using it
   // (a honeypot `.hp` once moved the Harwo product grid `.hp` off screen).
   const site = readFileSync(new URL('../app/(site)/site.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-  const intentional = new Set(['frm', 'card', 'btn']) // deliberate extensions, always qualified by a site class
+  const intentional = new Set(['frm', 'card', 'btn', 'bento']) // deliberate extensions, always qualified by a site class
   const designClasses = new Set([...css.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((m) => m[1]))
   const clashes = new Set()
   for (const m of site.matchAll(/\.ad \.([a-z][a-z0-9-]*)/g)) {

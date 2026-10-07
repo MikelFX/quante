@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
       // deep links from old emails / OG previews permanently forward.
       { source: '/project/:id/ads', destination: '/qads', permanent: true },
       { source: '/project/:id/ads/:path*', destination: '/qads', permanent: true },
+      // The old English Quante marketing pages are replaced by the Czech AssetraDigital site
+      // (app/(site)). Exact paths only — never a wildcard that could catch /api/* routes.
+      { source: '/pricing', destination: '/quante#cenik', permanent: true },
+      { source: '/showcase', destination: '/quante/generate', permanent: true },
+      { source: '/about', destination: '/', permanent: true },
+      { source: '/domains', destination: '/quante', permanent: true },
+      { source: '/contact', destination: '/#kontakt', permanent: true },
+      { source: '/api', destination: '/quante', permanent: true },
     ]
   },
 };

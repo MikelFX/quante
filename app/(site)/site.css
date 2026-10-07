@@ -26,3 +26,23 @@
 .ad .doc-page .doc-body p{margin:0;color:var(--fg2)}
 /* the bento .card spans 12 columns by default; here the two path cards share one row */
 .ad .paths .card{grid-column:auto}
+
+/* ── Quante pages (/quante, /quante/<modul>) ────────────────────────────── */
+.ad .bento .card.w4{grid-column:span 4}
+@media (max-width:1080px){.ad .bento .card.w4{grid-column:span 6}}
+@media (max-width:640px){.ad .bento .card.w4{grid-column:span 12}}
+.ad .mod-top{padding-top:clamp(120px,13vw,180px)}
+.ad .mod-back{display:inline-flex;align-items:center;min-height:44px;margin-bottom:18px;font:500 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);transition:color .25s}
+.ad .mod-back:hover{color:var(--accText)}
+.ad .mod-top .pill{margin-bottom:6px}
+.ad .mod-demo{max-width:640px;margin:clamp(36px,5vw,64px) auto 0}
+.ad .mod-demo:hover{transform:none}
+.ad .mod-demo .pv{height:clamp(300px,30vw,400px);border-bottom:0}
+.ad .mod-text{margin:0;color:var(--fg2)}
+.ad .mod-note{max-width:46em}
+.ad .mod-end{padding-bottom:clamp(80px,10vw,150px)}
+.ad .q-costs{margin-top:clamp(40px,5vw,64px)}
+.ad .q-hero .h1{font-size:clamp(52px,7.4vw,120px)}
+.ad .q-agency{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:20px}
+.ad .q-agency .frm-err{margin:0}
+.ad .card.w4 .ch h3{font-size:clamp(26px,2.3vw,36px)}

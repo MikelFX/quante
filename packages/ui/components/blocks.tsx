@@ -26,10 +26,13 @@ export function SlotNumber({ value, base = 0.1 }: { value: string; base?: number
       {value.split('').map((ch, i) =>
         ch === ' ' ? (
           <span key={i} className="sp" aria-hidden="true" />
-        ) : (
+        ) : /\d/.test(ch) ? (
           <span key={i} className="dg" aria-hidden="true">
             <i style={{ transform: `translateY(-${ch}em)`, animationDelay: (base + i * 0.07).toFixed(2) + 's' }}>0123456789</i>
           </span>
+        ) : (
+          // separators (9,99) stay put
+          <span key={i} aria-hidden="true">{ch}</span>
         ),
       )}
     </>

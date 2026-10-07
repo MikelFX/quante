@@ -1,29 +1,25 @@
 import type { MetadataRoute } from 'next'
 import { SITE_URL } from '@/lib/seo'
+import { modules } from '@/content/assetra/modules'
 
-// Static sitemap for the public marketing surface. Every route here is
-// prerendered (○ Static in `next build` output) so lastModified reflects
-// deploy time; a per-route lastModified would need a build hook and
-// isn't worth the complexity yet. When app routes (/dashboard, /billing,
-// etc.) become worth indexing — they aren't, they're behind auth and
-// have zero SEO value — add them here.
+// Static sitemap for the public surface: the AssetraDigital website (Czech) plus the Quante
+// pages that are still public (Qads generator, changelog, legal). Every route here is
+// prerendered, so lastModified reflects deploy time. The old English marketing pages redirect
+// (next.config.ts) and are not listed; the AssetraDigital document pages stay out until they
+// have real text (they are noindex placeholders).
 //
-// robots.ts disallows /api/*, /(app)/* and /(preview)/*, so this sitemap
-// only enumerates URLs Google is allowed to crawl.
+// robots.ts disallows /api/*, /(app)/* and /(preview)/*, so this sitemap only enumerates URLs
+// Google is allowed to crawl.
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()
 
   const publicRoutes: Array<{ path: string; priority: number; changeFrequency: 'yearly' | 'monthly' | 'weekly' }> = [
     { path: '/',          priority: 1.0, changeFrequency: 'monthly' },
-    { path: '/pricing',   priority: 0.9, changeFrequency: 'monthly' },
-    { path: '/showcase',  priority: 0.8, changeFrequency: 'monthly' },
+    { path: '/quante',    priority: 0.9, changeFrequency: 'monthly' },
+    ...modules.map((m) => ({ path: '/quante/' + m.slug, priority: m.status === 'live' ? 0.8 : 0.5, changeFrequency: 'monthly' as const })),
     { path: '/qads',      priority: 0.7, changeFrequency: 'monthly' },
-    { path: '/about',     priority: 0.6, changeFrequency: 'monthly' },
-    { path: '/domains',   priority: 0.5, changeFrequency: 'monthly' },
     { path: '/changelog', priority: 0.4, changeFrequency: 'weekly'  },
-    { path: '/contact',   priority: 0.4, changeFrequency: 'yearly'  },
-    { path: '/api',       priority: 0.3, changeFrequency: 'monthly' },
     { path: '/terms',     priority: 0.2, changeFrequency: 'yearly'  },
     { path: '/privacy',   priority: 0.2, changeFrequency: 'yearly'  },
     { path: '/refund',    priority: 0.2, changeFrequency: 'yearly'  },

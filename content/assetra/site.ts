@@ -16,12 +16,13 @@ export const contact = {
   responseTime: null as string | null, // „Ozveme se do [doba]“
 }
 
-export const nav = [
+/** Homepage sections by id; Quante has its own page. */
+export const nav: { id?: string; href?: string; label: string; num: string }[] = [
   { id: 'sluzby', label: 'Služby', num: '01' },
   { id: 'cenik', label: 'Ceník', num: '03' },
   { id: 'prace', label: 'Ukázka práce', num: '05' },
-  { id: 'quante', label: 'Quante', num: '06' },
-] as const
+  { href: '/quante', label: 'Quante', num: '06' },
+]
 
 export const cta = { label: 'Domluvit konzultaci', target: 'kontakt' } as const
 

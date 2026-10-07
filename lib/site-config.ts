@@ -45,17 +45,14 @@ export const socialLinks: Array<{ label: string; href: string }> = []
 
 export const footerNav = {
   product: [
-    { label: 'Pricing',    href: '/pricing' },
-    { label: 'Showcase',   href: '/showcase' },
-    { label: 'Domains',    href: '/domains' },
+    { label: 'Quante',     href: '/quante' },
+    { label: 'Pricing',    href: '/quante#cenik' },
     { label: 'Changelog',  href: '/changelog' },
-    { label: 'Roadmap',    href: '/about#roadmap' },
     { label: 'Qads',       href: '/qads', badge: 'New' as const },
-    { label: 'API',        href: '/api', badge: 'Soon' as const },
   ],
   company: [
-    { label: 'About',   href: '/about' },
-    { label: 'Contact', href: '/contact' },
+    { label: 'Assetra Digital', href: '/' },
+    { label: 'Contact',         href: '/#kontakt' },
   ],
   legal: [
     { label: 'Terms of Service', href: '/terms' },

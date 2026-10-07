@@ -11,7 +11,7 @@ export function SiteHeader() {
   return (
     <FloatingNav
       homeHref={home ? '#top' : '/'}
-      links={nav.map((l) => ({ href: to(l.id), label: l.label, num: l.num }))}
+      links={nav.map((l) => ({ href: l.href ?? to(l.id ?? ''), label: l.label, num: l.num }))}
       cta={{ href: to(cta.target), label: cta.label }}
       actions={<MotionToggle />}
     />

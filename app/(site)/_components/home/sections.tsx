@@ -1,11 +1,10 @@
-import Link from 'next/link'
 import {
   BinaryStrip, Button, Card, CharHeading, CheckList, InView, ParticleZone, Pill, SectionLabel, SectionTitle,
   StackCards, Sub, Tapes, Timeline, Todo, delay,
 } from '@ad/ui'
 import { contact, contactSection, contract, cta, hero, paths, services, steps, work } from '@/content/assetra/site'
-import { moduleHref, modules, quanteIntro } from '@/content/assetra/modules'
-import { ModuleVisual } from '../ModuleVisual'
+import { modules, quanteIntro } from '@/content/assetra/modules'
+import { ModuleCard } from '../quante/ModuleCard'
 import { HeroStage } from './HeroStage'
 import { LeadForm } from './LeadForm'
 import { Pricing } from './Pricing'
@@ -261,20 +260,7 @@ export function Quante() {
           <ParticleZone shapes={['Q', 'ADS', 'AGENT']} />
         </div>
         <div className="prods">
-          {modules.map((m, i) => (
-            <article className="prod glass spot rv" style={delay(0.1 * ((i % 3) + 1))} key={m.slug}>
-              <ModuleVisual slug={m.slug} />
-              <div className="pb">
-                <h3>{m.name}</h3>
-                <p>{m.short}</p>
-                <div className="lk">
-                  <span>{m.tag}</span>
-                  {m.status === 'dev' && <span className="wip">Ve vývoji</span>}
-                  <Link href={moduleHref(m)} aria-label={`${m.name}: detail modulu`}>Detail modulu ↗</Link>
-                </div>
-              </div>
-            </article>
-          ))}
+          {modules.map((m, i) => <ModuleCard key={m.slug} m={m} i={i} />)}
         </div>
       </div>
     </InView>

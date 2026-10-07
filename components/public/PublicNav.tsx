@@ -4,12 +4,13 @@ import Link from 'next/link'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { LiquidGlassDefs } from './LiquidGlassDefs'
 
+// The marketing pages moved to the Czech AssetraDigital site (app/(site)); this nav is left
+// on the remaining Quante pages (Qads, changelog, legal) until they get the new design.
 const LINKS = [
-  { href: '/showcase', label: 'Showcase' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/quante', label: 'Quante' },
+  { href: '/quante#cenik', label: 'Pricing' },
   { href: '/qads', label: 'Qads' },
-  { href: '/domains', label: 'Domains' },
-  { href: '/about', label: 'About' },
+  { href: '/', label: 'Assetra Digital' },
 ]
 
 // Shared sticky glass nav for every public/marketing page. Deliberately the
