@@ -4,11 +4,13 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AnnouncementBanner } from '@/components/AnnouncementBanner'
+import { ParticleField } from '@ad/ui/particles'
+import { ThemeScript } from '@ad/ui/ThemeScript'
 import './globals.css'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
-  subsets: ['latin'],
+  subsets: ['latin', 'latin-ext'],
 })
 
 const geistMono = Geist_Mono({
@@ -83,11 +85,22 @@ export default function RootLayout({
         },
       }}
     >
+      {/* data-theme / data-motion drive the AssetraDigital surfaces. ThemeScript applies the saved
+          choice before the first paint, so React keeps what it finds on <html>. */}
       <html
         lang="en"
+        data-theme="dark"
+        data-motion="on"
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} h-full`}
       >
+        <head>
+          <ThemeScript />
+        </head>
         <body className="min-h-full flex flex-col bg-background text-foreground">
+          {/* One particle canvas for the whole app, so the swarm survives navigation. Idle until a
+              <ParticleMode> (AssetraDigital pages) switches it on. */}
+          <ParticleField />
           <AnnouncementBanner />
           <TooltipProvider>
             {children}

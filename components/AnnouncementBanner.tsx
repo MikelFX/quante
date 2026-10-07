@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { domainProvider } from '@/lib/site-config'
+import { isSiteRoute } from '@/lib/site-routes'
 
 const STORAGE_KEY = 'quante_banner_v1_dismissed'
 const BANNER_H_PX = 40
 
 export function AnnouncementBanner() {
   const [visible, setVisible] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => {
     if (!localStorage.getItem(STORAGE_KEY)) {
@@ -23,7 +26,8 @@ export function AnnouncementBanner() {
     document.documentElement.style.setProperty('--banner-h', '0px')
   }
 
-  if (!visible) return null
+  // Quante announcement — not part of the AssetraDigital website.
+  if (!visible || isSiteRoute(pathname)) return null
 
   return (
     <div

@@ -17,10 +17,11 @@ out
 coverage
 *.tsbuildinfo
 
-# local notes, Obsidian vault, mockups
+# local notes, Obsidian vault, mockups, design source files (not the /design route)
 .obsidian
 QuanteCode
 mockups
+/design/
 /*.md
 /*.canvas
 /*.base
