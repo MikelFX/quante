@@ -38,10 +38,10 @@ interface SavedBlock { id: string; name: string; snippet: string }
 
 const TOKEN_HINTS = ['bg-accent', 'text-accent', 'text-muted', 'bg-surface', 'border-border', 'rounded-store', 'font-heading']
 
-const panel: React.CSSProperties = { background: '#0d0d11', borderLeft: '1px solid rgba(255,255,255,.07)' }
-const label: React.CSSProperties = { fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: '0 0 6px' }
-const input: React.CSSProperties = { width: '100%', background: '#08080a', border: '1px solid rgba(255,255,255,.1)', borderRadius: 7, color: '#f4f4f6', fontSize: 12, padding: '7px 8px', outline: 'none', resize: 'vertical' }
-const btn: React.CSSProperties = { fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.04)', color: '#f4f4f6', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }
+const panel: React.CSSProperties = { background: 'var(--q-s1)', borderLeft: '1px solid rgb(var(--q-ink-rgb) / .07)' }
+const label: React.CSSProperties = { fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg4)', margin: '0 0 6px' }
+const input: React.CSSProperties = { width: '100%', background: 'var(--q-bg)', border: '1px solid rgb(var(--q-ink-rgb) / .1)', borderRadius: 7, color: 'var(--q-fg)', fontSize: 12, padding: '7px 8px', outline: 'none', resize: 'vertical' }
+const btn: React.CSSProperties = { fontSize: 11, fontWeight: 600, padding: '5px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'rgb(var(--q-ink-rgb) / .04)', color: 'var(--q-fg)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }
 
 const DEVICES: Array<{ id: Device; icon: React.ElementType; title: string }> = [
   { id: 'desktop', icon: Monitor, title: 'Desktop' },
@@ -407,30 +407,30 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
   const frameH = area.h > 0 ? (area.h - pad * 2) / scale : 800
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#09090c' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--q-bg)' }}>
       {/* Toolbar */}
-      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderBottom: '1px solid rgba(255,255,255,.06)', background: '#0d0d11' }}>
-        <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 700, letterSpacing: '.05em', color: '#D4FF3F', textTransform: 'uppercase' }}>Visual edit</span>
-        <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden' }}>
-          <button onClick={() => setSelectMode(true)} title="Click elements to select them, double-click text to edit it" style={{ ...btn, border: 'none', borderRadius: 0, background: selectMode ? 'rgba(212,255,63,.16)' : 'transparent' }}><MousePointer2 size={11} /> Select</button>
-          <button onClick={() => setSelectMode(false)} title="Use the store normally (links, menus) — nothing is selectable" style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: '1px solid rgba(255,255,255,.08)', background: !selectMode ? 'rgba(212,255,63,.16)' : 'transparent' }}><Hand size={11} /> Browse</button>
+      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', gap: 8, padding: '0 10px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)', background: 'var(--q-s1)' }}>
+        <span style={{ fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 700, letterSpacing: '.05em', color: 'var(--q-acc-text)', textTransform: 'uppercase' }}>Visual edit</span>
+        <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .1)', overflow: 'hidden' }}>
+          <button onClick={() => setSelectMode(true)} title="Click elements to select them, double-click text to edit it" style={{ ...btn, border: 'none', borderRadius: 0, background: selectMode ? 'rgb(var(--q-acc-rgb) / .16)' : 'transparent' }}><MousePointer2 size={11} /> Select</button>
+          <button onClick={() => setSelectMode(false)} title="Use the store normally (links, menus) — nothing is selectable" style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: '1px solid rgb(var(--q-ink-rgb) / .08)', background: !selectMode ? 'rgb(var(--q-acc-rgb) / .16)' : 'transparent' }}><Hand size={11} /> Browse</button>
         </div>
         <button onClick={() => setFrameKey((k) => k + 1)} title="Reload the preview" style={btn}><RotateCcw size={11} /></button>
         <span style={{ flex: 1 }} />
-        <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .1)', overflow: 'hidden' }}>
           {DEVICES.map((d, i) => (
-            <button key={d.id} onClick={() => setDevice(d.id)} title={d.title} style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: i ? '1px solid rgba(255,255,255,.08)' : 'none', padding: '5px 9px', background: device === d.id ? 'rgba(212,255,63,.16)' : 'transparent', color: device === d.id ? '#D4FF3F' : '#8a8a93' }}>
+            <button key={d.id} onClick={() => setDevice(d.id)} title={d.title} style={{ ...btn, border: 'none', borderRadius: 0, borderLeft: i ? '1px solid rgb(var(--q-ink-rgb) / .08)' : 'none', padding: '5px 9px', background: device === d.id ? 'rgb(var(--q-acc-rgb) / .16)' : 'transparent', color: device === d.id ? 'var(--q-acc-text)' : 'var(--q-fg3)' }}>
               <d.icon size={12} />
             </button>
           ))}
         </div>
         <span style={{ flex: 1 }} />
         {saving ? (
-          <span style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>Saving…</span>
-        ) : savedNote && <span style={{ fontSize: 11, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>{savedNote}</span>}
+          <span style={{ fontSize: 11, color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)' }}>Saving…</span>
+        ) : savedNote && <span style={{ fontSize: 11, color: 'var(--q-ok-text)', fontFamily: 'var(--q-mono)' }}>{savedNote}</span>}
         <button onClick={() => void done(false)} disabled={!!closing} title="Close the editor — your edits stay saved as a draft" style={{ ...btn, opacity: closing ? 0.5 : 1 }}><Check size={11} /> {closing === 'done' ? 'Closing…' : 'Done'}</button>
         {canPublish && (
-          <button onClick={() => void done(true)} disabled={!!closing} title="Close the editor and make your edits live (as soon as they are built, ~1 min)" style={{ ...btn, borderColor: 'rgba(212,255,63,.45)', background: 'rgba(212,255,63,.14)', color: '#D4FF3F', opacity: closing ? 0.5 : 1 }}>
+          <button onClick={() => void done(true)} disabled={!!closing} title="Close the editor and make your edits live (as soon as they are built, ~1 min)" style={{ ...btn, borderColor: 'rgb(var(--q-acc-rgb) / .45)', background: 'rgb(var(--q-acc-rgb) / .14)', color: 'var(--q-acc-text)', opacity: closing ? 0.5 : 1 }}>
             <Rocket size={11} /> {closing === 'publish' ? 'Publishing…' : 'Publish'}
           </button>
         )}
@@ -438,9 +438,9 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
 
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Preview */}
-        <div ref={areaRef} style={{ flex: 1, position: 'relative', minWidth: 0, overflow: 'hidden', background: device === 'desktop' ? '#09090c' : '#141418' }}>
+        <div ref={areaRef} style={{ flex: 1, position: 'relative', minWidth: 0, overflow: 'hidden', background: device === 'desktop' ? 'var(--q-bg)' : 'var(--q-s2)' }}>
           {phase === 'ready' && url ? (
-            <div style={{ position: 'absolute', top: pad, left: '50%', width: frameW * scale, height: frameH * scale, transform: 'translateX(-50%)', borderRadius: device === 'desktop' ? 0 : 14, overflow: 'hidden', boxShadow: device === 'desktop' ? 'none' : '0 0 0 1px rgba(255,255,255,.1), 0 20px 50px rgba(0,0,0,.5)' }}>
+            <div style={{ position: 'absolute', top: pad, left: '50%', width: frameW * scale, height: frameH * scale, transform: 'translateX(-50%)', borderRadius: device === 'desktop' ? 0 : 14, overflow: 'hidden', boxShadow: device === 'desktop' ? 'none' : '0 0 0 1px rgb(var(--q-ink-rgb) / .1), 0 20px 50px rgba(0,0,0,.5)' }}>
               <iframe key={frameKey} ref={frameRef} src={url} title="Visual editor preview" style={{ width: frameW, height: frameH, border: 'none', background: '#fff', transform: `scale(${scale})`, transformOrigin: '0 0' }} />
             </div>
           ) : null}
@@ -463,12 +463,12 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
               {phase === 'starting' ? (
                 <div>
-                  <div style={{ width: 22, height: 22, margin: '0 auto 12px', borderRadius: '50%', border: '2px solid rgba(255,255,255,.1)', borderTopColor: '#D4FF3F', animation: 'spin .8s linear infinite' }} />
-                  <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Starting the live editor… (about 10 s)</p>
+                  <div style={{ width: 22, height: 22, margin: '0 auto 12px', borderRadius: '50%', border: '2px solid rgb(var(--q-ink-rgb) / .1)', borderTopColor: 'var(--q-acc)', animation: 'spin .8s linear infinite' }} />
+                  <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>Starting the live editor… (about 10 s)</p>
                 </div>
               ) : (
                 <div style={{ maxWidth: 420 }}>
-                  <p style={{ fontSize: 12, color: '#f87171', margin: '0 0 12px', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{error}</p>
+                  <p style={{ fontSize: 12, color: 'var(--q-danger-text)', margin: '0 0 12px', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{error}</p>
                   <button onClick={() => void start()} style={btn}>Try again</button>
                 </div>
               )}
@@ -480,41 +480,41 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
         <div style={{ ...panel, width: 300, flexShrink: 0, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {!node ? (
             <div>
-              <p style={{ fontSize: 12, color: '#f4f4f6', margin: '0 0 8px', fontWeight: 600 }}>{phase === 'ready' ? (selectMode ? 'Click any element in the preview' : 'Browse mode') : ''}</p>
+              <p style={{ fontSize: 12, color: 'var(--q-fg)', margin: '0 0 8px', fontWeight: 600 }}>{phase === 'ready' ? (selectMode ? 'Click any element in the preview' : 'Browse mode') : ''}</p>
               {phase === 'ready' && (
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.6 }}>
                   {selectMode
-                    ? <>Click to select · double-click a text to rewrite it · switch Desktop / Tablet / Phone above to style each screen size. Changes are saved as a <b style={{ color: '#D4FF3F' }}>draft</b> — Publish makes them live.</>
-                    : <>The store works normally (links, menus). Switch to <b style={{ color: '#D4FF3F' }}>Select</b> to edit elements.</>}
+                    ? <>Click to select · double-click a text to rewrite it · switch Desktop / Tablet / Phone above to style each screen size. Changes are saved as a <b style={{ color: 'var(--q-acc-text)' }}>draft</b> — Publish makes them live.</>
+                    : <>The store works normally (links, menus). Switch to <b style={{ color: 'var(--q-acc-text)' }}>Select</b> to edit elements.</>}
                 </p>
               )}
-              {editError && <p style={{ fontSize: 11, color: '#f87171', margin: '10px 0 0', lineHeight: 1.5 }}>{editError}</p>}
+              {editError && <p style={{ fontSize: 11, color: 'var(--q-danger-text)', margin: '10px 0 0', lineHeight: 1.5 }}>{editError}</p>}
             </div>
           ) : (
             <>
               <div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <p style={{ fontSize: 13, color: '#f4f4f6', margin: 0, fontFamily: 'var(--font-geist-mono)' }}>&lt;{node.tag}&gt;</p>
-                  <p style={{ fontSize: 10, color: '#5b5b64', margin: 0, fontFamily: 'var(--font-geist-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileLabel}</p>
+                  <p style={{ fontSize: 13, color: 'var(--q-fg)', margin: 0, fontFamily: 'var(--q-mono)' }}>&lt;{node.tag}&gt;</p>
+                  <p style={{ fontSize: 10, color: 'var(--q-fg4)', margin: 0, fontFamily: 'var(--q-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fileLabel}</p>
                   <span style={{ flex: 1 }} />
-                  <button onClick={() => { applyNodes(nodesRef.current, versionIdRef.current, null); post({ type: 'select', oid: null }) }} title="Deselect" style={{ ...btn, padding: '3px 5px', color: '#8a8a93' }}><X size={11} /></button>
+                  <button onClick={() => { applyNodes(nodesRef.current, versionIdRef.current, null); post({ type: 'select', oid: null }) }} title="Deselect" style={{ ...btn, padding: '3px 5px', color: 'var(--q-fg3)' }}><X size={11} /></button>
                 </div>
                 {(node.repeated || selectedCount > 1) && (
-                  <p style={{ fontSize: 11, color: '#e0a04f', margin: '6px 0 0', lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 11, color: 'var(--q-warn-text)', margin: '6px 0 0', lineHeight: 1.5 }}>
                     This element repeats (list item) — a change applies to every copy.
                   </p>
                 )}
               </div>
 
-              <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .1)', overflow: 'hidden', flexShrink: 0 }}>
                 {(['design', 'content'] as const).map((t) => (
-                  <button key={t} onClick={() => setTab(t)} style={{ ...btn, flex: 1, justifyContent: 'center', border: 'none', borderRadius: 0, background: tab === t ? 'rgba(255,255,255,.1)' : 'transparent', color: tab === t ? '#f4f4f6' : '#8a8a93' }}>
+                  <button key={t} onClick={() => setTab(t)} style={{ ...btn, flex: 1, justifyContent: 'center', border: 'none', borderRadius: 0, background: tab === t ? 'rgb(var(--q-ink-rgb) / .1)' : 'transparent', color: tab === t ? 'var(--q-fg)' : 'var(--q-fg3)' }}>
                     {t === 'design' ? 'Design' : 'Content'}
                   </button>
                 ))}
               </div>
 
-              {editError && <p style={{ fontSize: 11, color: '#f87171', margin: 0, lineHeight: 1.5 }}>{editError}</p>}
+              {editError && <p style={{ fontSize: 11, color: 'var(--q-danger-text)', margin: 0, lineHeight: 1.5 }}>{editError}</p>}
 
               {tab === 'design' ? (
                 <>
@@ -599,13 +599,13 @@ function AskQuante({ tag, anchor, area, busySince, result, onSubmit, onClose }: 
     if (await onSubmit(text.trim())) setText('')
   }
   return (
-    <div style={{ position: 'absolute', left, top, width: W, zIndex: 5, background: '#111114', border: '1px solid rgba(212,255,63,.35)', borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,.55)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ position: 'absolute', left, top, width: W, zIndex: 5, background: 'var(--q-s1)', border: '1px solid rgb(var(--q-acc-rgb) / .35)', borderRadius: 12, boxShadow: '0 12px 40px rgba(0,0,0,.55)', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Sparkles size={12} color="#D4FF3F" />
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#f4f4f6' }}>Ask Quante</span>
-        <span style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>&lt;{tag}&gt;</span>
+        <Sparkles size={12} style={{ color: 'var(--q-acc-text)' }} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--q-fg)' }}>Ask Quante</span>
+        <span style={{ fontSize: 10, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)' }}>&lt;{tag}&gt;</span>
         <span style={{ flex: 1 }} />
-        <button onClick={onClose} title="Hide (comes back when you select another element)" style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#8a8a93', display: 'flex' }}><X size={12} /></button>
+        <button onClick={onClose} title="Hide (comes back when you select another element)" style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: 'var(--q-fg3)', display: 'flex' }}><X size={12} /></button>
       </div>
       <textarea
         value={text}
@@ -622,18 +622,18 @@ function AskQuante({ tag, anchor, area, busySince, result, onSubmit, onClose }: 
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {busy ? (
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#8a8a93' }}>
-            <span style={{ width: 11, height: 11, borderRadius: '50%', border: '2px solid rgba(255,255,255,.12)', borderTopColor: '#D4FF3F', animation: 'spin .8s linear infinite' }} />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--q-fg3)' }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', border: '2px solid rgb(var(--q-ink-rgb) / .12)', borderTopColor: 'var(--q-acc)', animation: 'spin .8s linear infinite' }} />
             Quante is editing… <Elapsed key={busySince} />
           </span>
         ) : (
-          <span style={{ fontSize: 10, color: '#5b5b64' }}>Enter to send · Shift+Enter new line · 1 credit</span>
+          <span style={{ fontSize: 10, color: 'var(--q-fg4)' }}>Enter to send · Shift+Enter new line · 1 credit</span>
         )}
         <span style={{ flex: 1 }} />
-        <button onClick={() => void submit()} disabled={!ready} style={{ ...btn, padding: '4px 10px', borderColor: 'rgba(212,255,63,.45)', color: '#D4FF3F', opacity: ready ? 1 : 0.4 }}><Sparkles size={11} /> Do it</button>
+        <button onClick={() => void submit()} disabled={!ready} style={{ ...btn, padding: '4px 10px', borderColor: 'rgb(var(--q-acc-rgb) / .45)', color: 'var(--q-acc-text)', opacity: ready ? 1 : 0.4 }}><Sparkles size={11} /> Do it</button>
       </div>
       {result && (
-        <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: result.ok ? '#3ecf8e' : '#f87171', maxHeight: 60, overflowY: 'auto' }}>{result.text}</p>
+        <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5, color: result.ok ? 'var(--q-ok-text)' : 'var(--q-danger-text)', maxHeight: 60, overflowY: 'auto' }}>{result.text}</p>
       )}
     </div>
   )
@@ -647,12 +647,12 @@ function TextField({ node, busy, onEdit }: { node: EditorNode; busy: boolean; on
     <div>
       <p style={label}>Text</p>
       {node.text === null ? (
-        <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>Mixed or dynamic content — select an inner element, or change it in Chat.</p>
+        <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: 0, lineHeight: 1.5 }}>Mixed or dynamic content — select an inner element, or change it in Chat.</p>
       ) : (
         <>
           <textarea value={textDraft} onChange={(e) => setTextDraft(e.target.value)} rows={3} style={input} disabled={busy} />
           <button onClick={() => onEdit({ kind: 'text', value: textDraft })} disabled={busy || textSame} style={{ ...btn, marginTop: 6, opacity: busy || textSame ? 0.5 : 1 }}>Save text</button>
-          <p style={{ fontSize: 10, color: '#5b5b64', margin: '6px 0 0' }}>Tip: double-click the text in the preview to edit it right there.</p>
+          <p style={{ fontSize: 10, color: 'var(--q-fg4)', margin: '6px 0 0' }}>Tip: double-click the text in the preview to edit it right there.</p>
         </>
       )}
     </div>
@@ -666,16 +666,16 @@ function ClassesField({ node, busy, onEdit }: { node: EditorNode; busy: boolean;
   const classSame = classDraft.trim() === (node.className ?? '').trim()
   if (node.className === null) return null
   return (
-    <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 10 }}>
-      <button onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#8a8a93', fontSize: 11, fontWeight: 600 }}>
+    <div style={{ borderTop: '1px solid rgb(var(--q-ink-rgb) / .06)', paddingTop: 10 }}>
+      <button onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--q-fg3)', fontSize: 11, fontWeight: 600 }}>
         {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />} Advanced — classes
       </button>
       {open && (
         <div style={{ marginTop: 8 }}>
-          <textarea value={classDraft} onChange={(e) => setClassDraft(e.target.value)} rows={3} spellCheck={false} style={{ ...input, fontFamily: 'var(--font-geist-mono)', fontSize: 11 }} disabled={busy} />
+          <textarea value={classDraft} onChange={(e) => setClassDraft(e.target.value)} rows={3} spellCheck={false} style={{ ...input, fontFamily: 'var(--q-mono)', fontSize: 11 }} disabled={busy} />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
             {TOKEN_HINTS.map((t) => (
-              <button key={t} onClick={() => setClassDraft((c) => (c.split(/\s+/).includes(t) ? c : `${c} ${t}`.trim()))} style={{ ...btn, fontSize: 10, padding: '2px 6px', fontFamily: 'var(--font-geist-mono)' }}>+ {t}</button>
+              <button key={t} onClick={() => setClassDraft((c) => (c.split(/\s+/).includes(t) ? c : `${c} ${t}`.trim()))} style={{ ...btn, fontSize: 10, padding: '2px 6px', fontFamily: 'var(--q-mono)' }}>+ {t}</button>
             ))}
           </div>
           <button onClick={() => onEdit({ kind: 'classes', value: classDraft })} disabled={busy || classSame} style={{ ...btn, marginTop: 8, opacity: busy || classSame ? 0.5 : 1 }}>Save classes</button>
@@ -711,11 +711,11 @@ const PALETTE: Array<{ id: string; label: string; icon: React.ElementType; snipp
 
 function PositionToggle({ node, value, onChange }: { node: EditorNode; value: 'after' | 'inside'; onChange: (v: 'after' | 'inside') => void }) {
   return (
-    <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgba(255,255,255,.1)', overflow: 'hidden', alignSelf: 'flex-start' }}>
+    <div style={{ display: 'flex', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .1)', overflow: 'hidden', alignSelf: 'flex-start' }}>
       {(['after', 'inside'] as const).map((p) => {
         const allowed = p === 'after' ? node.canDelete : node.canInsertInside
         return (
-          <button key={p} disabled={!allowed} onClick={() => onChange(p)} style={{ ...btn, border: 'none', borderRadius: 0, fontSize: 10, padding: '3px 8px', opacity: allowed ? 1 : 0.35, background: value === p ? 'rgba(212,255,63,.16)' : 'transparent' }}>
+          <button key={p} disabled={!allowed} onClick={() => onChange(p)} style={{ ...btn, border: 'none', borderRadius: 0, fontSize: 10, padding: '3px 8px', opacity: allowed ? 1 : 0.35, background: value === p ? 'rgb(var(--q-acc-rgb) / .16)' : 'transparent' }}>
             {p === 'after' ? 'After this' : 'Inside this'}
           </button>
         )
@@ -741,7 +741,7 @@ function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
     <div>
       <p style={label}>Add element</p>
       {!possible ? (
-        <p style={{ fontSize: 11, color: '#5b5b64', margin: 0 }}>Nothing can be added here — select a container or a neighbouring element.</p>
+        <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: 0 }}>Nothing can be added here — select a container or a neighbouring element.</p>
       ) : (
         <>
           <PositionToggle node={node} value={position} onChange={setPosition} />
@@ -759,7 +759,7 @@ function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
             <>
               <p style={{ ...label, margin: '12px 0 6px' }}>My elements</p>
               {blocks.length === 0 ? (
-                <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>Nothing saved yet — select an element you like and use “Save to My elements”.</p>
+                <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: 0, lineHeight: 1.5 }}>Nothing saved yet — select an element you like and use “Save to My elements”.</p>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 180, overflowY: 'auto' }}>
                   {blocks.map((b) => (
@@ -768,7 +768,7 @@ function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
                         <Bookmark size={11} style={{ flexShrink: 0 }} />
                         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.name}</span>
                       </button>
-                      <button onClick={() => onRemoveBlock(b.id)} title="Remove from My elements (the store is not changed)" style={{ ...btn, color: '#8a8a93', padding: '5px 7px' }}><X size={11} /></button>
+                      <button onClick={() => onRemoveBlock(b.id)} title="Remove from My elements (the store is not changed)" style={{ ...btn, color: 'var(--q-fg3)', padding: '5px 7px' }}><X size={11} /></button>
                     </div>
                   ))}
                 </div>
@@ -795,7 +795,7 @@ function AiBlock({ node, busy, onRun }: { node: EditorNode; busy: boolean; onRun
   const go = async (mode: 'after' | 'inside' | 'replace') => { if (await onRun(mode, prompt.trim())) setPrompt('') }
   return (
     <div>
-      <p style={label}>✦ Create with AI <span style={{ color: '#5b5b64', textTransform: 'none', letterSpacing: 0 }}>· 1 credit</span></p>
+      <p style={label}>✦ Create with AI <span style={{ color: 'var(--q-fg4)', textTransform: 'none', letterSpacing: 0 }}>· 1 credit</span></p>
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
@@ -809,7 +809,7 @@ function AiBlock({ node, busy, onRun }: { node: EditorNode; busy: boolean; onRun
         <button disabled={!ready || !node.canInsertInside} onClick={() => void go('inside')} style={{ ...btn, opacity: ready && node.canInsertInside ? 1 : 0.4 }}><Sparkles size={11} /> Add inside</button>
         <button disabled={!ready || !node.static} title={node.static ? '' : 'Shows live data — rewrite it in Chat'} onClick={() => void go('replace')} style={{ ...btn, opacity: ready && node.static ? 1 : 0.4 }}><Sparkles size={11} /> Rewrite this</button>
       </div>
-      {busy && <p style={{ fontSize: 11, color: '#8a8a93', margin: '6px 0 0' }}>Working…</p>}
+      {busy && <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '6px 0 0' }}>Working…</p>}
     </div>
   )
 }
@@ -823,7 +823,7 @@ function SaveBlock({ node, busy, onSave }: { node: EditorNode; busy: boolean; on
     <div>
       <p style={label}>Save to My elements</p>
       {!node.static ? (
-        <p style={{ fontSize: 11, color: '#5b5b64', margin: 0, lineHeight: 1.5 }}>This element shows live data or code — only plain elements (text, buttons, images, sections you built) can be saved.</p>
+        <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: 0, lineHeight: 1.5 }}>This element shows live data or code — only plain elements (text, buttons, images, sections you built) can be saved.</p>
       ) : (
         <div style={{ display: 'flex', gap: 5 }}>
           <input value={name} onChange={(e) => { setName(e.target.value); setSaved(false) }} maxLength={60} placeholder="Name, e.g. Gold CTA button" disabled={busy} style={{ ...input, flex: 1, minWidth: 0 }} />
@@ -840,8 +840,8 @@ function SaveBlock({ node, busy, onSave }: { node: EditorNode; busy: boolean; on
 function DeleteButton({ disabled, onDelete }: { disabled: boolean; onDelete: () => void }) {
   const [armed, setArmed] = useState(false)
   return armed ? (
-    <button onClick={() => { setArmed(false); onDelete() }} style={{ ...btn, color: '#f87171', borderColor: 'rgba(248,113,113,.5)' }}><Trash2 size={11} /> Confirm delete</button>
+    <button onClick={() => { setArmed(false); onDelete() }} style={{ ...btn, color: 'var(--q-danger-text)', borderColor: 'rgb(var(--q-danger-rgb) / .5)' }}><Trash2 size={11} /> Confirm delete</button>
   ) : (
-    <button disabled={disabled} onClick={() => setArmed(true)} style={{ ...btn, color: '#f87171', opacity: disabled ? 0.4 : 1 }}><Trash2 size={11} /> Delete</button>
+    <button disabled={disabled} onClick={() => setArmed(true)} style={{ ...btn, color: 'var(--q-danger-text)', opacity: disabled ? 0.4 : 1 }}><Trash2 size={11} /> Delete</button>
   )
 }

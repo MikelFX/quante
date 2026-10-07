@@ -40,21 +40,21 @@ export function AnnouncementBanner() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0A0A0A',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: 'var(--q-bg)',
+        borderBottom: '1px solid rgb(var(--q-ink-rgb) / 0.06)',
         fontSize: 13,
-        color: '#FFFFFF',
+        color: 'var(--q-fg)',
         padding: '0 56px',
         gap: 6,
       }}
     >
-      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10.5, letterSpacing: '.09em', color: '#E8FF6F', marginRight: 6 }}>
+      <span style={{ fontFamily: 'var(--q-mono)', fontSize: 10.5, letterSpacing: '.09em', color: 'var(--q-acc-text)', marginRight: 6 }}>
         NEW
       </span>
       Connect your own domain to your store, powered by {domainProvider.name}{' '}
       <Link
         href="/domains"
-        style={{ color: '#FFFFFF', textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap' }}
+        style={{ color: 'var(--q-fg)', textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap' }}
       >
         Learn more →
       </Link>
@@ -67,7 +67,7 @@ export function AnnouncementBanner() {
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          color: 'rgba(255,255,255,.65)',
+          color: 'rgb(var(--q-ink-rgb) / .65)',
           fontSize: 18,
           lineHeight: 1,
           padding: '4px 6px',

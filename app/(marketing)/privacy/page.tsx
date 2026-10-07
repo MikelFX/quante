@@ -26,7 +26,7 @@ export default function PrivacyPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: 'var(--q-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Legal
       </p>
       <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: 'var(--qp-ink)' }}>
@@ -41,7 +41,7 @@ export default function PrivacyPage() {
         <p style={{ marginTop: 8, padding: '12px 16px', background: 'var(--qp-line-soft)', borderRadius: 8, border: '1px solid var(--qp-line-soft)' }}>
           {operator.name} · {operator.role}<br />
           {operator.address}
-          {email && <><br /><a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></>}
+          {email && <><br /><a href={`mailto:${email}`} style={{ color: 'var(--qp-accent-deep)' }}>{email}</a></>}
         </p>
         <p style={{ marginTop: 10 }}>For questions about this policy or to exercise your rights, contact us at the address above. We will respond within 30 days.</p>
       </Section>
@@ -97,13 +97,13 @@ export default function PrivacyPage() {
           <li><strong style={{ color: 'var(--qp-sub)' }}>Objection.</strong> Object to processing based on legitimate interests.</li>
           <li><strong style={{ color: 'var(--qp-sub)' }}>Withdraw consent.</strong> Where processing is based on consent, withdraw it at any time without affecting prior lawful processing.</li>
         </ul>
-        <p style={{ marginTop: 10 }}>To exercise any of these rights, contact us{email ? <> at <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></> : ' using the contact details in Section 1'}. We will respond within 30 days.</p>
+        <p style={{ marginTop: 10 }}>To exercise any of these rights, contact us{email ? <> at <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent-deep)' }}>{email}</a></> : ' using the contact details in Section 1'}. We will respond within 30 days.</p>
       </Section>
 
       <Section title="6. Right to complain">
         <p>You have the right to lodge a complaint with the Czech Office for Personal Data Protection (Úřad pro ochranu osobních údajů — ÚOOÚ):</p>
         <p style={{ marginTop: 8 }}>
-          Website: <a href="https://www.uoou.cz" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--qp-accent)' }}>www.uoou.cz</a><br />
+          Website: <a href="https://www.uoou.cz" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--qp-accent-deep)' }}>www.uoou.cz</a><br />
           Pplk. Sochora 27, 170 00 Prague 7, Czech Republic
         </p>
         <p style={{ marginTop: 10 }}>We would, however, appreciate the chance to address your concerns before you contact the supervisory authority.</p>

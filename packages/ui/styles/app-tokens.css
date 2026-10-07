@@ -1,0 +1,107 @@
+/* AssetraDigital tokens for the Quante app (--q-*). Global on :root, so portals and pop-ups
+   outside the app shell get them too; they follow <html data-theme>. The website uses the design
+   tokens in assetra.css (scoped to .ad) — values here mirror them. Colours that carry text have
+   a -text variant: the light theme needs darker shades for 4.5:1 contrast.
+   The app's hard-coded colours were moved onto these by scripts/assetra-recolor.mjs. */
+
+:root {
+  --q-bg: #070808;
+  --q-bg-rgb: 7 8 8;
+  --q-s1: #0d0f0f;
+  --q-s2: #131615;
+  --q-s3: #1a1e1c;
+  --q-dim: #3c413e;
+
+  --q-fg: #eef2f0;
+  --q-fg2: #a9b0ac;
+  --q-fg3: #8a918d;
+  --q-fg4: #777d7a;
+  --q-ink-rgb: 238 242 240;
+  --q-line: rgb(238 242 240 / .09);
+  --q-line2: rgb(238 242 240 / .18);
+
+  --q-acc: #5ff5c4;
+  --q-acc-rgb: 95 245 196;
+  --q-acc-text: #5ff5c4;
+  --q-acc-hi: #a6f9dd;
+  --q-acc-hover: #8af8d3;
+  --q-acc-ink: #03130d;
+  --q-acc2: #7cc8ff;
+  --q-acc2-rgb: 124 200 255;
+  --q-acc2-text: #7cc8ff;
+
+  --q-ok: #5ff5c4;
+  --q-ok-rgb: 95 245 196;
+  --q-ok-text: #5ff5c4;
+  --q-warn: #f0a73a;
+  --q-warn-rgb: 240 167 58;
+  --q-warn-text: #f0a73a;
+  --q-danger: #ff7a70;
+  --q-danger-rgb: 255 122 112;
+  --q-danger-text: #ff8f86;
+  --q-on-danger: #1a0503;
+
+  --q-glass1: rgb(255 255 255 / .075);
+  --q-glass2: rgb(255 255 255 / .015);
+  --q-glass-border: rgb(255 255 255 / .12);
+  --q-glass-hi: rgb(255 255 255 / .22);
+  --q-shadow: rgb(0 0 0 / .75);
+  --q-icon-invert: invert(1);
+
+  --q-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --q-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --q-disp: var(--font-archivo), "Archivo", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --q-ease: cubic-bezier(.16, 1, .3, 1);
+
+}
+
+:root[data-theme="light"] {
+  --q-bg: #eef0ee;
+  --q-bg-rgb: 238 240 238;
+  --q-s1: #f6f7f6;
+  --q-s2: #fbfcfb;
+  --q-s3: #ffffff;
+  --q-dim: #a7aca9;
+
+  --q-fg: #0b0d0c;
+  --q-fg2: #3b413e;
+  --q-fg3: #5a615d;
+  --q-fg4: #646b67;
+  --q-ink-rgb: 11 13 12;
+  --q-line: rgb(11 13 12 / .1);
+  --q-line2: rgb(11 13 12 / .22);
+
+  --q-acc: #2fe0a3;
+  --q-acc-rgb: 47 224 163;
+  --q-acc-text: #057a56;
+  --q-acc-hi: #057a56;
+  --q-acc-hover: #26c990;
+  --q-acc-ink: #03130d;
+  --q-acc2: #4a9eea;
+  --q-acc2-rgb: 74 158 234;
+  --q-acc2-text: #1f6fb5;
+
+  --q-ok: #2fe0a3;
+  --q-ok-rgb: 47 224 163;
+  --q-ok-text: #057a56;
+  --q-warn: #f0a73a;
+  --q-warn-rgb: 240 167 58;
+  --q-warn-text: #8a4b06;
+  --q-danger: #c93a33;
+  --q-danger-rgb: 201 58 51;
+  --q-danger-text: #b42318;
+  --q-on-danger: #ffffff;
+
+  --q-glass1: rgb(255 255 255 / .7);
+  --q-glass2: rgb(255 255 255 / .35);
+  --q-glass-border: rgb(255 255 255 / .9);
+  --q-glass-hi: rgb(255 255 255 / 1);
+  --q-shadow: rgb(20 40 30 / .22);
+  --q-icon-invert: none;
+
+}
+
+/* Native controls and scrollbars follow the theme on AssetraDigital surfaces only — never on the
+   storefront previews (/preview/*), which belong to the merchant's own design. */
+:root:has(.ad) { color-scheme: dark; }
+:root[data-theme="light"]:has(.ad) { color-scheme: light; }

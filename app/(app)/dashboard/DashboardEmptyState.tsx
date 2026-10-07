@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { ParticleZone } from '@ad/ui'
 
 export function DashboardEmptyState() {
   return (
@@ -9,22 +10,15 @@ export function DashboardEmptyState() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.15 }}
-      className="px-6 py-10 sm:py-[4rem]"
-      style={{
-        border: '1px dashed rgba(255,255,255,.1)',
-        borderRadius: 14, textAlign: 'center',
-      }}
+      className="q-card q-empty"
     >
-      <div style={{ fontSize: 32, marginBottom: 12, opacity: .4 }}>◻</div>
+      {/* the only place particles appear on the dashboard */}
+      <ParticleZone shapes={['@logo', 'Q']} />
       <p style={{ fontSize: 14, color: 'var(--foreground)', fontWeight: 500, marginBottom: 6 }}>No projects yet</p>
       <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20, maxWidth: 280, margin: '0 auto 20px' }}>
         Describe a store and Quante builds it in seconds.
       </p>
-      <Link href="/new" style={{
-        fontSize: 13, fontWeight: 600, textDecoration: 'none',
-        color: '#070709', background: '#f4f4f6',
-        padding: '0.6rem 1.4rem', borderRadius: 8, display: 'inline-block',
-      }}>
+      <Link href="/new" className="q-btn">
         Build your first store
       </Link>
     </motion.div>

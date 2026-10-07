@@ -8,7 +8,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-jetbrains-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -210,7 +210,7 @@
   --qp-sp-lead: 20px;
   --qp-sp-block: 52px;
 
-  --qp-mono: var(--font-geist-mono);
+  --qp-mono: var(--q-mono);
   --qp-sans: var(--font-geist-sans);
 
   background: var(--qp-bg);
@@ -606,7 +606,7 @@
 }
 .qnt-public .qp-step:hover { transform: translateY(-4px); border-color: var(--qp-accent); box-shadow: 0 8px 24px -14px rgba(0,0,0,0.14); }
 .qnt-public .qp-step.qp-step-active { border-color: var(--qp-accent); box-shadow: 0 0 0 1px var(--qp-accent-wash); }
-.qnt-public .qp-step .qp-n { font-family: var(--qp-mono); font-size: 12px; color: var(--qp-accent); font-weight: 700; margin-bottom: 10px; }
+.qnt-public .qp-step .qp-n { font-family: var(--qp-mono); font-size: 12px; color: var(--qp-accent-deep); font-weight: 700; margin-bottom: 10px; }
 .qnt-public .qp-step h3 { font-size: 15px; font-weight: 700; margin: 0 0 6px; color: var(--qp-ink); }
 .qnt-public .qp-step p { font-size: 13px; color: var(--qp-sub); margin: 0; line-height: 1.5; }
 
@@ -663,7 +663,7 @@
 .qnt-public .qp-t-export { grid-area: export; justify-content: space-between; }
 .qnt-public .qp-t-export .qp-t-badge { font-family: var(--qp-mono); font-size: 10.5px; color: var(--qp-accent); border: 1px solid var(--qp-line); border-radius: 99px; padding: 3px 9px; display: inline-block; margin-bottom: 10px; align-self: flex-start; }
 .qnt-public .qp-t-export .qp-t-term { font-family: var(--qp-mono); font-size: 11px; color: var(--qp-sub); background: rgba(0,0,0,0.035); border: 1px solid var(--qp-line-soft); border-radius: 8px; padding: 8px 10px; margin-top: auto; }
-.qnt-public .qp-t-export .qp-t-term .qp-ok { color: var(--qp-accent); }
+.qnt-public .qp-t-export .qp-t-term .qp-ok { color: var(--qp-accent-deep); }
 .qnt-public .qp-t-admin { grid-area: admin; }
 .qnt-public .qp-t-admin .qp-mini-rows { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .qnt-public .qp-t-admin .qp-mini-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--qp-sub); }
@@ -690,7 +690,7 @@
 .qnt-public .qp-t-domains { grid-area: domains; }
 .qnt-public .qp-t-domains .qp-mini-card { margin-top: auto; font-size: 11px; color: var(--qp-sub); }
 .qnt-public .qp-t-domains .qp-mini-card .qp-url { color: var(--qp-ink); font-family: var(--qp-mono); font-size: 11px; }
-.qnt-public .qp-t-domains .qp-ssl { color: var(--qp-accent); font-size: 10.5px; margin-top: 4px; display: block; }
+.qnt-public .qp-t-domains .qp-ssl { color: var(--qp-accent-deep); font-size: 10.5px; margin-top: 4px; display: block; }
 .qnt-public .qp-t-ai { grid-area: ai; }
 .qnt-public .qp-t-ai .qp-pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--qp-accent); margin-top: auto; box-shadow: 0 0 0 0 rgba(0,0,0,0.4); animation: qp-dotpulse2 1.8s ease-in-out infinite; }
 @keyframes qp-dotpulse2 { 0% { box-shadow: 0 0 0 0 rgba(0,0,0,0.35); } 70% { box-shadow: 0 0 0 8px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
@@ -873,4 +873,81 @@
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   AssetraDigital re-skin (2026-10). Every older token — platform surfaces,
+   shadcn, the public --qp-* set — now resolves to the AssetraDigital app
+   tokens (packages/ui/styles/app-tokens.css), so all remaining consumers
+   follow the new design and both themes. Later rules win over the blocks
+   above; the old values stay there only as history.
+   ════════════════════════════════════════════════════════════════════════ */
+:root {
+  --surface-0: var(--q-bg);
+  --surface-1: var(--q-s1);
+  --surface-2: var(--q-s2);
+  --surface-3: var(--q-s3);
+  --hairline: var(--q-line);
+  --hairline-hover: var(--q-line2);
+  --fg: var(--q-fg);
+  --muted-text: var(--q-fg3);
+  --dim: var(--q-fg4);
+  --accent-indigo: var(--q-acc);
+  --accent-indigo-light: var(--q-acc-hi);
+  --accent-indigo-deep: var(--q-acc-text);
+  --accent-indigo-wash: rgb(var(--q-acc-rgb) / .14);
+  --live: var(--q-ok);
+  --warning-color: var(--q-warn);
+  --danger: var(--q-danger);
+
+  --background: var(--q-bg);
+  --foreground: var(--q-fg);
+  --card: var(--q-s1);
+  --card-foreground: var(--q-fg);
+  --popover: var(--q-s1);
+  --popover-foreground: var(--q-fg);
+  --primary: var(--q-fg);
+  --primary-foreground: var(--q-bg);
+  --secondary: var(--q-s2);
+  --secondary-foreground: var(--q-fg);
+  --muted: var(--q-s2);
+  --muted-foreground: var(--q-fg3);
+  --accent: var(--q-acc);
+  --accent-foreground: var(--q-acc-ink);
+  --destructive: var(--q-danger);
+  --border: var(--q-line);
+  --input: rgb(var(--q-ink-rgb) / .12);
+  --ring: var(--q-acc);
+  --sidebar: var(--q-s1);
+  --sidebar-foreground: var(--q-fg);
+  --sidebar-primary: var(--q-acc);
+  --sidebar-primary-foreground: var(--q-acc-ink);
+  --sidebar-accent: var(--q-s2);
+  --sidebar-accent-foreground: var(--q-fg);
+  --sidebar-border: var(--q-line);
+  --sidebar-ring: var(--q-acc);
+}
+
+.qnt-public,
+.qnt-public.qp-dark {
+  --qp-bg: var(--q-bg);
+  --qp-bg-alt: var(--q-s1);
+  --qp-surface: var(--q-s2);
+  --qp-ink: var(--q-fg);
+  --qp-sub: var(--q-fg2);
+  --qp-mut: var(--q-fg3);
+  --qp-line: var(--q-line);
+  --qp-line-soft: rgb(var(--q-ink-rgb) / .05);
+  --qp-accent: var(--q-acc);
+  --qp-accent-light: var(--q-acc-hi);
+  --qp-accent-deep: var(--q-acc-text);
+  --qp-accent-wash: rgb(var(--q-acc-rgb) / .14);
+  --qp-mint: var(--q-acc);
+  --qp-mint-light: var(--q-acc-hi);
+  --qp-mint-wash: rgb(var(--q-acc-rgb) / .14);
+  --qp-glass-bg: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  --qp-glass-bg-strong: var(--q-s2);
+  --qp-glass-border: var(--q-glass-border);
+  --qp-mono: var(--q-mono);
+  --qp-sans: var(--q-sans);
 }

@@ -285,7 +285,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
   const fieldStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.4rem 0.6rem',
-    background: 'rgba(255,255,255,0.05)',
+    background: 'rgb(var(--q-ink-rgb) / 0.05)',
     border: '1px solid var(--border)',
     borderRadius: 6,
     color: 'var(--foreground)',
@@ -406,8 +406,8 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         disabled={isSavingPayShip}
         style={{
           padding: '0.5rem 0.75rem',
-          background: '#D4FF3F',
-          color: '#fff',
+          background: 'var(--q-acc)',
+          color: 'var(--q-acc-ink)',
           border: 'none',
           borderRadius: 6,
           fontSize: 12,
@@ -418,7 +418,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
       >
         {isSavingPayShip ? 'Saving…' : 'Save payments & shipping'}
       </button>
-      {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{payShipMsg}</p>}
+      {payShipMsg && <p style={{ fontSize: 10, color: payShipMsg.includes('Failed') ? 'var(--q-danger-text)' : 'var(--q-ok-text)', margin: 0 }}>{payShipMsg}</p>}
     </div>
   )
 
@@ -466,11 +466,11 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         <button
           onClick={saveMarket}
           disabled={isSavingMarket}
-          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: isSavingMarket ? 0.6 : 1 }}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgb(var(--q-ink-rgb) / 0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: isSavingMarket ? 0.6 : 1 }}
         >
           {isSavingMarket ? 'Saving…' : 'Save market & language'}
         </button>
-        {marketMsg && <p style={{ fontSize: 10, color: marketMsg.includes('Failed') ? '#f87171' : '#34d399', margin: '4px 0 0' }}>{marketMsg}</p>}
+        {marketMsg && <p style={{ fontSize: 10, color: marketMsg.includes('Failed') ? 'var(--q-danger-text)' : 'var(--q-ok-text)', margin: '4px 0 0' }}>{marketMsg}</p>}
       </div>
       )}
 
@@ -513,10 +513,10 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
                   disabled={aresLoading || form.taxId.length < 8}
                   style={{
                     padding: '0 8px',
-                    background: 'rgba(212,255,63,0.15)',
-                    border: '1px solid rgba(212,255,63,0.3)',
+                    background: 'rgb(var(--q-acc-rgb) / 0.15)',
+                    border: '1px solid rgb(var(--q-acc-rgb) / 0.3)',
                     borderRadius: 6,
-                    color: '#D4FF3F',
+                    color: 'var(--q-acc-text)',
                     fontSize: 10,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -528,8 +528,8 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
                 </button>
               )}
             </div>
-            {icoError && <p style={{ fontSize: 10, color: '#f87171', marginTop: 3 }}>{icoError}</p>}
-            {aresMsg && <p style={{ fontSize: 10, color: aresMsg.includes('Error') || aresMsg.includes('not found') ? '#f87171' : '#34d399', marginTop: 3 }}>{aresMsg}</p>}
+            {icoError && <p style={{ fontSize: 10, color: 'var(--q-danger-text)', marginTop: 3 }}>{icoError}</p>}
+            {aresMsg && <p style={{ fontSize: 10, color: aresMsg.includes('Error') || aresMsg.includes('not found') ? 'var(--q-danger-text)' : 'var(--q-ok-text)', marginTop: 3 }}>{aresMsg}</p>}
           </div>
           <div>
             <label style={labelStyle}>VAT number</label>
@@ -616,8 +616,8 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           disabled={isSaving || !form.taxId || !form.name}
           style={{
             padding: '0.5rem 0.75rem',
-            background: '#D4FF3F',
-            color: '#fff',
+            background: 'var(--q-acc)',
+            color: 'var(--q-acc-ink)',
             border: 'none',
             borderRadius: 6,
             fontSize: 12,
@@ -629,7 +629,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           {isSaving ? 'Saving…' : 'Save business data'}
         </button>
         {saveMsg && (
-          <p style={{ fontSize: 10, color: saveMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{saveMsg}</p>
+          <p style={{ fontSize: 10, color: saveMsg.includes('Failed') ? 'var(--q-danger-text)' : 'var(--q-ok-text)', margin: 0 }}>{saveMsg}</p>
         )}
       </div>
       </>
@@ -653,20 +653,20 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           <button
             onClick={saveEmailFrom}
             disabled={isSavingEmail}
-            style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ padding: '0.4rem 0.6rem', background: 'rgb(var(--q-ink-rgb) / 0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             {isSavingEmail ? '…' : 'Save'}
           </button>
         </div>
-        {emailFromMsg && <p style={{ fontSize: 10, color: emailFromMsg.includes('Failed') ? '#f87171' : '#34d399', margin: 0 }}>{emailFromMsg}</p>}
+        {emailFromMsg && <p style={{ fontSize: 10, color: emailFromMsg.includes('Failed') ? 'var(--q-danger-text)' : 'var(--q-ok-text)', margin: 0 }}>{emailFromMsg}</p>}
         <button
           onClick={sendTestEmail}
           disabled={isSendingTest || !form.email}
-          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--foreground)', opacity: isSendingTest || !form.email ? 0.5 : 1 }}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgb(var(--q-ink-rgb) / 0.05)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--foreground)', opacity: isSendingTest || !form.email ? 0.5 : 1 }}
         >
           {isSendingTest ? 'Sending…' : 'Send test email →'}
         </button>
-        {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.startsWith('Test email sent') ? '#34d399' : '#f87171', margin: 0 }}>{testEmailMsg}</p>}
+        {testEmailMsg && <p style={{ fontSize: 10, color: testEmailMsg.startsWith('Test email sent') ? 'var(--q-ok-text)' : 'var(--q-danger-text)', margin: 0 }}>{testEmailMsg}</p>}
       </div>
       )}
 
@@ -703,10 +703,10 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Payment methods</p>
 
         {/* Quante managed payments banner */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'rgb(var(--q-ok-rgb) / 0.06)', border: '1px solid rgb(var(--q-ok-rgb) / 0.2)' }}>
           <span style={{ fontSize: 12, marginTop: 1 }}>🔒</span>
           <div>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#34d399', margin: '0 0 2px' }}>Payments managed by Quante</p>
+            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--q-ok-text)', margin: '0 0 2px' }}>Payments managed by Quante</p>
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
               Selected methods are automatically configured — no API keys required.
               Revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via bank transfer.
@@ -716,30 +716,30 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         </div>
 
         {/* Stripe — always available via Quante */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(212,255,63,0.04)' }}>
-          <span style={{ fontSize: 10, width: 14, textAlign: 'center', color: '#34d399' }}>✓</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-acc-rgb) / 0.04)' }}>
+          <span style={{ fontSize: 10, width: 14, textAlign: 'center', color: 'var(--q-ok-text)' }}>✓</span>
           <span style={{ fontSize: 11, flex: 1 }}>Stripe — card, Apple Pay, Google Pay</span>
-          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>
+          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ok-rgb) / 0.1)', color: 'var(--q-ok-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>
         </div>
 
         {isCz && (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
               <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
               <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (card, Apple Pay, bank buttons)</label>
-              {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
+              {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ok-rgb) / 0.1)', color: 'var(--q-ok-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
               <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
               <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (card, Google Pay, bank transfer)</label>
-              {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgba(52,211,153,0.1)', color: '#34d399', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
+              {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ok-rgb) / 0.1)', color: 'var(--q-ok-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
             </div>
           </>
         )}
 
         {/* Cash on delivery */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: payCod ? 6 : 0 }}>
             <input type="checkbox" id="pay_cod" checked={payCod} onChange={(e) => setPayCod(e.target.checked)} style={{ margin: 0 }} />
             <label htmlFor="pay_cod" style={{ fontSize: 11, cursor: 'pointer' }}>Cash on delivery</label>
@@ -753,7 +753,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         </div>
 
         {/* Bank transfer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
           <input type="checkbox" id="pay_transfer" checked={payBankTransfer} onChange={(e) => setPayBankTransfer(e.target.checked)} style={{ margin: 0 }} />
           <label htmlFor="pay_transfer" style={{ fontSize: 11, cursor: 'pointer' }}>Bank transfer (QR code + payment instructions)</label>
         </div>
@@ -770,14 +770,14 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         {isCz && (
           <>
             {/* Comgate */}
-            <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>Comgate</p>
               <input style={fieldStyle} value={comgateMerchantId} onChange={(e) => setComgateMerchantId(e.target.value)} placeholder="Merchant ID" />
               <input style={fieldStyle} type="password" value={comgateSecret} onChange={(e) => setComgateSecret(e.target.value)} placeholder={hasComgateSecret ? 'Secret saved — enter new value to replace' : 'Secret'} autoComplete="new-password" />
             </div>
 
             {/* GoPay */}
-            <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
               <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>GoPay</p>
               <input style={fieldStyle} value={gopayGoId} onChange={(e) => setGopayGoId(e.target.value)} placeholder="GoID" />
               <input style={fieldStyle} value={gopayClientId} onChange={(e) => setGopayClientId(e.target.value)} placeholder="Client ID" />
@@ -787,14 +787,14 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         )}
 
         {/* PayPal */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>PayPal</p>
           <input style={fieldStyle} value={paypalClientId} onChange={(e) => setPaypalClientId(e.target.value)} placeholder="Client ID" />
           <input style={fieldStyle} type="password" value={paypalClientSecret} onChange={(e) => setPaypalClientSecret(e.target.value)} placeholder={hasPaypalSecret ? 'Client secret saved — enter new value to replace' : 'Client secret'} autoComplete="new-password" />
         </div>
 
         {/* Sandbox / test mode for the credentials above */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
           <input type="checkbox" id="pay_test_mode" checked={paymentTestMode} onChange={(e) => setPaymentTestMode(e.target.checked)} style={{ margin: '2px 0 0' }} />
           <label htmlFor="pay_test_mode" style={{ fontSize: 11, cursor: 'pointer', flex: 1, lineHeight: 1.5 }}>
             Test mode (sandbox)
@@ -804,19 +804,19 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           </label>
         </div>
         {paymentTestMode && (
-          <div style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(224,160,79,0.08)', border: '1px solid rgba(224,160,79,0.35)' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#e0a04f', margin: 0, letterSpacing: '0.04em' }}>TEST MODE: payments through your own gateways are not real.</p>
+          <div style={{ padding: '6px 10px', borderRadius: 6, background: 'rgb(var(--q-warn-rgb) / 0.08)', border: '1px solid rgb(var(--q-warn-rgb) / 0.35)' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--q-warn-text)', margin: 0, letterSpacing: '0.04em' }}>TEST MODE: payments through your own gateways are not real.</p>
           </div>
         )}
 
         <button
           onClick={saveGatewayCredentials}
           disabled={isSavingGateways}
-          style={{ padding: '0.4rem 0.75rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: isSavingGateways ? 0.6 : 1 }}
+          style={{ padding: '0.4rem 0.75rem', background: 'rgb(var(--q-ink-rgb) / 0.05)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--foreground)', fontSize: 11, fontWeight: 600, cursor: 'pointer', opacity: isSavingGateways ? 0.6 : 1 }}
         >
           {isSavingGateways ? 'Saving…' : 'Save gateway credentials'}
         </button>
-        {gatewaysMsg && <p style={{ fontSize: 10, color: gatewaysMsg === 'Saved' ? '#34d399' : '#f87171', margin: 0 }}>{gatewaysMsg}</p>}
+        {gatewaysMsg && <p style={{ fontSize: 10, color: gatewaysMsg === 'Saved' ? 'var(--q-ok-text)' : 'var(--q-danger-text)', margin: 0 }}>{gatewaysMsg}</p>}
       </div>
 
       {savePayShipButton}
@@ -839,7 +839,7 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           { id: 'dpd', label: 'DPD — home delivery', enabled: shipDpd, setEnabled: setShipDpd, price: shipDpdPrice, setPrice: setShipDpdPrice },
           { id: 'balikovna', label: 'Balíkovna', enabled: shipBalikovna, setEnabled: setShipBalikovna, price: shipBalikovnaPrice, setPrice: setShipBalikovnaPrice },
         ].map((m) => (
-          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
             <input type="checkbox" id={`ship_${m.id}`} checked={m.enabled} onChange={(e) => m.setEnabled(e.target.checked)} style={{ margin: 0 }} />
             <label htmlFor={`ship_${m.id}`} style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>{m.label}</label>
             {m.enabled && (
@@ -848,14 +848,14 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
           </div>
         ))}
         {/* Generic flat-rate carrier — the fallback for any market */}
-        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <p style={{ fontSize: 10, fontWeight: 600, margin: 0 }}>Custom carrier / flat-rate shipping</p>
           <div style={{ display: 'flex', gap: 6 }}>
             <input style={{ ...fieldStyle, flex: 1 }} value={shipCustomLabel} onChange={(e) => setShipCustomLabel(e.target.value)} placeholder="e.g. Standard shipping" />
             <input style={{ ...fieldStyle, width: 80, textAlign: 'right' }} type="number" min={0} value={shipCustomPrice} onChange={(e) => setShipCustomPrice(Number(e.target.value))} />
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
           <input type="checkbox" id="ship_osobni" checked={shipOsobni} onChange={(e) => setShipOsobni(e.target.checked)} style={{ margin: 0 }} />
           <label htmlFor="ship_osobni" style={{ fontSize: 11, cursor: 'pointer' }}>Local pickup (free)</label>
         </div>

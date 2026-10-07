@@ -97,3 +97,27 @@ test('text keys are recognised as text, 3D keys are not', () => {
   for (const k of ['WEB', 'E-SHOP', '§', '0 Kč', '@', 'AGENT']) assert.equal(shapes.isTextKey(k), true, k)
   for (const k of ['@sphere', '@torus', '@cube', '@wave', '@logo']) assert.equal(shapes.isTextKey(k), false, k)
 })
+
+test('every --q-* token used by the app is defined for both themes', async () => {
+  const { readdirSync, statSync } = await import('node:fs')
+  const { fileURLToPath } = await import('node:url')
+  const tokensCss = readFileSync(new URL('../packages/ui/styles/app-tokens.css', import.meta.url), 'utf8')
+  const darkBlock = tokensCss.slice(tokensCss.indexOf(':root {'), tokensCss.indexOf(':root[data-theme="light"]'))
+  const lightBlock = tokensCss.slice(tokensCss.indexOf(':root[data-theme="light"]'))
+  const defined = (block) => new Set([...block.matchAll(/(--q-[a-z0-9-]+)\s*:/g)].map((m) => m[1]))
+  const dark = defined(darkBlock)
+  const light = defined(lightBlock)
+  const used = new Set()
+  const walk = (dir) => {
+    for (const f of readdirSync(dir)) {
+      const p = dir + '/' + f
+      if (statSync(p).isDirectory()) walk(p)
+      else if (/\.(tsx?|css)$/.test(f)) for (const m of readFileSync(p, 'utf8').matchAll(/var\((--q-[a-z0-9-]+)/g)) used.add(m[1])
+    }
+  }
+  for (const d of ['app', 'components', 'packages']) walk(fileURLToPath(new URL('../' + d, import.meta.url)))
+  const fontOnly = new Set(['--q-sans', '--q-mono', '--q-disp', '--q-ease']) // theme-independent
+  const missing = [...used].filter((t) => !dark.has(t) || (!light.has(t) && !fontOnly.has(t)))
+  assert.deepEqual(missing, [])
+  assert.ok(used.size > 20)
+})

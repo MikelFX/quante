@@ -1,5 +1,6 @@
 'use client'
 
+import { ParticleZone } from '@ad/ui'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
@@ -474,14 +475,17 @@ export default function NewProjectPage() {
         maxWidth: 700, margin: '0 auto', padding: '2.5rem 1rem',
         display: 'flex', flexDirection: 'column', gap: 32, minHeight: '85vh',
       }}>
+        {/* The swarm builds the store while Quante does (particles appear in the app only while loading or empty). */}
+        <ParticleZone className="q-load-pz" shapes={['GEN', '@cube', '@sphere']} />
+
         {/* Header */}
         <div>
-          <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.1em', margin: '0 0 6px' }}>
+          <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textTransform: 'uppercase', letterSpacing: '.1em', margin: '0 0 6px' }}>
             Building your store
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#D4FF3F', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
-            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#e0e0e8' }}>{statusText}</h2>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '1.5px solid rgb(var(--q-ink-rgb) / .08)', borderTopColor: 'var(--q-acc)', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: 'var(--q-fg)' }}>{statusText}</h2>
           </div>
         </div>
 
@@ -491,27 +495,27 @@ export default function NewProjectPage() {
             const done = i < stageIndex
             const active = i === stageIndex
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .04)' }}>
                 {/* Indicator */}
                 <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: done ? '#3ecf8e' : active ? 'rgba(212,255,63,.15)' : 'rgba(255,255,255,.04)',
-                  border: done ? 'none' : active ? '1.5px solid #D4FF3F' : '1px solid rgba(255,255,255,.08)',
+                  background: done ? 'var(--q-ok)' : active ? 'rgb(var(--q-acc-rgb) / .15)' : 'rgb(var(--q-ink-rgb) / .04)',
+                  border: done ? 'none' : active ? '1.5px solid var(--q-acc)' : '1px solid rgb(var(--q-ink-rgb) / .08)',
                   transition: 'all .4s ease',
                 }}>
                   {done ? (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="#0a0a0e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" style={{ stroke: 'var(--q-acc-ink)' }} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   ) : active ? (
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#D4FF3F', animation: 'pulse 1.4s ease infinite' }} />
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--q-acc)', animation: 'pulse 1.4s ease infinite' }} />
                   ) : null}
                 </div>
-                <span style={{ fontSize: 13, color: done ? '#3ecf8e' : active ? '#d0d0da' : '#4a4a55', fontFamily: 'var(--font-geist-mono)', transition: 'color .4s ease' }}>
+                <span style={{ fontSize: 13, color: done ? 'var(--q-ok-text)' : active ? 'var(--q-fg2)' : 'var(--q-fg4)', fontFamily: 'var(--q-mono)', transition: 'color .4s ease' }}>
                   {s.label}
                 </span>
                 {done && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#3ecf8e', fontFamily: 'var(--font-geist-mono)' }}>done</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--q-ok-text)', fontFamily: 'var(--q-mono)' }}>done</span>
                 )}
                 {active && (
-                  <span style={{ marginLeft: 'auto', fontSize: 10, color: '#D4FF3F', fontFamily: 'var(--font-geist-mono)', animation: 'blink 1.2s ease infinite' }}>…</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--q-acc-text)', fontFamily: 'var(--q-mono)', animation: 'blink 1.2s ease infinite' }}>…</span>
                 )}
               </div>
             )
@@ -519,30 +523,30 @@ export default function NewProjectPage() {
         </div>
 
         {/* Live code terminal — always visible during generation */}
-        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.08)', background: '#070709', overflow: 'hidden' }}>
-          <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f87171' }} />
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fbbf24' }} />
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#E8FF6F' }} />
-            <span style={{ marginLeft: 8, fontSize: 10, color: '#4a4a55', fontFamily: 'var(--font-geist-mono)' }}>generating store…</span>
+        <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .08)', background: 'var(--q-bg)', overflow: 'hidden' }}>
+          <div style={{ padding: '8px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--q-danger)' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--q-warn)' }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--q-acc)' }} />
+            <span style={{ marginLeft: 8, fontSize: 10, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)' }}>generating store…</span>
           </div>
           <pre style={{
             margin: 0, padding: '12px 14px', fontSize: 11,
-            fontFamily: 'var(--font-geist-mono)', color: '#D4FF3F',
+            fontFamily: 'var(--q-mono)', color: 'var(--q-acc-text)',
             lineHeight: 1.6, overflowX: 'auto', overflowY: 'hidden',
             maxHeight: 220, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
             minHeight: 52,
           }}>
             {codeChunks
               ? codeChunks.slice(-1500)
-              : <span style={{ color: '#363640' }}>Waiting for Claude…</span>
+              : <span style={{ color: 'var(--q-fg4)' }}>Waiting for Claude…</span>
             }
             <span style={{ opacity: 0.5, animation: 'blink 1s step-end infinite' }}>▌</span>
           </pre>
         </div>
 
         {error && (
-          <p style={{ fontSize: 12, color: '#f87171', textAlign: 'center' }}>{error}</p>
+          <p style={{ fontSize: 12, color: 'var(--q-danger-text)', textAlign: 'center' }}>{error}</p>
         )}
 
         <style>{`
@@ -556,11 +560,11 @@ export default function NewProjectPage() {
 
   const avatarSt: React.CSSProperties = {
     width: 26, height: 26, borderRadius: 7, flexShrink: 0,
-    background: 'rgba(212,255,63,.14)',
-    border: '1px solid rgba(212,255,63,.22)',
+    background: 'rgb(var(--q-acc-rgb) / .14)',
+    border: '1px solid rgb(var(--q-acc-rgb) / .22)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 10, fontWeight: 700, color: '#D4FF3F',
-    fontFamily: 'var(--font-geist-mono)', letterSpacing: '.02em',
+    fontSize: 10, fontWeight: 700, color: 'var(--q-acc-text)',
+    fontFamily: 'var(--q-mono)', letterSpacing: '.02em',
     marginTop: 1,
   }
 
@@ -569,7 +573,7 @@ export default function NewProjectPage() {
 
       {/* Header */}
       <p style={{
-        fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64',
+        fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)',
         textTransform: 'uppercase', letterSpacing: '.1em', margin: '0 0 2rem',
       }}>
         New project
@@ -584,18 +588,18 @@ export default function NewProjectPage() {
         return (
         <div style={{
           marginBottom: 24, padding: '14px 16px', borderRadius: 12,
-          border: `1px solid ${resumeError ? 'rgba(248,113,113,.3)' : 'rgba(212,255,63,.28)'}`,
-          background: resumeError ? 'rgba(248,113,113,.05)' : 'rgba(212,255,63,.06)',
+          border: `1px solid ${resumeError ? 'rgb(var(--q-danger-rgb) / .3)' : 'rgb(var(--q-acc-rgb) / .28)'}`,
+          background: resumeError ? 'rgb(var(--q-danger-rgb) / .05)' : 'rgb(var(--q-acc-rgb) / .06)',
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             {isLive ? (
-              <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#D4FF3F', animation: 'spin 0.9s linear infinite', flexShrink: 0, marginTop: 2 }} />
+              <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgb(var(--q-ink-rgb) / .08)', borderTopColor: 'var(--q-acc)', animation: 'spin 0.9s linear infinite', flexShrink: 0, marginTop: 2 }} />
             ) : (
-              <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${resumeError ? '#f87171' : '#D4FF3F'}`, flexShrink: 0, marginTop: 2 }} />
+              <div style={{ width: 16, height: 16, borderRadius: '50%', border: `1.5px solid ${resumeError ? 'var(--q-danger)' : 'var(--q-acc)'}`, flexShrink: 0, marginTop: 2 }} />
             )}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--q-fg)' }}>
                 {resumeFoundProjectId
                   ? 'A generation from before your last reload finished.'
                   : resumeError
@@ -605,7 +609,7 @@ export default function NewProjectPage() {
                       : 'A generation was still running when this page last closed or reloaded.'}
               </p>
               <p style={{
-                margin: '4px 0 0', fontSize: 12, color: '#8a8a93', lineHeight: 1.5,
+                margin: '4px 0 0', fontSize: 12, color: 'var(--q-fg3)', lineHeight: 1.5,
                 overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
                 WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
               }}>
@@ -627,7 +631,7 @@ export default function NewProjectPage() {
                 setResumePreviewUrl(null)
               }}
               style={{
-                fontSize: 12, color: '#8a8a93', background: 'none', border: 'none',
+                fontSize: 12, color: 'var(--q-fg3)', background: 'none', border: 'none',
                 cursor: 'pointer', padding: '7px 10px',
               }}
             >
@@ -641,7 +645,7 @@ export default function NewProjectPage() {
                   router.push(buildProjectUrl(resumeFoundProjectId, resumeDeploymentId, resumeVersionId, resumePreviewUrl, resumeDeployError))
                 }}
                 style={{
-                  fontSize: 12, fontWeight: 600, color: '#fff', background: '#D4FF3F',
+                  fontSize: 12, fontWeight: 600, color: 'var(--q-acc-ink)', background: 'var(--q-acc)',
                   border: 'none', borderRadius: 7, cursor: 'pointer', padding: '7px 14px',
                 }}
               >
@@ -651,7 +655,7 @@ export default function NewProjectPage() {
               // Live-polling state (isLive) or a terminal error — either way, status updates
               // on its own; there's nothing useful for a manual button to do here besides
               // discard (above), unlike the no-jobId fallback branch below.
-              <span style={{ fontSize: 12, color: '#5b5b64', padding: '7px 4px' }}>
+              <span style={{ fontSize: 12, color: 'var(--q-fg4)', padding: '7px 4px' }}>
                 {resumeError ? 'You can discard this and start a new one.' : 'Checking automatically…'}
               </span>
             ) : (
@@ -660,8 +664,8 @@ export default function NewProjectPage() {
                 onClick={() => checkForResumableProject(resumePending)}
                 disabled={resumeChecking}
                 style={{
-                  fontSize: 12, fontWeight: 600, color: '#e0e0e8',
-                  background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)',
+                  fontSize: 12, fontWeight: 600, color: 'var(--q-fg)',
+                  background: 'rgb(var(--q-ink-rgb) / .06)', border: '1px solid rgb(var(--q-ink-rgb) / .1)',
                   borderRadius: 7, cursor: resumeChecking ? 'default' : 'pointer', padding: '7px 14px',
                 }}
               >
@@ -691,19 +695,19 @@ export default function NewProjectPage() {
               ...(msg.role === 'user' ? {
                 padding: '9px 13px',
                 borderRadius: 12,
-                background: 'rgba(212,255,63,.09)',
-                border: '1px solid rgba(212,255,63,.16)',
+                background: 'rgb(var(--q-acc-rgb) / .09)',
+                border: '1px solid rgb(var(--q-acc-rgb) / .16)',
               } : {}),
               fontSize: 14,
               lineHeight: 1.65,
-              color: '#f4f4f6',
+              color: 'var(--q-fg)',
               whiteSpace: 'pre-wrap',
             }}>
               {msg.content}
               {msg.streaming && (
                 <span style={{
                   display: 'inline-block', width: 5, height: 14,
-                  background: '#D4FF3F', marginLeft: 2, borderRadius: 1,
+                  background: 'var(--q-acc)', marginLeft: 2, borderRadius: 1,
                   verticalAlign: 'middle',
                   animation: 'blink .75s step-end infinite',
                 }} />
@@ -719,7 +723,7 @@ export default function NewProjectPage() {
             <div style={{ display: 'flex', gap: 5, paddingTop: 3 }}>
               {[0, 160, 320].map(d => (
                 <div key={d} style={{
-                  width: 5, height: 5, borderRadius: '50%', background: '#5b5b64',
+                  width: 5, height: 5, borderRadius: '50%', background: 'var(--q-fg4)',
                   animation: `pulse 1.3s ${d}ms ease-in-out infinite`,
                 }} />
               ))}
@@ -735,14 +739,14 @@ export default function NewProjectPage() {
         <div style={{
           marginTop: 28,
           borderRadius: 12,
-          border: '1px solid rgba(212,255,63,.22)',
-          background: 'rgba(212,255,63,.04)',
+          border: '1px solid rgb(var(--q-acc-rgb) / .22)',
+          background: 'rgb(var(--q-acc-rgb) / .04)',
           overflow: 'hidden',
         }}>
           {/* Brief header */}
-          <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+          <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)' }}>
             <p style={{
-              fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#D4FF3F',
+              fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-acc-text)',
               textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 10px',
             }}>
               ✦ Store brief
@@ -752,7 +756,7 @@ export default function NewProjectPage() {
               onChange={e => setBrief(e.target.value)}
               rows={4}
               style={{
-                width: '100%', fontSize: 13, color: '#e0e0e8', background: 'transparent',
+                width: '100%', fontSize: 13, color: 'var(--q-fg)', background: 'transparent',
                 border: 'none', outline: 'none', resize: 'none', lineHeight: 1.7,
                 fontFamily: 'inherit', boxSizing: 'border-box',
               }}
@@ -763,7 +767,7 @@ export default function NewProjectPage() {
           <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div>
               <p style={{
-                fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64',
+                fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)',
                 textTransform: 'uppercase', letterSpacing: '.07em', margin: '0 0 6px',
               }}>
                 Project name
@@ -775,21 +779,21 @@ export default function NewProjectPage() {
                 placeholder="My store"
                 style={{
                   width: '100%', fontSize: 13, padding: '8px 11px', borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,.09)', background: '#0a0a0e',
-                  color: '#f4f4f6', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+                  border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'var(--q-bg)',
+                  color: 'var(--q-fg)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = 'rgba(212,255,63,.45)')}
-                onBlur={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.09)')}
+                onFocus={e => (e.currentTarget.style.borderColor = 'rgb(var(--q-acc-rgb) / .45)')}
+                onBlur={e => (e.currentTarget.style.borderColor = 'rgb(var(--q-ink-rgb) / .09)')}
               />
             </div>
 
             {error && (
-              <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>
+              <p style={{ fontSize: 12, color: 'var(--q-danger-text)', margin: 0 }}>
                 {error}
                 {errorNeedsCredits && (
                   <>
                     {' '}
-                    <a href="/billing" style={{ color: '#D4FF3F', fontWeight: 600 }}>Buy credits →</a>
+                    <a href="/billing" style={{ color: 'var(--q-acc-text)', fontWeight: 600 }}>Buy credits →</a>
                   </>
                 )}
               </p>
@@ -800,17 +804,17 @@ export default function NewProjectPage() {
                 type="button"
                 onClick={() => { setStage('chat'); setError('') }}
                 style={{
-                  fontSize: 12, color: '#5b5b64', background: 'none',
+                  fontSize: 12, color: 'var(--q-fg4)', background: 'none',
                   border: 'none', cursor: 'pointer', padding: 0,
                   transition: 'color .12s',
                 }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#8a8a93')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                onMouseEnter={e => (e.currentTarget.style.color = 'var(--q-fg3)')}
+                onMouseLeave={e => (e.currentTarget.style.color = 'var(--q-fg4)')}
               >
                 ← Keep refining
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64' }}>10 cr</span>
+                <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)' }}>10 cr</span>
                 <button
                   type="button"
                   onClick={handleGenerate}
@@ -818,12 +822,12 @@ export default function NewProjectPage() {
                   style={{
                     padding: '9px 20px', fontSize: 13, fontWeight: 600, borderRadius: 8,
                     border: 'none', cursor: brief.trim() ? 'pointer' : 'not-allowed',
-                    background: brief.trim() ? '#D4FF3F' : 'rgba(255,255,255,.06)',
-                    color: brief.trim() ? '#fff' : '#5b5b64',
+                    background: brief.trim() ? 'var(--q-acc)' : 'rgb(var(--q-ink-rgb) / .06)',
+                    color: brief.trim() ? 'var(--q-acc-ink)' : 'var(--q-fg4)',
                     transition: 'background .12s, opacity .12s',
                   }}
-                  onMouseEnter={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = '#5d66d4' }}
-                  onMouseLeave={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = '#D4FF3F' }}
+                  onMouseEnter={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = 'var(--q-acc-hover)' }}
+                  onMouseLeave={e => { if (brief.trim()) (e.currentTarget as HTMLButtonElement).style.background = 'var(--q-acc)' }}
                 >
                   Generate store
                 </button>
@@ -838,16 +842,16 @@ export default function NewProjectPage() {
         <div style={{
           marginTop: 24,
           borderRadius: 12,
-          border: '1px solid rgba(255,255,255,.09)',
-          background: '#0a0a0e',
+          border: '1px solid rgb(var(--q-ink-rgb) / .09)',
+          background: 'var(--q-bg)',
           display: 'flex',
           alignItems: 'flex-end',
           gap: 8,
           padding: '10px 10px 10px 14px',
           transition: 'border-color .15s',
         }}
-          onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgba(212,255,63,.35)')}
-          onBlurCapture={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,.09)')}
+          onFocusCapture={e => (e.currentTarget.style.borderColor = 'rgb(var(--q-acc-rgb) / .35)')}
+          onBlurCapture={e => (e.currentTarget.style.borderColor = 'rgb(var(--q-ink-rgb) / .09)')}
         >
           <textarea
             ref={inputRef}
@@ -864,7 +868,7 @@ export default function NewProjectPage() {
             placeholder={thinking ? '' : 'Reply to Quante…'}
             rows={1}
             style={{
-              flex: 1, fontSize: 14, color: '#f4f4f6', background: 'transparent',
+              flex: 1, fontSize: 14, color: 'var(--q-fg)', background: 'transparent',
               border: 'none', outline: 'none', resize: 'none', lineHeight: 1.55,
               fontFamily: 'inherit', minHeight: 22, maxHeight: 130,
               opacity: thinking ? 0.3 : 1, transition: 'opacity .2s',
@@ -876,15 +880,15 @@ export default function NewProjectPage() {
             disabled={!input.trim() || thinking}
             style={{
               flexShrink: 0, width: 36, height: 36, borderRadius: 8,
-              background: input.trim() && !thinking ? '#D4FF3F' : 'rgba(255,255,255,.06)',
+              background: input.trim() && !thinking ? 'var(--q-acc)' : 'rgb(var(--q-ink-rgb) / .06)',
               border: 'none', cursor: input.trim() && !thinking ? 'pointer' : 'default',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'background .12s',
-              color: input.trim() && !thinking ? '#fff' : '#5b5b64',
+              color: input.trim() && !thinking ? 'var(--q-acc-ink)' : 'var(--q-fg4)',
               fontSize: 15, lineHeight: 1,
             }}
-            onMouseEnter={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = '#5d66d4' }}
-            onMouseLeave={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = '#D4FF3F' }}
+            onMouseEnter={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = 'var(--q-acc-hover)' }}
+            onMouseLeave={e => { if (input.trim() && !thinking) (e.currentTarget as HTMLButtonElement).style.background = 'var(--q-acc)' }}
           >
             ↑
           </button>
@@ -892,7 +896,7 @@ export default function NewProjectPage() {
       )}
 
       {error && stage === 'chat' && (
-        <p style={{ fontSize: 12, color: '#f87171', margin: '10px 0 0', textAlign: 'center' }}>{error}</p>
+        <p style={{ fontSize: 12, color: 'var(--q-danger-text)', margin: '10px 0 0', textAlign: 'center' }}>{error}</p>
       )}
 
       <style>{`

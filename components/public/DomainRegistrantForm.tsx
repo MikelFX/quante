@@ -43,13 +43,13 @@ export default function DomainRegistrantForm({
   const dark = theme === 'dark'
   const c = dark
     ? {
-        text: '#e0e0e8', sub: '#8a8a93', border: 'rgba(255,255,255,.08)',
-        bg: 'rgba(255,255,255,.04)', accent: '#D4FF3F', danger: '#f87171',
-        label: '#a8a8b3',
+        text: 'var(--q-fg)', sub: 'var(--q-fg3)', border: 'rgb(var(--q-ink-rgb) / .08)',
+        bg: 'rgb(var(--q-ink-rgb) / .04)', accent: 'var(--q-acc)', danger: 'var(--q-danger-text)',
+        label: 'var(--q-fg2)',
       }
     : {
         text: 'var(--qp-ink)', sub: 'var(--qp-sub)', border: 'var(--qp-line)',
-        bg: 'var(--qp-line-soft)', accent: 'var(--qp-accent)', danger: '#D6534A',
+        bg: 'var(--qp-line-soft)', accent: 'var(--qp-accent)', danger: 'var(--q-danger)',
         label: 'var(--qp-sub)',
       }
 
@@ -142,7 +142,7 @@ export default function DomainRegistrantForm({
           disabled={submitting}
           style={{
             flex: 2, padding: '10px 14px', borderRadius: 8, fontSize: 12.5, fontWeight: 700,
-            border: 'none', background: c.accent, color: dark ? '#0a0a0e' : '#fff',
+            border: 'none', background: c.accent, color: dark ? 'var(--q-acc-ink)' : '#fff',
             cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.6 : 1,
           }}
         >

@@ -45,26 +45,26 @@ export default async function DashboardPage() {
       <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} />
 
       {verificationRequired && (
-        <div role="status" style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', fontSize: 13, color: '#e0a04f' }}>
+        <div role="status" style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', fontSize: 13, color: 'var(--q-warn-text)' }}>
           Verify your email to receive your {CREDIT_COSTS.welcome_grant} free credits — then reload this page.
         </div>
       )}
 
       {/* At-limit warning */}
       {atLimit && (
-        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', fontSize: 13, color: '#e0a04f' }}>
+        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', fontSize: 13, color: 'var(--q-warn-text)' }}>
           {isAgency
-            ? <>You&apos;ve reached the Agency batch limit (20 simultaneous stores). <a href="mailto:support@quantecode.com" style={{ color: '#e0a04f' }}>Contact us for a custom plan.</a></>
-            : <><Link href="/pricing" style={{ color: '#e0a04f' }}>Upgrade to Agency</Link> to generate &amp; export up to 20 stores at once.</>
+            ? <>You&apos;ve reached the Agency batch limit (20 simultaneous stores). <a href="mailto:support@quantecode.com" style={{ color: 'var(--q-warn-text)' }}>Contact us for a custom plan.</a></>
+            : <><Link href="/quante#cenik" style={{ color: 'var(--q-warn-text)' }}>Upgrade to Agency</Link> to generate &amp; export up to 20 stores at once.</>
           }
         </div>
       )}
 
       {/* Archived notice (shown after downgrade) */}
       {archived.length > 0 && (
-        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.03)', fontSize: 13, color: '#8a8a93' }}>
+        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-ink-rgb) / .03)', fontSize: 13, color: 'var(--q-fg3)' }}>
           {archived.length} project{archived.length > 1 ? 's' : ''} archived due to plan downgrade.{' '}
-          <Link href="/billing" style={{ color: '#D4FF3F' }}>Reactivate your Agency plan</Link> to restore them.
+          <Link href="/billing" style={{ color: 'var(--q-acc-text)' }}>Reactivate your Agency plan</Link> to restore them.
         </div>
       )}
 

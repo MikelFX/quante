@@ -3111,10 +3111,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {label('Title (optional)')}<input style={inputStyle} value={d.props.title ?? ''} onChange={e => set('title', e.target.value)} />
         {label('Items')}
         {(d.props.items as Array<{ question: string; answer: string }>).map((item, i) => (
-          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.03)' }}>
+          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .03)' }}>
             <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="Question" value={item.question} onChange={e => { const items = [...d.props.items]; items[i] = { ...items[i], question: e.target.value }; set('items', items) }} />
             <textarea rows={2} style={taStyle} placeholder="Answer" value={item.answer} onChange={e => { const items = [...d.props.items]; items[i] = { ...items[i], answer: e.target.value }; set('items', items) }} />
-            <button onClick={() => { const items = d.props.items.filter((_: unknown, j: number) => j !== i); set('items', items) }} style={{ fontSize: 10, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
+            <button onClick={() => { const items = d.props.items.filter((_: unknown, j: number) => j !== i); set('items', items) }} style={{ fontSize: 10, color: 'var(--q-danger-text)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
           </div>
         ))}
         <button onClick={() => set('items', [...d.props.items, { question: '', answer: '' }])} style={{ fontSize: 11, padding: '5px', borderRadius: 6, border: '1px dashed var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}>+ Add item</button>
@@ -3126,10 +3126,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {label('Title (optional)')}<input style={inputStyle} value={d.props.title ?? ''} onChange={e => set('title', e.target.value)} />
         {label('Features')}
         {(d.props.features as Array<{ title: string; description: string; icon?: string }>).map((f, i) => (
-          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.03)' }}>
+          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .03)' }}>
             <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="Title" value={f.title} onChange={e => { const items = [...d.props.features]; items[i] = { ...items[i], title: e.target.value }; set('features', items) }} />
             <textarea rows={2} style={taStyle} placeholder="Description" value={f.description} onChange={e => { const items = [...d.props.features]; items[i] = { ...items[i], description: e.target.value }; set('features', items) }} />
-            <button onClick={() => set('features', d.props.features.filter((_: unknown, j: number) => j !== i))} style={{ fontSize: 10, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
+            <button onClick={() => set('features', d.props.features.filter((_: unknown, j: number) => j !== i))} style={{ fontSize: 10, color: 'var(--q-danger-text)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
           </div>
         ))}
         <button onClick={() => set('features', [...d.props.features, { title: '', description: '' }])} style={{ fontSize: 11, padding: '5px', borderRadius: 6, border: '1px dashed var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}>+ Add feature</button>
@@ -3141,11 +3141,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {label('Title (optional)')}<input style={inputStyle} value={d.props.title ?? ''} onChange={e => set('title', e.target.value)} />
         {label('Reviews')}
         {(d.props.items as Array<{ quote: string; author: string; role?: string }>).map((item, i) => (
-          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.03)' }}>
+          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .03)' }}>
             <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="Author name" value={item.author} onChange={e => { const items = [...d.props.items]; items[i] = { ...items[i], author: e.target.value }; set('items', items) }} />
             <input style={{ ...inputStyle, marginBottom: 4 }} placeholder="Role (optional)" value={item.role ?? ''} onChange={e => { const items = [...d.props.items]; items[i] = { ...items[i], role: e.target.value }; set('items', items) }} />
             <textarea rows={2} style={taStyle} placeholder="Quote" value={item.quote} onChange={e => { const items = [...d.props.items]; items[i] = { ...items[i], quote: e.target.value }; set('items', items) }} />
-            <button onClick={() => set('items', d.props.items.filter((_: unknown, j: number) => j !== i))} style={{ fontSize: 10, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
+            <button onClick={() => set('items', d.props.items.filter((_: unknown, j: number) => j !== i))} style={{ fontSize: 10, color: 'var(--q-danger-text)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
           </div>
         ))}
         <button onClick={() => set('items', [...d.props.items, { quote: '', author: '' }])} style={{ fontSize: 11, padding: '5px', borderRadius: 6, border: '1px dashed var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}>+ Add review</button>
@@ -3156,7 +3156,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
         {label('Images')}
         {(d.props.images as Array<{ src: string; alt: string }>).map((img, i) => (
-          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgba(255,255,255,.03)' }}>
+          <div key={i} style={{ marginBottom: 8, padding: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .03)' }}>
             <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
               <input style={{ ...inputStyle, flex: 1 }} placeholder="Image URL" value={img.src} onChange={e => { const items = [...d.props.images]; items[i] = { ...items[i], src: e.target.value }; set('images', items) }} />
               <button onClick={() => openImagePicker(url => { const items = [...d.props.images]; items[i] = { ...items[i], src: url }; set('images', items) }, sectionImageInputRef)} style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--foreground)', cursor: 'pointer', flexShrink: 0 }}>
@@ -3164,7 +3164,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               </button>
             </div>
             <input style={inputStyle} placeholder="Alt text" value={img.alt} onChange={e => { const items = [...d.props.images]; items[i] = { ...items[i], alt: e.target.value }; set('images', items) }} />
-            <button onClick={() => set('images', d.props.images.filter((_: unknown, j: number) => j !== i))} style={{ fontSize: 10, color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
+            <button onClick={() => set('images', d.props.images.filter((_: unknown, j: number) => j !== i))} style={{ fontSize: 10, color: 'var(--q-danger-text)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 2 }}>Remove</button>
           </div>
         ))}
         <button onClick={() => set('images', [...d.props.images, { src: '', alt: '' }])} style={{ fontSize: 11, padding: '5px', borderRadius: 6, border: '1px dashed var(--border)', background: 'none', color: 'var(--muted-foreground)', cursor: 'pointer' }}>+ Add image</button>
@@ -3181,9 +3181,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   // Shared eyebrow label style (used in Publish + Theme panels)
   const eyebrowSt: React.CSSProperties = {
-    fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)',
+    fontSize: 10, fontWeight: 600, fontFamily: 'var(--q-mono)',
     textTransform: 'uppercase', letterSpacing: '.07em',
-    color: '#5b5b64', marginBottom: 8,
+    color: 'var(--q-fg4)', marginBottom: 8,
   }
 
   const ProductsPanel = (
@@ -3223,7 +3223,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 <div key={i} style={{ position: 'relative' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={img} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-                  <button onClick={() => setProductDraft(d => d ? { ...d, images: d.images.filter((_, j) => j !== i) } : d)} style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#f87171', border: 'none', color: '#fff', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
+                  <button onClick={() => setProductDraft(d => d ? { ...d, images: d.images.filter((_, j) => j !== i) } : d)} style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: 'var(--q-danger)', border: 'none', color: 'var(--q-on-danger)', fontSize: 9, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>✕</button>
                 </div>
               ))}
               <button
@@ -3238,7 +3238,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <button
               onClick={handleImageSuggest}
               disabled={isSuggestingImages || !productDraft.name.trim()}
-              style={{ marginTop: 8, width: '100%', fontSize: 11, padding: '5px', borderRadius: 7, border: '1px dashed rgba(212,255,63,.35)', background: 'rgba(212,255,63,.05)', color: isSuggestingImages ? '#8a8a93' : '#E8FF9E', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+              style={{ marginTop: 8, width: '100%', fontSize: 11, padding: '5px', borderRadius: 7, border: '1px dashed rgb(var(--q-acc-rgb) / .35)', background: 'rgb(var(--q-acc-rgb) / .05)', color: isSuggestingImages ? 'var(--q-fg3)' : 'var(--q-acc-hi)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
             >
               {isSuggestingImages ? '✦ Finding images…' : '✦ Find product images · 1 credit'}
             </button>
@@ -3246,8 +3246,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {suggestedImages && suggestedImages.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <p style={{ fontSize: 10, color: '#8a8a93' }}>Click to add</p>
-                  <button onClick={() => setSuggestedImages(null)} style={{ fontSize: 10, color: '#5b5b64', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Close</button>
+                  <p style={{ fontSize: 10, color: 'var(--q-fg3)' }}>Click to add</p>
+                  <button onClick={() => setSuggestedImages(null)} style={{ fontSize: 10, color: 'var(--q-fg4)', background: 'none', border: 'none', cursor: 'pointer' }}>✕ Close</button>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
                   {suggestedImages.slice(0, 9).map((img, i) => (
@@ -3258,7 +3258,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       }}
                       title={`Photo by ${img.credit} on Unsplash`}
                       style={{ padding: 0, border: '2px solid transparent', borderRadius: 6, overflow: 'hidden', cursor: 'pointer', background: 'none', aspectRatio: '1', transition: 'border-color 0.1s' }}
-                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#D4FF3F')}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--q-acc)')}
                       onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -3266,7 +3266,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     </button>
                   ))}
                 </div>
-                <p style={{ fontSize: 9, color: '#5b5b64', marginTop: 4, textAlign: 'center' }}>Photos via Unsplash</p>
+                <p style={{ fontSize: 9, color: 'var(--q-fg4)', marginTop: 4, textAlign: 'center' }}>Photos via Unsplash</p>
               </div>
             )}
           </div>
@@ -3301,29 +3301,29 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {isSavingManifest || isSavingProducts ? 'Saving…' : 'Save product'}
           </button>
           {!currentManifest && (
-            <p style={{ fontSize: 10, color: '#5b5b64', marginTop: 8, textAlign: 'center' }}>Changes go live with your next deploy.</p>
+            <p style={{ fontSize: 10, color: 'var(--q-fg4)', marginTop: 8, textAlign: 'center' }}>Changes go live with your next deploy.</p>
           )}
         </div>
       ) : currentManifest ? (
         // ── Product list (manifest) ──
         <>
           {/* Header */}
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)' }}>
               {currentManifest.catalog.products.length} products · {currentManifest.catalog.currency}
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
               {selectedProductIds.size > 0 && (
                 <button
                   onClick={handleBulkDeleteProducts}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(224,86,79,.4)', background: 'rgba(224,86,79,.1)', color: '#e0564f', cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-danger-rgb) / .4)', background: 'rgb(var(--q-danger-rgb) / .1)', color: 'var(--q-danger-text)', cursor: 'pointer' }}
                 >
                   <Trash2 size={11} /> Delete {selectedProductIds.size}
                 </button>
               )}
               <button
                 onClick={() => setProductDraft(emptyProduct())}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(212,255,63,.4)', background: 'rgba(212,255,63,.1)', color: '#D4FF3F', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-acc-rgb) / .4)', background: 'rgb(var(--q-acc-rgb) / .1)', color: 'var(--q-acc-text)', cursor: 'pointer' }}
               >
                 <Plus size={11} /> Add product
               </button>
@@ -3333,51 +3333,51 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {/* List */}
           {currentManifest.catalog.products.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 8 }}>
-              <Package size={28} style={{ color: '#5b5b64' }} />
-              <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center' }}>No products yet.</p>
-              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
+              <Package size={28} style={{ color: 'var(--q-fg4)' }} />
+              <p style={{ fontSize: 13, color: 'var(--q-fg3)', textAlign: 'center' }}>No products yet.</p>
+              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
             </div>
           ) : currentManifest.catalog.products.map(p => {
             const isSelected = selectedProductIds.has(p.id)
             return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(212,255,63,.05)' : 'transparent', transition: 'background 0.1s' }}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .05)', background: isSelected ? 'rgb(var(--q-acc-rgb) / .05)' : 'transparent', transition: 'background 0.1s' }}>
                 {/* Checkbox */}
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => setSelectedProductIds(prev => { const next = new Set(prev); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); return next })}
-                  style={{ width: 14, height: 14, accentColor: '#D4FF3F', flexShrink: 0, cursor: 'pointer' }}
+                  style={{ width: 14, height: 14, accentColor: 'var(--q-acc)', flexShrink: 0, cursor: 'pointer' }}
                 />
 
                 {/* Thumbnail */}
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.images[0]} alt={p.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, flexShrink: 0, border: '1px solid rgba(255,255,255,.07)' }} />
+                  <img src={p.images[0]} alt={p.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, flexShrink: 0, border: '1px solid rgb(var(--q-ink-rgb) / .07)' }} />
                 ) : (
-                  <div style={{ width: 40, height: 40, borderRadius: 7, background: 'rgba(255,255,255,.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,.07)' }}>
-                    <Package size={16} style={{ color: '#5b5b64' }} />
+                  <div style={{ width: 40, height: 40, borderRadius: 7, background: 'rgb(var(--q-ink-rgb) / .05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
+                    <Package size={16} style={{ color: 'var(--q-fg4)' }} />
                   </div>
                 )}
 
                 {/* Name + price */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
-                  <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 2 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg3)', marginTop: 2 }}>
                     {currentManifest.catalog.currency} {p.price}
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
                       <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.5 }}>{p.compareAtPrice}</span>
                     )}
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
-                      <span style={{ marginLeft: 6, color: '#D4FF3F', fontWeight: 600 }}>SALE</span>
+                      <span style={{ marginLeft: 6, color: 'var(--q-acc-text)', fontWeight: 600 }}>SALE</span>
                     )}
-                    {!p.available && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
+                    {!p.available && <span style={{ marginLeft: 6, color: 'var(--q-danger-text)' }}>· unavailable</span>}
                   </p>
                 </div>
 
                 {/* Edit */}
                 <button
                   onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description, price: String(p.price), compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : '', slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available, sku: '' })}
-                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer', flexShrink: 0 }}
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer', flexShrink: 0 }}
                 >
                   Edit
                 </button>
@@ -3386,9 +3386,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 <button
                   onClick={() => handleProductDelete(p.id)}
                   title="Delete product"
-                  style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                  style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: 'var(--q-fg4)', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--q-danger-text)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--q-fg4)')}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -3411,8 +3411,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         // ── Product list (code-gen store — edits create a new version) ──
         <>
           {/* Header */}
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)' }}>
               {codeProducts.length} products · {codeCurrency}
             </span>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -3420,14 +3420,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 <button
                   onClick={handleCodeBulkDelete}
                   disabled={isSavingProducts}
-                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(224,86,79,.4)', background: 'rgba(224,86,79,.1)', color: '#e0564f', cursor: 'pointer', opacity: isSavingProducts ? 0.5 : 1 }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-danger-rgb) / .4)', background: 'rgb(var(--q-danger-rgb) / .1)', color: 'var(--q-danger-text)', cursor: 'pointer', opacity: isSavingProducts ? 0.5 : 1 }}
                 >
                   <Trash2 size={11} /> Delete {selectedProductIds.size}
                 </button>
               )}
               <button
                 onClick={() => setProductDraft(emptyProduct())}
-                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(212,255,63,.4)', background: 'rgba(212,255,63,.1)', color: '#D4FF3F', cursor: 'pointer' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-acc-rgb) / .4)', background: 'rgb(var(--q-acc-rgb) / .1)', color: 'var(--q-acc-text)', cursor: 'pointer' }}
               >
                 <Plus size={11} /> Add product
               </button>
@@ -3436,69 +3436,69 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
           {/* Saved note */}
           {productsSavedNote && (
-            <div style={{ padding: '8px 14px', borderBottom: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.06)' }}>
-              <p style={{ fontSize: 11, color: '#3ecf8e', margin: 0 }}>✓ Saved — changes go live with your next deploy.</p>
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid rgb(var(--q-ok-rgb) / .2)', background: 'rgb(var(--q-ok-rgb) / .06)' }}>
+              <p style={{ fontSize: 11, color: 'var(--q-ok-text)', margin: 0 }}>✓ Saved — changes go live with your next deploy.</p>
             </div>
           )}
 
           {/* List */}
           {codeProducts.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 8 }}>
-              <Package size={28} style={{ color: '#5b5b64' }} />
-              <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center' }}>No products yet.</p>
-              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
+              <Package size={28} style={{ color: 'var(--q-fg4)' }} />
+              <p style={{ fontSize: 13, color: 'var(--q-fg3)', textAlign: 'center' }}>No products yet.</p>
+              <button onClick={() => setProductDraft(emptyProduct())} style={{ fontSize: 12, color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer' }}>Add your first product →</button>
             </div>
           ) : codeProducts.map(p => {
             const isSelected = selectedProductIds.has(p.id)
             return (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.05)', background: isSelected ? 'rgba(212,255,63,.05)' : 'transparent', transition: 'background 0.1s' }}>
+              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .05)', background: isSelected ? 'rgb(var(--q-acc-rgb) / .05)' : 'transparent', transition: 'background 0.1s' }}>
                 <input
                   type="checkbox"
                   checked={isSelected}
                   onChange={() => setSelectedProductIds(prev => { const next = new Set(prev); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); return next })}
-                  style={{ width: 14, height: 14, accentColor: '#D4FF3F', flexShrink: 0, cursor: 'pointer' }}
+                  style={{ width: 14, height: 14, accentColor: 'var(--q-acc)', flexShrink: 0, cursor: 'pointer' }}
                 />
                 {p.images[0] ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={p.images[0]} alt={p.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, flexShrink: 0, border: '1px solid rgba(255,255,255,.07)' }} />
+                  <img src={p.images[0]} alt={p.name} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, flexShrink: 0, border: '1px solid rgb(var(--q-ink-rgb) / .07)' }} />
                 ) : (
-                  <div style={{ width: 40, height: 40, borderRadius: 7, background: 'rgba(255,255,255,.05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255,255,255,.07)' }}>
-                    <Package size={16} style={{ color: '#5b5b64' }} />
+                  <div style={{ width: 40, height: 40, borderRadius: 7, background: 'rgb(var(--q-ink-rgb) / .05)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
+                    <Package size={16} style={{ color: 'var(--q-fg4)' }} />
                   </div>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
-                  <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 2 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>{p.name}</p>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg3)', marginTop: 2 }}>
                     {codeCurrency} {p.price}
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
                       <span style={{ marginLeft: 6, textDecoration: 'line-through', opacity: 0.5 }}>{p.compareAtPrice}</span>
                     )}
                     {p.compareAtPrice && p.compareAtPrice > p.price && (
-                      <span style={{ marginLeft: 6, color: '#D4FF3F', fontWeight: 600 }}>SALE</span>
+                      <span style={{ marginLeft: 6, color: 'var(--q-acc-text)', fontWeight: 600 }}>SALE</span>
                     )}
-                    {p.sku && <span style={{ marginLeft: 6, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64' }}>{p.sku}</span>}
-                    {p.available === false && <span style={{ marginLeft: 6, color: '#e0564f' }}>· unavailable</span>}
+                    {p.sku && <span style={{ marginLeft: 6, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)' }}>{p.sku}</span>}
+                    {p.available === false && <span style={{ marginLeft: 6, color: 'var(--q-danger-text)' }}>· unavailable</span>}
                   </p>
                 </div>
                 <button
                   onClick={() => setProductDraft({ id: p.id, name: p.name, description: p.description ?? '', price: String(p.price), compareAtPrice: p.compareAtPrice ? String(p.compareAtPrice) : '', slug: p.slug, tags: (p.tags ?? []).join(', '), images: p.images, available: p.available !== false, sku: p.sku ?? '' })}
-                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer', flexShrink: 0 }}
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer', flexShrink: 0 }}
                 >
                   Edit
                 </button>
                 <button
                   onClick={() => editProductWithQuante(p.name)}
                   title="Edit with Quante (AI chat)"
-                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.06)', color: '#E8FF9E', cursor: 'pointer', flexShrink: 0 }}
+                  style={{ fontSize: 11, padding: '5px 9px', borderRadius: 6, border: '1px solid rgb(var(--q-acc-rgb) / .3)', background: 'rgb(var(--q-acc-rgb) / .06)', color: 'var(--q-acc-hi)', cursor: 'pointer', flexShrink: 0 }}
                 >
                   ✦ Quante
                 </button>
                 <button
                   onClick={() => handleCodeProductDelete(p.id)}
                   title="Delete product"
-                  style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                  style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: 'var(--q-fg4)', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--q-danger-text)')}
+                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--q-fg4)')}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -3524,9 +3524,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{
       flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
       padding: '6px 12px', fontSize: 12, fontWeight: 500,
-      background: hostingInfo.suspendedAt || trialExpired ? 'rgba(224,86,79,.1)' : 'rgba(224,160,79,.08)',
-      borderBottom: `1px solid ${hostingInfo.suspendedAt || trialExpired ? 'rgba(224,86,79,.25)' : 'rgba(224,160,79,.2)'}`,
-      color: hostingInfo.suspendedAt || trialExpired ? '#e0564f' : '#e0a04f',
+      background: hostingInfo.suspendedAt || trialExpired ? 'rgb(var(--q-danger-rgb) / .1)' : 'rgb(var(--q-warn-rgb) / .08)',
+      borderBottom: `1px solid ${hostingInfo.suspendedAt || trialExpired ? 'rgb(var(--q-danger-rgb) / .25)' : 'rgb(var(--q-warn-rgb) / .2)'}`,
+      color: hostingInfo.suspendedAt || trialExpired ? 'var(--q-danger-text)' : 'var(--q-warn-text)',
     }}>
       <span>
         {hostingInfo.suspendedAt
@@ -3540,14 +3540,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <button
         onClick={() => handleHostingSubscribe('year')}
         disabled={isSubscribing}
-        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
+        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
       >
         {isSubscribing ? '…' : '$99/year'}
       </button>
       <button
         onClick={() => handleHostingSubscribe('month')}
         disabled={isSubscribing}
-        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: '1px solid rgba(255,255,255,.15)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
+        style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: '1px solid rgb(var(--q-ink-rgb) / .15)', background: 'transparent', color: 'var(--q-fg)', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}
       >
         {isSubscribing ? '…' : '$9.99/mo'}
       </button>
@@ -3559,9 +3559,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{
       flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 10,
       padding: '6px 12px', fontSize: 12, fontWeight: 500,
-      background: storeUpdateError ? 'rgba(224,86,79,.1)' : 'rgba(212,255,63,.06)',
-      borderBottom: `1px solid ${storeUpdateError ? 'rgba(224,86,79,.25)' : 'rgba(212,255,63,.18)'}`,
-      color: storeUpdateError ? '#e0564f' : '#f4f4f6',
+      background: storeUpdateError ? 'rgb(var(--q-danger-rgb) / .1)' : 'rgb(var(--q-acc-rgb) / .06)',
+      borderBottom: `1px solid ${storeUpdateError ? 'rgb(var(--q-danger-rgb) / .25)' : 'rgb(var(--q-acc-rgb) / .18)'}`,
+      color: storeUpdateError ? 'var(--q-danger-text)' : 'var(--q-fg)',
     }}>
       <span>
         {storeUpdateError
@@ -3572,7 +3572,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         <button
           onClick={() => void handleStoreUpdate()}
           disabled={isUpdatingStore || isDeploying}
-          style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: '#D4FF3F', color: '#0a0a0e', cursor: 'pointer', opacity: isUpdatingStore || isDeploying ? 0.6 : 1 }}
+          style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 5, border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer', opacity: isUpdatingStore || isDeploying ? 0.6 : 1 }}
         >
           {isUpdatingStore ? '…' : 'Update now'}
         </button>
@@ -3580,7 +3580,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <button
         onClick={() => setStoreUpdateDismissed(true)}
         aria-label="Dismiss"
-        style={{ fontSize: 13, lineHeight: 1, padding: '2px 6px', borderRadius: 5, border: 'none', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+        style={{ fontSize: 13, lineHeight: 1, padding: '2px 6px', borderRadius: 5, border: 'none', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer' }}
       >
         ×
       </button>
@@ -3592,25 +3592,25 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       flexShrink: 0, height: '3rem',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 0.875rem', gap: 8,
-      borderBottom: '1px solid rgba(255,255,255,.07)',
-      background: 'rgba(8,8,10,.95)',
+      borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)',
+      background: 'rgb(var(--q-bg-rgb) / .95)',
       backdropFilter: 'blur(12px)',
     }}>
       {/* Left: breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0, flex: 1 }}>
         <Link href="/dashboard" style={{
-          fontSize: 12, color: '#8a8a93', textDecoration: 'none',
+          fontSize: 12, color: 'var(--q-fg3)', textDecoration: 'none',
           display: 'flex', alignItems: 'center', gap: 4,
           flexShrink: 0,
           transition: 'color 0.12s',
         }}
-          onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = '#f4f4f6'}
-          onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = '#8a8a93'}
+          onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg)'}
+          onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg3)'}
         >
           ◀ Projects
         </Link>
-        <span style={{ fontSize: 12, color: '#5b5b64', padding: '0 6px' }}>/</span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--q-fg4)', padding: '0 6px' }}>/</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {projectName}
         </span>
       </div>
@@ -3622,10 +3622,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={() => { const next = !showVersions; setShowVersions(next); if (next) fetchVersions() }}
             style={{
-              fontFamily: 'var(--font-geist-mono)', fontSize: 11,
+              fontFamily: 'var(--q-mono)', fontSize: 11,
               padding: '4px 8px', borderRadius: 6,
-              border: '1px solid rgba(255,255,255,.1)',
-              color: '#8a8a93', background: 'transparent',
+              border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+              color: 'var(--q-fg3)', background: 'transparent',
               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4,
             }}
           >
@@ -3638,36 +3638,36 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setShowVersions(false)} />
               <div style={{
                 position: 'absolute', right: 0, top: '100%', marginTop: 4,
-                width: 290, background: '#0d0d11',
-                border: '1px solid rgba(255,255,255,.1)', borderRadius: 10,
+                width: 290, background: 'var(--q-s1)',
+                border: '1px solid rgb(var(--q-ink-rgb) / .1)', borderRadius: 10,
                 boxShadow: '0 8px 40px rgba(0,0,0,.6)', zIndex: 50, overflow: 'hidden',
               }}>
-                <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
-                  <p style={{ fontSize: 10, color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'var(--font-geist-mono)' }}>
+                <div style={{ padding: '8px 12px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--q-fg3)', textTransform: 'uppercase', letterSpacing: '.05em', fontFamily: 'var(--q-mono)' }}>
                     Version history
                   </p>
                 </div>
                 <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                   {versions.length === 0 ? (
-                    <p style={{ fontSize: 12, color: '#8a8a93', padding: '12px 14px' }}>No versions yet.</p>
+                    <p style={{ fontSize: 12, color: 'var(--q-fg3)', padding: '12px 14px' }}>No versions yet.</p>
                   ) : versions.map((v) => (
                     <div key={v.id} style={{
                       display: 'flex', alignItems: 'flex-start', gap: 10,
-                      padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,.04)',
+                      padding: '10px 12px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .04)',
                     }}>
-                      <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 10, color: '#D4FF3F', flexShrink: 0, marginTop: 2 }}>v{v.version_no}</span>
+                      <span style={{ fontFamily: 'var(--q-mono)', fontSize: 10, color: 'var(--q-acc-text)', flexShrink: 0, marginTop: 2 }}>v{v.version_no}</span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: 12, color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {v.prompt || 'Generated'}
                         </p>
-                        <p style={{ fontSize: 10, color: '#8a8a93', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
+                        <p style={{ fontSize: 10, color: 'var(--q-fg3)', marginTop: 2 }}>{timeAgo(v.created_at)}</p>
                       </div>
                       {versions[0]?.id !== v.id ? (
-                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 0' }}>
+                        <button onClick={() => handleRestore(v.id)} style={{ fontSize: 11, color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer', flexShrink: 0, padding: '2px 0' }}>
                           Restore
                         </button>
                       ) : (
-                        <span style={{ fontSize: 10, color: '#5b5b64', flexShrink: 0 }}>current</span>
+                        <span style={{ fontSize: 10, color: 'var(--q-fg4)', flexShrink: 0 }}>current</span>
                       )}
                     </div>
                   ))}
@@ -3680,8 +3680,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {/* Builder / Admin segmented toggle */}
         <div style={{
           display: 'flex', borderRadius: 7,
-          border: '1px solid rgba(255,255,255,.1)',
-          background: 'rgba(255,255,255,.04)',
+          border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+          background: 'rgb(var(--q-ink-rgb) / .04)',
           overflow: 'hidden',
         }}>
           <button
@@ -3689,8 +3689,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             style={{
               fontSize: 11, fontWeight: 500, padding: '4px 10px',
               border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-              background: !adminMode ? 'rgba(212,255,63,.18)' : 'transparent',
-              color: !adminMode ? '#a8afff' : '#8a8a93',
+              background: !adminMode ? 'rgb(var(--q-acc-rgb) / .18)' : 'transparent',
+              color: !adminMode ? 'var(--q-acc2-text)' : 'var(--q-fg3)',
             }}
           >
             Builder
@@ -3699,10 +3699,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             onClick={() => { setAdminMode(true); handleLoadStoreOrders() }}
             style={{
               fontSize: 11, fontWeight: 500, padding: '4px 10px',
-              border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
+              border: 'none', borderLeft: '1px solid rgb(var(--q-ink-rgb) / .08)',
               cursor: 'pointer', transition: 'all 0.12s',
-              background: adminMode ? 'rgba(212,255,63,.18)' : 'transparent',
-              color: adminMode ? '#a8afff' : '#8a8a93',
+              background: adminMode ? 'rgb(var(--q-acc-rgb) / .18)' : 'transparent',
+              color: adminMode ? 'var(--q-acc2-text)' : 'var(--q-fg3)',
             }}
           >
             Admin
@@ -3719,8 +3719,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           rel="noopener noreferrer"
           style={{
             fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 7,
-            border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
-            color: '#8a8a93', textDecoration: 'none', whiteSpace: 'nowrap',
+            border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .04)',
+            color: 'var(--q-fg3)', textDecoration: 'none', whiteSpace: 'nowrap',
           }}
         >
           Ads ↗
@@ -3729,16 +3729,16 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {/* Credit balance / Agency indicator */}
         {isAgency ? (
           <span style={{
-            fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600,
+            fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600,
             textTransform: 'uppercase', letterSpacing: '.05em',
             padding: '2px 8px', borderRadius: 99,
-            background: 'rgba(62,207,142,.08)',
-            color: '#3ecf8e', border: '1px solid rgba(62,207,142,.2)',
+            background: 'rgb(var(--q-ok-rgb) / .08)',
+            color: 'var(--q-ok-text)', border: '1px solid rgb(var(--q-ok-rgb) / .2)',
           }}>
             Priority
           </span>
         ) : (
-          <span style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, color: '#8a8a93' }}>
+          <span style={{ fontFamily: 'var(--q-mono)', fontSize: 11, color: 'var(--q-fg3)' }}>
             {balance} cr
           </span>
         )}
@@ -3747,8 +3747,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {isDesktop && hasGeneratedOnce && (
           <div style={{
             display: 'flex', borderRadius: 7,
-            border: '1px solid rgba(255,255,255,.1)',
-            background: 'rgba(255,255,255,.04)',
+            border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+            background: 'rgb(var(--q-ink-rgb) / .04)',
             overflow: 'hidden',
           }}>
             <button
@@ -3756,8 +3756,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               style={{
                 fontSize: 11, fontWeight: 500, padding: '4px 9px',
                 border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-                background: rightPanel === 'preview' ? 'rgba(212,255,63,.18)' : 'transparent',
-                color: rightPanel === 'preview' ? '#a8afff' : '#8a8a93',
+                background: rightPanel === 'preview' ? 'rgb(var(--q-acc-rgb) / .18)' : 'transparent',
+                color: rightPanel === 'preview' ? 'var(--q-acc2-text)' : 'var(--q-fg3)',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
@@ -3767,16 +3767,16 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               onClick={() => setRightPanel('logs')}
               style={{
                 fontSize: 11, fontWeight: 500, padding: '4px 9px',
-                border: 'none', borderLeft: '1px solid rgba(255,255,255,.08)',
+                border: 'none', borderLeft: '1px solid rgb(var(--q-ink-rgb) / .08)',
                 cursor: 'pointer', transition: 'all 0.12s',
-                background: rightPanel === 'logs' ? 'rgba(212,255,63,.18)' : 'transparent',
-                color: rightPanel === 'logs' ? '#a8afff' : '#8a8a93',
+                background: rightPanel === 'logs' ? 'rgb(var(--q-acc-rgb) / .18)' : 'transparent',
+                color: rightPanel === 'logs' ? 'var(--q-acc2-text)' : 'var(--q-fg3)',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
               <Terminal size={11} /> Logs
               {buildError && (
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f87171', marginLeft: 2 }} />
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--q-danger)', marginLeft: 2 }} />
               )}
             </button>
           </div>
@@ -3792,9 +3792,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 style={{
                   fontSize: 11, fontWeight: 500,
                   padding: '4px 10px', borderRadius: 6,
-                  border: '1px solid rgba(255,255,255,.12)',
-                  background: 'rgba(255,255,255,.04)',
-                  color: hasGeneratedOnce ? '#f4f4f6' : '#8a8a93',
+                  border: '1px solid rgb(var(--q-ink-rgb) / .12)',
+                  background: 'rgb(var(--q-ink-rgb) / .04)',
+                  color: hasGeneratedOnce ? 'var(--q-fg)' : 'var(--q-fg3)',
                   cursor: hasGeneratedOnce && !isExporting ? 'pointer' : 'not-allowed',
                   opacity: hasGeneratedOnce ? 1 : 0.4,
                   transition: 'background 0.12s',
@@ -3811,13 +3811,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 title="Make your latest changes live"
                 style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 12px', borderRadius: 6,
-                  border: '1px solid rgba(212,255,63,.45)',
-                  background: isPublishing || isDeploying ? 'transparent' : 'rgba(212,255,63,.14)',
-                  color: '#D4FF3F', cursor: isPublishing || isDeploying ? 'not-allowed' : 'pointer',
+                  border: '1px solid rgb(var(--q-acc-rgb) / .45)',
+                  background: isPublishing || isDeploying ? 'transparent' : 'rgb(var(--q-acc-rgb) / .14)',
+                  color: 'var(--q-acc-text)', cursor: isPublishing || isDeploying ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', gap: 5,
                 }}
               >
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#D4FF3F' }} />
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--q-acc)' }} />
                 {pendingPublish ? '⟳ Publishing when ready' : isPublishing || isDeploying || deployStatus === 'building' ? '⟳ Publishing' : 'Publish'}
               </button>
             )}
@@ -3828,12 +3828,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 rel="noopener noreferrer"
                 style={{
                   fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                  border: '1px solid rgba(62,207,142,.35)',
-                  background: 'rgba(62,207,142,.1)', color: '#3ecf8e',
+                  border: '1px solid rgb(var(--q-ok-rgb) / .35)',
+                  background: 'rgb(var(--q-ok-rgb) / .1)', color: 'var(--q-ok-text)',
                   textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4,
                 }}
               >
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#3ecf8e', boxShadow: '0 0 6px rgba(62,207,142,.7)' }} />
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--q-ok)', boxShadow: '0 0 6px rgb(var(--q-ok-rgb) / .7)' }} />
                 Live ↗
               </a>
             ) : (
@@ -3842,9 +3842,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 disabled={!hasGeneratedOnce || isDeploying || deployStatus === 'building'}
                 style={{
                   fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
-                  border: '1px solid rgba(62,207,142,.25)',
-                  background: hasGeneratedOnce && !isDeploying ? 'rgba(62,207,142,.08)' : 'transparent',
-                  color: hasGeneratedOnce && !isDeploying ? '#3ecf8e' : '#8a8a93',
+                  border: '1px solid rgb(var(--q-ok-rgb) / .25)',
+                  background: hasGeneratedOnce && !isDeploying ? 'rgb(var(--q-ok-rgb) / .08)' : 'transparent',
+                  color: hasGeneratedOnce && !isDeploying ? 'var(--q-ok-text)' : 'var(--q-fg3)',
                   cursor: hasGeneratedOnce && !isDeploying ? 'pointer' : 'not-allowed',
                   opacity: hasGeneratedOnce ? 1 : 0.4,
                 }}
@@ -3864,13 +3864,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 6px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(212,255,63,.15)', border: '1px solid rgba(212,255,63,.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-              <MessageCircle size={15} color="#D4FF3F" />
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgb(var(--q-acc-rgb) / .15)', border: '1px solid rgb(var(--q-acc-rgb) / .25)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+              <MessageCircle size={15} style={{ color: 'var(--q-acc-text)' }} />
             </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', marginBottom: 4 }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--q-fg)', marginBottom: 4 }}>
               {hasGeneratedOnce ? 'Store ready — iterate freely' : 'Describe your store'}
             </p>
-            <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5 }}>
+            <p style={{ fontSize: 12, color: 'var(--q-fg3)', lineHeight: 1.5 }}>
               {hasGeneratedOnce
                 ? 'Tell Quante what to change — copy, colors, products, new pages, anything.'
                 : 'Brand, products, vibe, currency. Quante generates the full code.'}
@@ -3889,7 +3889,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* ── Input area ───────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, padding: '10px 12px 12px', borderTop: '1px solid rgba(255,255,255,.06)' }}>
+      <div style={{ flexShrink: 0, padding: '10px 12px 12px', borderTop: '1px solid rgb(var(--q-ink-rgb) / .06)' }}>
 
         {/* Design quick actions — the one useful piece of the old manifest-only
             Theme panel (Image → Brand), folded into Chat for code-gen stores since
@@ -3897,9 +3897,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {hasGeneratedOnce && !currentManifest && !isGenerating && (
           <div style={{
             marginBottom: 10, padding: '8px 10px', borderRadius: 8,
-            border: '1px solid rgba(212,255,63,.18)', background: 'rgba(212,255,63,.05)',
+            border: '1px solid rgb(var(--q-acc-rgb) / .18)', background: 'rgb(var(--q-acc-rgb) / .05)',
           }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: '#E8FF9E', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--q-acc-hi)', margin: '0 0 6px', display: 'flex', alignItems: 'center', gap: 4 }}>
               ✦ Design quick actions
             </p>
             <input
@@ -3920,9 +3920,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   disabled={isVisionAnalyzing}
                   style={{
                     fontSize: 11, padding: '3px 9px', borderRadius: 20,
-                    border: '1px solid rgba(212,255,63,.3)',
-                    background: 'rgba(212,255,63,.08)',
-                    color: isVisionAnalyzing ? '#8a8a93' : '#E8FF9E',
+                    border: '1px solid rgb(var(--q-acc-rgb) / .3)',
+                    background: 'rgb(var(--q-acc-rgb) / .08)',
+                    color: isVisionAnalyzing ? 'var(--q-fg3)' : 'var(--q-acc-hi)',
                     cursor: isVisionAnalyzing ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap',
                   }}
                 >
@@ -3932,8 +3932,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   onClick={() => { setInput('Change the accent color to '); setTimeout(() => textareaRef.current?.focus(), 10) }}
                   style={{
                     fontSize: 11, padding: '3px 9px', borderRadius: 20,
-                    border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
-                    color: '#8a8a93', cursor: 'pointer', whiteSpace: 'nowrap',
+                    border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .04)',
+                    color: 'var(--q-fg3)', cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
                 >
                   Change accent
@@ -3942,8 +3942,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   onClick={() => { setInput('Change the fonts to '); setTimeout(() => textareaRef.current?.focus(), 10) }}
                   style={{
                     fontSize: 11, padding: '3px 9px', borderRadius: 20,
-                    border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
-                    color: '#8a8a93', cursor: 'pointer', whiteSpace: 'nowrap',
+                    border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .04)',
+                    color: 'var(--q-fg3)', cursor: 'pointer', whiteSpace: 'nowrap',
                   }}
                 >
                   Change fonts
@@ -3953,16 +3953,16 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <div>
                 <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
                   {Object.entries(visionResult.palette).map(([k, v]) => (
-                    <div key={k} title={k} style={{ width: 16, height: 16, borderRadius: 4, background: v as string, border: '1px solid rgba(255,255,255,.15)' }} />
+                    <div key={k} title={k} style={{ width: 16, height: 16, borderRadius: 4, background: v as string, border: '1px solid rgb(var(--q-ink-rgb) / .15)' }} />
                   ))}
                 </div>
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: '0 0 6px', lineHeight: 1.5 }}>{visionResult.reasoning}</p>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '0 0 6px', lineHeight: 1.5 }}>{visionResult.reasoning}</p>
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button
                     onClick={handleApplyVision}
                     style={{
                       fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                      border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer',
+                      border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer',
                     }}
                   >
                     Apply to store
@@ -3971,7 +3971,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     onClick={() => setVisionResult(null)}
                     style={{
                       fontSize: 11, padding: '4px 10px', borderRadius: 6,
-                      border: '1px solid rgba(255,255,255,.1)', background: 'transparent', color: '#8a8a93', cursor: 'pointer',
+                      border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer',
                     }}
                   >
                     Discard
@@ -3991,14 +3991,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 onClick={() => { setInput(prompt); setTimeout(() => textareaRef.current?.focus(), 10) }}
                 style={{
                   fontSize: 11, padding: '3px 9px', borderRadius: 20,
-                  border: '1px solid rgba(255,255,255,.1)',
-                  background: 'rgba(255,255,255,.04)',
-                  color: '#8a8a93', cursor: 'pointer',
+                  border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+                  background: 'rgb(var(--q-ink-rgb) / .04)',
+                  color: 'var(--q-fg3)', cursor: 'pointer',
                   transition: 'border-color 0.12s, color 0.12s',
                   whiteSpace: 'nowrap',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.2)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.1)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .2)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg3)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .1)' }}
               >
                 {label}
               </button>
@@ -4011,17 +4011,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {hasGeneratedOnce && chatAttachedImage && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
-            padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.03)',
+            padding: '6px 8px', borderRadius: 8, border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .03)',
           }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={chatAttachedImage.previewUrl} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
-            <span style={{ fontSize: 11.5, color: '#c7c4d6', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 11.5, color: 'var(--q-fg2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {chatAttachedImage.uploading ? `Uploading ${chatAttachedImage.name}…` : chatAttachedImage.name}
             </span>
             <button
               onClick={clearChatAttachedImage}
               title="Remove attached image"
-              style={{ background: 'none', border: 'none', color: '#8a8a93', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 }}
+              style={{ background: 'none', border: 'none', color: 'var(--q-fg3)', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 2 }}
             >
               ×
             </button>
@@ -4049,8 +4049,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 title="Attach an image — the AI will place it where the prompt describes"
                 style={{
                   flexShrink: 0, width: 36, height: 36, borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.04)',
-                  color: '#8a8a93', cursor: isGenerating ? 'not-allowed' : 'pointer', fontSize: 15,
+                  border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .04)',
+                  color: 'var(--q-fg3)', cursor: isGenerating ? 'not-allowed' : 'pointer', fontSize: 15,
                 }}
               >
                 📎
@@ -4073,15 +4073,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             rows={3}
             style={{
               flex: 1, resize: 'none', fontSize: 13, borderRadius: 8,
-              border: '1px solid rgba(255,255,255,.1)',
-              background: '#121218',
-              color: '#f4f4f6', padding: '8px 10px',
+              border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+              background: 'var(--q-s2)',
+              color: 'var(--q-fg)', padding: '8px 10px',
               outline: 'none', fontFamily: 'inherit', lineHeight: 1.5,
               opacity: isGenerating ? 0.5 : 1,
               transition: 'border-color 0.12s',
             }}
-            onFocus={e => (e.target.style.borderColor = 'rgba(212,255,63,.4)')}
-            onBlur={e => (e.target.style.borderColor = 'rgba(255,255,255,.1)')}
+            onFocus={e => (e.target.style.borderColor = 'rgb(var(--q-acc-rgb) / .4)')}
+            onBlur={e => (e.target.style.borderColor = 'rgb(var(--q-ink-rgb) / .1)')}
           />
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
             <button
@@ -4091,19 +4091,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 padding: '8px 14px', fontSize: 13, fontWeight: 600,
                 borderRadius: 8, border: 'none',
                 cursor: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'not-allowed' : 'pointer',
-                background: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'rgba(255,255,255,.06)' : '#D4FF3F',
-                color: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? '#8a8a93' : '#fff',
+                background: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'rgb(var(--q-ink-rgb) / .06)' : 'var(--q-acc)',
+                color: isGenerating || (!input.trim() && !chatAttachedImage?.uploadedUrl) ? 'var(--q-fg3)' : 'var(--q-acc-ink)',
                 transition: 'background 0.12s',
               }}
             >
               {isGenerating ? '…' : '→'}
             </button>
-            <span style={{ fontSize: 9, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 9, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', whiteSpace: 'nowrap' }}>
               {!hasGeneratedOnce ? '10 cr' : '1 cr'}
             </span>
           </div>
         </div>
-        <p style={{ fontSize: 10, color: '#5b5b64', marginTop: 5 }}>
+        <p style={{ fontSize: 10, color: 'var(--q-fg4)', marginTop: 5 }}>
           ↵ send · shift+↵ newline{hasGeneratedOnce ? ' · 📎 attach a photo for the AI to place' : ''}
         </p>
       </div>
@@ -4114,19 +4114,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       {!hasGeneratedOnce ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '3rem 1.5rem', gap: 8 }}>
-          <Layers size={28} style={{ color: '#5b5b64' }} />
-          <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center' }}>Generate a store first to manage sections.</p>
+          <Layers size={28} style={{ color: 'var(--q-fg4)' }} />
+          <p style={{ fontSize: 14, color: 'var(--q-fg3)', textAlign: 'center' }}>Generate a store first to manage sections.</p>
         </div>
       ) : !currentManifest ? (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '3rem 1.5rem', gap: 8 }}>
-          <Layers size={28} style={{ color: '#5b5b64' }} />
-          <p style={{ fontSize: 14, color: '#8a8a93', textAlign: 'center' }}>Use the chat to add or rearrange sections — e.g. &quot;add a testimonials section&quot;.</p>
+          <Layers size={28} style={{ color: 'var(--q-fg4)' }} />
+          <p style={{ fontSize: 14, color: 'var(--q-fg3)', textAlign: 'center' }}>Use the chat to add or rearrange sections — e.g. &quot;add a testimonials section&quot;.</p>
         </div>
       ) : (
         <>
           {/* Header */}
-          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-            <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>
+          <div style={{ padding: '10px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)' }}>
               {homeSections.length} sections
             </span>
             <button
@@ -4134,8 +4134,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               style={{
                 display: 'flex', alignItems: 'center', gap: 4,
                 fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                border: '1px solid rgba(212,255,63,.4)',
-                background: 'rgba(212,255,63,.1)', color: '#D4FF3F', cursor: 'pointer',
+                border: '1px solid rgb(var(--q-acc-rgb) / .4)',
+                background: 'rgb(var(--q-acc-rgb) / .1)', color: 'var(--q-acc-text)', cursor: 'pointer',
               }}
             >
               <Plus size={11} /> Add section
@@ -4146,8 +4146,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {homeSections.length === 0 ? (
               <div style={{ padding: '2rem 1.5rem', textAlign: 'center' }}>
-                <p style={{ fontSize: 13, color: '#8a8a93' }}>No sections yet.</p>
-                <button onClick={() => setShowSectionPicker(true)} style={{ marginTop: 8, fontSize: 12, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer' }}>
+                <p style={{ fontSize: 13, color: 'var(--q-fg3)' }}>No sections yet.</p>
+                <button onClick={() => setShowSectionPicker(true)} style={{ marginTop: 8, fontSize: 12, color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer' }}>
                   Add your first section →
                 </button>
               </div>
@@ -4167,9 +4167,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   onDragOver={e => { e.preventDefault(); setDragOverIndex(i) }}
                   onDragLeave={() => setDragOverIndex(null)}
                   style={{
-                    borderBottom: isDragOver ? '2px solid #D4FF3F' : '1px solid rgba(255,255,255,.05)',
+                    borderBottom: isDragOver ? '2px solid var(--q-acc)' : '1px solid rgb(var(--q-ink-rgb) / .05)',
                     opacity: isDraggingThis ? 0.4 : isHidden ? 0.45 : 1,
-                    background: isDragOver ? 'rgba(212,255,63,.04)' : 'transparent',
+                    background: isDragOver ? 'rgb(var(--q-acc-rgb) / .04)' : 'transparent',
                     transition: 'opacity 0.12s, background 0.12s',
                   }}
                 >
@@ -4177,7 +4177,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 12px 10px 8px' }}>
                     {/* Drag handle */}
                     <span
-                      style={{ color: '#5b5b64', cursor: 'grab', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 2px' }}
+                      style={{ color: 'var(--q-fg4)', cursor: 'grab', flexShrink: 0, display: 'flex', alignItems: 'center', padding: '0 2px' }}
                       title="Drag to reorder"
                     >
                       <GripVertical size={14} />
@@ -4185,10 +4185,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
                     {/* Info */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: isHidden ? '#5b5b64' : '#f4f4f6', margin: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: isHidden ? 'var(--q-fg4)' : 'var(--q-fg)', margin: 0 }}>
                         {SECTION_LABELS[section.type] ?? section.type}
                       </p>
-                      <p style={{ fontSize: 11, color: '#8a8a93', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <p style={{ fontSize: 11, color: 'var(--q-fg3)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {sectionSummary(section)}
                       </p>
                     </div>
@@ -4199,7 +4199,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       <button
                         onClick={() => setHiddenSections(prev => { const next = new Set(prev); if (next.has(i)) next.delete(i); else next.add(i); return next })}
                         title={isHidden ? 'Show section' : 'Hide section'}
-                        style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: isHidden ? '#5b5b64' : '#8a8a93', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: isHidden ? 'var(--q-fg4)' : 'var(--q-fg3)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                       >
                         {isHidden ? <EyeOff size={13} /> : <Eye size={13} />}
                       </button>
@@ -4210,7 +4210,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                           if (isEditingDirect) { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }
                           else { setEditingSection(i); setSectionDraft(JSON.parse(JSON.stringify(homeSections[i]))); setSectionEditMode('direct'); setExpandedSection(null); setSectionInput('') }
                         }}
-                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingDirect ? 'rgba(212,255,63,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingDirect ? 'rgba(212,255,63,.12)' : 'transparent', color: isEditingDirect ? '#D4FF3F' : '#8a8a93', cursor: 'pointer' }}
+                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingDirect ? 'rgb(var(--q-acc-rgb) / .4)' : 'rgb(var(--q-ink-rgb) / .09)'}`, background: isEditingDirect ? 'rgb(var(--q-acc-rgb) / .12)' : 'transparent', color: isEditingDirect ? 'var(--q-acc-text)' : 'var(--q-fg3)', cursor: 'pointer' }}
                       >
                         Edit
                       </button>
@@ -4222,7 +4222,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                           else { setExpandedSection(i); setSectionInput(''); setSectionEditMode('ai'); setEditingSection(null); setSectionDraft(null) }
                         }}
                         disabled={isGenerating}
-                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingAI ? 'rgba(212,255,63,.4)' : 'rgba(255,255,255,.09)'}`, background: isEditingAI ? 'rgba(212,255,63,.12)' : 'transparent', color: isEditingAI ? '#D4FF3F' : '#8a8a93', cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1 }}
+                        style={{ fontSize: 11, padding: '5px 8px', borderRadius: 6, border: `1px solid ${isEditingAI ? 'rgb(var(--q-acc-rgb) / .4)' : 'rgb(var(--q-ink-rgb) / .09)'}`, background: isEditingAI ? 'rgb(var(--q-acc-rgb) / .12)' : 'transparent', color: isEditingAI ? 'var(--q-acc-text)' : 'var(--q-fg3)', cursor: isGenerating ? 'not-allowed' : 'pointer', opacity: regeneratingSection === i ? 0.5 : isGenerating ? 0.4 : 1 }}
                       >
                         {regeneratingSection === i ? '…' : 'AI'}
                       </button>
@@ -4231,9 +4231,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       <button
                         onClick={() => { if (confirm(`Remove ${SECTION_LABELS[section.type] ?? section.type}?`)) handleDeleteSection(i) }}
                         title="Remove section"
-                        style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: '#5b5b64', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.12s' }}
-                        onMouseEnter={e => (e.currentTarget.style.color = '#e0564f')}
-                        onMouseLeave={e => (e.currentTarget.style.color = '#5b5b64')}
+                        style={{ padding: '5px 6px', borderRadius: 5, border: 'none', background: 'none', color: 'var(--q-fg4)', cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'color 0.12s' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = 'var(--q-danger-text)')}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'var(--q-fg4)')}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -4245,10 +4245,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     <div style={{ padding: '0 12px 12px 32px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {SectionEditFields()}
                       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button onClick={handleSectionDirectSave} disabled={isSavingManifest} style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isSavingManifest ? 'not-allowed' : 'pointer', background: '#f4f4f6', color: '#08080a', opacity: isSavingManifest ? 0.4 : 1 }}>
+                        <button onClick={handleSectionDirectSave} disabled={isSavingManifest} style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isSavingManifest ? 'not-allowed' : 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isSavingManifest ? 0.4 : 1 }}>
                           {isSavingManifest ? 'Saving…' : 'Save'}
                         </button>
-                        <button onClick={() => { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'none', color: '#8a8a93', cursor: 'pointer' }}>
+                        <button onClick={() => { setEditingSection(null); setSectionDraft(null); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'none', color: 'var(--q-fg3)', cursor: 'pointer' }}>
                           Cancel
                         </button>
                       </div>
@@ -4264,13 +4264,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         placeholder="Describe what to change, or leave blank for auto-improvement"
                         rows={2}
                         autoFocus
-                        style={{ width: '100%', resize: 'none', fontSize: 12, borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', padding: '7px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                        style={{ width: '100%', resize: 'none', fontSize: 12, borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'var(--q-s2)', color: 'var(--q-fg)', padding: '7px 10px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                       />
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => handleSectionRegenerate(i, sectionInput)} disabled={isGenerating} style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer', background: '#f4f4f6', color: '#08080a', opacity: isGenerating ? 0.4 : 1 }}>
+                        <button onClick={() => handleSectionRegenerate(i, sectionInput)} disabled={isGenerating} style={{ flex: 1, fontSize: 12, fontWeight: 600, padding: '7px', borderRadius: 6, border: 'none', cursor: isGenerating ? 'not-allowed' : 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isGenerating ? 0.4 : 1 }}>
                           Regenerate
                         </button>
-                        <button onClick={() => { setExpandedSection(null); setSectionInput(''); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'none', color: '#8a8a93', cursor: 'pointer' }}>
+                        <button onClick={() => { setExpandedSection(null); setSectionInput(''); setSectionEditMode(null) }} style={{ fontSize: 12, padding: '7px 14px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'none', color: 'var(--q-fg3)', cursor: 'pointer' }}>
                           Cancel
                         </button>
                       </div>
@@ -4311,7 +4311,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* IMAGE→BRAND vision */}
       <section>
-        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 8 }}>Image → Brand</p>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)', marginBottom: 8 }}>Image → Brand</p>
         <input ref={visionInputRef} type="file" accept={VISION_IMAGE_ACCEPT} style={{ display: 'none' }} onChange={e => {
           const file = e.target.files?.[0]
           if (file) handleVisionAnalyze(file)
@@ -4322,8 +4322,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             onClick={() => visionInputRef.current?.click()}
             disabled={isVisionAnalyzing}
             style={{
-              width: '100%', padding: '10px', borderRadius: 8, border: '1px dashed rgba(212,255,63,.4)',
-              background: 'rgba(212,255,63,.05)', color: isVisionAnalyzing ? '#8a8a93' : '#E8FF9E',
+              width: '100%', padding: '10px', borderRadius: 8, border: '1px dashed rgb(var(--q-acc-rgb) / .4)',
+              background: 'rgb(var(--q-acc-rgb) / .05)', color: isVisionAnalyzing ? 'var(--q-fg3)' : 'var(--q-acc-hi)',
               fontSize: 12, cursor: isVisionAnalyzing ? 'not-allowed' : 'pointer', display: 'flex',
               alignItems: 'center', justifyContent: 'center', gap: 6,
             }}
@@ -4331,27 +4331,27 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {isVisionAnalyzing ? '✦ Analysing…' : '↑ Upload inspiration photo · 1 credit'}
           </button>
         ) : (
-          <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.04)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ok-rgb) / .25)', background: 'rgb(var(--q-ok-rgb) / .04)', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               {Object.entries(visionResult.palette).map(([k, v]) => (
-                <div key={k} title={`${k}: ${v}`} style={{ width: 22, height: 22, borderRadius: 4, background: v as string, border: '1px solid rgba(255,255,255,.1)', flexShrink: 0 }} />
+                <div key={k} title={`${k}: ${v}`} style={{ width: 22, height: 22, borderRadius: 4, background: v as string, border: '1px solid rgb(var(--q-ink-rgb) / .1)', flexShrink: 0 }} />
               ))}
             </div>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>{visionResult.reasoning}</p>
-            <p style={{ fontSize: 11, color: '#E8FF9E', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.5 }}>{visionResult.reasoning}</p>
+            <p style={{ fontSize: 11, color: 'var(--q-acc-hi)', margin: 0 }}>
               {visionResult.typography.headingFont} + {visionResult.typography.bodyFont} · {visionResult.voice} · {visionResult.radius} radius
             </p>
             <div style={{ display: 'flex', gap: 6 }}>
               <button
                 onClick={handleApplyVision}
                 disabled={isSavingManifest}
-                style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: 'var(--live)', color: '#000', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                style={{ flex: 1, padding: '7px', borderRadius: 7, border: 'none', background: 'var(--live)', color: 'var(--q-acc-ink)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
               >
                 Apply to store
               </button>
               <button
                 onClick={() => setVisionResult(null)}
-                style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', fontSize: 11, cursor: 'pointer' }}
+                style={{ padding: '7px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', fontSize: 11, cursor: 'pointer' }}
               >
                 Discard
               </button>
@@ -4362,7 +4362,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Palette */}
       <section>
-        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 10 }}>Palette</p>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)', marginBottom: 10 }}>Palette</p>
         {([
           { key: 'bg',         label: 'Background'  },
           { key: 'surface',    label: 'Surface'     },
@@ -4386,11 +4386,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               onBlur={() => {
                 if (currentManifest) handleSaveManifest(currentManifest, `Theme: ${key}`)
               }}
-              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', cursor: 'pointer', padding: 2, background: 'transparent', flexShrink: 0 }}
+              style={{ width: 28, height: 28, borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .12)', cursor: 'pointer', padding: 2, background: 'transparent', flexShrink: 0 }}
             />
             <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 12, color: '#f4f4f6' }}>{label}</p>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>{currentManifest.design.palette[key]}</p>
+              <p style={{ fontSize: 12, color: 'var(--q-fg)' }}>{label}</p>
+              <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)' }}>{currentManifest.design.palette[key]}</p>
             </div>
           </div>
         ))}
@@ -4398,8 +4398,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Typography scale */}
       <section>
-        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 10 }}>Typography</p>
-        <label style={{ fontSize: 12, color: '#8a8a93', display: 'block', marginBottom: 4 }}>Scale</label>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)', marginBottom: 10 }}>Typography</p>
+        <label style={{ fontSize: 12, color: 'var(--q-fg3)', display: 'block', marginBottom: 4 }}>Scale</label>
         <select
           value={currentManifest.design.typography.scale}
           onChange={async (e) => {
@@ -4407,7 +4407,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             setCurrentManifest(updated)
             await handleSaveManifest(updated, 'Theme: scale')
           }}
-          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: '#121218', color: '#f4f4f6', outline: 'none' }}
+          style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'var(--q-s2)', color: 'var(--q-fg)', outline: 'none' }}
         >
           {['compact', 'comfortable', 'spacious'].map(v => <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
         </select>
@@ -4415,14 +4415,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Shape & feel */}
       <section>
-        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', marginBottom: 10 }}>Shape & Feel</p>
+        <p style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)', marginBottom: 10 }}>Shape & Feel</p>
         {([
           { key: 'radius',  label: 'Radius',  opts: ['none', 'sm', 'md', 'lg', 'full'] },
           { key: 'density', label: 'Density', opts: ['tight', 'normal', 'airy'] },
           { key: 'motion',  label: 'Motion',  opts: ['none', 'subtle', 'expressive'] },
         ] as { key: 'radius' | 'density' | 'motion'; label: string; opts: string[] }[]).map(({ key, label, opts }) => (
           <div key={key} style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 12, color: '#8a8a93', display: 'block', marginBottom: 4 }}>{label}</label>
+            <label style={{ fontSize: 12, color: 'var(--q-fg3)', display: 'block', marginBottom: 4 }}>{label}</label>
             <select
               value={currentManifest.design[key]}
               onChange={async (e) => {
@@ -4431,7 +4431,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 setCurrentManifest(updated)
                 await handleSaveManifest(updated, `Theme: ${key}`)
               }}
-              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.1)', background: '#121218', color: '#f4f4f6', outline: 'none' }}
+              style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'var(--q-s2)', color: 'var(--q-fg)', outline: 'none' }}
             >
               {opts.map(v => <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>)}
             </select>
@@ -4440,16 +4440,16 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </section>
 
       {isSavingManifest && (
-        <p style={{ fontSize: 11, color: '#8a8a93', textAlign: 'center', fontFamily: 'var(--font-geist-mono)', marginTop: 4 }}>Saving…</p>
+        <p style={{ fontSize: 11, color: 'var(--q-fg3)', textAlign: 'center', fontFamily: 'var(--q-mono)', marginTop: 4 }}>Saving…</p>
       )}
     </div>
   ) : hasGeneratedOnce ? (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 1.5rem' }}>
-      <p style={{ fontSize: 12, color: '#8a8a93' }}>Use the chat to change design — e.g. &ldquo;change accent to blue&rdquo; or &ldquo;use a minimal font&rdquo;.</p>
+      <p style={{ fontSize: 12, color: 'var(--q-fg3)' }}>Use the chat to change design — e.g. &ldquo;change accent to blue&rdquo; or &ldquo;use a minimal font&rdquo;.</p>
     </div>
   ) : (
     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <p style={{ fontSize: 12, color: '#8a8a93' }}>Generate a store to unlock Theme controls.</p>
+      <p style={{ fontSize: 12, color: 'var(--q-fg3)' }}>Generate a store to unlock Theme controls.</p>
     </div>
   )
 
@@ -4458,12 +4458,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── 0. Domain section ────────────────────────────────────────────────── */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.08)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .08)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 16 }}>🌐</span>
           <div>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#e0e0e8' }}>Your Domain</p>
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#5b5b64' }}>Buy a domain or connect one you already own</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--q-fg)' }}>Your Domain</p>
+            <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--q-fg4)' }}>Buy a domain or connect one you already own</p>
           </div>
         </div>
         <div style={{ padding: '16px' }}>
@@ -4476,8 +4476,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               placeholder="mystorename"
               style={{
                 flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 13,
-                border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)',
-                color: '#e0e0e8', outline: 'none',
+                border: '1px solid rgb(var(--q-ink-rgb) / .08)', background: 'rgb(var(--q-ink-rgb) / .04)',
+                color: 'var(--q-fg)', outline: 'none',
               }}
             />
             <button
@@ -4485,8 +4485,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               disabled={domainSearching || !domainQuery.trim()}
               style={{
                 padding: '9px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.12)',
-                color: '#D4FF3F', cursor: domainSearching || !domainQuery.trim() ? 'not-allowed' : 'pointer',
+                border: '1px solid rgb(var(--q-acc-rgb) / .3)', background: 'rgb(var(--q-acc-rgb) / .12)',
+                color: 'var(--q-acc-text)', cursor: domainSearching || !domainQuery.trim() ? 'not-allowed' : 'pointer',
                 opacity: domainSearching || !domainQuery.trim() ? 0.5 : 1,
                 flexShrink: 0,
               }}
@@ -4502,19 +4502,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {domainSearchError ? (
             <div style={{
               padding: '10px 12px', borderRadius: 8, marginBottom: 16,
-              background: 'rgba(224,86,79,0.08)',
-              border: '1px solid rgba(224,86,79,0.30)',
+              background: 'rgb(var(--q-danger-rgb) / 0.08)',
+              border: '1px solid rgb(var(--q-danger-rgb) / 0.30)',
             }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#e0564f' }}>{domainSearchError}</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--q-danger-text)' }}>{domainSearchError}</p>
             </div>
           ) : domainSearched && !domainSearching && domainResults.length === 0 ? (
             <div style={{
               padding: '10px 12px', borderRadius: 8, marginBottom: 16,
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgb(var(--q-ink-rgb) / 0.03)',
+              border: '1px solid rgb(var(--q-ink-rgb) / 0.06)',
             }}>
-              <p style={{ margin: 0, fontSize: 12, color: '#8a8a93' }}>
-                No available domains for <span style={{ fontFamily: 'var(--font-geist-mono)', color: '#d0d0da' }}>{domainQuery}</span>. Try a different name.
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--q-fg3)' }}>
+                No available domains for <span style={{ fontFamily: 'var(--q-mono)', color: 'var(--q-fg2)' }}>{domainQuery}</span>. Try a different name.
               </p>
             </div>
           ) : null}
@@ -4526,22 +4526,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 <div key={r.domain} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '9px 12px', borderRadius: 8,
-                  border: `1px solid ${r.available ? 'rgba(62,207,142,.2)' : 'rgba(255,255,255,.05)'}`,
-                  background: r.available ? 'rgba(62,207,142,.04)' : 'rgba(255,255,255,.02)',
+                  border: `1px solid ${r.available ? 'rgb(var(--q-ok-rgb) / .2)' : 'rgb(var(--q-ink-rgb) / .05)'}`,
+                  background: r.available ? 'rgb(var(--q-ok-rgb) / .04)' : 'rgb(var(--q-ink-rgb) / .02)',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.available ? '#3ecf8e' : '#4a4a55', flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: r.available ? '#e0e0e8' : '#5b5b64' }}>{r.domain}</span>
+                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: r.available ? 'var(--q-ok)' : 'var(--q-dim)', flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontFamily: 'var(--q-mono)', color: r.available ? 'var(--q-fg)' : 'var(--q-fg4)' }}>{r.domain}</span>
                   </div>
                   {r.available ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 12, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>${r.price.toFixed(2)}/yr</span>
+                      <span style={{ fontSize: 12, color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)' }}>${r.price.toFixed(2)}/yr</span>
                       <button
                         onClick={() => handleDomainBuy(r.domain, r.price)}
                         disabled={domainPurchasing}
                         style={{
                           padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                          border: 'none', background: '#3ecf8e', color: '#0a0a0e',
+                          border: 'none', background: 'var(--q-ok)', color: 'var(--q-acc-ink)',
                           cursor: domainPurchasing ? 'not-allowed' : 'pointer', opacity: domainPurchasing ? 0.6 : 1,
                         }}
                       >
@@ -4549,7 +4549,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       </button>
                     </div>
                   ) : (
-                    <span style={{ fontSize: 11, color: '#4a4a55' }}>taken</span>
+                    <span style={{ fontSize: 11, color: 'var(--q-fg4)' }}>taken</span>
                   )}
                 </div>
               ))}
@@ -4566,19 +4566,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               it as if it already belonged here. */}
           {ownedDomains.filter(d => d.project_id === projectId).length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Your domains</p>
+              <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Your domains</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {ownedDomains.filter(d => d.project_id === projectId).map(d => (
                   <div key={d.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)',
-                    background: 'rgba(255,255,255,.02)',
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid rgb(var(--q-ink-rgb) / .07)',
+                    background: 'rgb(var(--q-ink-rgb) / .02)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: d.status === 'active' ? '#3ecf8e' : d.status === 'pending' ? '#fbbf24' : '#f87171' }} />
-                      <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#d0d0da' }}>{d.domain}</span>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: d.status === 'active' ? 'var(--q-ok)' : d.status === 'pending' ? 'var(--q-warn)' : 'var(--q-danger)' }} />
+                      <span style={{ fontSize: 12, fontFamily: 'var(--q-mono)', color: 'var(--q-fg2)' }}>{d.domain}</span>
                     </div>
-                    <span style={{ fontSize: 10, color: '#5b5b64', textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 10, color: 'var(--q-fg4)', textTransform: 'uppercase' }}>
                       {d.dns_verified ? 'verified' : d.status}
                     </span>
                   </div>
@@ -4593,25 +4593,25 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               into the list above. */}
           {ownedDomains.filter(d => !d.project_id).length > 0 && (
             <div style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Available to connect</p>
+              <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Available to connect</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {ownedDomains.filter(d => !d.project_id).map(d => (
                   <div key={d.id} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,.07)',
-                    background: 'rgba(255,255,255,.02)',
+                    padding: '8px 12px', borderRadius: 8, border: '1px solid rgb(var(--q-ink-rgb) / .07)',
+                    background: 'rgb(var(--q-ink-rgb) / .02)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#5b5b64' }} />
-                      <span style={{ fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#d0d0da' }}>{d.domain}</span>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--q-fg4)' }} />
+                      <span style={{ fontSize: 12, fontFamily: 'var(--q-mono)', color: 'var(--q-fg2)' }}>{d.domain}</span>
                     </div>
                     <button
                       onClick={() => handleDomainAssign(d.id)}
                       disabled={domainAssigning === d.id}
                       style={{
                         padding: '3px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
-                        border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)',
-                        color: '#d0d0da', cursor: domainAssigning === d.id ? 'not-allowed' : 'pointer',
+                        border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .06)',
+                        color: 'var(--q-fg2)', cursor: domainAssigning === d.id ? 'not-allowed' : 'pointer',
                         opacity: domainAssigning === d.id ? 0.5 : 1, textTransform: 'uppercase',
                       }}
                     >
@@ -4625,7 +4625,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
           {/* Connect own domain */}
           <div>
-            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Connect existing domain</p>
+            <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 8px' }}>Connect existing domain</p>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 value={domainConnectInput}
@@ -4633,8 +4633,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 placeholder="yourstore.com"
                 style={{
                   flex: 1, padding: '9px 12px', borderRadius: 8, fontSize: 13,
-                  border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)',
-                  color: '#e0e0e8', outline: 'none',
+                  border: '1px solid rgb(var(--q-ink-rgb) / .08)', background: 'rgb(var(--q-ink-rgb) / .04)',
+                  color: 'var(--q-fg)', outline: 'none',
                 }}
               />
               <button
@@ -4642,8 +4642,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 disabled={domainConnecting || !domainConnectInput.trim()}
                 style={{
                   padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)',
-                  color: '#d0d0da', cursor: domainConnecting || !domainConnectInput.trim() ? 'not-allowed' : 'pointer',
+                  border: '1px solid rgb(var(--q-ink-rgb) / .1)', background: 'rgb(var(--q-ink-rgb) / .06)',
+                  color: 'var(--q-fg2)', cursor: domainConnecting || !domainConnectInput.trim() ? 'not-allowed' : 'pointer',
                   opacity: domainConnecting || !domainConnectInput.trim() ? 0.5 : 1, flexShrink: 0,
                 }}
               >
@@ -4651,12 +4651,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               </button>
             </div>
             {domainConnectResult && (
-              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: 'rgba(212,255,63,.06)', border: '1px solid rgba(212,255,63,.15)' }}>
-                <p style={{ margin: '0 0 8px', fontSize: 11, color: '#D4FF3F', fontFamily: 'var(--font-geist-mono)', fontWeight: 600 }}>Add this DNS record:</p>
-                <pre style={{ margin: 0, fontSize: 11, color: '#d0d0da', fontFamily: 'var(--font-geist-mono)', whiteSpace: 'pre-wrap' }}>{domainConnectResult.instructions}</pre>
+              <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 8, background: 'rgb(var(--q-acc-rgb) / .06)', border: '1px solid rgb(var(--q-acc-rgb) / .15)' }}>
+                <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--q-acc-text)', fontFamily: 'var(--q-mono)', fontWeight: 600 }}>Add this DNS record:</p>
+                <pre style={{ margin: 0, fontSize: 11, color: 'var(--q-fg2)', fontFamily: 'var(--q-mono)', whiteSpace: 'pre-wrap' }}>{domainConnectResult.instructions}</pre>
                 <button
                   onClick={() => navigator.clipboard.writeText(domainConnectResult!.dnsValue)}
-                  style={{ marginTop: 8, fontSize: 11, color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  style={{ marginTop: 8, fontSize: 11, color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
                 >
                   Copy DNS value
                 </button>
@@ -4672,8 +4672,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <p style={eyebrowSt}>{checklistAllOk ? 'Ready to publish' : 'Complete before publishing'}</p>
           <div style={{
             borderRadius: 10,
-            border: `1px solid ${checklistAllOk ? 'rgba(62,207,142,.25)' : 'rgba(224,160,79,.25)'}`,
-            background: checklistAllOk ? 'rgba(62,207,142,.04)' : 'rgba(224,160,79,.04)',
+            border: `1px solid ${checklistAllOk ? 'rgb(var(--q-ok-rgb) / .25)' : 'rgb(var(--q-warn-rgb) / .25)'}`,
+            background: checklistAllOk ? 'rgb(var(--q-ok-rgb) / .04)' : 'rgb(var(--q-warn-rgb) / .04)',
             padding: '12px 14px',
             display: 'flex', flexDirection: 'column', gap: 7,
           }}>
@@ -4696,16 +4696,16 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               const settingsMode = settingsFix[item.id]
               return (
                 <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ flexShrink: 0, fontSize: 13, lineHeight: 1, color: item.ok ? 'var(--live)' : '#e0564f' }}>
+                  <span style={{ flexShrink: 0, fontSize: 13, lineHeight: 1, color: item.ok ? 'var(--q-ok-text)' : 'var(--q-danger-text)' }}>
                     {item.ok ? '✓' : '✗'}
                   </span>
-                  <span style={{ flex: 1, fontSize: 12, color: item.ok ? '#f4f4f6' : '#8a8a93', lineHeight: 1.4 }}>
+                  <span style={{ flex: 1, fontSize: 12, color: item.ok ? 'var(--q-fg)' : 'var(--q-fg3)', lineHeight: 1.4 }}>
                     {item.label}
                   </span>
                   {!item.ok && builderMode && (
                     <button
                       onClick={() => { setDesktopTab(builderMode); setActiveTab(builderMode) }}
-                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                      style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
                     >
                       Fix →
                     </button>
@@ -4713,7 +4713,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   {!item.ok && settingsMode && (
                     <button
                       onClick={() => { setSettingsTab(settingsMode); setAdminTab('settings'); setAdminMode(true) }}
-                      style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#D4FF3F', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
+                      style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-acc-text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, flexShrink: 0 }}
                     >
                       Fix →
                     </button>
@@ -4730,12 +4730,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         <p style={eyebrowSt}>Deploy</p>
         {(deployStatus === 'ready' || (liveDeployment?.domain && liveDeployment?.status === 'ready')) && liveUrl ? (
           /* Live card */
-          <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.05)', padding: '14px' }}>
+          <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ok-rgb) / .25)', background: 'rgb(var(--q-ok-rgb) / .05)', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--live)' }}>Live</span>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgb(var(--q-ok-rgb) / .6)', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--q-ok-text)' }}>Live</span>
             </div>
-            <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', wordBreak: 'break-all', marginBottom: 12 }}>
+            <p style={{ fontSize: 13, fontFamily: 'var(--q-mono)', color: 'var(--q-fg)', wordBreak: 'break-all', marginBottom: 12 }}>
               {liveDomain ?? liveUrl}
             </p>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -4743,13 +4743,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 href={liveUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ flex: 1, minWidth: 80, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--live)', color: '#000', textDecoration: 'none', textAlign: 'center' }}
+                style={{ flex: 1, minWidth: 80, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--live)', color: 'var(--q-acc-ink)', textDecoration: 'none', textAlign: 'center' }}
               >
                 Visit ↗
               </a>
               <button
                 onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
-                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer' }}
               >
                 Copy
               </button>
@@ -4757,7 +4757,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 onClick={handlePreviewDeploy}
                 disabled={isPreviewDeploying || isDeploying}
                 title="Preview deploy — 2 credits, unique URL"
-                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isPreviewDeploying ? 'not-allowed' : 'pointer', opacity: isPreviewDeploying ? 0.5 : 1 }}
+                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: isPreviewDeploying ? 'not-allowed' : 'pointer', opacity: isPreviewDeploying ? 0.5 : 1 }}
               >
                 {isPreviewDeploying ? '…' : 'Preview'}
               </button>
@@ -4765,7 +4765,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 onClick={handleDeploy}
                 disabled={isDeploying || isPreviewDeploying}
                 title="Production redeploy — included in your hosting plan"
-                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
+                style={{ fontSize: 12, padding: '8px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: isDeploying ? 'not-allowed' : 'pointer', opacity: isDeploying ? 0.5 : 1 }}
               >
                 {isDeploying ? '…' : '⟳ Prod'}
               </button>
@@ -4773,43 +4773,43 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           </div>
         ) : deployStatus === 'building' || (liveDeployment?.domain && liveDeployment?.status === 'building') ? (
           /* Building card */
-          <div style={{ borderRadius: 10, border: '1px solid rgba(224,160,79,.2)', background: 'rgba(224,160,79,.05)', padding: '14px' }}>
+          <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', padding: '14px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid rgba(224,160,79,.35)', borderTopColor: '#e0a04f', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 500, color: '#e0a04f' }}>Building — check back in a minute</span>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', border: '2px solid rgb(var(--q-warn-rgb) / .35)', borderTopColor: 'var(--q-warn)', animation: 'spin 0.9s linear infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--q-warn-text)' }}>Building — check back in a minute</span>
             </div>
             {liveDeployment?.domain && (
-              <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginTop: 4 }}>
+              <p style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', marginTop: 4 }}>
                 Will be live at: {liveDeployment.domain}
               </p>
             )}
           </div>
         ) : (
           /* Not deployed yet */
-          <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Deploy your store</p>
-            <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
-              <strong style={{ color: '#f4f4f6' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--font-geist-mono)' }}>.stores.quantecode.com</span> subdomain (no credits — included with hosting).<br />
-              <strong style={{ color: '#f4f4f6' }}>Preview</strong> — unique URL for testing, doesn&apos;t affect live store (2 cr).
+          <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>Deploy your store</p>
+            <p style={{ fontSize: 12, color: 'var(--q-fg3)', lineHeight: 1.5, margin: 0 }}>
+              <strong style={{ color: 'var(--q-fg)' }}>Production</strong> — goes live on your <span style={{ fontFamily: 'var(--q-mono)' }}>.stores.quantecode.com</span> subdomain (no credits — included with hosting).<br />
+              <strong style={{ color: 'var(--q-fg)' }}>Preview</strong> — unique URL for testing, doesn&apos;t affect live store (2 cr).
             </p>
             {!hostingInfo.subscribed && !hostingInfo.trialEndsAt && !trialUsedElsewhere && (
-              <p style={{ fontSize: 11, color: '#e0a04f', margin: 0 }}>First production deploy starts your 30-day free trial.</p>
+              <p style={{ fontSize: 11, color: 'var(--q-warn-text)', margin: 0 }}>First production deploy starts your 30-day free trial.</p>
             )}
             {trialUsedElsewhere && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(224,160,79,.25)', background: 'rgba(224,160,79,.06)' }}>
-                <p style={{ fontSize: 11, color: '#e0a04f', margin: 0, lineHeight: 1.5 }}>{trialUsedText}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .25)', background: 'rgb(var(--q-warn-rgb) / .06)' }}>
+                <p style={{ fontSize: 11, color: 'var(--q-warn-text)', margin: 0, lineHeight: 1.5 }}>{trialUsedText}</p>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+                  <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
                     {isSubscribing ? '…' : 'Subscribe · $99/year'}
                   </button>
-                  <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+                  <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'transparent', color: 'var(--q-fg)', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
                     {isSubscribing ? '…' : '$9.99/mo'}
                   </button>
                 </div>
               </div>
             )}
             {!hasGeneratedOnce ? (
-              <p style={{ fontSize: 12, color: '#5b5b64', margin: 0, textAlign: 'center' }}>Generate a store first</p>
+              <p style={{ fontSize: 12, color: 'var(--q-fg4)', margin: 0, textAlign: 'center' }}>Generate a store first</p>
             ) : (
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
@@ -4817,8 +4817,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   disabled={isPreviewDeploying || isDeploying}
                   style={{
                     flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 7,
-                    border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)',
-                    color: isPreviewDeploying || isDeploying ? '#5b5b64' : '#f4f4f6',
+                    border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'rgb(var(--q-ink-rgb) / .05)',
+                    color: isPreviewDeploying || isDeploying ? 'var(--q-fg4)' : 'var(--q-fg)',
                     cursor: isPreviewDeploying || isDeploying ? 'not-allowed' : 'pointer',
                   }}
                 >
@@ -4830,8 +4830,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   style={{
                     flex: 1, padding: '9px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none',
                     cursor: isDeploying || isPreviewDeploying || !checklistAllOk ? 'not-allowed' : 'pointer',
-                    background: checklistAllOk ? 'var(--live)' : 'rgba(255,255,255,.06)',
-                    color: checklistAllOk ? '#000' : '#5b5b64',
+                    background: checklistAllOk ? 'var(--live)' : 'rgb(var(--q-ink-rgb) / .06)',
+                    color: checklistAllOk ? 'var(--q-acc-ink)' : 'var(--q-fg4)',
                     transition: 'background 0.15s, color 0.15s',
                   }}
                 >
@@ -4848,9 +4848,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
              first-time buy/connect) ───────────────────────────────────────── */}
       <section>
         <p style={eyebrowSt}>Export</p>
-        <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <p style={{ fontSize: 12, color: '#8a8a93', lineHeight: 1.5, margin: 0 }}>
-            Download your store as a standalone Next.js project. Runs with <span style={{ fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6' }}>npm install && npm run dev</span> — deploy anywhere.
+        <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ fontSize: 12, color: 'var(--q-fg3)', lineHeight: 1.5, margin: 0 }}>
+            Download your store as a standalone Next.js project. Runs with <span style={{ fontFamily: 'var(--q-mono)', color: 'var(--q-fg)' }}>npm install && npm run dev</span> — deploy anywhere.
           </p>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
@@ -4858,28 +4858,28 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               disabled={!hasGeneratedOnce || isExporting}
               style={{
                 flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
-                border: '1px solid rgba(255,255,255,.09)', background: 'transparent',
-                color: hasGeneratedOnce && !isExporting ? '#f4f4f6' : '#5b5b64',
+                border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent',
+                color: hasGeneratedOnce && !isExporting ? 'var(--q-fg)' : 'var(--q-fg4)',
                 cursor: hasGeneratedOnce && !isExporting ? 'pointer' : 'not-allowed',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => { if (hasGeneratedOnce && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.06)' }}
+              onMouseEnter={e => { if (hasGeneratedOnce && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-ink-rgb) / .06)' }}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
             >
-              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: '#5b5b64', marginLeft: 4, fontFamily: 'var(--font-geist-mono)' }}>free</span>
+              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: 'var(--q-fg4)', marginLeft: 4, fontFamily: 'var(--q-mono)' }}>free</span>
             </button>
             <button
               onClick={() => handleExport(true)}
               disabled={!hasGeneratedOnce || isExportingAdmin}
               style={{
                 flex: 1, fontSize: 12, fontWeight: 600, padding: '8px', borderRadius: 7,
-                border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.07)',
-                color: hasGeneratedOnce && !isExportingAdmin ? '#D4FF3F' : '#5b5b64',
+                border: '1px solid rgb(var(--q-acc-rgb) / .3)', background: 'rgb(var(--q-acc-rgb) / .07)',
+                color: hasGeneratedOnce && !isExportingAdmin ? 'var(--q-acc-text)' : 'var(--q-fg4)',
                 cursor: hasGeneratedOnce && !isExportingAdmin ? 'pointer' : 'not-allowed',
                 transition: 'background 0.12s',
               }}
-              onMouseEnter={e => { if (hasGeneratedOnce && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.13)' }}
-              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.07)'}
+              onMouseEnter={e => { if (hasGeneratedOnce && !isExportingAdmin) (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-acc-rgb) / .13)' }}
+              onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-acc-rgb) / .07)'}
             >
               {isExportingAdmin ? '…' : '↓ ZIP + Admin'}
             </button>
@@ -4907,8 +4907,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{
             pointerEvents: 'all',
             width: '100%', maxWidth: 460,
-            background: '#0d0d11',
-            border: '1px solid rgba(255,255,255,.1)',
+            background: 'var(--q-s1)',
+            border: '1px solid rgb(var(--q-ink-rgb) / .1)',
             borderRadius: 14,
             boxShadow: '0 24px 80px rgba(0,0,0,.8)',
             padding: '18px',
@@ -4936,34 +4936,34 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   // ── Logs Panel ────────────────────────────────────────────────────────────────
   const LogsPane = (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090c', overflow: 'hidden', minWidth: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--q-bg)', overflow: 'hidden', minWidth: 0 }}>
       {/* Toolbar */}
-      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', borderBottom: '1px solid rgba(255,255,255,.06)', background: '#0d0d11' }}>
+      <div style={{ flexShrink: 0, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)', background: 'var(--q-s1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Terminal size={13} color="#8a8a93" />
-          <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93' }}>Build logs</span>
+          <Terminal size={13} style={{ color: 'var(--q-fg3)' }} />
+          <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)' }}>Build logs</span>
           {logEventSourceRef.current && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#D4FF3F' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#D4FF3F', animation: 'blink 1s ease-in-out infinite' }} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--q-acc-text)' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--q-acc)', animation: 'blink 1s ease-in-out infinite' }} />
               live
             </span>
           )}
         </div>
         <button
           onClick={() => setDeployLogs([])}
-          style={{ fontSize: 10, color: '#5b5b64', background: 'none', border: 'none', cursor: 'pointer' }}
+          style={{ fontSize: 10, color: 'var(--q-fg4)', background: 'none', border: 'none', cursor: 'pointer' }}
         >
           Clear
         </button>
       </div>
 
       {/* Log lines */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', fontFamily: 'var(--font-geist-mono)', fontSize: 11, lineHeight: 1.7 }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px', fontFamily: 'var(--q-mono)', fontSize: 11, lineHeight: 1.7 }}>
         {deployLogs.length === 0 ? (
-          <p style={{ color: '#5b5b64', margin: 0 }}>No logs yet. Generate or iterate to start a build.</p>
+          <p style={{ color: 'var(--q-fg4)', margin: 0 }}>No logs yet. Generate or iterate to start a build.</p>
         ) : (
           deployLogs.map((line, i) => (
-            <div key={i} style={{ color: line.type === 'stderr' || line.text.includes('Error') || line.text.includes('error') ? '#f87171' : '#c8c8d0' }}>
+            <div key={i} style={{ color: line.type === 'stderr' || line.text.includes('Error') || line.text.includes('error') ? 'var(--q-danger-text)' : 'var(--q-fg2)' }}>
               {line.text}
             </div>
           ))
@@ -4973,15 +4973,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Build error card */}
       {buildError && (
-        <div style={{ flexShrink: 0, margin: '0 12px 12px', padding: '12px', borderRadius: 10, border: '1px solid rgba(248,113,113,.3)', background: 'rgba(248,113,113,.06)' }}>
+        <div style={{ flexShrink: 0, margin: '0 12px 12px', padding: '12px', borderRadius: 10, border: '1px solid rgb(var(--q-danger-rgb) / .3)', background: 'rgb(var(--q-danger-rgb) / .06)' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <AlertCircle size={16} color="#f87171" style={{ marginTop: 1, flexShrink: 0 }} />
+            <AlertCircle size={16} style={{ marginTop: 1, flexShrink: 0, color: 'var(--q-danger-text)' }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#f87171', margin: '0 0 4px' }}>Build error</p>
-              <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', margin: '0 0 2px', wordBreak: 'break-all' }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--q-danger-text)', margin: '0 0 4px' }}>Build error</p>
+              <p style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg)', margin: '0 0 2px', wordBreak: 'break-all' }}>
                 {buildError.filePath}{buildError.line ? `:${buildError.line}` : ''}
               </p>
-              <p style={{ fontSize: 11, color: '#c8c8d0', margin: '0 0 10px', lineHeight: 1.5 }}>
+              <p style={{ fontSize: 11, color: 'var(--q-fg2)', margin: '0 0 10px', lineHeight: 1.5 }}>
                 {buildError.message}
               </p>
               <button
@@ -4991,9 +4991,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   display: 'flex', alignItems: 'center', gap: 6,
                   fontSize: 12, fontWeight: 600,
                   padding: '6px 14px', borderRadius: 7,
-                  border: '1px solid rgba(212,255,63,.4)',
-                  background: isFixing ? 'transparent' : 'rgba(212,255,63,.12)',
-                  color: isFixing ? '#5b5b64' : '#a8afff',
+                  border: '1px solid rgb(var(--q-acc-rgb) / .4)',
+                  background: isFixing ? 'transparent' : 'rgb(var(--q-acc-rgb) / .12)',
+                  color: isFixing ? 'var(--q-fg4)' : 'var(--q-acc2-text)',
                   cursor: isFixing ? 'not-allowed' : 'pointer',
                 }}
               >
@@ -5005,13 +5005,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         </div>
       )}
       {isFixing && (
-        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#D4FF3F', fontFamily: 'var(--font-geist-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgba(212,255,63,.3)', borderTopColor: '#D4FF3F', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgb(var(--q-ink-rgb) / .05)', fontSize: 11, color: 'var(--q-acc-text)', fontFamily: 'var(--q-mono)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', border: '1.5px solid rgb(var(--q-acc-rgb) / .3)', borderTopColor: 'var(--q-acc)', animation: 'spin 0.7s linear infinite', flexShrink: 0 }} />
           Auto-fixing error (attempt {Math.min(autoFixAttempts + 1, MAX_AUTO_FIX)}/{MAX_AUTO_FIX})…
         </div>
       )}
       {!isFixing && (autoFixAttempts >= MAX_AUTO_FIX || autoFixGaveUp) && buildError && (
-        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.05)', fontSize: 11, color: '#f87171', fontFamily: 'var(--font-geist-mono)' }}>
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgb(var(--q-ink-rgb) / .05)', fontSize: 11, color: 'var(--q-danger-text)', fontFamily: 'var(--q-mono)' }}>
           {autoFixAttempts >= MAX_AUTO_FIX ? `Auto-fix failed after ${MAX_AUTO_FIX} attempts` : 'Auto-fix stopped'}
           {autoFixRefund?.status === 'pending'
             ? ' — checking whether your credits can be refunded…'
@@ -5028,14 +5028,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   // ── Preview Pane ──────────────────────────────────────────────────────────────
   const PreviewPane = (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#09090c', overflow: 'hidden', minWidth: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--q-bg)', overflow: 'hidden', minWidth: 0 }}>
       {/* Toolbar */}
       <div style={{
         flexShrink: 0, height: 40,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '0 10px',
-        borderBottom: '1px solid rgba(255,255,255,.06)',
-        background: '#0d0d11',
+        borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)',
+        background: 'var(--q-s1)',
       }}>
         {/* Device selector */}
         <div style={{ display: 'flex', gap: 2 }}>
@@ -5047,8 +5047,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <button key={id} onClick={() => setPreviewDevice(id)} style={{
               width: 28, height: 28, borderRadius: 6, border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: previewDevice === id ? 'rgba(255,255,255,.1)' : 'transparent',
-              color: previewDevice === id ? '#f4f4f6' : '#5b5b64',
+              background: previewDevice === id ? 'rgb(var(--q-ink-rgb) / .1)' : 'transparent',
+              color: previewDevice === id ? 'var(--q-fg)' : 'var(--q-fg4)',
               transition: 'background 0.12s, color 0.12s',
             }}>
               <Icon size={13} />
@@ -5064,7 +5064,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               title="Click elements in your store to edit text, classes and order"
               style={{
                 fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 6, cursor: 'pointer',
-                border: '1px solid rgba(212,255,63,.35)', background: 'rgba(212,255,63,.08)', color: '#D4FF3F',
+                border: '1px solid rgb(var(--q-acc-rgb) / .35)', background: 'rgb(var(--q-acc-rgb) / .08)', color: 'var(--q-acc-text)',
               }}
             >
               ✎ Edit visually
@@ -5074,28 +5074,28 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <span
               title={publishState.upToDate ? 'The preview shows what shoppers see.' : 'Unpublished changes — shoppers still see the published version.'}
               style={{
-                fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em',
+                fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em',
                 padding: '2px 7px', borderRadius: 99,
-                color: publishState.upToDate ? '#3ecf8e' : '#D4FF3F',
-                background: publishState.upToDate ? 'rgba(62,207,142,.08)' : 'rgba(212,255,63,.08)',
-                border: `1px solid ${publishState.upToDate ? 'rgba(62,207,142,.25)' : 'rgba(212,255,63,.25)'}`,
+                color: publishState.upToDate ? 'var(--q-ok-text)' : 'var(--q-acc-text)',
+                background: publishState.upToDate ? 'rgb(var(--q-ok-rgb) / .08)' : 'rgb(var(--q-acc-rgb) / .08)',
+                border: `1px solid ${publishState.upToDate ? 'rgb(var(--q-ok-rgb) / .25)' : 'rgb(var(--q-acc-rgb) / .25)'}`,
               }}
             >
               {publishState.upToDate ? 'Live' : 'Draft'}
             </span>
           )}
           {previewUrl && (
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {previewUrl.replace('https://', '')}
             </span>
           )}
           {latestVersion && (
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64' }}>
+            <span style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)' }}>
               v{latestVersion.version_no}
             </span>
           )}
           {previewUrl && (
-            <a href={previewUrl} target="_blank" rel="noopener noreferrer" title="Open preview in new tab" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5b5b64', textDecoration: 'none' }}>
+            <a href={previewUrl} target="_blank" rel="noopener noreferrer" title="Open preview in new tab" style={{ width: 24, height: 24, borderRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--q-fg4)', textDecoration: 'none' }}>
               <ExternalLink size={11} />
             </a>
           )}
@@ -5111,19 +5111,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 18, textAlign: 'center', padding: '0 32px' }}>
             <div style={{
               width: 52, height: 52, borderRadius: 14,
-              background: 'rgba(62,207,142,.1)', border: '1px solid rgba(62,207,142,.2)',
+              background: 'rgb(var(--q-ok-rgb) / .1)', border: '1px solid rgb(var(--q-ok-rgb) / .2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 22,
             }}>
               🚀
             </div>
             <div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#f4f4f6', margin: '0 0 6px', letterSpacing: '-.01em' }}>
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--q-fg)', margin: '0 0 6px', letterSpacing: '-.01em' }}>
                 Store ready to publish
               </p>
-              <p style={{ fontSize: 12, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>
+              <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.6 }}>
                 Push to Live to deploy your store to{' '}
-                <span style={{ color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', fontSize: 11 }}>
+                <span style={{ color: 'var(--q-fg)', fontFamily: 'var(--q-mono)', fontSize: 11 }}>
                   {storeUrl?.replace('https://', '') ?? 'your domain'}
                 </span>
               </p>
@@ -5134,34 +5134,34 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               style={{
                 fontSize: 13, fontWeight: 700, padding: '10px 28px',
                 borderRadius: 9, border: 'none', cursor: 'pointer',
-                background: 'rgba(62,207,142,1)', color: '#000',
-                boxShadow: '0 0 24px rgba(62,207,142,.35)',
+                background: 'rgb(var(--q-ok-rgb) / 1)', color: 'var(--q-acc-ink)',
+                boxShadow: '0 0 24px rgb(var(--q-ok-rgb) / .35)',
                 transition: 'opacity 0.15s',
               }}
             >
               Push to Live
             </button>
-            <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: 0 }}>
               Takes ~2 min on Vercel
             </p>
           </div>
         ) : !previewUrl ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
             <div>
-              <p style={{ color: 'rgba(255,255,255,.18)', fontSize: 13, fontFamily: 'var(--font-geist-mono)', marginBottom: 6 }}>no preview yet</p>
+              <p style={{ color: 'rgb(var(--q-ink-rgb) / .18)', fontSize: 13, fontFamily: 'var(--q-mono)', marginBottom: 6 }}>no preview yet</p>
               {hasGeneratedOnce ? (
                 <button
                   onClick={() => triggerRedeploy()}
                   style={{
                     marginTop: 12, fontSize: 12, fontWeight: 600, padding: '7px 16px',
-                    borderRadius: 7, border: '1px solid rgba(212,255,63,.3)',
-                    background: 'rgba(212,255,63,.08)', color: '#D4FF3F', cursor: 'pointer',
+                    borderRadius: 7, border: '1px solid rgb(var(--q-acc-rgb) / .3)',
+                    background: 'rgb(var(--q-acc-rgb) / .08)', color: 'var(--q-acc-text)', cursor: 'pointer',
                   }}
                 >
                   ⟳ Rebuild preview
                 </button>
               ) : (
-                <p style={{ color: 'rgba(255,255,255,.1)', fontSize: 11 }}>Describe a store to generate and deploy a preview</p>
+                <p style={{ color: 'rgb(var(--q-ink-rgb) / .1)', fontSize: 11 }}>Describe a store to generate and deploy a preview</p>
               )}
             </div>
           </div>
@@ -5183,21 +5183,21 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                   {steps.map(({ label, done, active, failed }) => (
                     <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {failed ? (
-                        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff5c5c', fontSize: 13, flexShrink: 0 }}>×</span>
+                        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--q-danger-text)', fontSize: 13, flexShrink: 0 }}>×</span>
                       ) : done ? (
-                        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34c759', fontSize: 13, flexShrink: 0 }}>✓</span>
+                        <span style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--q-ok-text)', fontSize: 13, flexShrink: 0 }}>✓</span>
                       ) : active ? (
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', borderTopColor: '#D4FF3F', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgb(var(--q-ink-rgb) / .08)', borderTopColor: 'var(--q-acc)', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
                       ) : (
-                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgba(255,255,255,.08)', flexShrink: 0 }} />
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid rgb(var(--q-ink-rgb) / .08)', flexShrink: 0 }} />
                       )}
-                      <p style={{ fontSize: 12, color: failed ? '#ff8080' : done ? '#5b5b64' : active ? '#f4f4f6' : '#3a3a44', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{label}</p>
+                      <p style={{ fontSize: 12, color: failed ? 'var(--q-danger-text)' : done ? 'var(--q-fg4)' : active ? 'var(--q-fg)' : 'var(--q-fg4)', fontFamily: 'var(--q-mono)', margin: 0 }}>{label}</p>
                     </div>
                   ))}
                 </div>
                 {isTimeout ? (
                   <>
-                    <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, maxWidth: 320, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, maxWidth: 320, lineHeight: 1.5 }}>
                       {stage === 'timeout'
                         ? 'The preview build never returned. This usually means Vercel didn’t register the deployment.'
                         : 'The preview build failed. Chat with Quante to fix, or try again.'}
@@ -5206,15 +5206,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       onClick={() => triggerRedeploy()}
                       style={{
                         marginTop: 4, fontSize: 12, fontWeight: 600, padding: '7px 16px',
-                        borderRadius: 7, border: '1px solid rgba(212,255,63,.3)',
-                        background: 'rgba(212,255,63,.08)', color: '#D4FF3F', cursor: 'pointer',
+                        borderRadius: 7, border: '1px solid rgb(var(--q-acc-rgb) / .3)',
+                        background: 'rgb(var(--q-acc-rgb) / .08)', color: 'var(--q-acc-text)', cursor: 'pointer',
                       }}
                     >
                       ⟳ Rebuild preview
                     </button>
                   </>
                 ) : (
-                  <p style={{ fontSize: 11, color: '#3a3a44', margin: 0 }}>Usually takes 1–2 minutes</p>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: 0 }}>Usually takes 1–2 minutes</p>
                 )}
               </div>
             )
@@ -5234,7 +5234,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             flexShrink: 0,
             borderRadius: previewDevice === 'tablet' ? 14 : 20,
             overflow: 'hidden',
-            border: '1px solid rgba(255,255,255,.12)',
+            border: '1px solid rgb(var(--q-ink-rgb) / .12)',
             boxShadow: '0 4px 40px rgba(0,0,0,.6)',
             transform: previewDevice === 'tablet' ? 'scale(0.55)' : 'scale(0.72)',
             transformOrigin: 'top center',
@@ -5257,10 +5257,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <div style={{ textAlign: 'center' }}>
               <div style={{
                 width: 30, height: 30, borderRadius: '50%',
-                border: '2px solid rgba(255,255,255,.1)', borderTopColor: '#D4FF3F',
+                border: '2px solid rgb(var(--q-ink-rgb) / .1)', borderTopColor: 'var(--q-acc)',
                 animation: 'spin 0.7s linear infinite', margin: '0 auto 10px',
               }} />
-              <p style={{ fontSize: 11, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)' }}>
+              <p style={{ fontSize: 11, color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)' }}>
                 deploying…
               </p>
             </div>
@@ -5285,42 +5285,42 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   ]
 
   const INSIGHT_SEVERITY: Record<InsightCard['severity'], { border: string; bg: string; color: string; label: string }> = {
-    good:       { border: 'rgba(62,207,142,.3)',  bg: 'rgba(62,207,142,.05)',  color: '#3ecf8e', label: 'Good'       },
-    suggestion: { border: 'rgba(212,255,63,.3)', bg: 'rgba(212,255,63,.05)', color: '#E8FF9E', label: 'Suggestion' },
-    warning:    { border: 'rgba(245,158,11,.3)',  bg: 'rgba(245,158,11,.05)',  color: '#f59e0b', label: 'Warning'    },
+    good:       { border: 'rgb(var(--q-ok-rgb) / .3)',  bg: 'rgb(var(--q-ok-rgb) / .05)',  color: 'var(--q-ok-text)', label: 'Good'       },
+    suggestion: { border: 'rgb(var(--q-acc-rgb) / .3)', bg: 'rgb(var(--q-acc-rgb) / .05)', color: 'var(--q-acc-hi)', label: 'Suggestion' },
+    warning:    { border: 'rgb(var(--q-warn-rgb) / .3)',  bg: 'rgb(var(--q-warn-rgb) / .05)',  color: 'var(--q-warn-text)', label: 'Warning'    },
   }
 
   const AdminInsights = (
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', maxWidth: 680 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 4 }}>
         <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Sparkles size={16} style={{ color: '#E8FF9E' }} /> AI Insights
+          <Sparkles size={16} style={{ color: 'var(--q-acc-hi)' }} /> AI Insights
         </h2>
         <button
           onClick={handleInsightsRefresh}
           disabled={insightsRefreshing}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(212,255,63,.4)', background: 'rgba(212,255,63,.1)', color: insightsRefreshing ? '#8a8a93' : '#E8FF9E', cursor: insightsRefreshing ? 'wait' : 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgb(var(--q-acc-rgb) / .4)', background: 'rgb(var(--q-acc-rgb) / .1)', color: insightsRefreshing ? 'var(--q-fg3)' : 'var(--q-acc-hi)', cursor: insightsRefreshing ? 'wait' : 'pointer' }}
         >
           <RefreshCw size={11} style={insightsRefreshing ? { animation: 'spin 1s linear infinite' } : undefined} />
           {insightsRefreshing ? 'Analyzing…' : '✦ Refresh · 1 credit'}
         </button>
       </div>
-      <p style={{ fontSize: 11, color: '#5b5b64', margin: '0 0 16px' }}>
+      <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: '0 0 16px' }}>
         {insightsUpdatedAt
           ? `Last analyzed ${new Date(insightsUpdatedAt).toLocaleString()}`
           : 'Quante analyzes your catalog, prices and sales, then suggests improvements.'}
       </p>
 
       {insightsError && (
-        <div style={{ borderRadius: 10, border: '1px solid rgba(224,86,79,.35)', background: 'rgba(224,86,79,.07)', padding: '10px 14px', marginBottom: 14 }}>
-          <p style={{ fontSize: 12, color: '#e0564f', margin: 0 }}>{insightsError}</p>
+        <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-danger-rgb) / .35)', background: 'rgb(var(--q-danger-rgb) / .07)', padding: '10px 14px', marginBottom: 14 }}>
+          <p style={{ fontSize: 12, color: 'var(--q-danger-text)', margin: 0 }}>{insightsError}</p>
         </div>
       )}
 
       {(!insightCards || insightCards.length === 0) && !insightsRefreshing ? (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 10, borderRadius: 12, border: '1px dashed rgba(255,255,255,.09)' }}>
-          <Sparkles size={26} style={{ color: '#5b5b64' }} />
-          <p style={{ fontSize: 13, color: '#8a8a93', textAlign: 'center', maxWidth: 380, lineHeight: 1.6, margin: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.5rem', gap: 10, borderRadius: 12, border: '1px dashed rgb(var(--q-ink-rgb) / .09)' }}>
+          <Sparkles size={26} style={{ color: 'var(--q-fg4)' }} />
+          <p style={{ fontSize: 13, color: 'var(--q-fg3)', textAlign: 'center', maxWidth: 380, lineHeight: 1.6, margin: 0 }}>
             No analysis yet. Run your first one — Quante reviews product images, descriptions, pricing and sales data, and returns concrete recommendations.
           </p>
           <button
@@ -5338,7 +5338,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             if (cards.length === 0) return null
             return (
               <div key={cat}>
-                <p style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', textTransform: 'uppercase', letterSpacing: '.07em', color: '#5b5b64', marginBottom: 8 }}>
+                <p style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--q-mono)', textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--q-fg4)', marginBottom: 8 }}>
                   {cat === 'finance' ? 'Finance & pricing' : 'Store experience'}
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -5348,9 +5348,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       <div key={i} style={{ borderRadius: 10, border: `1px solid ${sv.border}`, background: sv.bg, padding: '12px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em', color: sv.color }}>{sv.label}</span>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>{c.title}</p>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>{c.title}</p>
                         </div>
-                        <p style={{ fontSize: 12, color: '#b9b9c0', lineHeight: 1.55, margin: 0 }}>{c.body}</p>
+                        <p style={{ fontSize: 12, color: 'var(--q-fg2)', lineHeight: 1.55, margin: 0 }}>{c.body}</p>
                       </div>
                     )
                   })}
@@ -5368,12 +5368,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Store live banner */}
       {liveUrl ? (
-        <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.25)', background: 'rgba(62,207,142,.05)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ok-rgb) / .25)', background: 'rgb(var(--q-ok-rgb) / .05)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgb(var(--q-ok-rgb) / .6)', flexShrink: 0 }} />
             <div style={{ minWidth: 0 }}>
-              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--live)', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 2px' }}>Store live</p>
-              <p style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+              <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--q-ok-text)', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 2px' }}>Store live</p>
+              <p style={{ fontSize: 13, fontFamily: 'var(--q-mono)', color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                 {liveDomain ?? liveUrl}
               </p>
             </div>
@@ -5382,38 +5382,38 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <button
               onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
               title="Copy link"
-              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '6px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer' }}
             >
               <Share2 size={11} /> Share
             </button>
-            <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, background: 'var(--live)', color: '#000', textDecoration: 'none' }}>
+            <a href={liveUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, background: 'var(--live)', color: 'var(--q-acc-ink)', textDecoration: 'none' }}>
               Visit ↗
             </a>
           </div>
         </div>
       ) : (
-        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: '0 0 2px' }}>Store not live yet</p>
-            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy in the Builder to go live and start selling.</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: '0 0 2px' }}>Store not live yet</p>
+            <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>Deploy in the Builder to go live and start selling.</p>
           </div>
-          <button onClick={() => setAdminMode(false)} style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+          <button onClick={() => setAdminMode(false)} style={{ fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
             Go to Builder
           </button>
         </div>
       )}
 
       {/* Store Health Score */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '16px 18px' }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'var(--q-s1)', padding: '16px 18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h3 style={{ fontSize: 13, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CheckCircle size={14} style={{ color: healthData?.readyToSell ? 'var(--live)' : '#8a8a93' }} />
+            <CheckCircle size={14} style={{ color: healthData?.readyToSell ? 'var(--live)' : 'var(--q-fg3)' }} />
             Ready to sell
           </h3>
           {healthData && (
             <span style={{
-              fontSize: 12, fontFamily: 'var(--font-geist-mono)', fontWeight: 700,
-              color: healthData.score === 100 ? 'var(--live)' : healthData.score >= 50 ? '#e0a04f' : '#e0564f',
+              fontSize: 12, fontFamily: 'var(--q-mono)', fontWeight: 700,
+              color: healthData.score === 100 ? 'var(--live)' : healthData.score >= 50 ? 'var(--q-warn-text)' : 'var(--q-danger-text)',
             }}>
               {healthData.score}%
             </span>
@@ -5423,35 +5423,35 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {!healthData ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[1, 2, 3].map(i => (
-              <div key={i} style={{ height: 28, borderRadius: 6, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} style={{ height: 28, borderRadius: 6, background: 'rgb(var(--q-ink-rgb) / .04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         ) : (
           <>
-            <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,.06)', overflow: 'hidden', marginBottom: 14 }}>
+            <div style={{ height: 5, borderRadius: 3, background: 'rgb(var(--q-ink-rgb) / .06)', overflow: 'hidden', marginBottom: 14 }}>
               <div style={{
                 height: '100%', width: `${healthData.score}%`, borderRadius: 3,
-                background: healthData.score === 100 ? 'var(--live)' : '#D4FF3F',
+                background: healthData.score === 100 ? 'var(--live)' : 'var(--q-acc)',
                 transition: 'width 0.3s ease',
               }} />
             </div>
 
             {healthActionError && (
-              <p style={{ fontSize: 11, color: '#e0564f', margin: '0 0 10px' }}>{healthActionError}</p>
+              <p style={{ fontSize: 11, color: 'var(--q-danger-text)', margin: '0 0 10px' }}>{healthActionError}</p>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {healthData.items.map((item, i) => (
                 <div key={item.id} style={{
                   display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0',
-                  borderBottom: i < healthData.items.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
+                  borderBottom: i < healthData.items.length - 1 ? '1px solid rgb(var(--q-ink-rgb) / .04)' : 'none',
                 }}>
                   {item.done
-                    ? <CheckCircle size={15} style={{ color: 'var(--live)', flexShrink: 0, marginTop: 1 }} />
-                    : <AlertCircle size={15} style={{ color: '#5b5b64', flexShrink: 0, marginTop: 1 }} />}
+                    ? <CheckCircle size={15} style={{ color: 'var(--q-ok-text)', flexShrink: 0, marginTop: 1 }} />
+                    : <AlertCircle size={15} style={{ color: 'var(--q-fg4)', flexShrink: 0, marginTop: 1 }} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 600, color: item.done ? '#f4f4f6' : '#b9b9c0', margin: 0 }}>{item.label}</p>
-                    <p style={{ fontSize: 11, color: '#5b5b64', margin: '2px 0 0', lineHeight: 1.4 }}>{item.detail}</p>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: item.done ? 'var(--q-fg)' : 'var(--q-fg2)', margin: 0 }}>{item.label}</p>
+                    <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: '2px 0 0', lineHeight: 1.4 }}>{item.detail}</p>
                   </div>
                   {!item.done && item.actionLabel && (
                     <button
@@ -5459,8 +5459,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                       disabled={item.id === 'legal_pages' && isGeneratingLegal}
                       style={{
                         fontSize: 10.5, fontWeight: 600, padding: '4px 10px', borderRadius: 6,
-                        border: '1px solid rgba(212,255,63,.35)', background: 'rgba(212,255,63,.08)',
-                        color: '#E8FF9E', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                        border: '1px solid rgb(var(--q-acc-rgb) / .35)', background: 'rgb(var(--q-acc-rgb) / .08)',
+                        color: 'var(--q-acc-hi)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                       }}
                     >
                       {item.id === 'legal_pages' && isGeneratingLegal ? '…' : item.actionLabel}
@@ -5476,20 +5476,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {/* Metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
         {[
-          { label: 'Revenue', value: orderRevenue > 0 ? `${currency} ${orderRevenue.toFixed(2)}` : null, empty: 'No sales yet', icon: TrendingUp, color: 'var(--live)' },
-          { label: 'Orders',  value: orders.length > 0 ? String(orders.length) : null, empty: '0', icon: ClipboardList, color: '#e0a04f' },
-          { label: 'Customers', value: customers.length > 0 ? String(customers.length) : null, empty: '0', icon: Users, color: '#E8FF9E' },
-          { label: 'Products', value: productCount > 0 ? String(productCount) : null, empty: '0', icon: ShoppingBag, color: '#D4FF3F' },
+          { label: 'Revenue', value: orderRevenue > 0 ? `${currency} ${orderRevenue.toFixed(2)}` : null, empty: 'No sales yet', icon: TrendingUp, color: 'var(--q-ok-text)' },
+          { label: 'Orders',  value: orders.length > 0 ? String(orders.length) : null, empty: '0', icon: ClipboardList, color: 'var(--q-warn-text)' },
+          { label: 'Customers', value: customers.length > 0 ? String(customers.length) : null, empty: '0', icon: Users, color: 'var(--q-acc-hi)' },
+          { label: 'Products', value: productCount > 0 ? String(productCount) : null, empty: '0', icon: ShoppingBag, color: 'var(--q-acc-text)' },
         ].map(({ label, value, empty, icon: Icon, color }) => (
-          <div key={label} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
+          <div key={label} style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'var(--q-s1)', padding: '14px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>{label}</p>
-              <Icon size={13} style={{ color: '#5b5b64' }} />
+              <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0 }}>{label}</p>
+              <Icon size={13} style={{ color: 'var(--q-fg4)' }} />
             </div>
             {value ? (
-              <p style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{value}</p>
+              <p style={{ fontSize: 22, fontWeight: 700, color, fontFamily: 'var(--q-mono)', margin: 0 }}>{value}</p>
             ) : (
-              <p style={{ fontSize: 13, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{empty}</p>
+              <p style={{ fontSize: 13, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)', margin: 0 }}>{empty}</p>
             )}
           </div>
         ))}
@@ -5500,15 +5500,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Orders empty state — shown prominently when no orders yet */}
       {orders.length === 0 && !ordersError && liveUrl && (
-        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          <ClipboardList size={32} style={{ color: '#5b5b64' }} />
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
-          <p style={{ fontSize: 13, color: '#8a8a93', margin: 0, lineHeight: 1.5, maxWidth: 320 }}>
+        <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '24px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <ClipboardList size={32} style={{ color: 'var(--q-fg4)' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>No orders yet</p>
+          <p style={{ fontSize: 13, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.5, maxWidth: 320 }}>
             Share your store link to make your first sale. Orders appear here automatically.
           </p>
           <button
             onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgba(62,207,142,.35)', background: 'rgba(62,207,142,.08)', color: 'var(--live)', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgb(var(--q-ok-rgb) / .35)', background: 'rgb(var(--q-ok-rgb) / .08)', color: 'var(--q-ok-text)', cursor: 'pointer' }}
           >
             <Share2 size={13} /> Copy store link
           </button>
@@ -5516,29 +5516,29 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       )}
 
       {/* Hosting */}
-      <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div>
-          <p style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 6px' }}>Hosting</p>
+          <p style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', textTransform: 'uppercase', letterSpacing: '.06em', margin: '0 0 6px' }}>Hosting</p>
           {hostingInfo.subscribed ? (
-            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--live)', margin: 0 }}>● Hosting active</p>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--q-ok-text)', margin: 0 }}>● Hosting active</p>
           ) : trialUsedElsewhere ? (
-            <p style={{ fontSize: 13, fontWeight: 500, color: '#e0a04f', margin: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--q-warn-text)', margin: 0, lineHeight: 1.5 }}>
               ● {trialUsedText}
             </p>
           ) : hostingInfo.trialEndsAt ? (
-            <p style={{ fontSize: 13, fontWeight: 500, color: trialExpired ? '#e0564f' : '#e0a04f', margin: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 500, color: trialExpired ? 'var(--q-danger-text)' : 'var(--q-warn-text)', margin: 0 }}>
               ● {hostingInfo.suspendedAt ? 'Store paused' : trialExpired ? 'Trial ended' : `Free trial · ${trialDaysLeft} day${trialDaysLeft !== 1 ? 's' : ''} left`}
             </p>
           ) : (
-            <p style={{ fontSize: 13, color: '#8a8a93', margin: 0 }}>Not deployed</p>
+            <p style={{ fontSize: 13, color: 'var(--q-fg3)', margin: 0 }}>Not deployed</p>
           )}
         </div>
         {showSubscribeOptions && (
           <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-            <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+            <button onClick={() => handleHostingSubscribe('year')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
               {isSubscribing ? '…' : '$99/year'}
             </button>
-            <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: '1px solid rgba(255,255,255,.12)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
+            <button onClick={() => handleHostingSubscribe('month')} disabled={isSubscribing} style={{ fontSize: 12, fontWeight: 600, padding: '7px 14px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'transparent', color: 'var(--q-fg)', cursor: 'pointer', opacity: isSubscribing ? 0.6 : 1 }}>
               {isSubscribing ? '…' : '$9.99/mo'}
             </button>
           </div>
@@ -5547,7 +5547,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Quick actions */}
       <div>
-        <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Quick actions</p>
+        <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Quick actions</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           {[
             { label: 'View orders', sub: 'Revenue + order history', action: () => { setAdminTab('orders'); handleLoadOrders() }, icon: ClipboardList },
@@ -5556,14 +5556,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             { label: 'Settings', sub: 'Business, payments, shipping, domain', action: () => setAdminTab('settings'), icon: Settings2 },
             { label: 'AI Builder', sub: 'Edit design + content', action: () => setAdminMode(false), icon: Paintbrush },
           ].map(({ label, sub, action, icon: Icon }) => (
-            <button key={label} onClick={action} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: 'transparent', color: '#f4f4f6', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
-              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.04)'}
+            <button key={label} onClick={action} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 14px', borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'transparent', color: 'var(--q-fg)', cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-ink-rgb) / .04)'}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
             >
-              <Icon size={16} style={{ color: '#8a8a93' }} />
+              <Icon size={16} style={{ color: 'var(--q-fg3)' }} />
               <div>
                 <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{label}</p>
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>{sub}</p>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0 }}>{sub}</p>
               </div>
             </button>
           ))}
@@ -5576,7 +5576,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{ flex: 1, overflowY: 'auto', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 720 }}>
 
       {/* Tab switcher: Store orders vs Stripe */}
-      <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,.04)', borderRadius: 9, padding: 4, alignSelf: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 4, background: 'rgb(var(--q-ink-rgb) / .04)', borderRadius: 9, padding: 4, alignSelf: 'flex-start' }}>
         {[
           { id: 'store' as const, label: 'All orders' },
           { id: 'stripe' as const, label: 'Paid · items' },
@@ -5591,8 +5591,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             style={{
               fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6,
               border: 'none', cursor: 'pointer', transition: 'all 0.12s',
-              background: ordersTab === id ? 'rgba(255,255,255,.09)' : 'transparent',
-              color: ordersTab === id ? '#f4f4f6' : '#8a8a93',
+              background: ordersTab === id ? 'rgb(var(--q-ink-rgb) / .09)' : 'transparent',
+              color: ordersTab === id ? 'var(--q-fg)' : 'var(--q-fg3)',
             }}
           >
             {label}
@@ -5605,29 +5605,29 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         isLoadingStoreOrders ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1, 2, 3].map(i => (
-              <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgb(var(--q-ink-rgb) / .04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         ) : storeOrders.length === 0 ? (
-          <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-            <ClipboardList size={36} style={{ color: '#5b5b64' }} />
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
-            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Orders via bank transfer, cash on delivery, or other connected payment/shipping providers will appear here.</p>
-            <button onClick={handleLoadStoreOrders} style={{ fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+          <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <ClipboardList size={36} style={{ color: 'var(--q-fg4)' }} />
+            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>No orders yet</p>
+            <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>Orders via bank transfer, cash on delivery, or other connected payment/shipping providers will appear here.</p>
+            <button onClick={handleLoadStoreOrders} style={{ fontSize: 11, color: 'var(--q-fg3)', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </div>
         ) : (
           <>
             {/* Summary */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue (paid)</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+              <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ok-rgb) / .2)', background: 'rgb(var(--q-ok-rgb) / .04)', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue (paid)</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--q-ok-text)', fontFamily: 'var(--q-mono)', margin: 0 }}>
                   {currency} {storeOrderRevenue.toFixed(2)}
                 </p>
               </div>
-              <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{storeOrders.length}</p>
+              <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'var(--q-s1)', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--q-fg)', fontFamily: 'var(--q-mono)', margin: 0 }}>{storeOrders.length}</p>
               </div>
             </div>
 
@@ -5641,36 +5641,36 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 const testPaid = o.paymentStatus === 'test_paid'
 
                 return (
-                  <div key={o.id} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div key={o.id} style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {/* Row 1: customer + amount */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {o.customerName !== '—' ? o.customerName : o.customerEmail}
                         </p>
                         {o.customerName !== '—' && (
-                          <p style={{ fontSize: 11, color: '#8a8a93', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.customerEmail}</p>
+                          <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.customerEmail}</p>
                         )}
-                        <p style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '3px 0 0' }}>#{o.orderNumber}</p>
+                        <p style={{ fontSize: 10, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)', margin: '3px 0 0' }}>#{o.orderNumber}</p>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <p style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: paid ? 'var(--live)' : '#f4f4f6', margin: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--q-mono)', color: paid ? 'var(--live)' : 'var(--q-fg)', margin: 0 }}>
                           {o.amount.toFixed(2)} {o.currency}
                         </p>
-                        <p style={{ fontSize: 10, color: '#8a8a93', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>{new Date(o.createdAt).toLocaleDateString('en-GB')}</p>
+                        <p style={{ fontSize: 10, color: 'var(--q-fg3)', fontFamily: 'var(--q-mono)', margin: '2px 0 0' }}>{new Date(o.createdAt).toLocaleDateString('en-GB')}</p>
                       </div>
                     </div>
 
                     {/* Row 2: badges */}
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: paid ? 'rgba(62,207,142,.12)' : 'rgba(224,160,79,.12)', color: paid ? 'var(--live)' : '#e0a04f' }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: paid ? 'rgb(var(--q-ok-rgb) / .12)' : 'rgb(var(--q-warn-rgb) / .12)', color: paid ? 'var(--live)' : 'var(--q-warn-text)' }}>
                         {paid ? 'Paid' : testPaid ? 'Test payment — not real' : o.paymentStatus}
                       </span>
-                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(255,255,255,.06)', color: '#8a8a93' }}>
+                      <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgb(var(--q-ink-rgb) / .06)', color: 'var(--q-fg3)' }}>
                         {o.paymentMethod}
                       </span>
                       {isZasilkovna && (
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(212,255,63,.12)', color: '#E8FF9E' }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgb(var(--q-acc-rgb) / .12)', color: 'var(--q-acc-hi)' }}>
                           📦 {o.zasilkovnaBranchCountry && o.zasilkovnaBranchCountry !== 'cz'
                             ? `Packeta International · ${o.zasilkovnaBranchCountry.toUpperCase()}`
                             : 'Packeta'}
@@ -5678,7 +5678,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         </span>
                       )}
                       {shipped && (
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgba(62,207,142,.12)', color: 'var(--live)' }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 5, background: 'rgb(var(--q-ok-rgb) / .12)', color: 'var(--q-ok-text)' }}>
                           ✓ Shipped
                         </span>
                       )}
@@ -5708,19 +5708,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
                           {shipped || tracking ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', fontWeight: 600 }}>
+                              <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-ok-text)', fontWeight: 600 }}>
                                 {tracking}
                               </span>
                               {trackUrl && (
                                 <a href={trackUrl} target="_blank" rel="noopener noreferrer"
-                                  style={{ fontSize: 10, color: '#D4FF3F', textDecoration: 'none' }}>
+                                  style={{ fontSize: 10, color: 'var(--q-acc-text)', textDecoration: 'none' }}>
                                   Track →
                                 </a>
                               )}
                               {label && (
                                 <button
                                   onClick={() => downloadLabelPdf(`${label.prefix}-${o.orderNumber}.pdf`, label.base64)}
-                                  style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(255,193,7,.3)', background: 'rgba(255,193,7,.08)', color: '#fbbf24', cursor: 'pointer' }}
+                                  style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgb(var(--q-warn-rgb) / .3)', background: 'rgb(var(--q-warn-rgb) / .08)', color: 'var(--q-warn-text)', cursor: 'pointer' }}
                                 >
                                   ⬇ PDF Label
                                 </button>
@@ -5728,27 +5728,27 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                             </div>
                           ) : byrdRef ? (
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#E8FF9E' }}>
+                              <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-acc-hi)' }}>
                                 byrd · {byrdStatus} · {byrdRef}
                               </span>
                               <button
                                 onClick={() => handleRefreshByrd(o.id)}
                                 disabled={refreshingByrd === o.id}
                                 title="Check byrd for the current status and tracking number"
-                                style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.08)', color: '#E8FF9E', cursor: refreshingByrd === o.id ? 'wait' : 'pointer' }}
+                                style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 5, border: '1px solid rgb(var(--q-acc-rgb) / .3)', background: 'rgb(var(--q-acc-rgb) / .08)', color: 'var(--q-acc-hi)', cursor: refreshingByrd === o.id ? 'wait' : 'pointer' }}
                               >
                                 {refreshingByrd === o.id ? 'Checking…' : '↻ Refresh tracking'}
                               </button>
-                              {shipErr && <span style={{ fontSize: 11, color: '#f87171' }}>{shipErr}</span>}
+                              {shipErr && <span style={{ fontSize: 11, color: 'var(--q-danger-text)' }}>{shipErr}</span>}
                             </div>
                           ) : (
                             <>
-                              {shipErr && <p style={{ fontSize: 11, color: '#f87171', margin: 0 }}>{shipErr}</p>}
+                              {shipErr && <p style={{ fontSize: 11, color: 'var(--q-danger-text)', margin: 0 }}>{shipErr}</p>}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                 <select
                                   value={carrier}
                                   onChange={e => setShipmentCarrier(p => ({ ...p, [o.id]: e.target.value as 'packeta' | 'dhl' | 'gls' | 'byrd' }))}
-                                  style={{ fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: '#16161c', color: '#f4f4f6' }}
+                                  style={{ fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'var(--q-s2)', color: 'var(--q-fg)' }}
                                 >
                                   <option value="packeta" disabled={!o.zasilkovnaBranchId}>📦 Packeta{!o.zasilkovnaBranchId ? ' (no pickup point)' : ''}</option>
                                   <option value="dhl">✈️ DHL Express</option>
@@ -5761,7 +5761,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                                     value={shipmentWeights[o.id] ?? ''}
                                     onChange={e => setShipmentWeights(p => ({ ...p, [o.id]: e.target.value }))}
                                     title="Shipment weight in kg"
-                                    style={{ width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgba(255,255,255,.12)', background: 'rgba(255,255,255,.05)', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
+                                    style={{ width: 56, fontSize: 11, padding: '4px 7px', borderRadius: 5, border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'rgb(var(--q-ink-rgb) / .05)', color: 'var(--q-fg)', fontFamily: 'var(--q-mono)' }}
                                   />
                                 )}
                                 <button
@@ -5774,7 +5774,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                                   }}
                                   disabled={creatingAny || !paid}
                                   title={!paid ? 'Order must be paid first' : 'Create shipment with the selected carrier'}
-                                  style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.08)', color: '#E8FF9E', cursor: creatingAny || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
+                                  style={{ fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 6, border: '1px solid rgb(var(--q-acc-rgb) / .3)', background: 'rgb(var(--q-acc-rgb) / .08)', color: 'var(--q-acc-hi)', cursor: creatingAny || !paid ? 'not-allowed' : 'pointer', opacity: !paid ? 0.5 : 1 }}
                                 >
                                   {creatingAny ? (carrier === 'byrd' ? 'Sending…' : 'Creating…') : shipErr ? '↻ Retry' : carrier === 'byrd' ? '🏭 Send to fulfillment' : '📦 Create shipment'}
                                 </button>
@@ -5783,7 +5783,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                           )}
                           {o.invoiceUrl && (
                             <a href={o.invoiceUrl} target="_blank" rel="noopener noreferrer"
-                              style={{ fontSize: 10, color: '#8a8a93', textDecoration: 'none', alignSelf: 'flex-start' }}>
+                              style={{ fontSize: 10, color: 'var(--q-fg3)', textDecoration: 'none', alignSelf: 'flex-start' }}>
                               Invoice →
                             </a>
                           )}
@@ -5795,7 +5795,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               })}
             </div>
 
-            <button onClick={handleLoadStoreOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+            <button onClick={handleLoadStoreOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: 'var(--q-fg3)', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </>
         )
       ) : (
@@ -5806,89 +5806,89 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           // per-project Stripe key to add, so this used to link to a Settings
           // field that never existed. This tab only has data for the rare
           // project with its own connected Stripe account.
-          <div style={{ borderRadius: 12, border: '1px solid rgba(212,255,63,.25)', background: 'rgba(212,255,63,.05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-            <Settings2 size={32} style={{ color: '#5b5b64' }} />
-            <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No Stripe orders here</p>
-            <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
+          <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-acc-rgb) / .25)', background: 'rgb(var(--q-acc-rgb) / .05)', padding: '28px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+            <Settings2 size={32} style={{ color: 'var(--q-fg4)' }} />
+            <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>No Stripe orders here</p>
+            <p style={{ fontSize: 13, color: 'var(--q-fg3)', lineHeight: 1.6, maxWidth: 320, margin: 0 }}>
               Card payments run through Quante&apos;s managed Stripe account, not a key you configure — check the &quot;All orders&quot; tab.
             </p>
-            <button onClick={() => setOrdersTab('store')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: '#D4FF3F', color: '#fff', cursor: 'pointer' }}>
+            <button onClick={() => setOrdersTab('store')} style={{ fontSize: 12, fontWeight: 600, padding: '8px 20px', borderRadius: 7, border: 'none', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', cursor: 'pointer' }}>
               View all orders
             </button>
           </div>
         ) : isLoadingOrders ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {[1, 2, 3].map(i => (
-              <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <div key={i} style={{ height: 56, borderRadius: 8, background: 'rgb(var(--q-ink-rgb) / .04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
             ))}
           </div>
         ) : ordersError ? (
-          <div style={{ borderRadius: 10, border: '1px solid rgba(224,86,79,.25)', background: 'rgba(224,86,79,.05)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{ordersError}</p>
-            <button onClick={handleLoadOrders} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(224,86,79,.3)', background: 'transparent', color: '#f87171', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
+          <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-danger-rgb) / .25)', background: 'rgb(var(--q-danger-rgb) / .05)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <p style={{ fontSize: 13, color: 'var(--q-danger-text)', margin: 0 }}>{ordersError}</p>
+            <button onClick={handleLoadOrders} style={{ fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 6, border: '1px solid rgb(var(--q-danger-rgb) / .3)', background: 'transparent', color: 'var(--q-danger-text)', cursor: 'pointer', flexShrink: 0 }}>Retry</button>
           </div>
         ) : orders.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-              <ClipboardList size={36} style={{ color: '#5b5b64' }} />
-              <p style={{ fontSize: 16, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No orders yet</p>
-              <p style={{ fontSize: 13, color: '#8a8a93', lineHeight: 1.55, maxWidth: 300, margin: 0 }}>
+            <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '32px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+              <ClipboardList size={36} style={{ color: 'var(--q-fg4)' }} />
+              <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>No orders yet</p>
+              <p style={{ fontSize: 13, color: 'var(--q-fg3)', lineHeight: 1.55, maxWidth: 300, margin: 0 }}>
                 Share your store link to make your first sale — orders appear here automatically.
               </p>
               {liveUrl && (
                 <button
                   onClick={() => navigator.clipboard.writeText(liveUrl ?? '')}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgba(62,207,142,.3)', background: 'rgba(62,207,142,.07)', color: 'var(--live)', cursor: 'pointer' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: '1px solid rgb(var(--q-ok-rgb) / .3)', background: 'rgb(var(--q-ok-rgb) / .07)', color: 'var(--q-ok-text)', cursor: 'pointer' }}
                 >
                   <Share2 size={13} /> Copy store link
                 </button>
               )}
             </div>
-            <button onClick={handleLoadOrders} style={{ alignSelf: 'center', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+            <button onClick={handleLoadOrders} style={{ alignSelf: 'center', fontSize: 11, color: 'var(--q-fg3)', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </div>
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              <div style={{ borderRadius: 10, border: '1px solid rgba(62,207,142,.2)', background: 'rgba(62,207,142,.04)', padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+              <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ok-rgb) / .2)', background: 'rgb(var(--q-ok-rgb) / .04)', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Revenue</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--q-ok-text)', fontFamily: 'var(--q-mono)', margin: 0 }}>
                   {currency} {orderRevenue.toFixed(2)}
                 </p>
               </div>
-              <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', background: '#0d0d11', padding: '14px 16px' }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
-                <p style={{ fontSize: 24, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>{orders.length}</p>
+              <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'var(--q-s1)', padding: '14px 16px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>Orders</p>
+                <p style={{ fontSize: 24, fontWeight: 700, color: 'var(--q-fg)', fontFamily: 'var(--q-mono)', margin: 0 }}>{orders.length}</p>
               </div>
             </div>
-            <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', overflow: 'auto' }}>
-              <div style={{ minWidth: 460, display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
+            <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', overflow: 'auto' }}>
+              <div style={{ minWidth: 460, display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '9px 16px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
                 {['Customer', 'Items', 'Amount', 'Date'].map(h => (
-                  <p key={h} style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>{h}</p>
+                  <p key={h} style={{ fontSize: 10, fontWeight: 600, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textTransform: 'uppercase', letterSpacing: '.06em', margin: 0 }}>{h}</p>
                 ))}
               </div>
               {orders.map((o, idx) => (
-                <div key={o.id} style={{ minWidth: 460, display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none', alignItems: 'center' }}>
+                <div key={o.id} style={{ minWidth: 460, display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, padding: '12px 16px', borderBottom: idx < orders.length - 1 ? '1px solid rgb(var(--q-ink-rgb) / .04)' : 'none', alignItems: 'center' }}>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#f4f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                       {o.customerName !== '—' ? o.customerName : o.customerEmail}
                     </p>
                     {o.customerName !== '—' && (
-                      <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>{o.customerEmail}</p>
+                      <p style={{ fontSize: 11, color: 'var(--q-fg3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: '2px 0 0' }}>{o.customerEmail}</p>
                     )}
                   </div>
-                  <p style={{ fontSize: 11, color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>
                     {o.items.map(i => `${i.qty}× ${i.name}`).join(', ') || '—'}
                   </p>
-                  <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', whiteSpace: 'nowrap', margin: 0 }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--q-mono)', color: 'var(--q-ok-text)', whiteSpace: 'nowrap', margin: 0 }}>
                     {o.amount.toFixed(2)} {o.currency}
                   </p>
-                  <p style={{ fontSize: 11, color: '#8a8a93', whiteSpace: 'nowrap', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg3)', whiteSpace: 'nowrap', fontFamily: 'var(--q-mono)', margin: 0 }}>
                     {new Date(o.createdAt).toLocaleDateString('en-GB')}
                   </p>
                 </div>
               ))}
             </div>
-            <button onClick={handleLoadOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
+            <button onClick={handleLoadOrders} style={{ alignSelf: 'flex-start', fontSize: 11, color: 'var(--q-fg3)', background: 'none', border: 'none', cursor: 'pointer' }}>↻ Refresh</button>
           </>
         )
       )}
@@ -5901,7 +5901,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     width: '100%', fontSize: 13, padding: '8px 10px', borderRadius: 7,
     border: '1px solid var(--border)', background: 'var(--secondary)',
     color: 'var(--foreground)', outline: 'none', boxSizing: 'border-box',
-    fontFamily: 'var(--font-geist-mono)',
+    fontFamily: 'var(--q-mono)',
   }
 
   const AdminCustomers = (
@@ -5910,8 +5910,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#f4f4f6', margin: '0 0 2px' }}>Customers</h2>
-          <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--q-fg)', margin: '0 0 2px' }}>Customers</h2>
+          <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>
             {customers.length > 0 ? `${customers.length} unique customer${customers.length !== 1 ? 's' : ''}` : 'Aggregated from store orders'}
           </p>
         </div>
@@ -5919,7 +5919,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           {customers.length > 0 && (
             <button
               onClick={exportCustomersCsv}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(62,207,142,.35)', background: 'rgba(62,207,142,.07)', color: 'var(--live)', cursor: 'pointer' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, padding: '6px 12px', borderRadius: 7, border: '1px solid rgb(var(--q-ok-rgb) / .35)', background: 'rgb(var(--q-ok-rgb) / .07)', color: 'var(--q-ok-text)', cursor: 'pointer' }}
             >
               ↓ Export CSV
             </button>
@@ -5927,7 +5927,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleLoadCustomers}
             disabled={isLoadingCustomers}
-            style={{ fontSize: 11, padding: '6px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: 'transparent', color: '#8a8a93', cursor: 'pointer' }}
+            style={{ fontSize: 11, padding: '6px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'transparent', color: 'var(--q-fg3)', cursor: 'pointer' }}
           >
             {isLoadingCustomers ? '…' : '↻ Refresh'}
           </button>
@@ -5937,48 +5937,48 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {isLoadingCustomers ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[1, 2, 3, 4].map(i => (
-            <div key={i} style={{ height: 60, borderRadius: 10, background: 'rgba(255,255,255,.04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div key={i} style={{ height: 60, borderRadius: 10, background: 'rgb(var(--q-ink-rgb) / .04)', animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
       ) : customers.length === 0 ? (
-        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-          <Users size={36} style={{ color: '#5b5b64' }} />
-          <p style={{ fontSize: 15, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>No customers yet</p>
-          <p style={{ fontSize: 13, color: '#8a8a93', margin: 0, maxWidth: 280, lineHeight: 1.5 }}>
+        <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
+          <Users size={36} style={{ color: 'var(--q-fg4)' }} />
+          <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>No customers yet</p>
+          <p style={{ fontSize: 13, color: 'var(--q-fg3)', margin: 0, maxWidth: 280, lineHeight: 1.5 }}>
             Customers appear here once orders come in from your live store.
           </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {customers.map((c) => (
-            <div key={c.email} style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <div key={c.email} style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
               {/* Avatar */}
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(212,255,63,.15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(212,255,63,.25)' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#E8FF9E' }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgb(var(--q-acc-rgb) / .15)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgb(var(--q-acc-rgb) / .25)' }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--q-acc-hi)' }}>
                   {(c.name || c.email).charAt(0).toUpperCase()}
                 </span>
               </div>
 
               {/* Info */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {c.name || '—'}
                 </p>
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</p>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</p>
                 {c.phone && (
-                  <p style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '1px 0 0' }}>{c.phone}</p>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)', margin: '1px 0 0' }}>{c.phone}</p>
                 )}
               </div>
 
               {/* Stats */}
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: 'var(--live)', margin: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--q-mono)', color: 'var(--q-ok-text)', margin: 0 }}>
                   {c.currency} {c.totalSpent.toFixed(2)}
                 </p>
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>
                   {c.orderCount} order{c.orderCount !== 1 ? 's' : ''}
                 </p>
-                <p style={{ fontSize: 10, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', margin: '2px 0 0' }}>
+                <p style={{ fontSize: 10, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)', margin: '2px 0 0' }}>
                   {new Date(c.lastOrderAt).toLocaleDateString('en-GB')}
                 </p>
               </div>
@@ -6005,7 +6005,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           into pills, and now also absorbs MerchantPanel's content plus the
           Earnings/Payout and Hosting blocks that used to live stacked under
           Builder -> Publish. */}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '16px 20px 14px', borderBottom: '1px solid rgba(255,255,255,.06)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', padding: '16px 20px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .06)', flexShrink: 0 }}>
         {ADMIN_SETTINGS_TABS.map(({ id, label }) => {
           const active = settingsTab === id
           return (
@@ -6014,9 +6014,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               onClick={() => setSettingsTab(id)}
               style={{
                 fontSize: 12, fontWeight: active ? 600 : 400, padding: '6px 14px', borderRadius: 20,
-                border: `1px solid ${active ? 'rgba(62,207,142,.4)' : 'rgba(255,255,255,.1)'}`,
-                background: active ? 'rgba(62,207,142,.1)' : 'transparent',
-                color: active ? 'var(--live)' : '#8a8a93', cursor: 'pointer', whiteSpace: 'nowrap',
+                border: `1px solid ${active ? 'rgb(var(--q-ok-rgb) / .4)' : 'rgb(var(--q-ink-rgb) / .1)'}`,
+                background: active ? 'rgb(var(--q-ok-rgb) / .1)' : 'transparent',
+                color: active ? 'var(--live)' : 'var(--q-fg3)', cursor: 'pointer', whiteSpace: 'nowrap',
                 transition: 'background 0.12s, color 0.12s, border-color 0.12s',
               }}
             >
@@ -6041,22 +6041,22 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <MerchantPanel projectId={projectId} onBalanceRefresh={refreshBalance} section="shipping" />
 
       {/* Zásilkovna */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(212,255,63,.2)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(212,255,63,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-acc-rgb) / .2)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-acc-rgb) / .04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>📦</span>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Zásilkovna / Packeta</p>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>Zásilkovna / Packeta</p>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>
               API keys for the pickup-point widget and shipment creation. Find both in your
-              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>Packeta client zone</a>.
+              {' '}<a href="https://client.packeta.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--q-acc-hi)', textDecoration: 'none' }}>Packeta client zone</a>.
             </p>
           </div>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
               API key — widget (public)
-              {hasZasilkovnaKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+              {hasZasilkovnaKey && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input
               value={zasilkovnaKey}
@@ -6066,9 +6066,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
               API password — shipments (private)
-              {hasZasilkovnaPassword && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+              {hasZasilkovnaPassword && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input
               type="password"
@@ -6081,12 +6081,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleSaveZasilkovna}
             disabled={isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isSavingZasilkovna || (!zasilkovnaKey && !zasilkovnaPassword) ? 0.5 : 1 }}
           >
             {isSavingZasilkovna ? 'Saving…' : 'Save Packeta keys'}
           </button>
           {(hasZasilkovnaKey && hasZasilkovnaPassword) && (
-            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--q-ok-text)', margin: 0 }}>
               ✓ Packeta is configured — the &quot;Create shipment&quot; button is active in Orders.
             </p>
           )}
@@ -6094,46 +6094,46 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* DHL Express */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,193,7,.18)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,193,7,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-warn-rgb) / .18)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-warn-rgb) / .04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>✈️</span>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>DHL Express — worldwide shipping</p>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>DHL Express — worldwide shipping</p>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>
               Find your credentials at{' '}
-              <a href="https://developer.dhl.com" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>developer.dhl.com</a>
+              <a href="https://developer.dhl.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--q-acc-hi)', textDecoration: 'none' }}>developer.dhl.com</a>
               {' '}→ MyDHL+ API.
             </p>
           </div>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API Key{hasDhlApiKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              API Key{hasDhlApiKey && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={dhlApiKey} onChange={e => setDhlApiKey(e.target.value)} placeholder={hasDhlApiKey ? '••••••••••••••••' : 'DHL API Key…'} style={inpSt} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API Secret{hasDhlApiSecret && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              API Secret{hasDhlApiSecret && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input type="password" value={dhlApiSecret} onChange={e => setDhlApiSecret(e.target.value)} placeholder={hasDhlApiSecret ? '••••••••••••••••' : 'DHL API Secret…'} style={inpSt} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              Account Number{hasDhlAccount && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              Account Number{hasDhlAccount && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={dhlAccountNumber} onChange={e => setDhlAccountNumber(e.target.value)} placeholder={hasDhlAccount ? '••••••••' : '123456789'} style={inpSt} />
           </div>
           <button
             onClick={handleSaveDhl}
             disabled={isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isSavingDhl || (!dhlApiKey && !dhlApiSecret && !dhlAccountNumber) ? 0.5 : 1 }}
           >
             {isSavingDhl ? 'Saving…' : 'Save DHL keys'}
           </button>
           {(hasDhlApiKey && hasDhlApiSecret && hasDhlAccount) && (
-            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--q-ok-text)', margin: 0 }}>
               ✓ DHL configured — the &quot;Send DHL&quot; button is active in Orders.
             </p>
           )}
@@ -6142,37 +6142,37 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* GLS */}
       <div style={{ borderRadius: 12, border: '1px solid rgba(0,102,204,.22)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(0,102,204,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgba(0,102,204,.05)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>🚚</span>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>GLS — parcel delivery</p>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>GLS — parcel delivery</p>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>
               Use your MyGLS account credentials from the{' '}
-              <a href="https://www.mygls.cz" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>MyGLS client zone</a>.
+              <a href="https://www.mygls.cz" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--q-acc-hi)', textDecoration: 'none' }}>MyGLS client zone</a>.
             </p>
           </div>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              Username (e-mail){hasGlsUsername && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              Username (e-mail){hasGlsUsername && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={glsUsername} onChange={e => setGlsUsername(e.target.value)} placeholder={hasGlsUsername ? '••••••••••••' : 'name@company.com'} style={inpSt} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              Password{hasGlsPassword && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              Password{hasGlsPassword && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input type="password" value={glsPassword} onChange={e => setGlsPassword(e.target.value)} placeholder={hasGlsPassword ? '••••••••••••••••' : 'MyGLS password…'} style={inpSt} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              Client number{hasGlsClientNumber && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              Client number{hasGlsClientNumber && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={glsClientNumber} onChange={e => setGlsClientNumber(e.target.value)} placeholder={hasGlsClientNumber ? '••••••••' : '100123456'} style={inpSt} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
               Account country
             </label>
             <select
@@ -6191,12 +6191,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <button
             onClick={handleSaveGls}
             disabled={isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isSavingGls || (!glsUsername && !glsPassword && !glsClientNumber) ? 0.5 : 1 }}
           >
             {isSavingGls ? 'Saving…' : 'Save GLS credentials'}
           </button>
           {(hasGlsUsername && hasGlsPassword && hasGlsClientNumber) && (
-            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--q-ok-text)', margin: 0 }}>
               ✓ GLS configured — pick GLS in the &quot;Create shipment&quot; dropdown in Orders.
             </p>
           )}
@@ -6204,40 +6204,40 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       </div>
 
       {/* byrd fulfillment */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(62,207,142,.18)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(62,207,142,.04)', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ok-rgb) / .18)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-ok-rgb) / .04)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>🏭</span>
           <div>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>byrd — fulfillment warehouse</p>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>byrd — fulfillment warehouse</p>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>
               byrd stores your products and ships orders for you. Request API credentials at{' '}
-              <a href="https://developers.getbyrd.com" target="_blank" rel="noopener noreferrer" style={{ color: '#E8FF9E', textDecoration: 'none' }}>developers.getbyrd.com</a>.
+              <a href="https://developers.getbyrd.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--q-acc-hi)', textDecoration: 'none' }}>developers.getbyrd.com</a>.
               Product SKUs must match the ones registered in your byrd account.
             </p>
           </div>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API Key{hasByrdApiKey && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              API Key{hasByrdApiKey && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input value={byrdApiKey} onChange={e => setByrdApiKey(e.target.value)} placeholder={hasByrdApiKey ? '••••••••••••••••' : 'byrd API key…'} style={inpSt} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#8a8a93', display: 'block', marginBottom: 5, fontFamily: 'var(--font-geist-mono)' }}>
-              API Secret{hasByrdApiSecret && <span style={{ color: 'var(--live)', marginLeft: 8 }}>✓ set</span>}
+            <label style={{ fontSize: 11, color: 'var(--q-fg3)', display: 'block', marginBottom: 5, fontFamily: 'var(--q-mono)' }}>
+              API Secret{hasByrdApiSecret && <span style={{ color: 'var(--q-ok-text)', marginLeft: 8 }}>✓ set</span>}
             </label>
             <input type="password" value={byrdApiSecret} onChange={e => setByrdApiSecret(e.target.value)} placeholder={hasByrdApiSecret ? '••••••••••••••••' : 'byrd API secret…'} style={inpSt} />
           </div>
           <button
             onClick={handleSaveByrd}
             disabled={isSavingByrd || (!byrdApiKey && !byrdApiSecret)}
-            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSavingByrd || (!byrdApiKey && !byrdApiSecret) ? 0.5 : 1 }}
+            style={{ width: '100%', padding: '9px', fontSize: 13, fontWeight: 600, borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isSavingByrd || (!byrdApiKey && !byrdApiSecret) ? 0.5 : 1 }}
           >
             {isSavingByrd ? 'Saving…' : 'Save byrd credentials'}
           </button>
           {(hasByrdApiKey && hasByrdApiSecret) && (
-            <p style={{ fontSize: 11, color: 'var(--live)', margin: 0 }}>
+            <p style={{ fontSize: 11, color: 'var(--q-ok-text)', margin: 0 }}>
               ✓ byrd configured — pick byrd fulfillment in the &quot;Create shipment&quot; dropdown in Orders.
             </p>
           )}
@@ -6249,40 +6249,40 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {settingsTab === 'domain' && (
         <>
       {/* Custom domain */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Custom domain</p>
-          <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>Connect your own domain. Works with any registrar — just add a CNAME record.</p>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>Custom domain</p>
+          <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>Connect your own domain. Works with any registrar — just add a CNAME record.</p>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           {liveDeployment?.customDomain && !domainResult && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 7, background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)' }}>
-              <span style={{ fontSize: 11, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 7, background: 'rgb(var(--q-ink-rgb) / .04)', border: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
+              <span style={{ fontSize: 11, color: liveDeployment.customDomainVerified ? 'var(--live)' : 'var(--q-warn-text)' }}>
                 {liveDeployment.customDomainVerified ? '✓' : '⚠'}
               </span>
-              <span style={{ flex: 1, fontSize: 12, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6' }}>{liveDeployment.customDomain}</span>
-              <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : '#e0a04f' }}>
+              <span style={{ flex: 1, fontSize: 12, fontFamily: 'var(--q-mono)', color: 'var(--q-fg)' }}>{liveDeployment.customDomain}</span>
+              <span style={{ fontSize: 10, color: liveDeployment.customDomainVerified ? 'var(--live)' : 'var(--q-warn-text)' }}>
                 {liveDeployment.customDomainVerified ? 'active' : 'pending DNS'}
               </span>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <input value={customDomainInput} onChange={e => setCustomDomainInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddDomain()} placeholder="yourdomain.com" style={{ ...inpSt, flex: 1 }} />
-            <button onClick={handleAddDomain} disabled={isAddingDomain || !customDomainInput.trim()} style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', background: '#D4FF3F', color: '#fff', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}>
+            <button onClick={handleAddDomain} disabled={isAddingDomain || !customDomainInput.trim()} style={{ fontSize: 12, fontWeight: 600, padding: '8px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isAddingDomain || !customDomainInput.trim() ? 0.5 : 1, flexShrink: 0 }}>
               {isAddingDomain ? '…' : 'Connect'}
             </button>
           </div>
           {domainResult && (
-            <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgba(62,207,142,.07)' : 'rgba(212,255,63,.07)', border: `1px solid ${domainResult.verified ? 'rgba(62,207,142,.2)' : 'rgba(212,255,63,.2)'}`, padding: '10px 12px' }}>
+            <div style={{ borderRadius: 8, background: domainResult.verified ? 'rgb(var(--q-ok-rgb) / .07)' : 'rgb(var(--q-acc-rgb) / .07)', border: `1px solid ${domainResult.verified ? 'rgb(var(--q-ok-rgb) / .2)' : 'rgb(var(--q-acc-rgb) / .2)'}`, padding: '10px 12px' }}>
               {domainResult.verified ? (
-                <p style={{ fontSize: 12, color: 'var(--live)', fontWeight: 600, margin: 0 }}>✓ Domain connected and live!</p>
+                <p style={{ fontSize: 12, color: 'var(--q-ok-text)', fontWeight: 600, margin: 0 }}>✓ Domain connected and live!</p>
               ) : (
                 <>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 6 }}>Add this DNS record at your registrar:</p>
-                  <div style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: '#E8FF9E', marginBottom: 6 }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--q-fg)', marginBottom: 6 }}>Add this DNS record at your registrar:</p>
+                  <div style={{ fontFamily: 'var(--q-mono)', fontSize: 11, background: 'rgba(0,0,0,.3)', borderRadius: 6, padding: '8px 10px', color: 'var(--q-acc-hi)', marginBottom: 6 }}>
                     {domainResult.dnsInstructions ?? `CNAME  @  →  cname.vercel-dns.com`}
                   </div>
-                  <p style={{ fontSize: 10, color: '#8a8a93', margin: 0 }}>DNS changes can take up to 48 hours. Click Connect again to re-check.</p>
+                  <p style={{ fontSize: 10, color: 'var(--q-fg3)', margin: 0 }}>DNS changes can take up to 48 hours. Click Connect again to re-check.</p>
                 </>
               )}
             </div>
@@ -6292,19 +6292,19 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
       {/* Hosting plan — moved here from Builder -> Publish, which now only
           keeps the first-time domain buy/connect flow. */}
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden', flexShrink: 0 }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgba(255,255,255,.07)', background: 'rgba(255,255,255,.02)' }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Hosting</p>
+      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', overflow: 'hidden', flexShrink: 0 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>Hosting</p>
         </div>
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {hostingInfo.subscribed ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgba(62,207,142,.6)', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6' }}>Hosting active</span>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--live)', boxShadow: '0 0 8px rgb(var(--q-ok-rgb) / .6)', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)' }}>Hosting active</span>
               </div>
               {hostingInfo.subscriptionEndsAt && (
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0 }}>
                   {hostingInfo.cancelAtPeriodEnd ? 'Ends' : 'Renews'} {new Date(hostingInfo.subscriptionEndsAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               )}
@@ -6312,8 +6312,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           ) : showSubscribeOptions ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? '#e0564f' : '#e0a04f', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? '#e0564f' : '#e0a04f' }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: trialExpired ? 'var(--q-danger)' : 'var(--q-warn)', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: trialExpired ? 'var(--q-danger-text)' : 'var(--q-warn-text)' }}>
                   {hostingInfo.suspendedAt
                     ? 'Store paused — hosting expired'
                     : trialUsedElsewhere
@@ -6322,32 +6322,32 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 </span>
               </div>
               {trialUsedElsewhere && (
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.5 }}>
                   {trialUsedText}
                 </p>
               )}
               {hostingInfo.suspendedAt && (
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.5 }}>
                   Visitors see a maintenance page. Your data is safe — subscribe and the store goes back online automatically.
                 </p>
               )}
               <button
                 onClick={() => handleHostingSubscribe('year')}
                 disabled={isSubscribing}
-                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: '#D4FF3F', color: '#fff', opacity: isSubscribing ? 0.6 : 1 }}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isSubscribing ? 0.6 : 1 }}
               >
                 {isSubscribing ? '…' : 'Subscribe · $99/year'}
               </button>
               <button
                 onClick={() => handleHostingSubscribe('month')}
                 disabled={isSubscribing}
-                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.12)', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSubscribing ? 0.6 : 1 }}
+                style={{ width: '100%', padding: '8px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .12)', cursor: isSubscribing ? 'not-allowed' : 'pointer', background: 'transparent', color: 'var(--q-fg)', opacity: isSubscribing ? 0.6 : 1 }}
               >
                 {isSubscribing ? '…' : 'Or $9.99/month'}
               </button>
             </>
           ) : (
-            <p style={{ fontSize: 12, color: '#8a8a93', margin: 0 }}>Deploy your store to start your 30-day free trial.</p>
+            <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>Deploy your store to start your 30-day free trial.</p>
           )}
         </div>
       </div>
@@ -6357,69 +6357,69 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       {settingsTab === 'payout' && (
         <>
       {/* Earnings + Payout — moved here from Builder -> Publish. */}
-      <p style={eyebrowSt}>Earnings <span style={{ color: '#5b5b64', marginLeft: 4 }}>5% platform fee</span></p>
-      <div style={{ borderRadius: 10, border: '1px solid rgba(255,255,255,.07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <p style={eyebrowSt}>Earnings <span style={{ color: 'var(--q-fg4)', marginLeft: 4 }}>5% platform fee</span></p>
+      <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
-            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Available</p>
-            <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--live)', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+          <div style={{ flex: 1, background: 'var(--q-s2)', borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Available</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--q-ok-text)', fontFamily: 'var(--q-mono)', margin: 0 }}>
               {earnings ? `${earnings.currency} ${earnings.available.toFixed(2)}` : '—'}
             </p>
           </div>
-          <div style={{ flex: 1, background: '#121218', borderRadius: 8, padding: '10px 12px' }}>
-            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Sales</p>
-            <p style={{ fontSize: 20, fontWeight: 700, color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)', margin: 0 }}>
+          <div style={{ flex: 1, background: 'var(--q-s2)', borderRadius: 8, padding: '10px 12px' }}>
+            <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.05em' }}>Sales</p>
+            <p style={{ fontSize: 20, fontWeight: 700, color: 'var(--q-fg)', fontFamily: 'var(--q-mono)', margin: 0 }}>
               {earnings ? String(earnings.saleCount) : '—'}
             </p>
           </div>
         </div>
         {(earnings?.heldCents ?? 0) > 0 && (
-          <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.5 }}>
             {earnings!.currency} {((earnings!.heldCents ?? 0) / 100).toFixed(2)} is still in the {earnings!.holdDays ? `${earnings!.holdDays}-day ` : ''}hold period and becomes available afterwards.
           </p>
         )}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', paddingTop: 12 }}>
-          <p style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', marginBottom: 8 }}>Payout account</p>
+        <div style={{ borderTop: '1px solid rgb(var(--q-ink-rgb) / .06)', paddingTop: 12 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--q-fg)', marginBottom: 8 }}>Payout account</p>
           <input
             value={holderInput}
             onChange={e => setHolderInput(e.target.value)}
             placeholder="Account holder name"
-            style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
+            style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'var(--q-s2)', color: 'var(--q-fg)', outline: 'none', marginBottom: 6, boxSizing: 'border-box' }}
           />
           <input
             value={ibanInput}
             onChange={e => setIbanInput(e.target.value)}
             placeholder="Your IBAN"
-            style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--font-geist-mono)' }}
+            style={{ width: '100%', fontSize: 12, padding: '7px 10px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'var(--q-s2)', color: 'var(--q-fg)', outline: 'none', marginBottom: 8, boxSizing: 'border-box', fontFamily: 'var(--q-mono)' }}
           />
           {payoutAccountWillChange && (
-            <p style={{ fontSize: 11, color: '#e0a04f', lineHeight: 1.5, margin: '0 0 8px' }}>
+            <p style={{ fontSize: 11, color: 'var(--q-warn-text)', lineHeight: 1.5, margin: '0 0 8px' }}>
               Changing the IBAN or account holder pauses payouts for 7 days and the new account has to be re-verified before the next payout.
             </p>
           )}
           {!payoutAccount?.iban && (ibanInput.trim() || holderInput.trim()) && (
-            <p style={{ fontSize: 11, color: '#8a8a93', lineHeight: 1.5, margin: '0 0 8px' }}>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', lineHeight: 1.5, margin: '0 0 8px' }}>
               After you add a payout account there is a 7-day waiting period, and we verify the account holder before the first payout.
             </p>
           )}
           {payoutAccount?.iban && !payoutAccountWillChange && payoutAccount.identity_verified === false && (
-            <p style={{ fontSize: 11, color: '#8a8a93', lineHeight: 1.5, margin: '0 0 8px' }}>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', lineHeight: 1.5, margin: '0 0 8px' }}>
               Awaiting identity verification — we check that the account holder matches the store owner before the first payout.
             </p>
           )}
           {payoutAccount?.iban && !payoutAccountWillChange && payoutsPausedUntil && (
-            <p style={{ fontSize: 11, color: '#8a8a93', lineHeight: 1.5, margin: '0 0 8px' }}>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', lineHeight: 1.5, margin: '0 0 8px' }}>
               Payouts are in the security waiting period after the payout account was added or changed — available from {new Date(payoutsPausedUntil).toLocaleDateString('en-GB')}.
             </p>
           )}
           {payoutAccount?.iban && payableBalances.length > 1 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <label htmlFor="payout-currency" style={{ fontSize: 11, color: '#8a8a93', whiteSpace: 'nowrap' }}>Pay out</label>
+              <label htmlFor="payout-currency" style={{ fontSize: 11, color: 'var(--q-fg3)', whiteSpace: 'nowrap' }}>Pay out</label>
               <select
                 id="payout-currency"
                 value={selectedPayoutCurrency ?? ''}
                 onChange={e => setPayoutCurrency(e.target.value)}
-                style={{ flex: 1, fontSize: 12, padding: '6px 8px', borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', background: '#121218', color: '#f4f4f6', fontFamily: 'var(--font-geist-mono)' }}
+                style={{ flex: 1, fontSize: 12, padding: '6px 8px', borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', background: 'var(--q-s2)', color: 'var(--q-fg)', fontFamily: 'var(--q-mono)' }}
               >
                 {payableBalances.map(b => (
                   <option key={b.currency} value={b.currency}>{b.currency} {(b.availableCents / 100).toFixed(2)}</option>
@@ -6431,7 +6431,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             <button
               onClick={handleSaveIban}
               disabled={isSavingIban || !ibanInput.trim() || !holderInput.trim()}
-              style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgba(255,255,255,.09)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'transparent', color: '#f4f4f6', opacity: isSavingIban ? 0.5 : 1 }}
+              style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: '1px solid rgb(var(--q-ink-rgb) / .09)', cursor: isSavingIban ? 'not-allowed' : 'pointer', background: 'transparent', color: 'var(--q-fg)', opacity: isSavingIban ? 0.5 : 1 }}
             >
               {isSavingIban ? '…' : payoutAccount?.iban ? 'Update IBAN' : 'Save IBAN'}
             </button>
@@ -6439,14 +6439,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               <button
                 onClick={handleRequestPayout}
                 disabled={isRequestingPayout || !selectedPayoutCurrency}
-                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: '#D4FF3F', color: '#fff', opacity: isRequestingPayout ? 0.5 : 1 }}
+                style={{ flex: 1, padding: '7px', fontSize: 12, fontWeight: 600, borderRadius: 7, border: 'none', cursor: isRequestingPayout ? 'not-allowed' : 'pointer', background: 'var(--q-acc)', color: 'var(--q-acc-ink)', opacity: isRequestingPayout ? 0.5 : 1 }}
               >
                 {isRequestingPayout ? '…' : 'Request payout'}
               </button>
             )}
           </div>
           {payoutMsg && (
-            <p style={{ fontSize: 11, marginTop: 8, color: payoutMsgIsError ? '#f87171' : 'var(--live)', lineHeight: 1.5, margin: '8px 0 0' }}>
+            <p style={{ fontSize: 11, marginTop: 8, color: payoutMsgIsError ? 'var(--q-danger-text)' : 'var(--live)', lineHeight: 1.5, margin: '8px 0 0' }}>
               {payoutMsg}
             </p>
           )}
@@ -6461,13 +6461,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
 
   // Admin panel layout (full-screen, no preview pane)
   // Visually distinct from Builder: green accent on sidebar + green header underline
-  const ADMIN_ACCENT = 'var(--live)' // #3ecf8e
-  const ADMIN_ACCENT_BG = 'rgba(62,207,142,.1)'
-  const ADMIN_ACCENT_BORDER = 'rgba(62,207,142,.25)'
+  const ADMIN_ACCENT = 'var(--live)' // var(--q-ok)
+  const ADMIN_ACCENT_TEXT = 'var(--q-ok-text)' // text needs the darker shade in the light theme
+  const ADMIN_ACCENT_BG = 'rgb(var(--q-ok-rgb) / .1)'
+  const ADMIN_ACCENT_BORDER = 'rgb(var(--q-ok-rgb) / .25)'
 
   if (adminMode) {
     return (
-      <div style={{ position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'flex', flexDirection: 'column', background: '#08080a' }}>
+      <div style={{ position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0, zIndex: 30, display: 'flex', flexDirection: 'column', background: 'var(--q-bg)' }}>
         {/* Admin-tinted TopBar: same as builder but with green bottom accent line */}
         <div style={{ position: 'relative' }}>
           {TopBar}
@@ -6480,9 +6481,9 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           // Desktop: sidebar + content
           <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
             {/* Sidebar */}
-            <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid rgba(255,255,255,.07)', display: 'flex', flexDirection: 'column', background: '#0d0d11' }}>
+            <div style={{ width: 200, flexShrink: 0, borderRight: '1px solid rgb(var(--q-ink-rgb) / .07)', display: 'flex', flexDirection: 'column', background: 'var(--q-s1)' }}>
               <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', padding: '4px 12px 10px' }}>
+                <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg4)', padding: '4px 12px 10px' }}>
                   Store admin
                 </p>
                 {ADMIN_TABS.map(({ id, label, icon: Icon }) => {
@@ -6496,15 +6497,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                         border: 'none', cursor: 'pointer', fontSize: 13,
                         fontWeight: active ? 550 : 400,
                         background: active ? ADMIN_ACCENT_BG : 'transparent',
-                        color: active ? ADMIN_ACCENT : '#8a8a93',
+                        color: active ? ADMIN_ACCENT_TEXT : 'var(--q-fg3)',
                         display: 'flex', alignItems: 'center', gap: 9,
                         position: 'relative', transition: 'background 0.12s, color 0.12s',
                       }}
-                      onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.05)' } }}
-                      onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
+                      onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-ink-rgb) / .05)' } }}
+                      onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg3)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
                     >
                       {active && (
-                        <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: ADMIN_ACCENT, boxShadow: `0 0 8px rgba(62,207,142,.5)` }} />
+                        <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: ADMIN_ACCENT, boxShadow: `0 0 8px rgb(var(--q-ok-rgb) / .5)` }} />
                       )}
                       <Icon size={14} strokeWidth={active ? 2.2 : 1.7} />
                       {label}
@@ -6514,12 +6515,12 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               </nav>
 
               {/* Back to Builder */}
-              <div style={{ padding: '12px 10px 16px', borderTop: '1px solid rgba(255,255,255,.07)' }}>
+              <div style={{ padding: '12px 10px 16px', borderTop: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
                 <button
                   onClick={() => setAdminMode(false)}
-                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, background: 'transparent', color: '#8a8a93', transition: 'color 0.12s' }}
-                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'}
-                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, background: 'transparent', color: 'var(--q-fg3)', transition: 'color 0.12s' }}
+                  onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg)'}
+                  onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg3)'}
                 >
                   <ArrowLeft size={13} /> AI Builder
                 </button>
@@ -6551,7 +6552,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {/* Bottom tab bar */}
             <div style={{
               position: 'absolute', bottom: 0, left: 0, right: 0, height: 56,
-              borderTop: '1px solid rgba(255,255,255,.07)', background: '#0d0d11',
+              borderTop: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'var(--q-s1)',
               display: 'flex', alignItems: 'stretch',
               // safe-area for iPhone home indicator
               paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -6565,7 +6566,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     style={{
                       flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                       gap: 3, background: 'none', border: 'none', cursor: 'pointer',
-                      color: active ? ADMIN_ACCENT : '#5b5b64',
+                      color: active ? ADMIN_ACCENT_TEXT : 'var(--q-fg4)',
                       transition: 'color 0.12s',
                     }}
                   >
@@ -6579,7 +6580,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               })}
               <button
                 onClick={() => setAdminMode(false)}
-                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: '#5b5b64' }}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--q-fg4)' }}
               >
                 <ArrowLeft size={18} strokeWidth={1.7} />
                 <span style={{ fontSize: 9 }}>Builder</span>
@@ -6600,7 +6601,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       <div style={{
         position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0,
         zIndex: 30, display: 'flex', flexDirection: 'column',
-        background: '#08080a',
+        background: 'var(--q-bg)',
       }}>
         {TopBar}
         {HostingBanner}
@@ -6612,10 +6613,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             width: 190, flexShrink: 0,
             display: 'flex', flexDirection: 'column',
             padding: '12px 10px', gap: 2,
-            background: '#0d0d11',
-            borderRight: '1px solid rgba(255,255,255,.07)',
+            background: 'var(--q-s1)',
+            borderRight: '1px solid rgb(var(--q-ink-rgb) / .07)',
           }}>
-            <p style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', padding: '4px 12px 10px' }}>
+            <p style={{ fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg4)', padding: '4px 12px 10px' }}>
               Build
             </p>
             {/* Sections/Theme only shown for legacy manifest-type stores — for code-gen
@@ -6631,24 +6632,24 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     width: '100%', textAlign: 'left', padding: '8px 12px 8px 14px', borderRadius: 8,
                     border: 'none', cursor: 'pointer', fontSize: 13,
                     fontWeight: active ? 550 : 400,
-                    background: active ? 'rgba(212,255,63,.1)' : 'transparent',
-                    color: active ? '#f4f4f6' : '#8a8a93',
+                    background: active ? 'rgb(var(--q-acc-rgb) / .1)' : 'transparent',
+                    color: active ? 'var(--q-fg)' : 'var(--q-fg3)',
                     display: 'flex', alignItems: 'center', gap: 9,
                     position: 'relative', transition: 'background 0.12s, color 0.12s',
                   }}
-                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#f4f4f6'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,.05)' } }}
-                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = '#8a8a93'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
+                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-ink-rgb) / .05)' } }}
+                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg3)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent' } }}
                 >
                   {active && (
-                    <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: '#D4FF3F', boxShadow: '0 0 8px rgba(212,255,63,.5)' }} />
+                    <span style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)', width: 3, height: 16, borderRadius: '0 2px 2px 0', background: 'var(--q-acc)', boxShadow: '0 0 8px rgb(var(--q-acc-rgb) / .5)' }} />
                   )}
-                  <Icon size={14} strokeWidth={active ? 2.2 : 1.7} color={active ? '#D4FF3F' : undefined} />
+                  <Icon size={14} strokeWidth={active ? 2.2 : 1.7} style={active ? { color: 'var(--q-acc-text)' } : undefined} />
                   {label}
                   {id === 'publish' && currentManifest && !checklistAllOk && (
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f87171', marginLeft: 'auto', flexShrink: 0 }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--q-danger)', marginLeft: 'auto', flexShrink: 0 }} />
                   )}
                   {id === 'publish' && deployStatus === 'ready' && (
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3ecf8e', marginLeft: 'auto', flexShrink: 0 }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--q-ok)', marginLeft: 'auto', flexShrink: 0 }} />
                   )}
                 </button>
               )
@@ -6659,17 +6660,17 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           <div style={{
             width: 380, flexShrink: 0,
             display: 'flex', flexDirection: 'column',
-            borderRight: '1px solid rgba(255,255,255,.07)',
-            background: '#08080a',
+            borderRight: '1px solid rgb(var(--q-ink-rgb) / .07)',
+            background: 'var(--q-bg)',
           }}>
             {/* Panel header */}
             <div style={{
               flexShrink: 0, height: 36,
               display: 'flex', alignItems: 'center',
               padding: '0 14px',
-              borderBottom: '1px solid rgba(255,255,255,.05)',
+              borderBottom: '1px solid rgb(var(--q-ink-rgb) / .05)',
             }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#f4f4f6', letterSpacing: '-.01em' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--q-fg)', letterSpacing: '-.01em' }}>
                 {STUDIO_MODES.find(m => m.id === desktopTab)?.label}
               </span>
             </div>
@@ -6717,14 +6718,14 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     <div style={{
       position: 'fixed', top: '3rem', left: 0, right: 0, bottom: 0,
       zIndex: 30, display: 'flex', flexDirection: 'column',
-      background: '#08080a',
+      background: 'var(--q-bg)',
     }}>
       {TopBar}
       {HostingBanner}
       {StoreUpdateBanner}
 
       {/* Mobile mode tabs */}
-      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', overflowX: 'auto', scrollbarWidth: 'none', background: '#0d0d11' }}>
+      <div style={{ flexShrink: 0, display: 'flex', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', overflowX: 'auto', scrollbarWidth: 'none', background: 'var(--q-s1)' }}>
         {([
           { id: 'chat',     label: 'Chat'     },
           { id: 'preview',  label: 'Preview'  },
@@ -6740,20 +6741,20 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               flexShrink: 0, padding: '0.55rem 0.8rem', fontSize: 11,
               fontWeight: activeTab === tab ? 600 : 400,
               background: 'none', border: 'none', cursor: 'pointer',
-              color: activeTab === tab ? '#f4f4f6' : '#8a8a93',
-              borderBottom: activeTab === tab ? '2px solid #D4FF3F' : '2px solid transparent',
+              color: activeTab === tab ? 'var(--q-fg)' : 'var(--q-fg3)',
+              borderBottom: activeTab === tab ? '2px solid var(--q-acc)' : '2px solid transparent',
               transition: 'color 0.12s', position: 'relative', whiteSpace: 'nowrap',
             }}
           >
             {label}
             {tab === 'preview' && isGenerating && (
-              <span style={{ marginLeft: 3, fontSize: 8, color: '#D4FF3F' }}>●</span>
+              <span style={{ marginLeft: 3, fontSize: 8, color: 'var(--q-acc-text)' }}>●</span>
             )}
             {tab === 'publish' && deployStatus === 'ready' && (
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: '#3ecf8e' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: 'var(--q-ok)' }} />
             )}
             {tab === 'publish' && currentManifest && !checklistAllOk && deployStatus !== 'ready' && (
-              <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: '#f87171' }} />
+              <span style={{ position: 'absolute', top: 5, right: 5, width: 4, height: 4, borderRadius: '50%', background: 'var(--q-danger)' }} />
             )}
           </button>
         ))}
@@ -6793,8 +6794,8 @@ function StreamingView({ text }: { text: string }) {
   return (
     <div style={{
       borderRadius: 8,
-      background: 'rgba(212,255,63,.06)',
-      border: '1px solid rgba(212,255,63,.15)',
+      background: 'rgb(var(--q-acc-rgb) / .06)',
+      border: '1px solid rgb(var(--q-acc-rgb) / .15)',
       padding: '10px 12px',
       overflow: 'hidden',
     }}>
@@ -6803,23 +6804,23 @@ function StreamingView({ text }: { text: string }) {
       }}>
         <span style={{
           width: 5, height: 5, borderRadius: '50%',
-          background: '#D4FF3F',
-          boxShadow: '0 0 6px rgba(212,255,63,.8)',
+          background: 'var(--q-acc)',
+          boxShadow: '0 0 6px rgb(var(--q-acc-rgb) / .8)',
           animation: 'pulse 1.5s ease-in-out infinite',
           flexShrink: 0,
         }} />
-        <span style={{ fontSize: 10, color: 'rgba(212,255,63,.7)', fontFamily: 'var(--font-geist-mono)', letterSpacing: '.04em' }}>
+        <span style={{ fontSize: 10, color: 'rgb(var(--q-acc-rgb) / .7)', fontFamily: 'var(--q-mono)', letterSpacing: '.04em' }}>
           AI writing
         </span>
       </div>
       <p style={{
-        fontFamily: 'var(--font-geist-mono)', fontSize: 10,
-        color: 'rgba(255,255,255,.25)', lineHeight: 1.6,
+        fontFamily: 'var(--q-mono)', fontSize: 10,
+        color: 'rgb(var(--q-ink-rgb) / .25)', lineHeight: 1.6,
         wordBreak: 'break-all', margin: 0,
         display: '-webkit-box', WebkitLineClamp: 4,
         WebkitBoxOrient: 'vertical', overflow: 'hidden',
       }}>
-        {text}<span style={{ animation: 'blink 1s step-end infinite', opacity: 1, color: 'rgba(212,255,63,.6)' }}>▋</span>
+        {text}<span style={{ animation: 'blink 1s step-end infinite', opacity: 1, color: 'rgb(var(--q-acc-rgb) / .6)' }}>▋</span>
       </p>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
@@ -6839,9 +6840,9 @@ function ChatMessage({ message, onUndo }: { message: Message; onUndo?: () => voi
       <div style={{
         maxWidth: '88%', borderRadius: 10, padding: '8px 12px',
         fontSize: isStatus ? 12 : 14, lineHeight: 1.5,
-        background: isUser ? 'var(--primary)' : isError ? 'rgba(220,60,60,.12)' : isStatus ? 'transparent' : 'var(--secondary)',
-        color: isUser ? 'var(--primary-foreground)' : isError ? '#f87171' : isStatus ? 'var(--muted-foreground)' : 'var(--foreground)',
-        border: isError ? '1px solid rgba(220,60,60,.25)' : 'none',
+        background: isUser ? 'var(--primary)' : isError ? 'rgb(var(--q-danger-rgb) / .12)' : isStatus ? 'transparent' : 'var(--secondary)',
+        color: isUser ? 'var(--primary-foreground)' : isError ? 'var(--q-danger-text)' : isStatus ? 'var(--muted-foreground)' : 'var(--foreground)',
+        border: isError ? '1px solid rgb(var(--q-danger-rgb) / .25)' : 'none',
         fontStyle: isStatus ? 'italic' : 'normal',
       }}>
         {message.content.split('**').map((part, i) =>
@@ -6857,8 +6858,8 @@ function ChatMessage({ message, onUndo }: { message: Message; onUndo?: () => voi
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7,
-            border: '1px solid rgba(212,255,63,.3)', background: 'rgba(212,255,63,.08)',
-            color: '#D4FF3F', textDecoration: 'none',
+            border: '1px solid rgb(var(--q-acc-rgb) / .3)', background: 'rgb(var(--q-acc-rgb) / .08)',
+            color: 'var(--q-acc-text)', textDecoration: 'none',
           }}
         >
           Buy credits →
@@ -6870,8 +6871,8 @@ function ChatMessage({ message, onUndo }: { message: Message; onUndo?: () => voi
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7,
-            border: '1px solid rgba(224,160,79,.35)', background: 'rgba(224,160,79,.08)',
-            color: '#e0a04f', textDecoration: 'none',
+            border: '1px solid rgb(var(--q-warn-rgb) / .35)', background: 'rgb(var(--q-warn-rgb) / .08)',
+            color: 'var(--q-warn-text)', textDecoration: 'none',
           }}
         >
           Contact support →
@@ -6886,15 +6887,15 @@ function ChangeSummaryCard({ summary, onUndo }: { summary: ChangeSummary; onUndo
     <div style={{
       maxWidth: '88%',
       borderRadius: 8,
-      background: 'rgba(62,207,142,.05)',
-      border: '1px solid rgba(62,207,142,.18)',
+      background: 'rgb(var(--q-ok-rgb) / .05)',
+      border: '1px solid rgb(var(--q-ok-rgb) / .18)',
       padding: '8px 10px',
       display: 'flex', flexDirection: 'column', gap: 6,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{
-          fontSize: 10, fontFamily: 'var(--font-geist-mono)',
-          color: 'var(--live)', letterSpacing: '.04em', fontWeight: 600,
+          fontSize: 10, fontFamily: 'var(--q-mono)',
+          color: 'var(--q-ok-text)', letterSpacing: '.04em', fontWeight: 600,
         }}>
           CHANGES
         </span>
@@ -6903,14 +6904,14 @@ function ChangeSummaryCard({ summary, onUndo }: { summary: ChangeSummary; onUndo
             onClick={onUndo}
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
-              fontSize: 10, fontFamily: 'var(--font-geist-mono)',
-              color: '#8a8a93', background: 'none', border: 'none',
+              fontSize: 10, fontFamily: 'var(--q-mono)',
+              color: 'var(--q-fg3)', background: 'none', border: 'none',
               cursor: 'pointer', padding: '1px 6px',
               borderRadius: 4,
               transition: 'color 0.12s',
             }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#f4f4f6')}
-            onMouseLeave={e => (e.currentTarget.style.color = '#8a8a93')}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--q-fg)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--q-fg3)')}
           >
             <RotateCcw size={10} />
             undo
@@ -6920,7 +6921,7 @@ function ChangeSummaryCard({ summary, onUndo }: { summary: ChangeSummary; onUndo
       <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 3 }}>
         {summary.changes.map((change, i) => (
           <li key={i} style={{
-            fontSize: 12, color: 'rgba(62,207,142,.85)', lineHeight: 1.4,
+            fontSize: 12, color: 'rgb(var(--q-ok-rgb) / .85)', lineHeight: 1.4,
             display: 'flex', alignItems: 'flex-start', gap: 5,
           }}>
             <span style={{ flexShrink: 0, marginTop: 1 }}>✓</span>
@@ -6964,21 +6965,21 @@ function SectionPickerModal({ onPick, onClose }: { onPick: (type: string) => voi
         <div style={{
           pointerEvents: 'all',
           width: '100%', maxWidth: 440,
-          background: '#0d0d11',
-          border: '1px solid rgba(255,255,255,.1)',
+          background: 'var(--q-s1)',
+          border: '1px solid rgb(var(--q-ink-rgb) / .1)',
           borderRadius: 14,
           boxShadow: '0 24px 80px rgba(0,0,0,.8)',
           overflow: 'hidden',
         }}>
           {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>Add section</p>
-              <p style={{ fontSize: 11, color: '#8a8a93', margin: '2px 0 0' }}>Pick a section type to add to the home page</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>Add section</p>
+              <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '2px 0 0' }}>Pick a section type to add to the home page</p>
             </div>
-            <button onClick={onClose} style={{ padding: 4, border: 'none', background: 'none', color: '#8a8a93', cursor: 'pointer', display: 'flex', borderRadius: 6, transition: 'color 0.12s' }}
-              onMouseEnter={e => (e.currentTarget.style.color = '#f4f4f6')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#8a8a93')}
+            <button onClick={onClose} style={{ padding: 4, border: 'none', background: 'none', color: 'var(--q-fg3)', cursor: 'pointer', display: 'flex', borderRadius: 6, transition: 'color 0.12s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--q-fg)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--q-fg3)')}
             >
               <X size={16} />
             </button>
@@ -6993,16 +6994,16 @@ function SectionPickerModal({ onPick, onClose }: { onPick: (type: string) => voi
                 style={{
                   display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
                   gap: 4, padding: '12px 14px', borderRadius: 10,
-                  border: '1px solid rgba(255,255,255,.07)',
+                  border: '1px solid rgb(var(--q-ink-rgb) / .07)',
                   background: 'transparent', cursor: 'pointer', textAlign: 'left',
                   transition: 'background 0.12s, border-color 0.12s',
                 }}
-                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(212,255,63,.08)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(212,255,63,.3)' }}
-                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,.07)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-acc-rgb) / .08)'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--q-acc-rgb) / .3)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .07)' }}
               >
                 <span style={{ fontSize: 20, lineHeight: 1 }}>{emoji}</span>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>{label}</p>
-                <p style={{ fontSize: 11, color: '#8a8a93', margin: 0, lineHeight: 1.35 }}>{desc}</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>{label}</p>
+                <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.35 }}>{desc}</p>
               </button>
             ))}
           </div>
@@ -7110,14 +7111,14 @@ function CommandPalette({
       <div style={{
         position: 'fixed', top: '18vh', left: '50%', transform: 'translateX(-50%)',
         zIndex: 201, width: '100%', maxWidth: 520,
-        background: '#0d0d11', borderRadius: 14,
-        border: '1px solid rgba(255,255,255,.1)',
+        background: 'var(--q-s1)', borderRadius: 14,
+        border: '1px solid rgb(var(--q-ink-rgb) / .1)',
         boxShadow: '0 32px 100px rgba(0,0,0,.9)',
         overflow: 'hidden',
       }}>
         {/* Search */}
-        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 15, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)', flexShrink: 0 }}>⌘</span>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 15, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)', flexShrink: 0 }}>⌘</span>
           <input
             ref={inputRef}
             value={query}
@@ -7126,25 +7127,25 @@ function CommandPalette({
             placeholder="Search commands…"
             style={{
               flex: 1, background: 'none', border: 'none', outline: 'none',
-              fontSize: 14, color: '#f4f4f6', fontFamily: 'inherit',
+              fontSize: 14, color: 'var(--q-fg)', fontFamily: 'inherit',
             }}
           />
           {query && (
-            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', color: '#5b5b64', cursor: 'pointer', fontSize: 12, padding: '2px 4px', borderRadius: 4, lineHeight: 1 }}>✕</button>
+            <button onClick={() => setQuery('')} style={{ background: 'none', border: 'none', color: 'var(--q-fg4)', cursor: 'pointer', fontSize: 12, padding: '2px 4px', borderRadius: 4, lineHeight: 1 }}>✕</button>
           )}
         </div>
 
         {/* Results */}
         <div style={{ maxHeight: 360, overflowY: 'auto', padding: '6px 0' }}>
           {filtered.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#5b5b64', textAlign: 'center', padding: '2rem 1rem', margin: 0 }}>No commands found</p>
+            <p style={{ fontSize: 13, color: 'var(--q-fg4)', textAlign: 'center', padding: '2rem 1rem', margin: 0 }}>No commands found</p>
           ) : (
             groups.map(group => (
               <div key={group.name}>
                 <p style={{
-                  fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600,
+                  fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600,
                   textTransform: 'uppercase', letterSpacing: '.07em',
-                  color: '#5b5b64', padding: '6px 14px 2px', margin: 0,
+                  color: 'var(--q-fg4)', padding: '6px 14px 2px', margin: 0,
                 }}>
                   {group.name}
                 </p>
@@ -7159,16 +7160,16 @@ function CommandPalette({
                       style={{
                         width: '100%', display: 'flex', alignItems: 'center',
                         padding: '7px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
-                        background: active ? 'rgba(212,255,63,.12)' : 'transparent',
+                        background: active ? 'rgb(var(--q-acc-rgb) / .12)' : 'transparent',
                         transition: 'background 0.08s',
                       }}
                     >
                       <div>
-                        <p style={{ fontSize: 13, color: active ? '#f4f4f6' : '#c8c8d0', margin: 0, fontWeight: active ? 500 : 400 }}>
+                        <p style={{ fontSize: 13, color: active ? 'var(--q-fg)' : 'var(--q-fg2)', margin: 0, fontWeight: active ? 500 : 400 }}>
                           {cmd.label}
                         </p>
                         {cmd.hint && (
-                          <p style={{ fontSize: 11, color: '#5b5b64', margin: '1px 0 0' }}>{cmd.hint}</p>
+                          <p style={{ fontSize: 11, color: 'var(--q-fg4)', margin: '1px 0 0' }}>{cmd.hint}</p>
                         )}
                       </div>
                     </button>
@@ -7180,14 +7181,14 @@ function CommandPalette({
         </div>
 
         {/* Footer hints */}
-        <div style={{ padding: '8px 14px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', gap: 16 }}>
+        <div style={{ padding: '8px 14px', borderTop: '1px solid rgb(var(--q-ink-rgb) / .06)', display: 'flex', gap: 16 }}>
           {([['↑↓', 'Navigate'], ['↵', 'Select'], ['Esc', 'Close']] as [string, string][]).map(([key, label]) => (
-            <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#5b5b64' }}>
+            <span key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--q-fg4)' }}>
               <kbd style={{
                 padding: '1px 5px', borderRadius: 4,
-                border: '1px solid rgba(255,255,255,.1)',
-                fontFamily: 'var(--font-geist-mono)', fontSize: 10,
-                background: 'rgba(255,255,255,.04)',
+                border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+                fontFamily: 'var(--q-mono)', fontSize: 10,
+                background: 'rgb(var(--q-ink-rgb) / .04)',
               }}>{key}</kbd>
               {label}
             </span>

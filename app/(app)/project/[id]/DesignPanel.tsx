@@ -42,11 +42,11 @@ const SHADOWS: Record<string, string> = {
 }
 
 const ui = {
-  text: '#f4f4f6', muted: '#8a8a93', faint: '#5b5b64', accent: '#D4FF3F',
-  field: '#08080a', border: 'rgba(255,255,255,.1)', hover: 'rgba(255,255,255,.06)',
+  text: 'var(--q-fg)', muted: 'var(--q-fg3)', faint: 'var(--q-fg4)', accent: 'var(--q-acc)',
+  field: 'var(--q-bg)', border: 'rgb(var(--q-ink-rgb) / .1)', hover: 'rgb(var(--q-ink-rgb) / .06)',
 }
 const fieldBox: React.CSSProperties = { display: 'flex', alignItems: 'center', height: 26, background: ui.field, border: `1px solid ${ui.border}`, borderRadius: 6, minWidth: 0 }
-const inputStyle: React.CSSProperties = { flex: 1, minWidth: 0, width: '100%', background: 'transparent', border: 'none', outline: 'none', color: ui.text, fontSize: 11, fontFamily: 'var(--font-geist-mono)', padding: '0 6px 0 0' }
+const inputStyle: React.CSSProperties = { flex: 1, minWidth: 0, width: '100%', background: 'transparent', border: 'none', outline: 'none', color: ui.text, fontSize: 11, fontFamily: 'var(--q-mono)', padding: '0 6px 0 0' }
 
 const px = (s?: string) => { const n = parseFloat(s ?? ''); return Number.isFinite(n) ? n : null }
 const round = (n: number, d = 2) => Math.round(n * 10 ** d) / 10 ** d
@@ -70,7 +70,7 @@ const firstFont = (f?: string) => (f ?? '').split(',')[0].replace(/["']/g, '').t
 function Section({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div style={{ borderTop: '1px solid rgba(255,255,255,.06)', padding: '10px 0 4px' }}>
+    <div style={{ borderTop: '1px solid rgb(var(--q-ink-rgb) / .06)', padding: '10px 0 4px' }}>
       <button onClick={() => setOpen((o) => !o)} style={{ display: 'flex', alignItems: 'center', gap: 4, width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: ui.text, fontSize: 11, fontWeight: 600, marginBottom: open ? 8 : 6 }}>
         {open ? <ChevronDown size={11} color={ui.muted} /> : <ChevronRight size={11} color={ui.muted} />} {title}
       </button>
@@ -103,7 +103,7 @@ function Segmented<T extends string>({ options, value, onChange }: {
       {options.map((o) => {
         const on = o.value === value
         return (
-          <button key={o.value} title={o.title ?? o.label} onClick={() => onChange(o.value)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 600, color: on ? ui.text : ui.muted, background: on ? 'rgba(255,255,255,.12)' : 'transparent', padding: '0 4px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+          <button key={o.value} title={o.title ?? o.label} onClick={() => onChange(o.value)} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3, border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 10, fontWeight: 600, color: on ? ui.text : ui.muted, background: on ? 'rgb(var(--q-ink-rgb) / .12)' : 'transparent', padding: '0 4px', whiteSpace: 'nowrap', overflow: 'hidden' }}>
             {o.icon ? <o.icon size={12} /> : o.label}
           </button>
         )
@@ -114,7 +114,7 @@ function Segmented<T extends string>({ options, value, onChange }: {
 
 function Toggle({ on, onClick, icon: Icon, title }: { on: boolean; onClick: () => void; icon: React.ElementType; title: string }) {
   return (
-    <button title={title} onClick={onClick} style={{ width: 28, height: 26, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, cursor: 'pointer', border: `1px solid ${on ? 'rgba(212,255,63,.45)' : ui.border}`, background: on ? 'rgba(212,255,63,.12)' : ui.field, color: on ? ui.accent : ui.muted }}>
+    <button title={title} onClick={onClick} style={{ width: 28, height: 26, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6, cursor: 'pointer', border: `1px solid ${on ? 'rgb(var(--q-acc-rgb) / .45)' : ui.border}`, background: on ? 'rgb(var(--q-acc-rgb) / .12)' : ui.field, color: on ? ui.accent : ui.muted }}>
       <Icon size={12} />
     </button>
   )
@@ -183,7 +183,7 @@ function NumberField({ label, value, unit, step = 1, min, max, stamp, placeholde
         }}
         onPointerUp={() => { const d = drag.current; drag.current = null; if (d?.moved && live !== null) onCommit(live) }}
         title="Drag to change"
-        style={{ cursor: 'ew-resize', userSelect: 'none', padding: '0 6px', fontSize: 10, color: ui.faint, fontFamily: 'var(--font-geist-mono)', minWidth: label ? 18 : 8, textAlign: 'center' }}
+        style={{ cursor: 'ew-resize', userSelect: 'none', padding: '0 6px', fontSize: 10, color: ui.faint, fontFamily: 'var(--q-mono)', minWidth: label ? 18 : 8, textAlign: 'center' }}
       >
         {label ?? '↔'}
       </span>
@@ -234,14 +234,14 @@ function ColorField({ prefix, classColor, computed, theme, allowNone, onPreview,
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       <button onClick={() => setOpen((o) => !o)} style={{ ...fieldBox, width: '100%', cursor: 'pointer', gap: 6, padding: '0 6px' }}>
-        <span style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, border: '1px solid rgba(255,255,255,.2)', background: hex === 'transparent' ? 'repeating-conic-gradient(#444 0 25%, #222 0 50%) 0 0 / 8px 8px' : computed || 'transparent' }} />
-        <span style={{ fontSize: 11, color: ui.text, fontFamily: token ? 'inherit' : 'var(--font-geist-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+        <span style={{ width: 14, height: 14, borderRadius: 4, flexShrink: 0, border: '1px solid rgb(var(--q-ink-rgb) / .2)', background: hex === 'transparent' ? 'repeating-conic-gradient(var(--q-dim) 0 25%, var(--q-s3) 0 50%) 0 0 / 8px 8px' : computed || 'transparent' }} />
+        <span style={{ fontSize: 11, color: ui.text, fontFamily: token ? 'inherit' : 'var(--q-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
       </button>
       {open && (
-        <div style={{ marginTop: 6, padding: 8, background: '#101014', border: `1px solid ${ui.border}`, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ marginTop: 6, padding: 8, background: 'var(--q-s1)', border: `1px solid ${ui.border}`, borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
             {THEME_COLOR_TOKENS.map((t) => (
-              <button key={t} title={t} onClick={() => onPick(t, { [prop]: `var(--color-${t})` })} style={{ aspectRatio: '1', borderRadius: 5, cursor: 'pointer', background: theme[`--color-${t}`] || '#888', border: token === t ? `2px solid ${ui.accent}` : '1px solid rgba(255,255,255,.2)' }} />
+              <button key={t} title={t} onClick={() => onPick(t, { [prop]: `var(--color-${t})` })} style={{ aspectRatio: '1', borderRadius: 5, cursor: 'pointer', background: theme[`--color-${t}`] || 'var(--q-fg3)', border: token === t ? `2px solid ${ui.accent}` : '1px solid rgb(var(--q-ink-rgb) / .2)' }} />
             ))}
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
 import { LayoutGrid, Plus, CreditCard, Settings, Store } from 'lucide-react'
 import { CreditPill } from '@/components/shell/CreditPill'
+import { AdMark, MotionToggle, ParticleMode, ThemeToggle } from '@ad/ui'
+import '@ad/ui/styles/assetra.css'
+import './app.css'
 
 const NAV = [
   { href: '/dashboard',    icon: LayoutGrid, label: 'Projects'    },
@@ -19,32 +22,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isStudio = pathname.startsWith('/project/')
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      height: '100dvh', background: '#08080a',
-    }}>
+    // .ad gives the app the AssetraDigital surface (page background, focus ring, design classes);
+    // .ad-app keeps it calm: no grain, cursor or bands, particles only in empty / loading states.
+    <div className="ad ad-app" style={{ display: 'flex', flexDirection: 'column', height: '100dvh' }}>
+      <ParticleMode mode="app" />
 
       {/* ── Global header ──────────────────────────────────────────────── */}
-      <header style={{
-        position: 'sticky', top: 0, zIndex: 40,
-        height: '3rem', flexShrink: 0,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 1rem',
-        background: 'rgba(8,8,10,.92)',
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgba(255,255,255,.07)',
-      }}>
-        <Link href="/dashboard" style={{
-          fontFamily: 'var(--font-geist-mono)',
-          fontSize: 13, fontWeight: 700,
-          color: '#f4f4f6', textDecoration: 'none',
-          letterSpacing: '-.02em',
-        }}>
-          quante
+      <header className="ad-app-head">
+        <Link href="/dashboard" className="ad-app-logo" aria-label="Quante, projects">
+          <AdMark />
+          <span>Quante</span>
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {!isStudio && <CreditPill compact />}
+          <MotionToggle lang="en" />
+          <ThemeToggle lang="en" />
           <UserButton appearance={{ elements: { avatarBox: { width: 28, height: 28 } } }} />
         </div>
       </header>
@@ -58,63 +51,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <>
           <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
 
-            {/* Ambient background layer — fixed, behind all content */}
-            <div style={{
-              position: 'fixed', inset: 0, zIndex: 0,
-              pointerEvents: 'none', overflow: 'hidden',
-            }}>
-              {/* Blob 1 */}
-              <div className="blob-drift1" style={{
-                position: 'absolute',
-                width: 560, height: 560,
-                top: -80, left: 60,
-                background: 'radial-gradient(circle,rgba(212,255,63,.14),transparent 66%)',
-                borderRadius: '50%',
-              }} />
-              {/* Blob 2 */}
-              <div className="blob-drift2" style={{
-                position: 'absolute',
-                width: 480, height: 480,
-                bottom: -80, right: -40,
-                background: 'radial-gradient(circle,rgba(62,207,142,.06),transparent 66%)',
-                borderRadius: '50%',
-              }} />
-              {/* Blob 3 */}
-              <div className="blob-drift1r" style={{
-                position: 'absolute',
-                width: 360, height: 360,
-                top: '45%', left: '55%',
-                background: 'radial-gradient(circle,rgba(212,255,63,.10),transparent 68%)',
-                borderRadius: '50%',
-              }} />
-              {/* Grain overlay */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                opacity: 0.025,
-              }} />
+            {/* Ambient background — two calm, static glows behind all content */}
+            <div aria-hidden="true" className="ad-app-ambient">
+              <i />
+              <i />
             </div>
 
             {/* Desktop sidebar — hidden on mobile via Tailwind */}
             <aside
-              className="hidden lg:flex flex-col"
-              style={{
-                width: 220, flexShrink: 0,
-                background: '#0d0d11',
-                borderRight: '1px solid rgba(255,255,255,.07)',
-                position: 'relative', zIndex: 1,
-              }}
+              className="ad-app-side hidden lg:flex flex-col"
+              style={{ width: 220, flexShrink: 0, position: 'relative', zIndex: 1 }}
             >
               {/* Nav */}
               <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <p style={{
-                  fontSize: 10, fontFamily: 'var(--font-geist-mono)',
-                  color: '#5b5b64', fontWeight: 600,
-                  letterSpacing: '.06em', textTransform: 'uppercase',
-                  padding: '4px 12px 10px',
-                }}>
-                  workspace
-                </p>
+                <p className="ad-app-label">workspace</p>
                 {NAV.map(({ href, icon: Icon, label }) => {
                   const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
                   return (
@@ -126,15 +76,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {/* Bottom: credits + user */}
               <div style={{
                 padding: '12px 14px 16px',
-                borderTop: '1px solid rgba(255,255,255,.07)',
+                borderTop: '1px solid rgb(var(--q-ink-rgb) / .07)',
                 display: 'flex', flexDirection: 'column', gap: 10,
               }}>
                 <CreditPill />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
                   <UserButton appearance={{ elements: { avatarBox: { width: 26, height: 26 } } }} />
                   <span style={{
-                    fontSize: 12, color: '#8a8a93',
-                    fontFamily: 'var(--font-geist-mono)',
+                    fontSize: 12, color: 'var(--q-fg3)',
+                    fontFamily: 'var(--q-mono)',
                   }}>
                     account
                   </span>
@@ -157,9 +107,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             style={{
               position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40,
               height: '4rem',
-              background: 'rgba(8,8,10,.95)',
+              background: 'rgb(var(--q-bg-rgb) / .95)',
               backdropFilter: 'blur(12px)',
-              borderTop: '1px solid rgba(255,255,255,.07)',
+              borderTop: '1px solid rgb(var(--q-ink-rgb) / .07)',
             }}
           >
             {NAV.map(({ href, icon: Icon, label }) => {
@@ -193,20 +143,20 @@ function SidebarLink({
         padding: '8px 12px', borderRadius: 8,
         textDecoration: 'none', fontSize: 13,
         fontWeight: active ? 550 : 400,
-        color: active ? '#D4FF3F' : '#8a8a93',
-        background: active ? 'rgba(212,255,63,.1)' : 'transparent',
+        color: active ? 'var(--q-acc-text)' : 'var(--q-fg3)',
+        background: active ? 'rgb(var(--q-acc-rgb) / .1)' : 'transparent',
         transition: 'color 0.12s, background 0.12s',
         position: 'relative',
       }}
       onMouseEnter={(e) => {
         if (!active) {
-          ;(e.currentTarget as HTMLAnchorElement).style.color = '#f4f4f6'
-          ;(e.currentTarget as HTMLAnchorElement).style.background = 'rgba(255,255,255,.05)'
+          ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg)'
+          ;(e.currentTarget as HTMLAnchorElement).style.background = 'rgb(var(--q-ink-rgb) / .05)'
         }
       }}
       onMouseLeave={(e) => {
         if (!active) {
-          ;(e.currentTarget as HTMLAnchorElement).style.color = '#8a8a93'
+          ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg3)'
           ;(e.currentTarget as HTMLAnchorElement).style.background = 'transparent'
         }
       }}
@@ -215,8 +165,8 @@ function SidebarLink({
         <span style={{
           position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
           width: 3, height: 16, borderRadius: '0 2px 2px 0',
-          background: '#D4FF3F',
-          boxShadow: '0 0 8px rgba(212,255,63,.5)',
+          background: 'var(--q-acc)',
+          boxShadow: '0 0 8px rgb(var(--q-acc-rgb) / .5)',
         }} />
       )}
       <Icon size={15} strokeWidth={active ? 2.2 : 1.7} />
@@ -240,7 +190,7 @@ function BottomNavItem({
         flex: 1, display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 3,
         textDecoration: 'none',
-        color: active ? '#f4f4f6' : '#8a8a93',
+        color: active ? 'var(--q-fg)' : 'var(--q-fg3)',
         transition: 'color 0.15s',
         position: 'relative',
       }}
@@ -249,8 +199,8 @@ function BottomNavItem({
         <span style={{
           position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
           width: 28, height: 2, borderRadius: '0 0 2px 2px',
-          background: '#D4FF3F',
-          boxShadow: '0 0 8px rgba(212,255,63,.7)',
+          background: 'var(--q-acc)',
+          boxShadow: '0 0 8px rgb(var(--q-acc-rgb) / .7)',
         }} />
       )}
       <Icon size={19} strokeWidth={active ? 2.2 : 1.6} />

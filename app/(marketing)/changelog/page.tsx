@@ -38,7 +38,7 @@ interface Entry {
   slug?: string | null
 }
 
-const mono = 'var(--font-geist-mono)'
+const mono = 'var(--q-mono)'
 
 function groupByMonth(items: Entry[]) {
   const groups: Record<string, Entry[]> = {}
@@ -111,12 +111,12 @@ export default async function ChangelogPage() {
       <ChangelogLiveRefresh />
       {showDbWarning && (
         <div style={{
-          background: 'rgba(248,113,113,.08)',
-          border: '1px solid rgba(248,113,113,.35)',
+          background: 'rgb(var(--q-danger-rgb) / .08)',
+          border: '1px solid rgb(var(--q-danger-rgb) / .35)',
           borderRadius: 10,
           padding: '12px 16px',
           marginBottom: 24,
-          color: '#D6534A',
+          color: 'var(--q-danger-text)',
           fontFamily: mono,
           fontSize: 12,
           lineHeight: 1.5,

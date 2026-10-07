@@ -321,7 +321,7 @@ export function QadsGeneratorClient() {
             Qads — generator
           </p>
           <h1 style={{ fontSize: 'clamp(28px,3.6vw,44px)', fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.05, margin: '0 0 8px' }}>
-            Ad <span style={{ color: 'var(--qp-accent)' }}>videos and photos</span> from one product shot.
+            Ad <span style={{ color: 'var(--qp-accent-deep)' }}>videos and photos</span> from one product shot.
           </h1>
           <p style={{ fontSize: 15, color: 'var(--qp-sub)', maxWidth: 600, margin: 0 }}>
             Upload a photo, pick a style and formats. Download the finished creatives — where you post them is up to you.
@@ -481,7 +481,7 @@ function FormPanel(props: {
               style={{
                 textAlign: 'left', padding: '10px 12px', borderRadius: 8,
                 border: `1px solid ${form.style === s.id ? 'var(--qp-accent)' : 'var(--qp-line)'}`,
-                background: form.style === s.id ? 'rgba(212,255,63,0.06)' : 'var(--qp-bg-alt)',
+                background: form.style === s.id ? 'rgb(var(--q-acc-rgb) / 0.06)' : 'var(--qp-bg-alt)',
                 cursor: 'pointer', color: 'var(--qp-ink)',
               }}
             >
@@ -527,7 +527,7 @@ function FormPanel(props: {
       </div>
 
       {submitError && (
-        <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(224,86,79,0.08)', border: '1px solid rgba(224,86,79,0.3)', fontSize: 12, color: '#e0564f' }}>
+        <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgb(var(--q-danger-rgb) / 0.08)', border: '1px solid rgb(var(--q-danger-rgb) / 0.3)', fontSize: 12, color: 'var(--q-danger-text)' }}>
           {submitError}
         </div>
       )}
@@ -568,9 +568,9 @@ function submitButtonStyle(enabled: boolean): React.CSSProperties {
     padding: '12px 18px', borderRadius: 8,
     fontSize: 14, fontWeight: 700, letterSpacing: '.02em',
     background: enabled ? 'var(--qp-accent)' : 'var(--qp-line)',
-    color: enabled ? '#08080a' : 'var(--qp-mut)',
+    color: enabled ? 'var(--q-acc-ink)' : 'var(--qp-mut)',
     border: 'none', cursor: enabled ? 'pointer' : 'not-allowed',
-    boxShadow: enabled ? '0 0 20px rgba(212,255,63,0.25)' : 'none',
+    boxShadow: enabled ? '0 0 20px rgb(var(--q-acc-rgb) / 0.25)' : 'none',
   }
 }
 
@@ -597,7 +597,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       style={{
         padding: '6px 12px', borderRadius: 99, cursor: 'pointer',
         border: `1px solid ${active ? 'var(--qp-accent)' : 'var(--qp-line)'}`,
-        background: active ? 'rgba(212,255,63,0.10)' : 'var(--qp-bg-alt)',
+        background: active ? 'rgb(var(--q-acc-rgb) / 0.10)' : 'var(--qp-bg-alt)',
         color: active ? 'var(--qp-accent-deep)' : 'var(--qp-sub)',
         fontSize: 12, fontFamily: 'var(--qp-mono)', letterSpacing: '.02em',
       }}
@@ -653,7 +653,7 @@ function PhotoUploader(props: {
         style={{
           padding: 20, borderRadius: 8, textAlign: 'center', cursor: canAdd ? 'pointer' : 'default',
           border: `1px dashed ${dragOver ? 'var(--qp-accent)' : 'var(--qp-line)'}`,
-          background: dragOver ? 'rgba(212,255,63,0.06)' : 'var(--qp-bg-alt)',
+          background: dragOver ? 'rgb(var(--q-acc-rgb) / 0.06)' : 'var(--qp-bg-alt)',
           color: 'var(--qp-sub)', fontSize: 12,
         }}
       >
@@ -668,7 +668,7 @@ function PhotoUploader(props: {
         onChange={e => onUpload(e.target.files)}
       />
       {error && (
-        <p style={{ marginTop: 6, fontSize: 11, color: '#e0564f' }}>{error}</p>
+        <p style={{ marginTop: 6, fontSize: 11, color: 'var(--q-danger-text)' }}>{error}</p>
       )}
       {photos.length > 0 && (
         <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
@@ -782,7 +782,7 @@ function ResultsPanel({ detail, activeGenerationId, onItemRegenerated }: { detai
           style={{
             padding: '9px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
             background: canZip ? 'var(--qp-accent)' : 'var(--qp-line)',
-            color: canZip ? '#08080a' : 'var(--qp-mut)',
+            color: canZip ? 'var(--q-acc-ink)' : 'var(--qp-mut)',
             textDecoration: 'none', cursor: canZip ? 'pointer' : 'not-allowed',
           }}
         >
@@ -871,13 +871,13 @@ function ItemCard({ item, copy, generationId, onRegenerated }: { item: Generatio
         </div>
       )}
       {(item.status === 'failed' || item.status === 'nsfw') && (
-        <div style={{ fontSize: 11, color: '#e0564f' }}>{item.errorMessage ?? 'Failed'}</div>
+        <div style={{ fontSize: 11, color: 'var(--q-danger-text)' }}>{item.errorMessage ?? 'Failed'}</div>
       )}
       {(item.status === 'failed' || item.status === 'nsfw') && (
         <button type="button" onClick={regenerate} disabled={regenerating} style={btnSmallPrimary()}>{regenerating ? '…' : 'Try again'}</button>
       )}
       {regenError && (
-        <div role="alert" style={{ fontSize: 11, color: '#e0564f' }}>{regenError}</div>
+        <div role="alert" style={{ fontSize: 11, color: 'var(--q-danger-text)' }}>{regenError}</div>
       )}
       {copy && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4, borderTop: '1px solid var(--qp-line-soft)', paddingTop: 8 }}>
@@ -900,13 +900,13 @@ function CopyRow({ label, text, copiedText, onCopy }: { label: string; text: str
       style={{
         display: 'flex', alignItems: 'flex-start', gap: 6, textAlign: 'left',
         padding: '4px 6px', borderRadius: 4, border: '1px solid transparent',
-        background: copied ? 'rgba(62,207,142,0.10)' : 'transparent',
+        background: copied ? 'rgb(var(--q-ok-rgb) / 0.10)' : 'transparent',
         color: 'var(--qp-ink)', cursor: 'pointer', fontSize: 11,
       }}
     >
       <span style={{ fontFamily: 'var(--qp-mono)', fontSize: 9.5, color: 'var(--qp-mut)', textTransform: 'uppercase', letterSpacing: '.06em', minWidth: 48 }}>{label}</span>
       <span style={{ flex: 1 }}>{text}</span>
-      <span style={{ fontSize: 10, color: copied ? '#3ecf8e' : 'var(--qp-mut)' }}>{copied ? '✓' : '⧉'}</span>
+      <span style={{ fontSize: 10, color: copied ? 'var(--q-ok-text)' : 'var(--qp-mut)' }}>{copied ? '✓' : '⧉'}</span>
     </button>
   )
 }
@@ -922,10 +922,10 @@ function StatusPill({ status }: { status: GenerationItem['status'] }) {
   }
   const color: Record<GenerationItem['status'], string> = {
     queued: 'var(--qp-mut)',
-    generating: '#e0a04f',
-    completed: '#3ecf8e',
-    failed: '#e0564f',
-    nsfw: '#e0564f',
+    generating: 'var(--q-warn)',
+    completed: 'var(--q-ok)',
+    failed: 'var(--q-danger)',
+    nsfw: 'var(--q-danger)',
     canceled: 'var(--qp-mut)',
   }
   return (
@@ -950,7 +950,7 @@ function HistoryPanel({ history, activeGenerationId, onSelect }: { history: Gene
               style={{
                 padding: '10px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
                 border: `1px solid ${active ? 'var(--qp-accent)' : 'var(--qp-line)'}`,
-                background: active ? 'rgba(212,255,63,0.06)' : 'var(--qp-bg-alt)',
+                background: active ? 'rgb(var(--q-acc-rgb) / 0.06)' : 'var(--qp-bg-alt)',
                 color: 'var(--qp-ink)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
               }}
@@ -976,7 +976,7 @@ function HistoryPanel({ history, activeGenerationId, onSelect }: { history: Gene
 function btnSmallPrimary(): React.CSSProperties {
   return {
     padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700,
-    background: 'var(--qp-accent)', color: '#08080a', border: 'none', cursor: 'pointer',
+    background: 'var(--qp-accent)', color: 'var(--q-acc-ink)', border: 'none', cursor: 'pointer',
     textDecoration: 'none',
   }
 }

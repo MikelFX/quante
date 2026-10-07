@@ -59,10 +59,10 @@ export default async function AdminPage() {
   const changelogEntries = (changelogRows ?? []) as ChangelogEntry[]
 
   const statusColor: Record<string, string> = {
-    active: '#3ecf8e',
-    past_due: '#e0a04f',
-    canceled: '#8a8a93',
-    trialing: '#D4FF3F',
+    active: 'var(--q-ok)',
+    past_due: 'var(--q-warn)',
+    canceled: 'var(--q-fg3)',
+    trialing: 'var(--q-acc)',
   }
 
   return (
@@ -70,24 +70,24 @@ export default async function AdminPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
         <h1 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em' }}>Admin — Agency subscribers</h1>
         <span style={{
-          fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64',
-          padding: '3px 8px', borderRadius: 5, background: 'rgba(255,255,255,.05)',
-          border: '1px solid rgba(255,255,255,.08)',
+          fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)',
+          padding: '3px 8px', borderRadius: 5, background: 'rgb(var(--q-ink-rgb) / .05)',
+          border: '1px solid rgb(var(--q-ink-rgb) / .08)',
         }}>
           {users.length} subscriber{users.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {users.length === 0 ? (
-        <div style={{ borderRadius: 12, border: '1px dashed rgba(255,255,255,.09)', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ fontSize: 13, color: '#8a8a93', margin: 0 }}>No agency subscribers yet.</p>
+        <div style={{ borderRadius: 12, border: '1px dashed rgb(var(--q-ink-rgb) / .09)', padding: '3rem', textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: 'var(--q-fg3)', margin: 0 }}>No agency subscribers yet.</p>
         </div>
       ) : (
-        <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,.07)', overflow: 'hidden' }}>
+        <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ink-rgb) / .07)', overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', gap: 12, padding: '8px 18px', background: 'rgba(255,255,255,.02)', borderBottom: '1px solid rgba(255,255,255,.07)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', gap: 12, padding: '8px 18px', background: 'rgb(var(--q-ink-rgb) / .02)', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .07)' }}>
             {['User ID', 'Status', 'Projects', 'Next billing', 'Subscription'].map((h, i) => (
-              <p key={h} style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: '#5b5b64', margin: 0, textAlign: i > 0 ? 'right' : 'left' }}>
+              <p key={h} style={{ fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--q-fg4)', margin: 0, textAlign: i > 0 ? 'right' : 'left' }}>
                 {h}
               </p>
             ))}
@@ -97,21 +97,21 @@ export default async function AdminPage() {
             <div key={u.id} style={{
               display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr', gap: 12,
               padding: '12px 18px', alignItems: 'center',
-              borderBottom: idx < users.length - 1 ? '1px solid rgba(255,255,255,.04)' : 'none',
+              borderBottom: idx < users.length - 1 ? '1px solid rgb(var(--q-ink-rgb) / .04)' : 'none',
             }}>
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#8a8a93', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {u.id}
               </span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, color: statusColor[u.subscription_status ?? ''] ?? '#8a8a93', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+              <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', fontWeight: 600, color: statusColor[u.subscription_status ?? ''] ?? 'var(--q-fg3)', textAlign: 'right', textTransform: 'uppercase', letterSpacing: '.04em' }}>
                 {u.subscription_status ?? '—'}
               </span>
-              <span style={{ fontSize: 13, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6', textAlign: 'right' }}>
+              <span style={{ fontSize: 13, fontFamily: 'var(--q-mono)', color: 'var(--q-fg)', textAlign: 'right' }}>
                 {counts[u.id] ?? 0} / {u.project_limit}
               </span>
-              <span style={{ fontSize: 12, color: '#8a8a93', textAlign: 'right' }}>
+              <span style={{ fontSize: 12, color: 'var(--q-fg3)', textAlign: 'right' }}>
                 {formatDate(u.current_period_end)}
               </span>
-              <span style={{ fontSize: 10, fontFamily: 'var(--font-geist-mono)', color: '#5b5b64', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)', textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {u.stripe_subscription_id ?? '—'}
               </span>
             </div>

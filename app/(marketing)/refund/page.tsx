@@ -33,7 +33,7 @@ export default function RefundPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: 'var(--q-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Legal
       </p>
       <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: 'var(--qp-ink)' }}>
@@ -67,7 +67,7 @@ export default function RefundPage() {
       <Section title="5. How to request a refund">
         <p>
           Contact us{email
-            ? <> at <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></>
+            ? <> at <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent-deep)' }}>{email}</a></>
             : ' using the contact information in our Terms of Service'
           } with:
         </p>

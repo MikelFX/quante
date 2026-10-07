@@ -19,16 +19,16 @@ export interface ChangelogEntry {
   deployment_id?: string | null
 }
 
-const mono = 'var(--font-geist-mono)'
+const mono = 'var(--q-mono)'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: 'rgba(255,255,255,.04)',
-  border: '1px solid rgba(255,255,255,.09)',
+  background: 'rgb(var(--q-ink-rgb) / .04)',
+  border: '1px solid rgb(var(--q-ink-rgb) / .09)',
   borderRadius: 8,
   padding: '8px 12px',
   fontSize: 13,
-  color: '#f4f4f6',
+  color: 'var(--q-fg)',
   outline: 'none',
 }
 
@@ -133,13 +133,13 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
     <section style={{ marginTop: '3rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <h2 style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em', margin: 0 }}>
-          Changelog {editingId && <span style={{ fontFamily: mono, fontSize: 11, color: '#e0a04f', marginLeft: 8 }}>editing</span>}
+          Changelog {editingId && <span style={{ fontFamily: mono, fontSize: 11, color: 'var(--q-warn-text)', marginLeft: 8 }}>editing</span>}
         </h2>
       </div>
 
       <form onSubmit={handleSubmit} style={{
         display: 'flex', flexDirection: 'column', gap: 10,
-        border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: 18,
+        border: '1px solid rgb(var(--q-ink-rgb) / .07)', borderRadius: 12, padding: 18,
         marginBottom: '1.25rem',
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
@@ -167,8 +167,8 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
                   fontFamily: mono, fontSize: 11, letterSpacing: '.04em',
                   padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
                   background: on ? TAG_BG[tag] : 'transparent',
-                  color: on ? TAG_FG[tag] : '#8a8a93',
-                  border: `1px solid ${on ? TAG_FG[tag] + '55' : 'rgba(255,255,255,.09)'}`,
+                  color: on ? TAG_FG[tag] : 'var(--q-fg3)',
+                  border: `1px solid ${on ? TAG_FG[tag] + '55' : 'rgb(var(--q-ink-rgb) / .09)'}`,
                 }}
               >
                 {tag}
@@ -180,14 +180,14 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           {editingId && (
             <button type="button" onClick={resetForm} style={{
-              background: 'none', border: '1px solid rgba(255,255,255,.12)', color: '#8a8a93',
+              background: 'none', border: '1px solid rgb(var(--q-ink-rgb) / .12)', color: 'var(--q-fg3)',
               borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: 'pointer',
             }}>
               Cancel
             </button>
           )}
           <button type="submit" disabled={busy} style={{
-            background: '#f4f4f6', color: '#0a0a0e', border: 'none', borderRadius: 8,
+            background: 'var(--q-acc)', color: 'var(--q-acc-ink)', border: 'none', borderRadius: 8,
             padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: busy ? 'default' : 'pointer',
             opacity: busy ? 0.6 : 1,
           }}>
@@ -195,12 +195,12 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
           </button>
         </div>
 
-        {error && <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{error}</p>}
+        {error && <p style={{ fontSize: 12, color: 'var(--q-danger-text)', margin: 0 }}>{error}</p>}
       </form>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {entries.length === 0 && (
-          <p style={{ fontSize: 12.5, color: '#5b5b64' }}>
+          <p style={{ fontSize: 12.5, color: 'var(--q-fg4)' }}>
             No entries in the database yet — run supabase/migration-changelog.sql (and migration-changelog-v2.sql) to seed.
           </p>
         )}
@@ -213,26 +213,26 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
           return (
             <div key={entry.id} style={{
               display: 'grid', gridTemplateColumns: '90px 1fr auto', gap: 10, alignItems: 'start',
-              border: `1px solid ${isDraft ? 'rgba(224,160,79,.4)' : isEditing ? 'rgba(224,160,79,.35)' : 'rgba(255,255,255,.06)'}`,
-              background: isDraft ? 'rgba(224,160,79,.05)' : isEditing ? 'rgba(224,160,79,.04)' : 'transparent',
+              border: `1px solid ${isDraft ? 'rgb(var(--q-warn-rgb) / .4)' : isEditing ? 'rgb(var(--q-warn-rgb) / .35)' : 'rgb(var(--q-ink-rgb) / .06)'}`,
+              background: isDraft ? 'rgb(var(--q-warn-rgb) / .05)' : isEditing ? 'rgb(var(--q-warn-rgb) / .04)' : 'transparent',
               borderRadius: 10, padding: '12px 16px',
             }}>
-              <span style={{ fontFamily: mono, fontSize: 11.5, color: '#5b5b64', paddingTop: 2 }}>{entry.date}</span>
+              <span style={{ fontFamily: mono, fontSize: 11.5, color: 'var(--q-fg4)', paddingTop: 2 }}>{entry.date}</span>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                  <p style={{ fontSize: 13.5, fontWeight: 600, color: '#f4f4f6', margin: 0 }}>{entry.title}</p>
+                  <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--q-fg)', margin: 0 }}>{entry.title}</p>
                   {isDraft && (
                     <span style={{
                       fontFamily: mono, fontSize: 9.5, letterSpacing: '.08em', textTransform: 'uppercase',
-                      color: '#e0a04f', border: '1px solid rgba(224,160,79,.4)', borderRadius: 4, padding: '1px 6px',
+                      color: 'var(--q-warn-text)', border: '1px solid rgb(var(--q-warn-rgb) / .4)', borderRadius: 4, padding: '1px 6px',
                     }}>
                       Draft{entry.deployment_id ? ' · auto' : ''}
                     </span>
                   )}
                 </div>
-                <p style={{ fontSize: 12.5, color: '#8a8a93', lineHeight: 1.55, margin: 0 }}>{entry.description}</p>
+                <p style={{ fontSize: 12.5, color: 'var(--q-fg3)', lineHeight: 1.55, margin: 0 }}>{entry.description}</p>
                 {entry.tags.length > 0 && (
-                  <p style={{ fontFamily: mono, fontSize: 10.5, color: '#5b5b64', margin: '6px 0 0' }}>
+                  <p style={{ fontFamily: mono, fontSize: 10.5, color: 'var(--q-fg4)', margin: '6px 0 0' }}>
                     {entry.tags.join(' · ')}
                   </p>
                 )}
@@ -240,7 +240,7 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
               <div style={{ display: 'flex', gap: 6 }}>
                 {isDraft && (
                   <button onClick={() => handlePublish(entry)} disabled={busy} style={{
-                    background: 'rgba(224,160,79,.12)', border: '1px solid rgba(224,160,79,.4)', color: '#e0a04f',
+                    background: 'rgb(var(--q-warn-rgb) / .12)', border: '1px solid rgb(var(--q-warn-rgb) / .4)', color: 'var(--q-warn-text)',
                     borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono,
                     cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1,
                   }}>
@@ -248,13 +248,13 @@ export function ChangelogAdmin({ entries }: { entries: ChangelogEntry[] }) {
                   </button>
                 )}
                 <button onClick={() => startEdit(entry)} style={{
-                  background: 'none', border: '1px solid rgba(255,255,255,.12)', color: '#8a8a93',
+                  background: 'none', border: '1px solid rgb(var(--q-ink-rgb) / .12)', color: 'var(--q-fg3)',
                   borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono, cursor: 'pointer',
                 }}>
                   Edit
                 </button>
                 <button onClick={() => handleDelete(entry.id)} style={{
-                  background: 'none', border: '1px solid rgba(248,113,113,.25)', color: '#f87171',
+                  background: 'none', border: '1px solid rgb(var(--q-danger-rgb) / .25)', color: 'var(--q-danger-text)',
                   borderRadius: 6, padding: '4px 10px', fontSize: 11, fontFamily: mono, cursor: 'pointer',
                 }}>
                   Delete

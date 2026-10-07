@@ -1,0 +1,177 @@
+/* Quante app shell in the AssetraDigital design — the calm variant: glass header and sidebar,
+   no grain, cursor, bands or giant type. Colours come from the --q-* tokens
+   (packages/ui/styles/app-tokens.css); everything is scoped under .ad-app. */
+
+.ad.ad-app {
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.ad-app-head {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 3rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 .75rem 0 1rem;
+  background: rgb(var(--q-bg-rgb) / .72);
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border-bottom: 1px solid var(--q-line);
+}
+.ad-app-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: var(--q-fg);
+}
+.ad-app-logo .mark {
+  width: 28px;
+  height: 21px;
+}
+.ad-app-logo span {
+  font: 700 11px/1 var(--q-mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.ad-app .ad-app-head .ib {
+  width: 34px;
+  height: 34px;
+}
+.ad-app .ad-app-head .ib svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ad-app-side {
+  background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border-right: 1px solid var(--q-line);
+}
+.ad-app-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 12px 12px;
+  font: 500 10.5px/1 var(--q-mono);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--q-fg4);
+}
+.ad-app-label::before {
+  content: "";
+  width: 18px;
+  height: 1px;
+  background: var(--q-acc);
+}
+
+.ad-app-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ad-app-ambient i {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+.ad-app-ambient i:first-child {
+  width: 560px;
+  height: 560px;
+  top: -160px;
+  right: 8%;
+  background: radial-gradient(circle, rgb(var(--q-acc-rgb) / .14), transparent 70%);
+}
+.ad-app-ambient i:last-child {
+  width: 420px;
+  height: 420px;
+  bottom: -140px;
+  left: 18%;
+  background: radial-gradient(circle, rgb(var(--q-acc2-rgb) / .10), transparent 70%);
+}
+
+/* Particle zones in the app (empty and loading states) are smaller and quieter. */
+.ad-app .pz {
+  max-height: 220px;
+}
+
+/* ── Shared app pieces (dashboard, billing, settings, new, marketplace) ── */
+.q-h1 {
+  margin: 0;
+  font-family: var(--q-disp);
+  font-stretch: 70%;
+  font-weight: 850;
+  font-size: clamp(34px, 4vw, 52px);
+  line-height: .95;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--q-fg);
+}
+.q-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: 600 13px/1 var(--q-sans);
+  letter-spacing: .01em;
+  color: var(--q-acc-ink);
+  background: var(--q-acc);
+  box-shadow: 0 10px 30px -14px rgb(var(--q-acc-rgb) / .7);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .4s var(--q-ease), background .25s, box-shadow .25s;
+}
+.q-btn:hover { background: var(--q-acc-hover); }
+.q-btn:active { transform: scale(.97); }
+.q-btn-gl {
+  color: var(--q-fg);
+  background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  border-color: var(--q-glass-border);
+  box-shadow: none;
+}
+.q-btn-gl:hover { background: rgb(var(--q-ink-rgb) / .08); border-color: var(--q-line2); }
+.q-card {
+  position: relative;
+  border-radius: 22px;
+  background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--q-glass-border);
+  box-shadow: inset 0 1px 0 var(--q-glass-hi), 0 24px 60px -28px var(--q-shadow);
+}
+.q-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 24px 36px;
+  text-align: center;
+}
+.q-empty .pz {
+  width: min(420px, 100%);
+  height: 200px;
+  aspect-ratio: auto;
+}
+/* the swarm is painted on the canvas behind the page: a frosted card would blur it */
+.q-card.q-empty {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  background: linear-gradient(180deg, rgb(var(--q-ink-rgb) / .035), rgb(var(--q-ink-rgb) / .01));
+}
+.q-load-pz {
+  height: 180px;
+  aspect-ratio: auto;
+  max-height: none;
+}

@@ -31,32 +31,32 @@ export function CreditPill({ compact = false }: { compact?: boolean }) {
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: compact ? '3px 8px' : '5px 10px',
           borderRadius: 6,
-          background: 'rgba(62,207,142,.08)',
-          border: '1px solid rgba(62,207,142,.2)',
+          background: 'rgb(var(--q-ok-rgb) / .08)',
+          border: '1px solid rgb(var(--q-ok-rgb) / .2)',
           cursor: 'pointer',
           transition: 'background 0.15s, border-color 0.15s',
         }}
           onMouseEnter={(e) => {
-            ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(62,207,142,.13)'
-            ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(62,207,142,.35)'
+            ;(e.currentTarget as HTMLDivElement).style.background = 'rgb(var(--q-ok-rgb) / .13)'
+            ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgb(var(--q-ok-rgb) / .35)'
           }}
           onMouseLeave={(e) => {
-            ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(62,207,142,.08)'
-            ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(62,207,142,.2)'
+            ;(e.currentTarget as HTMLDivElement).style.background = 'rgb(var(--q-ok-rgb) / .08)'
+            ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgb(var(--q-ok-rgb) / .2)'
           }}
         >
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: '#3ecf8e',
-            boxShadow: '0 0 6px rgba(62,207,142,.65)',
+            background: 'var(--q-ok)',
+            boxShadow: '0 0 6px rgb(var(--q-ok-rgb) / .65)',
             flexShrink: 0,
             animation: 'dot-pulse 2.4s ease-in-out infinite',
           }} />
           <span style={{
-            fontFamily: 'var(--font-geist-mono)',
+            fontFamily: 'var(--q-mono)',
             fontSize: compact ? 10 : 11,
             fontWeight: 600,
-            color: '#3ecf8e',
+            color: 'var(--q-ok-text)',
             letterSpacing: '.03em',
             textTransform: 'uppercase',
           }}>
@@ -80,32 +80,32 @@ export function CreditPill({ compact = false }: { compact?: boolean }) {
         display: 'inline-flex', alignItems: 'center', gap: 6,
         padding: compact ? '3px 8px' : '5px 10px',
         borderRadius: 6,
-        background: 'rgba(212,255,63,.08)',
-        border: '1px solid rgba(212,255,63,.18)',
+        background: 'rgb(var(--q-acc-rgb) / .08)',
+        border: '1px solid rgb(var(--q-acc-rgb) / .18)',
         cursor: 'pointer',
         transition: 'background 0.15s, border-color 0.15s',
       }}
         onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(212,255,63,.13)'
-          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,255,63,.3)'
+          ;(e.currentTarget as HTMLDivElement).style.background = 'rgb(var(--q-acc-rgb) / .13)'
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgb(var(--q-acc-rgb) / .3)'
         }}
         onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLDivElement).style.background = 'rgba(212,255,63,.08)'
-          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(212,255,63,.18)'
+          ;(e.currentTarget as HTMLDivElement).style.background = 'rgb(var(--q-acc-rgb) / .08)'
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgb(var(--q-acc-rgb) / .18)'
         }}
       >
         <span style={{
           width: 6, height: 6, borderRadius: '50%',
-          background: '#D4FF3F',
-          boxShadow: '0 0 6px rgba(212,255,63,.65)',
+          background: 'var(--q-acc)',
+          boxShadow: '0 0 6px rgb(var(--q-acc-rgb) / .65)',
           flexShrink: 0,
           animation: 'dot-pulse 2.4s ease-in-out infinite',
         }} />
         <span style={{
-          fontFamily: 'var(--font-geist-mono)',
+          fontFamily: 'var(--q-mono)',
           fontSize: compact ? 11 : 12,
           fontWeight: 500,
-          color: data === null ? '#8a8a93' : '#E8FF9E',
+          color: data === null ? 'var(--q-fg3)' : 'var(--q-acc-hi)',
           letterSpacing: '-.01em',
           minWidth: 20,
         }}>
@@ -114,7 +114,7 @@ export function CreditPill({ compact = false }: { compact?: boolean }) {
         {needsVerification && (
           <span style={{
             fontSize: compact ? 10 : 11,
-            color: '#e0a04f',
+            color: 'var(--q-warn-text)',
             whiteSpace: 'nowrap',
           }}>
             {compact ? 'verify email' : 'Verify email for free credits'}

@@ -1,5 +1,6 @@
 import { SignIn } from '@clerk/nextjs'
 import Link from 'next/link'
+import { QuanteBrand } from '@/components/shell/QuanteBrand'
 import { buildMetadata } from '@/lib/seo'
 
 // noindex on purpose — auth pages have no search-intent value and can
@@ -23,12 +24,8 @@ export default function LoginPage() {
       <div className="qp-bg-grid" />
       <div className="qp-bg-scan" />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
-        <Link href="/" style={{
-          display: 'block', marginBottom: 28, textAlign: 'center',
-          fontFamily: 'var(--qp-mono)', fontSize: 14, fontWeight: 600,
-          color: 'var(--qp-ink)', textDecoration: 'none', letterSpacing: '-.01em',
-        }}>
-          quante
+        <Link href="/quante" aria-label="Quante" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, textDecoration: 'none' }}>
+          <QuanteBrand size="lg" />
         </Link>
         <SignIn routing="hash" />
       </div>

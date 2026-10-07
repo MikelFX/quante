@@ -28,8 +28,8 @@ export function AgencyPortalButton({ stripeReady }: { stripeReady: boolean }) {
       disabled={loading}
       style={{
         fontSize: 12, fontWeight: 600,
-        color: '#f4f4f6', background: 'rgba(255,255,255,.07)',
-        border: '1px solid rgba(255,255,255,.12)',
+        color: 'var(--q-fg)', background: 'rgb(var(--q-ink-rgb) / .07)',
+        border: '1px solid rgb(var(--q-ink-rgb) / .12)',
         padding: '7px 14px', borderRadius: 7,
         cursor: loading ? 'wait' : 'pointer',
         opacity: loading ? 0.6 : 1,

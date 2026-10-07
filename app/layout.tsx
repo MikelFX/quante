@@ -1,21 +1,18 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Geist } from 'next/font/google'
 import { ClerkProvider } from '@clerk/nextjs'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AnnouncementBanner } from '@/components/AnnouncementBanner'
 import { ParticleField } from '@ad/ui/particles'
 import { ThemeScript } from '@ad/ui/ThemeScript'
+import { adFontVars } from '@ad/ui/fonts'
 import './globals.css'
+import '@ad/ui/styles/app-tokens.css'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin', 'latin-ext'],
-})
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
 })
 
 export const metadata: Metadata = {
@@ -35,53 +32,70 @@ export default function RootLayout({
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
       afterSignOutUrl="/login"
+      // AssetraDigital look through the --q-* tokens, so sign-in follows the theme too.
       appearance={{
         variables: {
-          colorBackground: '#101016',
-          colorText: '#f4f4f6',
-          colorPrimary: '#D4FF3F',
-          colorInputBackground: '#0c0c12',
-          colorInputText: '#f4f4f6',
-          colorNeutral: '#8a8a93',
-          colorDanger: '#f87171',
-          borderRadius: '8px',
-          fontFamily: 'var(--font-geist-sans)',
-          fontFamilyButtons: 'var(--font-geist-sans)',
+          colorBackground: 'var(--q-s1)',
+          colorText: 'var(--q-fg)',
+          colorTextSecondary: 'var(--q-fg3)',
+          colorPrimary: 'var(--q-acc)',
+          colorTextOnPrimaryBackground: 'var(--q-acc-ink)',
+          colorInputBackground: 'var(--q-bg)',
+          colorInputText: 'var(--q-fg)',
+          colorNeutral: 'var(--q-fg)',
+          colorDanger: 'var(--q-danger-text)',
+          colorSuccess: 'var(--q-ok-text)',
+          borderRadius: '14px',
+          fontFamily: 'var(--q-sans)',
+          fontFamilyButtons: 'var(--q-sans)',
         },
         elements: {
           card: {
-            background: '#101016',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
-            borderRadius: '14px',
+            background: 'linear-gradient(180deg, var(--q-glass1), var(--q-glass2)), var(--q-s1)',
+            border: '1px solid var(--q-glass-border)',
+            boxShadow: 'inset 0 1px 0 var(--q-glass-hi), 0 24px 60px -28px var(--q-shadow)',
+            borderRadius: '28px',
           },
-          headerTitle: {
-            color: '#f4f4f6',
-            fontWeight: '700',
-          },
-          headerSubtitle: {
-            color: '#8a8a93',
-          },
+          headerTitle: { color: 'var(--q-fg)', fontWeight: '700' },
+          headerSubtitle: { color: 'var(--q-fg3)' },
           socialButtonsBlockButton: {
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#f4f4f6',
+            background: 'rgb(var(--q-ink-rgb) / .05)',
+            border: '1px solid var(--q-line2)',
+            color: 'var(--q-fg)',
+            borderRadius: '999px',
           },
           formFieldInput: {
-            background: '#0c0c12',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: '#f4f4f6',
+            background: 'var(--q-bg)',
+            border: '1px solid var(--q-line2)',
+            color: 'var(--q-fg)',
+            borderRadius: '16px',
+            '&::placeholder': { color: 'var(--q-fg4)' },
           },
-          footerActionLink: {
-            color: '#D4FF3F',
-          },
-          identityPreviewText: { color: '#8a8a93' },
+          // Clerk derives these greys from the variables with colour math, which CSS variables
+          // defeat — so each text element gets its token explicitly.
+          formFieldLabel: { color: 'var(--q-fg2)' },
+          formFieldHintText: { color: 'var(--q-fg3)' },
+          formFieldInfoText: { color: 'var(--q-fg3)' },
+          formFieldErrorText: { color: 'var(--q-danger-text)' },
+          formFieldAction: { color: 'var(--q-acc-text)' },
+          formResendCodeLink: { color: 'var(--q-acc-text)' },
+          otpCodeFieldInput: { color: 'var(--q-fg)', borderColor: 'var(--q-line2)' },
+          alternativeMethodsBlockButton: { color: 'var(--q-fg)', border: '1px solid var(--q-line2)' },
+          headerBackLink: { color: 'var(--q-acc-text)' },
+          alertText: { color: 'var(--q-fg)' },
+          socialButtonsProviderIcon__github: { filter: 'var(--q-icon-invert)' },
+          footer: { background: 'rgb(var(--q-ink-rgb) / .03)' },
+          footerActionText: { color: 'var(--q-fg3)' },
+          footerActionLink: { color: 'var(--q-acc-text)' },
+          identityPreviewText: { color: 'var(--q-fg3)' },
+          identityPreviewEditButton: { color: 'var(--q-acc-text)' },
           formButtonPrimary: {
-            background: '#D4FF3F',
-            color: '#fff',
+            background: 'var(--q-acc)',
+            color: 'var(--q-acc-ink)',
+            borderRadius: '999px',
           },
-          dividerLine: { background: 'rgba(255,255,255,0.08)' },
-          dividerText: { color: '#5b5b64' },
+          dividerLine: { background: 'var(--q-line)' },
+          dividerText: { color: 'var(--q-fg4)' },
         },
       }}
     >
@@ -92,7 +106,7 @@ export default function RootLayout({
         data-theme="dark"
         data-motion="on"
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} h-full`}
+        className={`${geistSans.variable} ${adFontVars} h-full`}
       >
         <head>
           <ThemeScript />

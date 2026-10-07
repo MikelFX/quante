@@ -41,8 +41,8 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
             style={{
               position: 'relative',
               borderRadius: 12,
-              border: pack.popular ? '1px solid rgba(212,255,63,.4)' : '1px solid rgba(255,255,255,.07)',
-              background: pack.popular ? 'rgba(212,255,63,.06)' : '#0d0d11',
+              border: pack.popular ? '1px solid rgb(var(--q-acc-rgb) / .4)' : '1px solid rgb(var(--q-ink-rgb) / .07)',
+              background: pack.popular ? 'rgb(var(--q-acc-rgb) / .06)' : 'var(--q-s1)',
               padding: '16px 18px',
               display: 'flex', flexDirection: 'column', gap: 12,
             }}
@@ -51,7 +51,7 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
               <span style={{
                 position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
                 padding: '2px 10px', borderRadius: 20,
-                background: '#D4FF3F', color: '#fff',
+                background: 'var(--q-acc)', color: 'var(--q-acc-ink)',
                 fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em',
                 whiteSpace: 'nowrap',
               }}>
@@ -60,22 +60,22 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
             )}
 
             <div>
-              <p style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', letterSpacing: '-.04em', color: '#f4f4f6', margin: '0 0 2px' }}>{pack.credits}</p>
-              <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>credits</p>
+              <p style={{ fontSize: 28, fontWeight: 700, fontFamily: 'var(--q-mono)', letterSpacing: '-.04em', color: 'var(--q-fg)', margin: '0 0 2px' }}>{pack.credits}</p>
+              <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0 }}>credits</p>
             </div>
 
-            <p style={{ fontSize: 12, color: '#8a8a93', flex: 1, lineHeight: 1.45, margin: 0 }}>{getGenerationsCaption(pack)} · {getPerCreditDisplay(pack)}</p>
+            <p style={{ fontSize: 12, color: 'var(--q-fg3)', flex: 1, lineHeight: 1.45, margin: 0 }}>{getGenerationsCaption(pack)} · {getPerCreditDisplay(pack)}</p>
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-geist-mono)', color: '#f4f4f6' }}>{pack.priceDisplay}</span>
+              <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--q-mono)', color: 'var(--q-fg)' }}>{pack.priceDisplay}</span>
               <button
                 onClick={() => handlePurchase(pack.id)}
                 disabled={!stripeReady || loading !== null}
                 style={{
                   fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7, border: 'none',
                   cursor: !stripeReady || loading !== null ? 'not-allowed' : 'pointer',
-                  background: pack.popular ? '#D4FF3F' : '#f4f4f6',
-                  color: '#08080a',
+                  background: pack.popular ? 'var(--q-acc)' : 'rgb(var(--q-ink-rgb) / .1)',
+                  color: pack.popular ? 'var(--q-acc-ink)' : 'var(--q-fg)',
                   opacity: !stripeReady || loading !== null ? 0.5 : 1,
                   transition: 'opacity 0.12s',
                   flexShrink: 0,
@@ -95,7 +95,7 @@ export function PurchaseButtons({ packs, stripeReady }: Props) {
           </div>
         ))}
       </div>
-      {error && <p style={{ fontSize: 12, color: '#f87171', margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: 12, color: 'var(--q-danger-text)', margin: 0 }}>{error}</p>}
     </div>
   )
 }

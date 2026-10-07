@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { LiquidGlassDefs } from './LiquidGlassDefs'
+import { QuanteBrand } from '@/components/shell/QuanteBrand'
 
 // The marketing pages moved to the Czech AssetraDigital site (app/(site)); this nav is left
 // on the remaining Quante pages (Qads, changelog, legal) until they get the new design.
@@ -65,18 +66,8 @@ export function PublicNav() {
           justifyContent: 'space-between',
         }}
       >
-        <Link
-          href="/"
-          style={{
-            fontFamily: 'var(--qp-mono)',
-            fontSize: 15,
-            fontWeight: 600,
-            letterSpacing: '-.01em',
-            color: 'var(--qp-ink)',
-            textDecoration: 'none',
-          }}
-        >
-          quante
+        <Link href="/quante" aria-label="Quante" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
+          <QuanteBrand />
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
           {LINKS.map(l => (
@@ -114,7 +105,7 @@ export function PublicNav() {
                   fontSize: 13.5,
                   fontWeight: 600,
                   textDecoration: 'none',
-                  color: '#08080a',
+                  color: 'var(--q-acc-ink)',
                   background: 'var(--qp-accent)',
                   padding: '0.5rem 1.1rem',
                   borderRadius: 99,
@@ -135,7 +126,7 @@ export function PublicNav() {
                   fontSize: 13.5,
                   fontWeight: 600,
                   textDecoration: 'none',
-                  color: '#08080a',
+                  color: 'var(--q-acc-ink)',
                   background: 'var(--qp-accent)',
                   padding: '0.5rem 1.1rem',
                   borderRadius: 99,

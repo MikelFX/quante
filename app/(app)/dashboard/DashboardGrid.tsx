@@ -20,16 +20,23 @@ interface Props {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'rgba(212,255,63,.2)',
-  generating: 'rgba(251,189,59,.2)',
-  ready: 'rgba(52,199,89,.2)',
-  archived: 'rgba(255,255,255,.08)',
+  draft: 'rgb(var(--q-acc-rgb) / .2)',
+  generating: 'rgb(var(--q-warn-rgb) / .2)',
+  ready: 'rgb(var(--q-ok-rgb) / .2)',
+  archived: 'rgb(var(--q-ink-rgb) / .08)',
 }
 const STATUS_DOT: Record<string, string> = {
-  draft: '#D4FF3F',
-  generating: '#fbbf3b',
-  ready: '#34c759',
-  archived: '#5b5b64',
+  draft: 'var(--q-acc)',
+  generating: 'var(--q-warn)',
+  ready: 'var(--q-ok)',
+  archived: 'var(--q-fg4)',
+}
+// Badge text needs the darker -text shades in the light theme.
+const STATUS_TEXT: Record<string, string> = {
+  draft: 'var(--q-acc-text)',
+  generating: 'var(--q-warn-text)',
+  ready: 'var(--q-ok-text)',
+  archived: 'var(--q-fg3)',
 }
 
 function timeAgo(dateStr: string): string {
@@ -130,33 +137,33 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
       <style>{`
         .check-box {
           width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
-          border: 1.5px solid rgba(255,255,255,.2);
+          border: 1.5px solid rgb(var(--q-ink-rgb) / .2);
           display: flex; align-items: center; justify-content: center;
           transition: border-color 0.1s, background 0.1s;
         }
-        .check-box.checked { border-color: #3ecf8e; background: #3ecf8e; }
+        .check-box.checked { border-color: var(--q-ok); background: var(--q-ok); }
       `}</style>
 
       {/* ── Bulk export bar (agency only) ─────────────────────────────────── */}
       {isAgency && anySelected && (
         <div style={{
           position: 'sticky', top: 48, zIndex: 20,
-          background: 'rgba(8,8,10,.97)', backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(62,207,142,.2)',
+          background: 'rgb(var(--q-bg-rgb) / .97)', backdropFilter: 'blur(12px)',
+          border: '1px solid rgb(var(--q-ok-rgb) / .2)',
           borderRadius: 10, padding: '10px 16px',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           marginBottom: 12,
         }}>
-          <span style={{ fontSize: 13, color: '#f4f4f6', fontWeight: 500 }}>
+          <span style={{ fontSize: 13, color: 'var(--q-fg)', fontWeight: 500 }}>
             {selected.size} selected
-            <span style={{ fontSize: 11, color: '#3ecf8e', marginLeft: 8, fontFamily: 'var(--font-geist-mono)' }}>
+            <span style={{ fontSize: 11, color: 'var(--q-ok-text)', marginLeft: 8, fontFamily: 'var(--q-mono)' }}>
               unlimited
             </span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               onClick={() => setSelected(new Set())}
-              style={{ fontSize: 12, color: '#8a8a93', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+              style={{ fontSize: 12, color: 'var(--q-fg3)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
             >
               Clear
             </button>
@@ -165,7 +172,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
               disabled={exporting}
               style={{
                 fontSize: 12, fontWeight: 600,
-                color: '#070709', background: exporting ? 'rgba(62,207,142,.4)' : '#3ecf8e',
+                color: 'var(--q-acc-ink)', background: exporting ? 'rgb(var(--q-ok-rgb) / .4)' : 'var(--q-ok)',
                 border: 'none', borderRadius: 7, padding: '6px 14px',
                 cursor: exporting ? 'not-allowed' : 'pointer',
                 opacity: exporting ? 0.7 : 1, transition: 'opacity 0.15s',
@@ -182,10 +189,10 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12, padding: '0 4px' }}>
           <button
             onClick={toggleAll}
-            style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', color: '#8a8a93', fontSize: 12 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', color: 'var(--q-fg3)', fontSize: 12 }}
           >
             <div className={`check-box${allSelected ? ' checked' : ''}`}>
-              {allSelected && <span style={{ color: '#070709', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+              {allSelected && <span style={{ color: 'var(--q-acc-ink)', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
             </div>
             {allSelected ? 'Deselect all' : 'Select all'}
           </button>
@@ -201,7 +208,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
         {visibleProjects.map((project, i) => {
           const isSelected = isAgency && selected.has(project.id)
           const isConfirmingDelete = deletingId === project.id
-          const dotColor = STATUS_DOT[project.status] ?? '#D4FF3F'
+          const dotColor = STATUS_DOT[project.status] ?? 'var(--q-acc)'
 
           return (
             <motion.div
@@ -214,52 +221,52 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
               onMouseEnter={(e) => {
                 setHoveredCardId(project.id)
                 if (!isSelected && !isConfirmingDelete) {
-                  ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,.14)'
-                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 32px rgba(212,255,63,.12)'
+                  ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .14)'
+                  ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 32px rgb(var(--q-acc-rgb) / .12)'
                 }
               }}
               onMouseLeave={(e) => {
                 setHoveredCardId(null)
                 if (!isSelected && !isConfirmingDelete) {
-                  ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,.07)'
+                  ;(e.currentTarget as HTMLDivElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .07)'
                   ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 0 0px transparent'
                 }
               }}
               style={{
                 position: 'relative', overflow: 'hidden',
-                background: isSelected ? 'rgba(62,207,142,.035)' : '#0c0c10',
+                background: isSelected ? 'rgb(var(--q-ok-rgb) / .035)' : 'linear-gradient(180deg, var(--q-glass1), var(--q-glass2))',
                 border: isSelected
-                  ? '1px solid rgba(62,207,142,.35)'
+                  ? '1px solid rgb(var(--q-ok-rgb) / .35)'
                   : isConfirmingDelete
-                    ? '1px solid rgba(248,113,113,.3)'
-                    : '1px solid rgba(255,255,255,.07)',
-                borderRadius: 14, padding: '20px',
+                    ? '1px solid rgb(var(--q-danger-rgb) / .3)'
+                    : '1px solid rgb(var(--q-ink-rgb) / .07)',
+                borderRadius: 22, padding: '20px',
                 cursor: isConfirmingDelete ? 'default' : isAgency ? 'pointer' : 'default',
-                boxShadow: isSelected ? '0 0 32px rgba(62,207,142,.12)' : '0 0 0px transparent',
+                boxShadow: isSelected ? '0 0 32px rgb(var(--q-ok-rgb) / .12)' : '0 0 0px transparent',
                 transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
               }}
             >
               {/* ── Delete confirmation overlay ──────────────────────────── */}
               {isConfirmingDelete && (
                 <div style={{
-                  position: 'absolute', inset: 0, borderRadius: 14,
-                  background: 'rgba(8,8,10,.96)',
+                  position: 'absolute', inset: 0, borderRadius: 22,
+                  background: 'rgb(var(--q-bg-rgb) / .96)',
                   display: 'flex', flexDirection: 'column',
                   alignItems: 'center', justifyContent: 'center',
                   gap: 12, padding: 20, zIndex: 10,
                 }}>
-                  <p style={{ fontSize: 13, color: '#f4f4f6', textAlign: 'center', margin: 0 }}>
-                    Delete <strong style={{ color: '#fff' }}>{project.name}</strong>?
+                  <p style={{ fontSize: 13, color: 'var(--q-fg)', textAlign: 'center', margin: 0 }}>
+                    Delete <strong style={{ color: 'var(--q-fg)' }}>{project.name}</strong>?
                   </p>
-                  <p style={{ fontSize: 11, color: '#8a8a93', margin: 0 }}>This cannot be undone.</p>
+                  <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: 0 }}>This cannot be undone.</p>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeletingId(null) }}
                       disabled={deleteLoading}
                       style={{
                         fontSize: 12, padding: '6px 14px', borderRadius: 7, cursor: 'pointer',
-                        background: 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.1)',
-                        color: '#8a8a93',
+                        background: 'rgb(var(--q-ink-rgb) / .07)', border: '1px solid rgb(var(--q-ink-rgb) / .1)',
+                        color: 'var(--q-fg3)',
                       }}
                     >
                       Cancel
@@ -269,7 +276,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                       disabled={deleteLoading}
                       style={{
                         fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 7,
-                        background: '#f87171', border: 'none', color: '#fff',
+                        background: 'var(--q-danger)', border: 'none', color: 'var(--q-on-danger)',
                         cursor: deleteLoading ? 'not-allowed' : 'pointer',
                         opacity: deleteLoading ? 0.6 : 1,
                       }}
@@ -287,7 +294,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                   onClick={(e) => { e.stopPropagation(); toggle(project.id) }}
                   style={{ position: 'absolute', top: 14, right: 14 }}
                 >
-                  {isSelected && <span style={{ color: '#070709', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
+                  {isSelected && <span style={{ color: 'var(--q-acc-ink)', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
                 </div>
               )}
 
@@ -299,7 +306,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                   display: 'inline-block',
                 }} />
                 <p style={{
-                  fontSize: 15, fontWeight: 600, margin: 0, flex: 1, color: '#f4f4f6',
+                  fontSize: 15, fontWeight: 600, margin: 0, flex: 1, color: 'var(--q-fg)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {project.name}
@@ -308,20 +315,20 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                   href={`/project/${project.id}`}
                   onClick={e => e.stopPropagation()}
                   style={{
-                    fontSize: 11, color: '#8a8a93', textDecoration: 'none',
+                    fontSize: 11, color: 'var(--q-fg3)', textDecoration: 'none',
                     padding: '3px 8px', borderRadius: 6,
-                    border: '1px solid rgba(255,255,255,.09)',
-                    background: 'rgba(255,255,255,.04)',
+                    border: '1px solid rgb(var(--q-ink-rgb) / .09)',
+                    background: 'rgb(var(--q-ink-rgb) / .04)',
                     flexShrink: 0, whiteSpace: 'nowrap',
                     transition: 'color 0.12s, border-color 0.12s',
                   }}
                   onMouseEnter={e => {
-                    ;(e.currentTarget as HTMLAnchorElement).style.color = '#f4f4f6'
-                    ;(e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,.18)'
+                    ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg)'
+                    ;(e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .18)'
                   }}
                   onMouseLeave={e => {
-                    ;(e.currentTarget as HTMLAnchorElement).style.color = '#8a8a93'
-                    ;(e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgba(255,255,255,.09)'
+                    ;(e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg3)'
+                    ;(e.currentTarget as HTMLAnchorElement).style.borderColor = 'rgb(var(--q-ink-rgb) / .09)'
                   }}
                 >
                   Open →
@@ -335,11 +342,11 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                     fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em',
                     padding: '2px 7px', borderRadius: 99,
                     background: STATUS_COLORS[project.status] ?? STATUS_COLORS.draft,
-                    color: dotColor,
+                    color: STATUS_TEXT[project.status] ?? STATUS_TEXT.draft,
                   }}>
                     {project.status}
                   </span>
-                  <span style={{ fontSize: 11, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>
+                  <span style={{ fontSize: 11, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)' }}>
                     {timeAgo(project.updated_at)}
                   </span>
                 </div>
@@ -350,12 +357,12 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
                   title="Delete project"
                   className={`q-del-btn${hoveredCardId === project.id && !isConfirmingDelete ? ' q-del-visible' : ''}`}
                   style={{
-                    background: 'none', border: 'none', color: '#5b5b64',
+                    background: 'none', border: 'none', color: 'var(--q-fg4)',
                     cursor: 'pointer', fontSize: 13, lineHeight: 1,
                     padding: '6px 8px', borderRadius: 4, flexShrink: 0,
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = '#f87171' }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = '#5b5b64' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-danger-text)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--q-fg4)' }}
                 >
                   ✕
                 </button>

@@ -57,12 +57,12 @@ function radiusPx(value: string): number | null {
 }
 
 const label: React.CSSProperties = {
-  fontSize: 10, fontFamily: 'var(--font-geist-mono)', fontWeight: 600, textTransform: 'uppercase',
-  letterSpacing: '.06em', color: '#5b5b64', margin: '0 0 8px',
+  fontSize: 10, fontFamily: 'var(--q-mono)', fontWeight: 600, textTransform: 'uppercase',
+  letterSpacing: '.06em', color: 'var(--q-fg4)', margin: '0 0 8px',
 }
 const inputBase: React.CSSProperties = {
-  background: '#0d0d11', border: '1px solid rgba(255,255,255,.1)', borderRadius: 7,
-  color: '#f4f4f6', fontSize: 12, padding: '6px 8px', outline: 'none',
+  background: 'var(--q-s1)', border: '1px solid rgb(var(--q-ink-rgb) / .1)', borderRadius: 7,
+  color: 'var(--q-fg)', fontSize: 12, padding: '6px 8px', outline: 'none',
 }
 
 export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: Props) {
@@ -150,10 +150,10 @@ export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: P
   }
 
   if (loadError) {
-    return <div style={{ padding: 16, fontSize: 12, color: '#8a8a93', lineHeight: 1.6 }}>{loadError}</div>
+    return <div style={{ padding: 16, fontSize: 12, color: 'var(--q-fg3)', lineHeight: 1.6 }}>{loadError}</div>
   }
   if (!theme) {
-    return <div style={{ padding: 16, fontSize: 12, color: '#5b5b64', fontFamily: 'var(--font-geist-mono)' }}>loading theme…</div>
+    return <div style={{ padding: 16, fontSize: 12, color: 'var(--q-fg4)', fontFamily: 'var(--q-mono)' }}>loading theme…</div>
   }
 
   const fontGroups: Array<{ kind: FontOption['kind']; title: string }> = [
@@ -187,15 +187,15 @@ export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: P
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <p style={{ fontSize: 12, color: '#8a8a93', margin: 0, lineHeight: 1.6 }}>{publishHint}</p>
+        <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0, lineHeight: 1.6 }}>{publishHint}</p>
         {!editable && (
-          <p style={{ fontSize: 12, color: '#e0a04f', margin: '8px 0 0', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 12, color: 'var(--q-warn-text)', margin: '8px 0 0', lineHeight: 1.6 }}>
             This store&apos;s config can&apos;t be edited by the panel — describe theme changes in Chat instead.
           </p>
         )}
         <p style={{
-          fontSize: 11, margin: '8px 0 0', fontFamily: 'var(--font-geist-mono)',
-          color: saveState.kind === 'error' ? '#f87171' : saveState.kind === 'saved' ? '#3ecf8e' : '#5b5b64',
+          fontSize: 11, margin: '8px 0 0', fontFamily: 'var(--q-mono)',
+          color: saveState.kind === 'error' ? 'var(--q-danger-text)' : saveState.kind === 'saved' ? 'var(--q-ok-text)' : 'var(--q-fg4)',
         }}>
           {saveState.kind === 'dirty' ? 'Unsaved changes…'
             : saveState.kind === 'saving' ? 'Saving…'
@@ -218,9 +218,9 @@ export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: P
                   disabled={!editable}
                   onChange={(e) => { setHexDrafts((d) => ({ ...d, [key]: undefined })); setColor(key, e.target.value) }}
                   aria-label={COLOR_LABELS[key]}
-                  style={{ width: 30, height: 30, padding: 0, border: '1px solid rgba(255,255,255,.12)', borderRadius: 7, background: 'none', cursor: editable ? 'pointer' : 'not-allowed', flexShrink: 0 }}
+                  style={{ width: 30, height: 30, padding: 0, border: '1px solid rgb(var(--q-ink-rgb) / .12)', borderRadius: 7, background: 'none', cursor: editable ? 'pointer' : 'not-allowed', flexShrink: 0 }}
                 />
-                <span style={{ flex: 1, fontSize: 12, color: '#c9c9d1' }}>{COLOR_LABELS[key]}</span>
+                <span style={{ flex: 1, fontSize: 12, color: 'var(--q-fg2)' }}>{COLOR_LABELS[key]}</span>
                 <input
                   type="text"
                   value={draft}
@@ -233,8 +233,8 @@ export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: P
                   }}
                   onBlur={() => setHexDrafts((d) => ({ ...d, [key]: undefined }))}
                   style={{
-                    ...inputBase, width: 96, fontFamily: 'var(--font-geist-mono)', fontSize: 11,
-                    borderColor: THEME_COLOR_RE.test(draft.trim()) ? 'rgba(255,255,255,.1)' : 'rgba(248,113,113,.6)',
+                    ...inputBase, width: 96, fontFamily: 'var(--q-mono)', fontSize: 11,
+                    borderColor: THEME_COLOR_RE.test(draft.trim()) ? 'rgb(var(--q-ink-rgb) / .1)' : 'rgb(var(--q-danger-rgb) / .6)',
                   }}
                 />
               </div>
@@ -247,11 +247,11 @@ export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: P
         <p style={label}>Fonts</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '0 0 5px' }}>Headings</p>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '0 0 5px' }}>Headings</p>
             {fontSelect('heading')}
           </div>
           <div>
-            <p style={{ fontSize: 11, color: '#8a8a93', margin: '0 0 5px' }}>Body text</p>
+            <p style={{ fontSize: 11, color: 'var(--q-fg3)', margin: '0 0 5px' }}>Body text</p>
             {fontSelect('body')}
           </div>
         </div>
@@ -271,9 +271,9 @@ export function CodeThemePanel({ projectId, onPreview, onSaved, publishHint }: P
               const v = `${e.target.value}px`
               if (THEME_RADIUS_RE.test(v)) update({ ...theme, radius: v })
             }}
-            style={{ flex: 1, accentColor: '#D4FF3F' }}
+            style={{ flex: 1, accentColor: 'var(--q-acc)' }}
           />
-          <span style={{ fontSize: 11, fontFamily: 'var(--font-geist-mono)', color: '#c9c9d1', width: 44, textAlign: 'right' }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg2)', width: 44, textAlign: 'right' }}>
             {theme.radius}
           </span>
         </div>

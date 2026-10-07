@@ -26,7 +26,7 @@ export default function TermsPage() {
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
-      <p style={{ fontFamily: 'var(--font-geist-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
+      <p style={{ fontFamily: 'var(--q-mono)', fontSize: 11, letterSpacing: '.12em', color: 'var(--qp-mut)', textTransform: 'uppercase', marginBottom: 12 }}>
         Legal
       </p>
       <h1 style={{ fontSize: 'clamp(26px,5vw,40px)', fontWeight: 800, letterSpacing: '-.035em', marginBottom: 8, color: 'var(--qp-ink)' }}>
@@ -114,7 +114,7 @@ export default function TermsPage() {
 
       <Section title="12. Governing law and disputes">
         <p>These Terms are governed by the laws of the Czech Republic. Any dispute arising from these Terms that cannot be resolved amicably shall be submitted to the competent courts of the Czech Republic.</p>
-        <p style={{ marginTop: 10 }}>If you are a consumer in the EU, you also have the right to use the European Commission's Online Dispute Resolution platform: <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--qp-accent)' }}>ec.europa.eu/consumers/odr</a>.</p>
+        <p style={{ marginTop: 10 }}>If you are a consumer in the EU, you also have the right to use the European Commission's Online Dispute Resolution platform: <a href="https://ec.europa.eu/consumers/odr" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--qp-accent-deep)' }}>ec.europa.eu/consumers/odr</a>.</p>
       </Section>
 
       <Section title="13. Changes to these Terms">
@@ -124,7 +124,7 @@ export default function TermsPage() {
       <Section title="14. Contact">
         <p>
           {operator.name} · {operator.address}
-          {email && <> · <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent)' }}>{email}</a></>}
+          {email && <> · <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent-deep)' }}>{email}</a></>}
         </p>
       </Section>
     </div>
