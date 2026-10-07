@@ -19,6 +19,7 @@ export const MODELS = {
   iteration:  'claude-opus-5-5',   // chat edits, visual-editor AI, sections, components, vision
   intake:     'claude-sonnet-4-6', // intake questionnaire, insights, changelog drafts
   fix:        'claude-opus-4-7',   // build-error auto-fix
+  publicAssistant: 'claude-haiku-4-5', // Qgent on the AssetraDigital website (cheap, capped per month)
 } as const
 
 // Back-compat aliases — existing import sites (iterate, intake, section,

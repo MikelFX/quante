@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withBotId } from 'botid/next/config';
 
 // Baseline security headers for every platform response. Deliberately NO script-src
 // CSP yet: Clerk, Stripe and Supabase need an allowlist rolled out in Report-Only
@@ -40,4 +41,6 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Vercel BotID: invisible bot check for the public AssetraDigital endpoints (instrumentation-client.ts
+// lists them; the routes call checkBotId()).
+export default withBotId(nextConfig);

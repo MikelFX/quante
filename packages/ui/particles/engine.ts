@@ -6,6 +6,10 @@
 // the next shape, a drag spins it. In 'site' mode a dot grid scrolls with the page, lights up
 // under the pointer, a light band sweeps down the page, taps send ripples and (on desktop) a
 // dotted path with a running signal links the zones. 'app' mode draws only the zones.
+//
+// A priority zone (the open Qgent panel) sits on a glass panel that would blur the swarm, so
+// while it is active the canvas is lifted above the panel (OVERLAY_Z), draws nothing but the
+// swarm and clips it to the zone. Everything goes back when the panel closes.
 
 import { buildShape, isTextKey, type Shape } from './shapes'
 import { particleStore, type ZoneRecord } from './store'
@@ -13,6 +17,8 @@ import { particleStore, type ZoneRecord } from './store'
 const CYCLE_MS = 4800
 const MAX_VIEWPORT_H = 2200
 const FALLBACK_FAMILY = 'Archivo, "Arial Narrow", sans-serif'
+/** Above the Qgent panel (z 70), below the custom cursor (z 80). */
+const OVERLAY_Z = '75'
 
 interface ZoneState {
   idx: number
@@ -46,6 +52,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
   let tooTall = false
   let raf = 0
   let lastSig = ''
+  let raised = false
   const resize = () => {
     dpr = Math.min(window.devicePixelRatio || 1, 2)
     W = window.innerWidth
@@ -203,16 +210,23 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
       const d = Math.abs(r.top + r.height / 2 - H / 2)
       if (bestD > d) { bestD = d; best = z }
     }
+    // A hidden priority zone never keeps the swarm (or the lifted canvas).
+    if (active && active.priority && best !== active) active = null
     if (best && best !== active) {
       active = best
       zs(active).next = now + CYCLE_MS
       if (on) burst(2.5)
     }
+    const overlay = !!active && active.priority
+    if (overlay !== raised) {
+      raised = overlay
+      cv.style.zIndex = overlay ? OVERLAY_Z : '0'
+    }
 
     // With animations off, redraw only when something visible changed.
     if (!on) {
       const a = active ? zs(active) : null
-      const sig = [W, H, rt, dark, mode, active?.id, a?.idx, m ? m.x + ',' + m.y : '', ripples.length, zones.length].join('|')
+      const sig = [W, H, rt, dark, mode, raised, active?.id, a?.idx, m ? m.x + ',' + m.y : '', ripples.length, zones.length].join('|')
       if (sig === lastSig) return
       lastSig = sig
     }
@@ -222,7 +236,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     const accRGB = dark ? '95,245,196' : '5,150,105'
     const baseRGB = dark ? '238,242,240' : '11,13,12'
 
-    if (site) {
+    if (site && !raised) {
       const gap = small ? 26 : 30
       const offY = ((rt % gap) + gap) % gap
       const bandY = on ? ((T * 140) % (H + 300)) - 150 : -999
@@ -297,6 +311,13 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     // App mode stays quiet: nothing is drawn while its zone is off screen.
     if (!site && !(ar.bottom > 0 && H > ar.top && ar.width > 0)) return
 
+    if (raised) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(ar.left, ar.top, ar.width, ar.height)
+      ctx.clip()
+    }
+
     const st = zs(active)
     if (on && now > st.next) {
       st.idx = (st.idx + 1) % active.keys.length
@@ -361,9 +382,11 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
       ctx.fillRect(px[i] - sz / 2, py[i] - sz / 2, sz, sz)
     }
 
-    // Words only link points that are close (16 px mobile / 20 px desktop).
+    // Words only link points that are close (16 px mobile / 20 px desktop). 3D shapes link up to
+    // 44 / 60 px, less when the shape is drawn small (the Qgent panel header) so it doesn't turn
+    // into a solid blob.
     const M = shape.text ? (small ? 240 : 320) : small ? 110 : 170
-    const th = shape.text ? (small ? 16 : 20) : small ? 44 : 60
+    const th = shape.text ? (small ? 16 : 20) : Math.min(small ? 44 : 60, sc * 0.45)
     ctx.lineWidth = 1
     ctx.strokeStyle = 'rgba(' + baseRGB + ',' + (shape.text ? '0.28' : '0.12') + ')'
     ctx.beginPath()
@@ -391,6 +414,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
       }
       ctx.stroke()
     }
+    if (raised) ctx.restore()
   }
 
   // Paused while the tab is hidden.
@@ -408,6 +432,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     for (const s of state.values()) s.cleanup()
     state.clear()
     offs.forEach((off) => off())
+    cv.style.zIndex = '0'
     ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, cv.width, cv.height)
   }

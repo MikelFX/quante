@@ -1,0 +1,419 @@
+{
+  "version": 1,
+  "source": "Obsah webu AssetraDigital (content/assetra/*.ts). Nic jiného není ověřené.",
+  "company": {
+    "name": "AssetraDigital s.r.o.",
+    "note": "Firma se zakládá.",
+    "ico": null,
+    "seat": null,
+    "registry": null
+  },
+  "contact": {
+    "phone": null,
+    "email": null,
+    "responseTime": null,
+    "howToReachUs": "Formulář poptávky na hlavní stránce (sekce Kontakt). Konzultace je zdarma."
+  },
+  "agency": {
+    "what": "Weby a e-shopy na míru bez vstupní investice. Klient platí měsíční paušál, ve kterém je hosting, správa a drobné úpravy. Klientské weby běží na Vercelu, každý e-shop má vlastní administraci.",
+    "services": [
+      {
+        "name": "Firemní web",
+        "includes": [
+          "Rychlý",
+          "Funguje v mobilu",
+          "Vlastní design",
+          "Formulář",
+          "Základ SEO"
+        ]
+      },
+      {
+        "name": "E-shop",
+        "includes": [
+          "Doprava Zásilkovna, PPL",
+          "Platby Comgate, QR, dobírka",
+          "Vlastní administrace",
+          "Faktury přes Fakturoid"
+        ]
+      },
+      {
+        "name": "Správa a hosting",
+        "includes": [
+          "Hosting",
+          "Zálohy",
+          "Aktualizace",
+          "Drobné úpravy"
+        ]
+      }
+    ],
+    "contractRules": [
+      "Doména patří vám",
+      "Kód a data předáme",
+      "Pevná cena a jasný rozsah",
+      "Platby jdou rovnou vám"
+    ],
+    "pricing": {
+      "subscription": {
+        "upfront": "0 Kč",
+        "minimumMonths": 24,
+        "plans": [
+          {
+            "name": "Web",
+            "perMonthCzk": "990",
+            "includes": [
+              "Návrh a stavba na míru",
+              "Hosting, správa a zálohy",
+              "Drobné úpravy"
+            ]
+          },
+          {
+            "name": "E-shop",
+            "perMonthCzk": "2 490",
+            "includes": [
+              "Návrh a stavba na míru",
+              "Doprava, platby a faktury napojené",
+              "Hosting, správa a zálohy",
+              "Drobné úpravy"
+            ]
+          }
+        ],
+        "note": "Bez vstupní investice; hosting, správa, zálohy a drobné úpravy jsou v měsíční ceně."
+      },
+      "oneOff": {
+        "webFromCzk": "14 900",
+        "eshopFromCzk": "49 900",
+        "managementPerMonthFromCzk": null,
+        "hourlyRateCzk": null,
+        "note": "Při jednorázové platbě se správa a hosting platí zvlášť měsíčně a práce navíc podle hodinové sazby. V ceně „od“ je jen návrh a stavba."
+      },
+      "vat": null,
+      "note": "Ceny jsou z ceníku na webu. Jiné ceny, slevy ani individuální nabídky asistent neuvádí — ty jsou až na konzultaci."
+    },
+    "process": [
+      {
+        "step": 1,
+        "title": "Konzultace",
+        "text": "Zdarma. Probereme, co potřebujete a co dává smysl."
+      },
+      {
+        "step": 2,
+        "title": "Nabídka a návrh",
+        "text": "Pevná cena, jasný rozsah a návrh vzhledu."
+      },
+      {
+        "step": 3,
+        "title": "Stavba",
+        "text": "Postavíme web na míru ve vlastním kódu."
+      },
+      {
+        "step": 4,
+        "title": "Spuštění a správa",
+        "text": "Spustíme na vaší doméně a dál se o web staráme."
+      }
+    ],
+    "work": {
+      "name": "Harwo",
+      "description": "Zmenšený návrh e-shopu pro velkoobchod s potravinami.",
+      "details": [
+        "Vzhled: Přírodní",
+        "Katalog: Kategorie",
+        "Objednávka: S IČO",
+        "Filtr: Chlazené a mražené"
+      ],
+      "status": "návrh; zveřejnění čeká na souhlas klienta, nepředstavovat jako hotový e-shop"
+    }
+  },
+  "quante": {
+    "what": "Celý e-shop na jednom místě: vygenerovat, upravit, propagovat a spravovat.",
+    "relation": "Quante je software od AssetraDigital: e-shop si v něm uživatel udělá sám. Moduly na sebe navazují, aby se celý e-shop vyřešil na jednom místě.",
+    "language": "Aplikace Quante je v angličtině.",
+    "modulesAvailable": [
+      {
+        "slug": "generate",
+        "name": "Quante Generate",
+        "status": "k dispozici",
+        "what": "Popíšete obchod a Quante ho postaví: napíše kód e-shopu, nasadí ho na Vercel a hlídá, aby se sestavil.",
+        "features": [
+          "Zadání v chatu: Quante se ptá jako designér: co prodáváte, komu, jaký vzhled chcete a co ne. Z odpovědí sestaví zadání.",
+          "Kód pro každý obchod: Stránky a vzhled píše pro každý e-shop zvlášť. Košík a pokladna stojí na ověřeném jádru, takže fungují vždy.",
+          "Sestaví a opraví se sám: Obchod se zkušebně sestaví na Vercelu. Když build selže, Quante přečte chybu, opraví kód a zkusí to znovu, až pětkrát.",
+          "Úpravy větou: Změnu popíšete v chatu a Quante ji zapracuje.",
+          "Vlastní administrace: Objednávky, produkty a zákazníci. Platby přes Comgate, GoPay nebo PayPal, štítky Zásilkovny, GLS a DHL.",
+          "Kód je váš: Celý projekt si kdykoli stáhnete jako ZIP, zdarma."
+        ],
+        "note": "Když se obchod nepodaří sestavit ani po pěti opravách, kredity za generování se vrátí. Opravy samotné jsou zdarma.",
+        "connections": [
+          "Qscan sem převede váš stávající e-shop podle adresy.",
+          "Detaily pak doladíte ručně přímo na stránce.",
+          "K hotovým produktům připravíte reklamní fotky a videa."
+        ],
+        "costs": [
+          "Vygenerování e-shopu: 10 kreditů",
+          "Úprava v chatu: 1 kredit",
+          "Automatické opravy buildu: zdarma",
+          "Stažení kódu jako ZIP: zdarma",
+          "Hosting: 99 USD ročně, první měsíc zdarma"
+        ],
+        "page": "/quante/generate"
+      },
+      {
+        "slug": "qdit",
+        "name": "Qdit",
+        "status": "k dispozici",
+        "what": "Ruční úpravy přímo na stránce. Kliknete na text a přepíšete ho, prvky přesunete nebo smažete. AI použijete, jen když chcete.",
+        "features": [
+          "Klik a přepsat: Text upravíte dvojklikem přímo v živém náhledu obchodu.",
+          "Vzhled podle zařízení: Písmo, barvy, rozložení, odsazení a rámečky zvlášť pro počítač, tablet a mobil.",
+          "Přesunout, přidat, smazat: Prvky posunete výš nebo níž, přidáte tlačítko, nadpis, text nebo obrázek.",
+          "AI na vyžádání: Na vybraný prvek se můžete zeptat Quante nebo nechat AI vytvořit nový.",
+          "Nic se nerozbije zákazníkům: Úpravy se ukládají jako koncept. Zákazníci je uvidí až po kliknutí na Publikovat.",
+          "Chráněné části: Košík, pokladnu a právní stránky editor nemění, aby obchod vždy fungoval."
+        ],
+        "note": "Editor najdete ve Studiu u každého obchodu pod tlačítkem „Edit visually“. Funguje na počítači.",
+        "connections": [
+          "Upravujete obchod, který postavil Quante Generate.",
+          "Qgent vám bude úpravy navrhovat sám."
+        ],
+        "costs": [
+          "Ruční úpravy: zdarma",
+          "AI akce na prvku: 1 kredit, při chybě se vrací"
+        ],
+        "page": "/quante/qdit"
+      },
+      {
+        "slug": "qads",
+        "name": "Qads",
+        "status": "k dispozici",
+        "what": "Reklamní fotky a videa z fotek vašeho produktu. Hotové soubory si stáhnete a použijete, kde chcete.",
+        "features": [
+          "Z fotky produktu: Nahrajete jednu až čtyři fotky produktu, napíšete název a krátký popis.",
+          "Formáty pro sítě: 9:16, 4:5, 1:1 a 16:9, až čtyři varianty od každého formátu.",
+          "Pět stylů: Packshot, lifestyle, UGC, filmový a minimalistický.",
+          "Videa 4 až 10 sekund: Krátká videa pro reklamy i příběhy.",
+          "Reklamní texty: Háček, text, titulek, výzva k akci, scénář a titulky. Česky, slovensky, anglicky nebo německy.",
+          "Ke stažení: Každý soubor zvlášť nebo vše jako ZIP. Qads nic nepublikuje, kam reklamy dáte, je na vás."
+        ],
+        "note": "Fotky a videa vznikají přes Higgsfield. Kredity se platí předem a za položky, které se nepovedou, se vrátí.",
+        "connections": [
+          "Reklamy na produkty z obchodu, který postavil Quante Generate.",
+          "Qgent bude Qads předávat informace o vašem e-shopu."
+        ],
+        "costs": [
+          "Fotka: 1 kredit za kus",
+          "Video: 1,2 kreditu za sekundu, zaokrouhleno nahoru (5 s = 6 kreditů)",
+          "Příprava reklam a textů: 3 kredity za generování"
+        ],
+        "page": "/quante/qads"
+      }
+    ],
+    "modulesInDevelopment": [
+      {
+        "slug": "qscan",
+        "name": "Qscan",
+        "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
+        "what": "Sken stávajícího e-shopu podle adresy. Převezme kategorie, produkty a ceny a přenese je rovnou do Quante.",
+        "features": [
+          "Stačí adresa: Zadáte adresu e-shopu, který už máte. Nic neexportujete ručně.",
+          "Kategorie, produkty a ceny: Qscan projde obchod a sesbírá, co v něm je.",
+          "Rovnou do Quante: Ze skenu vznikne nový obchod v Quante, na kterém dál pracujete."
+        ],
+        "note": "Qscan je ve vývoji a termín zatím neuvádíme. Chcete převést e-shop už teď? Domluvte si konzultaci.",
+        "connections": [
+          "Naskenovaný obchod postaví Quante Generate.",
+          "Úpravy po převodu uděláte v Qdit."
+        ],
+        "costs": [],
+        "page": "/quante/qscan"
+      },
+      {
+        "slug": "qgent",
+        "name": "Qgent",
+        "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
+        "what": "Agent, který s vámi projde celý e-shop, navrhne úpravy a provede je, až je potvrdíte.",
+        "features": [
+          "Projde e-shop s vámi: Stránku po stránce upozorní, co chybí nebo nefunguje.",
+          "Nejdřív náhled: Každou změnu ukáže předem a provede ji až po vašem potvrzení.",
+          "Všechno jde vrátit: Každá změna se zapíše a jde vrátit zpátky.",
+          "Peníze a doprava zvlášť: Platby, dopravu ani ceny nezmění bez samostatného potvrzení.",
+          "Podklady pro reklamy: Sbírá informace o e-shopu, ze kterých Qads připraví reklamy."
+        ],
+        "note": "Qgent je ve vývoji a termín zatím neuvádíme. Na webu AssetraDigital bude i jako asistent, který odpoví na otázky návštěvníků.",
+        "connections": [
+          "Co navrhne, můžete místo potvrzení upravit ručně v Qdit.",
+          "Informace o e-shopu předá Qads pro reklamy."
+        ],
+        "costs": [],
+        "page": "/quante/qgent"
+      },
+      {
+        "slug": "qails",
+        "name": "Qails",
+        "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
+        "what": "E-maily všech vašich obchodů na jednom místě, oddělené podle obchodu.",
+        "features": [
+          "Jedna schránka: Objednávky, dotazy a reklamace ze všech obchodů pohromadě.",
+          "Podle obchodu: Každá zpráva nese obchod, ke kterému patří.",
+          "Hledání napříč obchody: Jedno hledání projde e-maily všech obchodů."
+        ],
+        "note": "Qails je ve vývoji a termín zatím neuvádíme.",
+        "connections": [
+          "E-maily obchodů, které postavil Quante Generate.",
+          "Qgent bude mít přehled i o tom, na co se zákazníci ptají."
+        ],
+        "costs": [],
+        "page": "/quante/qails"
+      }
+    ],
+    "flow": [
+      "Převod — Qscan přenese stávající e-shop podle adresy. (ve vývoji)",
+      "Stavba — Quante Generate postaví e-shop ze zadání a ohlídá, aby se sestavil.",
+      "Doladění — V Qdit upravíte texty, vzhled a rozložení přímo na stránce.",
+      "Kontrola — Qgent projde celý e-shop a navrhne úpravy, které po potvrzení provede. (ve vývoji)",
+      "Propagace — Qads připraví reklamní fotky a videa ke stažení.",
+      "Komunikace — Qails sjednotí e-maily všech obchodů na jednom místě. (ve vývoji)"
+    ],
+    "pricing": {
+      "currency": "USD, platba kartou přes Stripe",
+      "welcomeCredits": 12,
+      "creditPacks": [
+        "50 kreditů za 9,99 USD",
+        "150 kreditů za 24,99 USD",
+        "500 kreditů za 69,99 USD"
+      ],
+      "costs": [
+        "Vygenerování e-shopu: 10 kreditů",
+        "Úprava v chatu: 1 kredit",
+        "Automatické opravy buildu: zdarma",
+        "Ruční úpravy v Qdit: zdarma",
+        "AI v Qdit: 1 kredit",
+        "Reklamní fotka v Qads: 1 kredit",
+        "Reklamní video v Qads: 6 kreditů za 5 s",
+        "Příprava reklam v Qads: 3 kredity za generování",
+        "Stažení kódu jako ZIP: zdarma"
+      ],
+      "hosting": "99 USD ročně, první měsíc zdarma",
+      "agency": "699 USD měsíčně, až 20 obchodů, úpravy a opravy bez kreditů, export bez značky Quante"
+    },
+    "appUrl": "/dashboard (přihlášení), nový obchod /new, Qads /qads"
+  },
+  "navigation": {
+    "sections": [
+      {
+        "key": "sluzby",
+        "page": "/",
+        "title": "Služby: firemní web, e-shop, správa a hosting"
+      },
+      {
+        "key": "smlouva",
+        "page": "/",
+        "title": "Pravidla ve smlouvě"
+      },
+      {
+        "key": "cenik",
+        "page": "/",
+        "title": "Ceník webů a e-shopů na míru"
+      },
+      {
+        "key": "postup",
+        "page": "/",
+        "title": "Jak spolupráce probíhá"
+      },
+      {
+        "key": "prace",
+        "page": "/",
+        "title": "Ukázka práce: návrh e-shopu Harwo"
+      },
+      {
+        "key": "quante",
+        "page": "/",
+        "title": "Quante na hlavní stránce"
+      },
+      {
+        "key": "kontakt",
+        "page": "/",
+        "title": "Kontakt a formulář poptávky"
+      },
+      {
+        "key": "quante-moduly",
+        "page": "/quante",
+        "title": "Moduly Quante"
+      },
+      {
+        "key": "quante-propojeni",
+        "page": "/quante",
+        "title": "Jak moduly Quante navazují"
+      },
+      {
+        "key": "quante-cenik",
+        "page": "/quante",
+        "title": "Ceník Quante: kredity, hosting, Agency"
+      }
+    ],
+    "pages": [
+      {
+        "key": "home",
+        "path": "/",
+        "title": "Hlavní stránka AssetraDigital"
+      },
+      {
+        "key": "quante",
+        "path": "/quante",
+        "title": "Quante: přehled modulů"
+      },
+      {
+        "key": "quante/generate",
+        "path": "/quante/generate",
+        "title": "Quante Generate"
+      },
+      {
+        "key": "quante/qscan",
+        "path": "/quante/qscan",
+        "title": "Qscan (ve vývoji)"
+      },
+      {
+        "key": "quante/qgent",
+        "path": "/quante/qgent",
+        "title": "Qgent (ve vývoji)"
+      },
+      {
+        "key": "quante/qdit",
+        "path": "/quante/qdit",
+        "title": "Qdit"
+      },
+      {
+        "key": "quante/qads",
+        "path": "/quante/qads",
+        "title": "Qads"
+      },
+      {
+        "key": "quante/qails",
+        "path": "/quante/qails",
+        "title": "Qails (ve vývoji)"
+      },
+      {
+        "key": "obchodni-podminky",
+        "path": "/obchodni-podminky",
+        "title": "Obchodní podmínky (text zatím není hotový)"
+      },
+      {
+        "key": "ochrana-osobnich-udaju",
+        "path": "/ochrana-osobnich-udaju",
+        "title": "Ochrana osobních údajů (text zatím není hotový)"
+      },
+      {
+        "key": "vzorova-smlouva",
+        "path": "/vzorova-smlouva",
+        "title": "Vzorová smlouva (text zatím není hotový)"
+      }
+    ]
+  },
+  "unknownUntilConsultation": [
+    "IČO, sídlo a zápis v obchodním rejstříku (firma se zakládá)",
+    "telefon a e-mail",
+    "do kdy se ozveme",
+    "cena správy při jednorázové platbě a hodinová sazba",
+    "jestli jsou ceny s DPH, nebo bez",
+    "obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)",
+    "termíny modulů ve vývoji (Qscan, Qails, Qgent v e-shopech)"
+  ]
+}

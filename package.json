@@ -24,7 +24,8 @@
     "test:mail-guards": "node --test __tests__/mail-guards.test.mjs",
     "test:security4-misc": "node --test __tests__/security4-misc.test.mjs",
     "test:scaffold-rollout": "node --test __tests__/scaffold-rollout.test.mjs",
-    "test": "node --test __tests__/*.test.mjs"
+    "test": "node --test __tests__/*.test.mjs",
+    "qgent:knowledge": "node scripts/build-qgent-knowledge.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",
@@ -36,6 +37,7 @@
     "@vercel/sandbox": "^3.5.0",
     "@vercel/sdk": "^1.21.9",
     "@vercel/speed-insights": "^2.0.0",
+    "botid": "^1.5.11",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.40.0",

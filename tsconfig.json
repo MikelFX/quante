@@ -22,7 +22,8 @@
     "paths": {
       "@/*": ["./*"],
       "@ad/ui": ["./packages/ui/index.ts"],
-      "@ad/ui/*": ["./packages/ui/*"]
+      "@ad/ui/*": ["./packages/ui/*"],
+      "@ad/qgent/*": ["./packages/qgent/*"]
     }
   },
   "include": [

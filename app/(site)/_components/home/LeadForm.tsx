@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Button, ChipGroup, Field, TextArea } from '@ad/ui'
 import { contactSection } from '@/content/assetra/site'
+import { PREFILL_EVENT, takePrefill, type LeadPrefill } from '../qgent/prefill'
 
 type State = '' | 'sending' | 'done' | 'error'
 
@@ -17,6 +18,27 @@ export function LeadForm() {
   const [shownAt] = useState(() => Date.now())
   const [state, setState] = useState<State>('')
   const [error, setError] = useState('')
+  const [viaQgent, setViaQgent] = useState(false)
+
+  // Qgent hands over name / contact / need after the visitor confirmed it in the panel —
+  // either right now (event) or before this page was open (sessionStorage).
+  useEffect(() => {
+    const apply = (p: LeadPrefill | null) => {
+      if (!p) return
+      if (p.jmeno) setJmeno(p.jmeno)
+      if (p.kontakt) setKontakt(p.kontakt)
+      if ((contactSection.needs as string[]).includes(p.potreba)) setPotreba(p.potreba)
+      setViaQgent(true)
+      setState((s) => (s === 'done' ? s : ''))
+    }
+    const onPrefill = () => {
+      apply(takePrefill())
+      requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('.frm textarea[name="zprava"]')?.focus({ preventScroll: true }))
+    }
+    apply(takePrefill())
+    window.addEventListener(PREFILL_EVENT, onPrefill)
+    return () => window.removeEventListener(PREFILL_EVENT, onPrefill)
+  }, [])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -32,7 +54,7 @@ export function LeadForm() {
       const res = await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jmeno, kontakt, potreba, zprava, web, ms: Date.now() - shownAt }),
+        body: JSON.stringify({ jmeno, kontakt, potreba, zprava, web, ms: Date.now() - shownAt, ...(viaQgent ? { via: 'qgent' } : {}) }),
       })
       const data = (await res.json().catch(() => ({}))) as { error?: string }
       if (!res.ok) throw new Error(data.error || 'Poptávku se nepodařilo odeslat. Zkuste to prosím znovu.')
@@ -54,6 +76,7 @@ export function LeadForm() {
       <div className="hpot" aria-hidden="true">
         <label>Web<input type="text" name="web" tabIndex={-1} autoComplete="off" value={web} onChange={(e) => setWeb(e.target.value)} /></label>
       </div>
+      {viaQgent && state !== 'done' && <p className="frm-note">Předvyplnil asistent Qgent. Zkontrolujte údaje a poptávku odešlete.</p>}
       <Button type="submit" variant="pri" arrow disabled={state === 'sending' || state === 'done'}>{label}</Button>
       <p className="frm-note">
         Údaje použijeme jen k odpovědi na poptávku. Více v <Link href="/ochrana-osobnich-udaju">ochraně osobních údajů</Link>.

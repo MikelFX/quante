@@ -1,6 +1,7 @@
 // POST /api/leads — the AssetraDigital homepage contact form („Odeslat poptávku“).
 //
-// Public and unauthenticated, so: honeypot + minimum fill time (silently dropped), per-IP
+// Public and unauthenticated, so: Vercel BotID (instrumentation-client.ts), honeypot + minimum
+// fill time (silently dropped), per-IP
 // limits in memory and in the database, strict field validation (lib/assetra/lead.ts), every
 // value HTML-escaped in the notification. The lead is stored first (table `leads`,
 // supabase/migration-assetra-leads.sql) and then e-mailed to LEAD_NOTIFY_EMAIL. Either one is
@@ -8,6 +9,7 @@
 
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
+import { isBot } from '@/lib/assetra/bot'
 import { checkLead, leadEmailHtml, leadSubject } from '@/lib/assetra/lead'
 import { isValidEmail, sendEmail } from '@/lib/email-templates'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
@@ -28,6 +30,8 @@ function hashIp(ip: string) {
 const missingTable = (e: { code?: string } | null) => !!e && (e.code === '42P01' || e.code === 'PGRST205')
 
 export async function POST(request: Request) {
+  if (await isBot('leads')) return NextResponse.json({ error: FAIL }, { status: 403 })
+
   const ip = getClientIp(request)
   const rl = rateLimit(`lead:${ip}`, 5, 10 * 60_000)
   if (!rl.allowed) {
@@ -63,7 +67,8 @@ export async function POST(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('leads')
     .insert({
-      source: 'web',
+      // Prefilled by Qgent after the visitor confirmed it (they still submit the form themselves).
+      source: (body as { via?: unknown } | null)?.via === 'qgent' ? 'qgent' : 'web',
       name: lead.jmeno,
       contact: lead.kontakt,
       need: lead.potreba,
