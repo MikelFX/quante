@@ -27,7 +27,7 @@ export const tokens = {
     acc: '#2fe0a3',
     acc2: '#4a9eea',
     accInk: '#03130d',
-    accText: '#057a56',
+    accText: '#04704f',
   },
 } as const
 

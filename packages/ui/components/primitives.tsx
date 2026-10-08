@@ -13,12 +13,16 @@ export function delay(s?: number): CSSProperties | undefined {
   return s ? { animationDelay: s + 's' } : undefined
 }
 
+// Sign-in-protected Quante routes (proxy.ts): a signed-out visitor is redirected to Clerk, so
+// prefetching them only produces a blocked cross-origin request.
+const PROTECTED_APP = /^\/(dashboard|new|project|billing|settings)(\/|$|\?)/
+
 /** In-page anchors stay plain <a>; routes go through next/link. */
 export function SmartLink({ href, className, children, ...rest }: { href: string; className?: string; children: ReactNode } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'>) {
   if (href.startsWith('#') || /^(https?:|mailto:|tel:)/.test(href)) {
     return <a href={href} className={className} {...rest}>{children}</a>
   }
-  return <Link href={href} className={className} {...rest}>{children}</Link>
+  return <Link href={href} className={className} prefetch={PROTECTED_APP.test(href) ? false : undefined} {...rest}>{children}</Link>
 }
 
 /** The AD mark: A and D share one vertical stroke; the mint pixel inside the A blinks. */

@@ -48,10 +48,11 @@ export function AnnouncementBanner() {
         gap: 6,
       }}
     >
-      <span style={{ fontFamily: 'var(--q-mono)', fontSize: 10.5, letterSpacing: '.09em', color: 'var(--q-acc-text)', marginRight: 6 }}>
+      <span className="ann-new" style={{ fontFamily: 'var(--q-mono)', fontSize: 10.5, letterSpacing: '.09em', color: 'var(--q-acc-text)', marginRight: 6 }}>
         NEW
       </span>
-      Connect your own domain to your store, powered by {domainProvider.name}{' '}
+      {/* The bar has a fixed height (--banner-h): on phones only the short version fits one line. */}
+      Connect your own domain<span className="ann-long"> to your store, powered by {domainProvider.name}</span>{' '}
       <Link
         href="/domains"
         style={{ color: 'var(--q-fg)', textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap' }}
@@ -61,6 +62,7 @@ export function AnnouncementBanner() {
       <button
         onClick={dismiss}
         aria-label="Dismiss announcement"
+        className="q-tap"
         style={{
           position: 'absolute',
           right: 14,

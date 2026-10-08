@@ -26,7 +26,7 @@ function Col({ title, children }: { title: string; children: React.ReactNode }) 
 function NavLink({ href, label, badge }: { href: string; label: string; badge?: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-      <Link href={href} style={{ fontSize: 13, color: subtle, textDecoration: 'none' }}>
+      <Link href={href} className="q-tap" style={{ fontSize: 13, color: subtle, textDecoration: 'none' }}>
         {label}
       </Link>
       {badge && (
@@ -111,7 +111,7 @@ export function SiteFooter() {
         {socialLinks.length > 0 && (
           <div style={{ display: 'flex', gap: 14, marginBottom: 28 }}>
             {socialLinks.map(s => (
-              <a key={s.href} href={s.href} target="_blank" rel="noopener noreferrer"
+              <a key={s.href} href={s.href} target="_blank" rel="noopener noreferrer" className="q-tap"
                 style={{ fontSize: 12, color: muted, textDecoration: 'none' }}>
                 {s.label}
               </a>
@@ -174,7 +174,7 @@ export function SiteFooter() {
               { label: 'Privacy', href: '/privacy' },
               { label: 'Cookies', href: '/cookies' },
             ].map(l => (
-              <Link key={l.href} href={l.href} style={{ fontSize: 11.5, color: muted, textDecoration: 'none' }}>
+              <Link key={l.href} href={l.href} className="q-tap" style={{ fontSize: 11.5, color: muted, textDecoration: 'none' }}>
                 {l.label}
               </Link>
             ))}

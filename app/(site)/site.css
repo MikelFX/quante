@@ -24,6 +24,13 @@
 .ad .doc-page .sub{max-width:40em}
 .ad .doc-page .doc-body{margin-top:clamp(32px,4vw,56px);padding:clamp(22px,3vw,40px);border-radius:28px;max-width:52em}
 .ad .doc-page .doc-body p{margin:0;color:var(--fg2)}
+/* Sections below the first screen render only when they come near the viewport. Measured
+   (QA 2026-10-08, CPU 4×, 1.6 Mbit/s): homepage FCP 2.4 → 1.6 s, LCP 3.3 → 2.6 s, and the particle
+   loop runs smoother (40 → 85 fps idle). "auto" remembers each section's real size once rendered,
+   so the scrollbar and #anchors settle. Full-page screenshots show unrendered sections as empty. */
+.ad main > .sec:not(.mod-top),.ad main > .paths-sec,.ad > footer{content-visibility:auto;contain-intrinsic-size:auto 900px}
+/* SectionSizes renders everything for one frame after load so the real heights are remembered. */
+.ad-cv-measure .ad main > .sec:not(.mod-top),.ad-cv-measure .ad main > .paths-sec,.ad-cv-measure .ad > footer{content-visibility:visible}
 /* the bento .card spans 12 columns by default; here the two path cards share one row */
 .ad .paths .card{grid-column:auto}
 
@@ -91,14 +98,14 @@
 .ad .qg-chips button:hover{border-color:var(--acc)}
 .ad .qg-in{display:flex;align-items:flex-end;gap:8px;margin:0 12px;padding:6px 6px 6px 14px;border-radius:22px;border:1px solid var(--line2);background:var(--bg);transition:border-color .3s}
 .ad .qg-in:focus-within{border-color:var(--acc)}
-.ad .qg-in textarea{flex:1;min-width:0;min-height:40px;max-height:120px;padding:10px 0;border:0;background:none;resize:none;color:var(--fg);font:500 16px/1.4 var(--sans)}
+.ad .qg-in textarea{flex:1;min-width:0;min-height:44px;max-height:120px;padding:10px 0;border:0;background:none;resize:none;color:var(--fg);font:500 16px/1.4 var(--sans)}
 .ad .qg-in textarea:focus{outline:none}
 .ad .qg-in textarea::placeholder{color:var(--fg3)}
 .ad .qg-send{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:50%;appearance:none;border:0;background:var(--acc);color:var(--accInk);cursor:pointer}
 .ad .qg-send[disabled]{background:var(--line2);color:var(--fg3);cursor:default}
 .ad .qg-send svg{width:20px;height:20px}
 .ad .qg-fine{flex:none;margin:0;padding:8px 18px calc(12px + env(safe-area-inset-bottom));font:500 11px/1.45 var(--sans);color:var(--fg3)}
-.ad .qg-reset{padding:0;border:0;background:none;appearance:none;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.ad .qg-reset{padding:14px 4px;margin:-14px -4px;border:0;background:none;appearance:none;color:inherit;font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 @media (max-width:640px){
   .ad .qg-panel{left:0;right:0;bottom:0;width:auto;height:min(88dvh,720px);border-radius:26px 26px 0 0;border-bottom:0}
   .ad .qg-fine{padding-bottom:calc(10px + env(safe-area-inset-bottom))}

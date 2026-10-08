@@ -63,12 +63,15 @@ export default function RootLayout({
             border: '1px solid var(--q-line2)',
             color: 'var(--q-fg)',
             borderRadius: '999px',
+            minHeight: '44px',
           },
+          socialButtonsIconButton: { minHeight: '44px' },
           formFieldInput: {
             background: 'var(--q-bg)',
             border: '1px solid var(--q-line2)',
             color: 'var(--q-fg)',
             borderRadius: '16px',
+            minHeight: '44px',
             '&::placeholder': { color: 'var(--q-fg4)' },
           },
           // Clerk derives these greys from the variables with colour math, which CSS variables
@@ -93,6 +96,7 @@ export default function RootLayout({
             background: 'var(--q-acc)',
             color: 'var(--q-acc-ink)',
             borderRadius: '999px',
+            minHeight: '44px',
           },
           dividerLine: { background: 'var(--q-line)' },
           dividerText: { color: 'var(--q-fg4)' },

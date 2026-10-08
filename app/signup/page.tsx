@@ -22,7 +22,7 @@ export default function SignUpPage() {
       <div className="qp-bg-grid" />
       <div className="qp-bg-scan" />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
-        <Link href="/quante" aria-label="Quante" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, textDecoration: 'none' }}>
+        <Link href="/quante" aria-label="Quante" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 44, marginBottom: 28, textDecoration: 'none' }}>
           <QuanteBrand size="lg" />
         </Link>
         <SignUp routing="hash" />

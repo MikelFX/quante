@@ -90,6 +90,7 @@ export function PublicNav() {
             <>
               <button
                 type="button"
+                className="q-tap"
                 onClick={() => signOut({ redirectUrl: '/' })}
                 style={{
                   fontSize: 13.5, color: 'var(--qp-sub)',
@@ -101,6 +102,7 @@ export function PublicNav() {
               </button>
               <Link
                 href="/dashboard"
+                className="q-tap"
                 style={{
                   fontSize: 13.5,
                   fontWeight: 600,
@@ -117,11 +119,12 @@ export function PublicNav() {
             </>
           ) : (
             <>
-              <Link href="/login" style={{ fontSize: 13.5, color: 'var(--qp-sub)', textDecoration: 'none' }}>
+              <Link href="/login" className="q-tap" style={{ fontSize: 13.5, color: 'var(--qp-sub)', textDecoration: 'none' }}>
                 Log in
               </Link>
               <Link
                 href="/signup"
+                className="q-tap"
                 style={{
                   fontSize: 13.5,
                   fontWeight: 600,

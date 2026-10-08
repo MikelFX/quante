@@ -951,3 +951,13 @@
   --qp-mono: var(--q-mono);
   --qp-sans: var(--q-sans);
 }
+
+/* Touch targets (QA 2026-10-08): on touch screens small controls of the Quante public pages get a
+   44px hit area; links inside running text are underlined so they don't rely on colour alone. */
+@media (pointer: coarse) {
+  .q-tap { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+  .qnt-public button { min-height: 44px; min-width: 44px; }
+  .qnt-public .qads-input { min-height: 44px; }
+}
+.qnt-public p a, .qnt-public li a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 640px) { .ann-new, .ann-long { display: none; } }

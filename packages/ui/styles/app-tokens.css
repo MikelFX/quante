@@ -4,6 +4,29 @@
    a -text variant: the light theme needs darker shades for 4.5:1 contrast.
    The app's hard-coded colours were moved onto these by scripts/assetra-recolor.mjs. */
 
+/* Fallback for the display font while Archivo loads: Arial (or Helvetica / Roboto / Liberation
+   Sans) scaled to the width of Archivo 850 at font-stretch 66–70 % (measured: 0.73–0.80 of Arial
+   Bold), with Archivo's ascent/descent. Headlines wrap the same before and after the swap, so the
+   page doesn't jump (CLS). */
+@font-face {
+  font-family: "AD Archivo Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT"), local("Helvetica Bold"), local("Roboto Bold"), local("Roboto-Bold"), local("Liberation Sans Bold");
+  font-weight: 600 1000;
+  size-adjust: 74%;
+  ascent-override: 119%;
+  descent-override: 28%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "AD Archivo Fallback";
+  src: local("Arial"), local("ArialMT"), local("Helvetica"), local("Roboto"), local("Roboto-Regular"), local("Liberation Sans");
+  font-weight: 100 599;
+  size-adjust: 80%;
+  ascent-override: 110%;
+  descent-override: 26%;
+  line-gap-override: 0%;
+}
+
 :root {
   --q-bg: #070808;
   --q-bg-rgb: 7 8 8;
@@ -50,7 +73,7 @@
 
   --q-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
   --q-mono: var(--font-jetbrains-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --q-disp: var(--font-archivo), "Archivo", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --q-disp: var(--font-archivo), "Archivo", "AD Archivo Fallback", sans-serif;
   --q-ease: cubic-bezier(.16, 1, .3, 1);
 
 }
@@ -73,8 +96,8 @@
 
   --q-acc: #2fe0a3;
   --q-acc-rgb: 47 224 163;
-  --q-acc-text: #057a56;
-  --q-acc-hi: #057a56;
+  --q-acc-text: #04704f;
+  --q-acc-hi: #04704f;
   --q-acc-hover: #26c990;
   --q-acc-ink: #03130d;
   --q-acc2: #4a9eea;
@@ -83,7 +106,7 @@
 
   --q-ok: #2fe0a3;
   --q-ok-rgb: 47 224 163;
-  --q-ok-text: #057a56;
+  --q-ok-text: #04704f;
   --q-warn: #f0a73a;
   --q-warn-rgb: 240 167 58;
   --q-warn-text: #8a4b06;

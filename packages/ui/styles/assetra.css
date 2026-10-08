@@ -2,13 +2,13 @@
    Everything is scoped under .ad: global stylesheets are never unloaded on client navigation,
    so nothing here may leak into the Quante app. Keyframes carry an ad- prefix for the same reason. */
 @property --ad-ang{syntax:'<angle>';inherits:false;initial-value:0deg}
-.ad{--disp:var(--font-archivo,"Archivo"),"Arial Narrow","Roboto Condensed",sans-serif;--sans:var(--font-geist-sans,"Geist"),ui-sans-serif,system-ui,sans-serif;--mono:var(--font-jetbrains-mono,"JetBrains Mono"),ui-monospace,SFMono-Regular,Menlo,monospace;--ease:cubic-bezier(.16,1,.3,1);position:relative;flex:1 0 auto;width:100%;color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:clip;transition:color .6s}
+.ad{--disp:var(--font-archivo,"Archivo"),"AD Archivo Fallback",sans-serif;--sans:var(--font-geist-sans,"Geist"),ui-sans-serif,system-ui,sans-serif;--mono:var(--font-jetbrains-mono,"JetBrains Mono"),ui-monospace,SFMono-Regular,Menlo,monospace;--ease:cubic-bezier(.16,1,.3,1);position:relative;flex:1 0 auto;width:100%;color:var(--fg);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:clip;transition:color .6s}
 /* Page background sits on a fixed layer below the particle canvas (z 0), which the root layout renders outside .ad. */
 .ad::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--bg);transition:background .6s}
 :root:has(.ad){color-scheme:dark}
 :root[data-theme="light"]:has(.ad){color-scheme:light}
 .ad{--bg:#070808;--bg2:#0d0f0f;--fg:#eef2f0;--fg2:#a9b0ac;--fg3:#8a918d;--dim:#3c413e;--line:rgba(238,242,240,.09);--line2:rgba(238,242,240,.18);--grid:rgba(238,242,240,.04);--acc:#5ff5c4;--acc2:#7cc8ff;--accInk:#03130d;--accText:#5ff5c4;--gl1:rgba(255,255,255,.075);--gl2:rgba(255,255,255,.015);--glb:rgba(255,255,255,.12);--glh:rgba(255,255,255,.22);--shadow:rgba(0,0,0,.75);--pc:238,242,240;color-scheme:dark}
-[data-theme="light"] .ad{--bg:#eef0ee;--bg2:#e4e7e4;--fg:#0b0d0c;--fg2:#3b413e;--fg3:#5a615d;--dim:#a7aca9;--line:rgba(11,13,12,.1);--line2:rgba(11,13,12,.22);--grid:rgba(11,13,12,.05);--acc:#2fe0a3;--acc2:#4a9eea;--accInk:#03130d;--accText:#057a56;--gl1:rgba(255,255,255,.7);--gl2:rgba(255,255,255,.35);--glb:rgba(255,255,255,.9);--glh:rgba(255,255,255,1);--shadow:rgba(20,40,30,.22);--pc:11,13,12;color-scheme:light}
+[data-theme="light"] .ad{--bg:#eef0ee;--bg2:#e4e7e4;--fg:#0b0d0c;--fg2:#3b413e;--fg3:#5a615d;--dim:#a7aca9;--line:rgba(11,13,12,.1);--line2:rgba(11,13,12,.22);--grid:rgba(11,13,12,.05);--acc:#2fe0a3;--acc2:#4a9eea;--accInk:#03130d;--accText:#04704f;--gl1:rgba(255,255,255,.7);--gl2:rgba(255,255,255,.35);--glb:rgba(255,255,255,.9);--glh:rgba(255,255,255,1);--shadow:rgba(20,40,30,.22);--pc:11,13,12;color-scheme:light}
 .ad *,.ad *::before,.ad *::after{box-sizing:border-box}
 .ad a{color:inherit;text-decoration:none}
 .ad ::selection{background:var(--acc);color:var(--accInk)}
@@ -51,7 +51,7 @@
 
 .ad .nav{position:sticky;top:12px;z-index:50;display:flex;align-items:center;gap:8px;width:min(1180px,calc(100% - 24px));margin:12px auto 0;padding:7px 7px 7px 18px;border-radius:999px}
 .ad .prog{position:absolute;left:24px;right:24px;bottom:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--acc),var(--acc2));transform-origin:left;transform:scaleX(0)}
-.ad .logo{display:flex;align-items:center;gap:11px;min-height:44px;margin-right:auto}
+.ad .logo{display:flex;align-items:center;gap:11px;min-width:44px;min-height:44px;margin-right:auto}
 .ad .mark{width:36px;height:27px;flex:none;color:var(--fg);overflow:visible}
 .ad .mark .px{fill:var(--acc);animation:ad-blink 2.6s steps(1) infinite}
 .ad .wm{font:700 11px/1.2 var(--mono);letter-spacing:.16em;text-transform:uppercase}
@@ -86,7 +86,8 @@
 .ad .h1{margin:26px 0 24px;font-family:var(--disp);font-stretch:66%;font-weight:850;font-size:clamp(56px,8.4vw,136px);line-height:.93;letter-spacing:-.01em;text-transform:uppercase}
 .ad .h1 .wd{display:inline-block;white-space:nowrap;margin-right:.2em}
 .ad .h1 .c{display:inline-block;animation:ad-chr .9s var(--ease) both}
-@keyframes ad-chr{from{opacity:0;transform:translateY(.6em) rotateX(-80deg);filter:blur(10px);font-stretch:125%}to{opacity:1;transform:none;filter:none;font-stretch:66%}}
+/* The design widened each letter with font-stretch 125 % → 66 %; scaleX gives the same look without re-laying out the headline every frame (layout shift, LCP). */
+@keyframes ad-chr{from{opacity:0;transform:translateY(.6em) rotateX(-80deg) scaleX(1.9);filter:blur(10px)}to{opacity:1;transform:none;filter:none}}
 .ad .h1 .hl{background:linear-gradient(100deg,var(--acc),var(--acc2) 45%,var(--acc) 90%);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:ad-chr .9s var(--ease) both,ad-shine 4s linear infinite}
 @keyframes ad-shine{to{background-position:-200% 0}}
 .ad .lead{margin:0;max-width:33em;font-size:clamp(17px,1.4vw,20px);line-height:1.55;color:var(--fg2)}
@@ -146,7 +147,7 @@
 .ad .toast.tb{animation:ad-toB 3.6s var(--ease) both}
 .ad .toast i{flex:none;display:grid;place-items:center;width:2.6cqw;height:2.6cqw;border-radius:.8cqw;background:#5ff5c4;color:#03130d;font:800 1.4cqw/1 var(--sans);font-style:normal}
 .ad .toast b{display:block;font-weight:700}
-.ad .toast small{font:500 clamp(9px,.9cqw,12px)/1.3 var(--mono);color:#8d9692}
+.ad .toast small{font:500 clamp(9px,.9cqw,12px)/1.3 var(--mono);color:#b4bbb7}
 .ad .fc{position:absolute;display:flex;align-items:center;gap:.8cqw;padding:.9cqw 1.2cqw;border-radius:1.2cqw;font:600 clamp(10px,1.15cqw,14px)/1.2 var(--sans);white-space:nowrap;animation:ad-fl 6s ease-in-out infinite}
 .ad .fc small{display:block;font:500 clamp(9px,.9cqw,12px)/1.2 var(--mono);color:var(--fg3)}
 .ad .fc i{width:1cqw;height:1cqw;min-width:8px;min-height:8px;border-radius:50%;background:var(--acc);animation:ad-ping 2s infinite}
@@ -300,7 +301,7 @@
 .ad .hh-b{font:600 1.3cqw/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;background:#efe9dc;color:#2f3a2a;padding:1.1cqw 1.6cqw;border-radius:99px}
 .ad .hm{display:grid;grid-template-columns:22cqw minmax(0,1fr);gap:2.4cqw;padding:2.4cqw 2.6cqw 3cqw}
 .ad .hc{display:flex;flex-direction:column;gap:.4cqw;font-size:1.5cqw}
-.ad .hc b{margin-bottom:.8cqw;font:600 1.15cqw/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#6f705f}
+.ad .hc b{margin-bottom:.8cqw;font:600 1.15cqw/1 var(--mono);text-transform:uppercase;letter-spacing:.08em;color:#5f604f}
 .ad .hc span{padding:1cqw 1.2cqw;border-radius:.8cqw}
 .ad .hc span.on{background:#2f3a2a;color:#efe9dc}
 .ad .hf{display:flex;flex-wrap:wrap;gap:1cqw;margin-bottom:1.8cqw}
@@ -308,7 +309,7 @@
 .ad .hf span.on{background:#cfe3ef;border-color:#9cc2d9}
 .ad .hp{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.6cqw}
 .ad .hp div{display:flex;flex-direction:column;gap:.6cqw;font-size:1.4cqw}
-.ad .hp small{font:500 1.1cqw/1 var(--mono);color:#6f705f}
+.ad .hp small{font:500 1.1cqw/1 var(--mono);color:#5f604f}
 .ad .food{display:flex;align-items:center;justify-content:center;height:13cqw;border-radius:1cqw;background:radial-gradient(circle at 50% 35%,#f7f2e6,#e1d7c2)}
 .ad .food.fz{background:radial-gradient(circle at 50% 35%,#eef5f9,#c9dae6)}
 /* .food.fN (not .fN as in the design file): bare .f1–.f3 also matched the hero chips .fc.f1–.f3
