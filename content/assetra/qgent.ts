@@ -133,7 +133,7 @@ export function buildQgentKnowledge() {
       'cena správy při jednorázové platbě a hodinová sazba',
       'jestli jsou ceny s DPH, nebo bez',
       'obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)',
-      'termíny modulů ve vývoji (Qscan, Qails, Qgent v e-shopech)',
+      `termíny modulů ve vývoji (${modules.filter((m) => m.status === 'dev').map((m) => m.name).join(', ')})`,
     ],
   }
 }

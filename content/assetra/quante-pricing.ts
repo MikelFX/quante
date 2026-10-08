@@ -38,6 +38,8 @@ export const quantePricing = {
     { label: 'Automatické opravy buildu', value: credits(CREDIT_COSTS.fix) },
     { label: 'Ruční úpravy v Qdit', value: free },
     { label: 'AI v Qdit', value: credits(CREDIT_COSTS.iterate) },
+    { label: 'Kontrola obchodu v Qgent', value: credits(CREDIT_COSTS.qgent_review) },
+    { label: 'Změna od Qgent', value: `${credits(CREDIT_COSTS.qgent_apply)}, vrácení zdarma` },
     { label: 'Reklamní fotka v Qads', value: credits(QADS.imagePerVariant) },
     { label: 'Reklamní video v Qads', value: `${kredity(videoExample)} za 5 s` },
     { label: 'Příprava reklam v Qads', value: `${kredity(QADS.strategyPerGeneration)} za generování` },
@@ -62,6 +64,12 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
       return [
         { label: 'Ruční úpravy', value: free },
         { label: 'AI akce na prvku', value: `${credits(CREDIT_COSTS.iterate)}, při chybě se vrací` },
+      ]
+    case 'qgent':
+      return [
+        { label: 'Kontrola celého obchodu', value: `${credits(CREDIT_COSTS.qgent_review)}, při chybě se vrací` },
+        { label: 'Provedení potvrzené změny', value: `${credits(CREDIT_COSTS.qgent_apply)}, při chybě se vrací` },
+        { label: 'Zamítnutí a vrácení změny', value: free },
       ]
     case 'qads':
       return [

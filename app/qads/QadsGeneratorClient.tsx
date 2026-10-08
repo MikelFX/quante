@@ -127,14 +127,15 @@ export function QadsGeneratorClient() {
   const [projects, setProjects] = useState<Array<{ projectId: string; projectName: string; products: Array<{ id: string; name: string; description: string; images: string[] }> }>>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  // Restore draft after login
+  // Restore a draft: the form saved before login, or a partial one handed over by Qgent in the
+  // Studio (product name, description, store, language) — merged over the defaults.
   useEffect(() => {
     if (typeof window === 'undefined') return
     const raw = sessionStorage.getItem(DRAFT_KEY)
     if (raw) {
       try {
-        const draft = JSON.parse(raw) as FormState
-        setForm(draft)
+        const draft = JSON.parse(raw) as Partial<FormState>
+        setForm({ ...DEFAULT_FORM, ...draft })
       } catch {}
       sessionStorage.removeItem(DRAFT_KEY)
     }

@@ -44,8 +44,8 @@ test('the knowledge base holds nothing that must not be on the website', () => {
   assert.equal(k.agency.pricing.vat, null)
   assert.equal(k.agency.pricing.oneOff.hourlyRateCzk, null)
   assert.equal(k.agency.pricing.oneOff.managementPerMonthFromCzk, null)
-  assert.deepEqual(k.quante.modulesAvailable.map((m) => m.slug).sort(), ['generate', 'qads', 'qdit'])
-  assert.deepEqual(k.quante.modulesInDevelopment.map((m) => m.slug).sort(), ['qails', 'qgent', 'qscan'])
+  assert.deepEqual(k.quante.modulesAvailable.map((m) => m.slug).sort(), ['generate', 'qads', 'qdit', 'qgent'])
+  assert.deepEqual(k.quante.modulesInDevelopment.map((m) => m.slug).sort(), ['qails', 'qscan'])
   for (const m of k.quante.modulesInDevelopment) assert.match(m.status, /ve vývoji/, m.slug)
 })
 

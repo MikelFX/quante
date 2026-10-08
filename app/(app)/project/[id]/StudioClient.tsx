@@ -11,6 +11,7 @@ import type { StoreProduct } from '@/types/store-code'
 import type { StoreHealthResult, HealthCheckItem } from '@/lib/store-health'
 import { MerchantPanel } from './MerchantPanel'
 import { CodeThemePanel } from './CodeThemePanel'
+import { QgentPanel, type QgentApplied } from './QgentPanel'
 import { VisualEditor } from './VisualEditor'
 import { THEME_MESSAGE_SOURCE, type themePreviewPayload } from '@/lib/store-theme-shared'
 import {
@@ -18,7 +19,7 @@ import {
   Monitor, Tablet, Smartphone, RotateCcw, ExternalLink, ChevronDown,
   GripVertical, Eye, EyeOff, Trash2, Plus, X,
   LayoutDashboard, ShoppingBag, ClipboardList, Settings2, ArrowLeft, TrendingUp, Share2, Users,
-  Terminal, Wrench, CheckCircle, AlertCircle, Sparkles, RefreshCw,
+  Terminal, Wrench, CheckCircle, AlertCircle, Sparkles, RefreshCw, ScanSearch,
 } from 'lucide-react'
 import { RevenueChart } from '@/components/admin/RevenueChart'
 import DomainRegistrantForm from '@/components/public/DomainRegistrantForm'
@@ -111,8 +112,8 @@ interface PublishState {
 // Mirrors PERIOD_END_GRACE_MS in lib/hosting/gate.ts.
 const HOSTING_PERIOD_END_GRACE_MS = 48 * 60 * 60 * 1000
 
-type StudioTab = 'chat' | 'preview' | 'logs' | 'sections' | 'products' | 'theme' | 'publish'
-type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'publish'
+type StudioTab = 'chat' | 'preview' | 'logs' | 'sections' | 'products' | 'theme' | 'qgent' | 'publish'
+type DesktopTab = 'chat' | 'sections' | 'products' | 'theme' | 'qgent' | 'publish'
 type RightPanelTab = 'preview' | 'logs'
 type AdminTab = 'dashboard' | 'products' | 'orders' | 'customers' | 'insights' | 'settings'
 
@@ -3516,6 +3517,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     { id: 'sections', icon: Layers,        label: 'Sections' },
     { id: 'products', icon: Package,       label: 'Products' },
     { id: 'theme',    icon: Paintbrush,    label: 'Theme'    },
+    { id: 'qgent',    icon: ScanSearch,    label: 'Qgent'    },
     { id: 'publish',  icon: Rocket,        label: 'Publish'  },
   ]
 
@@ -4303,6 +4305,33 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       publishHint={draftMode
         ? 'Changes show instantly in the preview and are saved as a draft. Click Publish to make them live.'
         : 'Changes show instantly in the preview and are saved to your store. They go live with your next deploy.'}
+    />
+  ) : null
+
+  // ── Qgent mode — store review with confirmed, logged, undoable fixes ──────────
+  // A confirmed fix is a new draft version: same follow-up as a chat edit (balance, version
+  // history, preview, build logs and the free auto-fix loop if the build fails).
+  function handleQgentApplied(r: QgentApplied) {
+    resetAutoFixState()
+    refreshBalance()
+    fetchVersions()
+    fetchPublishState()
+    const url = resolveUrl(r.previewUrl)
+    if (url) { setPreviewUrl(url); setPreviewReady(false) }
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: `Qgent ${r.undo ? 'undid' : 'applied'} “${r.title}” — saved as draft v${r.versionNo}.${r.deploymentId ? (draftMode ? ' Building a draft preview; your live store stays unchanged until you click Publish.' : ' Building a preview (~1–2 min).') : ''}`,
+      type: 'status',
+    }])
+    if (r.deploymentId) startLogStreaming(r.deploymentId)
+  }
+
+  const QgentPanelEl = hasGeneratedOnce ? (
+    <QgentPanel
+      projectId={projectId}
+      draftMode={draftMode}
+      onApplied={handleQgentApplied}
+      onBalanceRefresh={refreshBalance}
     />
   ) : null
 
@@ -6622,7 +6651,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             {/* Sections/Theme only shown for legacy manifest-type stores — for code-gen
                 stores (the current default), design changes go through Chat instead, so
                 those two panels would otherwise be dead-ends here. */}
-            {STUDIO_MODES.filter(m => m.id === 'sections' ? !!currentManifest : m.id === 'theme' ? (!!currentManifest || hasGeneratedOnce) : true).map(({ id, icon: Icon, label }) => {
+            {STUDIO_MODES.filter(m => m.id === 'sections' ? !!currentManifest : m.id === 'theme' ? (!!currentManifest || hasGeneratedOnce) : m.id === 'qgent' ? hasGeneratedOnce : true).map(({ id, icon: Icon, label }) => {
               const active = desktopTab === id
               return (
                 <button
@@ -6680,6 +6709,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               {desktopTab === 'sections' && SectionsPanel}
               {desktopTab === 'products' && ProductsPanel}
               {desktopTab === 'theme'    && (currentManifest ? ThemePanel : CodeThemePanelEl)}
+              {desktopTab === 'qgent'    && QgentPanelEl}
               {desktopTab === 'publish'  && (
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                   {PublishPanel}
@@ -6732,6 +6762,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           { id: 'sections', label: 'Sections' },
           { id: 'products', label: 'Products' },
           { id: 'theme',    label: 'Theme'    },
+          ...(hasGeneratedOnce ? [{ id: 'qgent', label: 'Qgent' }] : []),
           { id: 'publish',  label: 'Publish'  },
         ] as { id: StudioTab; label: string }[]).map(({ id: tab, label }) => (
           <button
@@ -6767,6 +6798,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
         {activeTab === 'sections' && SectionsPanel}
         {activeTab === 'products' && ProductsPanel}
         {activeTab === 'theme'    && (currentManifest ? ThemePanel : CodeThemePanelEl)}
+        {activeTab === 'qgent'    && QgentPanelEl}
         {activeTab === 'publish'  && (
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
             {PublishPanel}
@@ -7051,6 +7083,7 @@ function CommandPalette({
     { group: 'Mode', label: 'Sections', hint: 'Reorder & manage sections',  action: () => { onSwitchMode('sections'); onClose() } },
     { group: 'Mode', label: 'Products', hint: 'Edit catalog',               action: () => { onSwitchMode('products'); onClose() } },
     { group: 'Mode', label: 'Theme',    hint: 'Colors & typography',        action: () => { onSwitchMode('theme');    onClose() } },
+    { group: 'Mode', label: 'Qgent',    hint: 'Review the store, confirm fixes', action: () => { onSwitchMode('qgent'); onClose() } },
     { group: 'Mode', label: 'Publish',  hint: 'Deploy & export',            action: () => { onSwitchMode('publish');  onClose() } },
     // Navigation
     { group: 'Navigate', label: 'Dashboard', action: () => { window.location.href = '/dashboard'; onClose() } },

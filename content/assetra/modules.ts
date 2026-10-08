@@ -1,12 +1,14 @@
 // The Quante modules as presented on the AssetraDigital website (homepage cards, /quante and
 // /quante/<slug>). This file is data — the Qgent knowledge base is built from it too.
 //
-// Status is what the code in this repo actually ships (verified 2026-10-07). Never present
+// Status is what the code in this repo actually ships (verified 2026-10-08). Never present
 // something as done that is not:
 //  - generate: /new → /api/quante/generate, build check + automatic fixes (MAX_AUTO_FIX_ATTEMPTS)
 //  - qdit:     the Studio visual editor (lib/editor/*), desktop only
 //  - qads:     /qads — ad photos and videos from uploaded product photos, download only
-//  - qscan, qails, qgent: no product code yet → 'dev': labelled „Ve vývoji“, no way into the app,
+//  - qgent:    Studio → Qgent (app/api/projects/[id]/qgent, lib/qgent/shop.ts) + the website
+//              assistant (app/api/qgent/public)
+//  - qscan, qails: no product code yet → 'dev': labelled „Ve vývoji“, no way into the app,
 //    no dates promised.
 
 export type ModuleStatus = 'live' | 'dev'
@@ -92,7 +94,7 @@ export const modules: QuanteModule[] = [
     name: 'Qgent',
     short: 'Agent, který s vámi projde celý e-shop a po vašem potvrzení ho upraví.',
     tag: 'agent',
-    status: 'dev',
+    status: 'live',
     shapes: ['AGENT'],
     lead: 'Agent, který s vámi projde celý e-shop, navrhne úpravy a provede je, až je potvrdíte.',
     features: [
@@ -102,11 +104,12 @@ export const modules: QuanteModule[] = [
       { title: 'Peníze a doprava zvlášť', text: 'Platby, dopravu ani ceny nezmění bez samostatného potvrzení.' },
       { title: 'Podklady pro reklamy', text: 'Sbírá informace o e-shopu, ze kterých Qads připraví reklamy.' },
     ],
-    note: 'Qgent je ve vývoji a termín zatím neuvádíme. Na webu AssetraDigital bude i jako asistent, který odpoví na otázky návštěvníků.',
+    note: 'Qgent najdete ve Studiu u každého obchodu v režimu „Qgent“. Kontrolu spustíte tlačítkem a nic se nezmění bez vašeho potvrzení. Na webu AssetraDigital odpovídá i na otázky návštěvníků.',
     links: [
       { to: 'qdit', text: 'Co navrhne, můžete místo potvrzení upravit ručně v Qdit.' },
       { to: 'qads', text: 'Informace o e-shopu předá Qads pro reklamy.' },
     ],
+    app: { label: 'Otevřít Quante', href: quanteApp.dashboard },
   },
   {
     slug: 'qdit',
@@ -127,7 +130,7 @@ export const modules: QuanteModule[] = [
     note: 'Editor najdete ve Studiu u každého obchodu pod tlačítkem „Edit visually“. Funguje na počítači.',
     links: [
       { to: 'generate', text: 'Upravujete obchod, který postavil Quante Generate.' },
-      { to: 'qgent', text: 'Qgent vám bude úpravy navrhovat sám.' },
+      { to: 'qgent', text: 'Qgent vám úpravy navrhne sám.' },
     ],
     app: { label: 'Otevřít Quante', href: quanteApp.dashboard },
   },
@@ -150,7 +153,7 @@ export const modules: QuanteModule[] = [
     note: 'Fotky a videa vznikají přes Higgsfield. Kredity se platí předem a za položky, které se nepovedou, se vrátí.',
     links: [
       { to: 'generate', text: 'Reklamy na produkty z obchodu, který postavil Quante Generate.' },
-      { to: 'qgent', text: 'Qgent bude Qads předávat informace o vašem e-shopu.' },
+      { to: 'qgent', text: 'Qgent předá Qads informace o vašem e-shopu.' },
     ],
     app: { label: 'Otevřít Qads', href: quanteApp.qads },
   },
@@ -193,3 +196,13 @@ export const quanteFlow: { slug: ModuleSlug; title: string; text: string }[] = [
 
 export const moduleHref = (m: Pick<QuanteModule, 'slug'>) => '/quante/' + m.slug
 export const moduleBySlug = (slug: string) => modules.find((m) => m.slug === slug)
+
+const CS_LIVE = ['Žádný modul zatím nefunguje', 'Jeden modul funguje', 'Dva moduly fungují', 'Tři moduly fungují', 'Čtyři moduly fungují', 'Pět modulů funguje', 'Šest modulů funguje']
+
+/** „Čtyři moduly fungují … Qscan a Qails jsou ve vývoji.“ — computed, so it follows `status`. */
+export function modulesStatusLine(): string {
+  const live = modules.filter((m) => m.status === 'live').length
+  const dev = modules.filter((m) => m.status === 'dev').map((m) => m.name)
+  const devText = !dev.length ? '' : dev.length === 1 ? ` ${dev[0]} je ve vývoji.` : ` ${dev.slice(0, -1).join(', ')} a ${dev[dev.length - 1]} jsou ve vývoji.`
+  return `${CS_LIVE[live] ?? `${live} modulů funguje`}${live ? ` a můžete ${live === 1 ? 'ho' : 'je'} používat hned.` : '.'}${devText}`
+}

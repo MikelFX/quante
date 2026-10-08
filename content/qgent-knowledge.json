@@ -157,6 +157,30 @@
         "page": "/quante/generate"
       },
       {
+        "slug": "qgent",
+        "name": "Qgent",
+        "status": "k dispozici",
+        "what": "Agent, který s vámi projde celý e-shop, navrhne úpravy a provede je, až je potvrdíte.",
+        "features": [
+          "Projde e-shop s vámi: Stránku po stránce upozorní, co chybí nebo nefunguje.",
+          "Nejdřív náhled: Každou změnu ukáže předem a provede ji až po vašem potvrzení.",
+          "Všechno jde vrátit: Každá změna se zapíše a jde vrátit zpátky.",
+          "Peníze a doprava zvlášť: Platby, dopravu ani ceny nezmění bez samostatného potvrzení.",
+          "Podklady pro reklamy: Sbírá informace o e-shopu, ze kterých Qads připraví reklamy."
+        ],
+        "note": "Qgent najdete ve Studiu u každého obchodu v režimu „Qgent“. Kontrolu spustíte tlačítkem a nic se nezmění bez vašeho potvrzení. Na webu AssetraDigital odpovídá i na otázky návštěvníků.",
+        "connections": [
+          "Co navrhne, můžete místo potvrzení upravit ručně v Qdit.",
+          "Informace o e-shopu předá Qads pro reklamy."
+        ],
+        "costs": [
+          "Kontrola celého obchodu: 2 kredity, při chybě se vrací",
+          "Provedení potvrzené změny: 1 kredit, při chybě se vrací",
+          "Zamítnutí a vrácení změny: zdarma"
+        ],
+        "page": "/quante/qgent"
+      },
+      {
         "slug": "qdit",
         "name": "Qdit",
         "status": "k dispozici",
@@ -172,7 +196,7 @@
         "note": "Editor najdete ve Studiu u každého obchodu pod tlačítkem „Edit visually“. Funguje na počítači.",
         "connections": [
           "Upravujete obchod, který postavil Quante Generate.",
-          "Qgent vám bude úpravy navrhovat sám."
+          "Qgent vám úpravy navrhne sám."
         ],
         "costs": [
           "Ruční úpravy: zdarma",
@@ -196,7 +220,7 @@
         "note": "Fotky a videa vznikají přes Higgsfield. Kredity se platí předem a za položky, které se nepovedou, se vrátí.",
         "connections": [
           "Reklamy na produkty z obchodu, který postavil Quante Generate.",
-          "Qgent bude Qads předávat informace o vašem e-shopu."
+          "Qgent předá Qads informace o vašem e-shopu."
         ],
         "costs": [
           "Fotka: 1 kredit za kus",
@@ -226,26 +250,6 @@
         "page": "/quante/qscan"
       },
       {
-        "slug": "qgent",
-        "name": "Qgent",
-        "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
-        "what": "Agent, který s vámi projde celý e-shop, navrhne úpravy a provede je, až je potvrdíte.",
-        "features": [
-          "Projde e-shop s vámi: Stránku po stránce upozorní, co chybí nebo nefunguje.",
-          "Nejdřív náhled: Každou změnu ukáže předem a provede ji až po vašem potvrzení.",
-          "Všechno jde vrátit: Každá změna se zapíše a jde vrátit zpátky.",
-          "Peníze a doprava zvlášť: Platby, dopravu ani ceny nezmění bez samostatného potvrzení.",
-          "Podklady pro reklamy: Sbírá informace o e-shopu, ze kterých Qads připraví reklamy."
-        ],
-        "note": "Qgent je ve vývoji a termín zatím neuvádíme. Na webu AssetraDigital bude i jako asistent, který odpoví na otázky návštěvníků.",
-        "connections": [
-          "Co navrhne, můžete místo potvrzení upravit ručně v Qdit.",
-          "Informace o e-shopu předá Qads pro reklamy."
-        ],
-        "costs": [],
-        "page": "/quante/qgent"
-      },
-      {
         "slug": "qails",
         "name": "Qails",
         "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
@@ -268,7 +272,7 @@
       "Převod — Qscan přenese stávající e-shop podle adresy. (ve vývoji)",
       "Stavba — Quante Generate postaví e-shop ze zadání a ohlídá, aby se sestavil.",
       "Doladění — V Qdit upravíte texty, vzhled a rozložení přímo na stránce.",
-      "Kontrola — Qgent projde celý e-shop a navrhne úpravy, které po potvrzení provede. (ve vývoji)",
+      "Kontrola — Qgent projde celý e-shop a navrhne úpravy, které po potvrzení provede.",
       "Propagace — Qads připraví reklamní fotky a videa ke stažení.",
       "Komunikace — Qails sjednotí e-maily všech obchodů na jednom místě. (ve vývoji)"
     ],
@@ -286,6 +290,8 @@
         "Automatické opravy buildu: zdarma",
         "Ruční úpravy v Qdit: zdarma",
         "AI v Qdit: 1 kredit",
+        "Kontrola obchodu v Qgent: 2 kredity",
+        "Změna od Qgent: 1 kredit, vrácení zdarma",
         "Reklamní fotka v Qads: 1 kredit",
         "Reklamní video v Qads: 6 kreditů za 5 s",
         "Příprava reklam v Qads: 3 kredity za generování",
@@ -373,7 +379,7 @@
       {
         "key": "quante/qgent",
         "path": "/quante/qgent",
-        "title": "Qgent (ve vývoji)"
+        "title": "Qgent"
       },
       {
         "key": "quante/qdit",
@@ -414,6 +420,6 @@
     "cena správy při jednorázové platbě a hodinová sazba",
     "jestli jsou ceny s DPH, nebo bez",
     "obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)",
-    "termíny modulů ve vývoji (Qscan, Qails, Qgent v e-shopech)"
+    "termíny modulů ve vývoji (Qscan, Qails)"
   ]
 }

@@ -26,7 +26,7 @@ const { CREDIT_PACKS } = await import('../lib/credit-packs.ts')
 
 test('only shipping modules have a way into the app', () => {
   const live = modules.filter((m) => m.status === 'live').map((m) => m.slug).sort()
-  assert.deepEqual(live, ['generate', 'qads', 'qdit']) // verified against the code 2026-10-07
+  assert.deepEqual(live, ['generate', 'qads', 'qdit', 'qgent']) // verified against the code 2026-10-08 (Qgent: Studio → Qgent)
   for (const m of modules) {
     if (m.status === 'live') assert.ok(m.app?.href, `${m.slug} needs an app entry`)
     else assert.equal(m.app, undefined, `${m.slug} is in development and must not link into the app`)

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Button, CharHeading, CheckList, InView, ParticleZone, SectionLabel, SectionTitle, Sub, Timeline, delay } from '@ad/ui'
-import { moduleBySlug, modules, quanteApp, quanteFlow, quanteIntro } from '@/content/assetra/modules'
+import { moduleBySlug, modules, modulesStatusLine, quanteApp, quanteFlow, quanteIntro } from '@/content/assetra/modules'
 import { quantePricing } from '@/content/assetra/quante-pricing'
 import { ModuleCard } from '../../_components/quante/ModuleCard'
 import { QuantePricing } from '../../_components/quante/QuantePricing'
@@ -47,7 +47,7 @@ export default function QuantePage() {
         <div className="w">
           <SectionLabel num="01">Moduly</SectionLabel>
           <SectionTitle>Šest modulů, jeden celek</SectionTitle>
-          <Sub>Tři moduly fungují a můžete je používat hned. Qscan, Qgent a Qails jsou ve vývoji.</Sub>
+          <Sub>{modulesStatusLine()}</Sub>
           <div className="prods">
             {modules.map((m, i) => <ModuleCard key={m.slug} m={m} i={i} />)}
           </div>
