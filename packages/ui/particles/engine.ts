@@ -3,9 +3,12 @@
 //
 // One fixed canvas behind the content. The zone nearest the viewport centre is active and the
 // swarm flies into it and forms its shape; shapes rotate every 4.8 s, a tap bursts the swarm into
-// the next shape, a drag spins it. In 'site' mode a dot grid scrolls with the page, lights up
-// under the pointer, a light band sweeps down the page, taps send ripples and (on desktop) a
-// dotted path with a running signal links the zones. 'app' mode draws only the zones.
+// the next shape, a drag spins it. In 'site' mode a dot grid scrolls with the page and carries
+// ripples (ripples.ts): the pointer glows green and leaves a wake of rings as it moves across the
+// page (also when the page scrolls under it), a tap drops a stone in, a resting pointer sends a
+// soft pulse; crests tint the dots mint, troughs blue, and the dots shift along the rings. A light
+// band sweeps down the page and (on desktop) a dotted path with a running signal links the zones.
+// 'app' mode draws only the zones.
 //
 // A priority zone (the open Qgent panel) sits on a glass panel that would blur the swarm, so
 // while it is active the canvas is lifted above the panel (OVERLAY_Z), draws nothing but the
@@ -13,6 +16,16 @@
 
 import { buildShape, isTextKey, type Shape } from './shapes'
 import { particleStore, type ZoneRecord } from './store'
+import { Ripples } from './ripples'
+
+/** Ripple look: dot shift (px per unit), and the height range that fades a dot from grey to colour. */
+const RIPPLE_SHIFT = 9
+const RIPPLE_FROM = 0.03
+const RIPPLE_FULL = 0.5
+/** Pointer wake: one ring per this many px of travel across the page. */
+const WAKE_STEP = 34
+/** Coloured dots are batched by colour and one of this many opacity steps (one fillStyle each). */
+const ALPHA_STEPS = 16
 
 const CYCLE_MS = 4800
 const MAX_VIEWPORT_H = 2200
@@ -164,7 +177,21 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
 
   // ── pointer ────────────────────────────────────────────────────────────
   let mp: { x: number; y: number; t: number } | null = null
-  const ripples: { x: number; y: number; t: number }[] = []
+  // Ripples on the dot grid (page coordinates).
+  const ripples = new Ripples()
+  // Ripple heights / shifts on a lattice at half the dot spacing (dots sit on odd cells).
+  let latH = new Float32Array(0)
+  let latDX = new Float32Array(0)
+  let latDY = new Float32Array(0)
+  // Coloured dots per [tint][opacity step]: x, y, size triples, reused every frame.
+  const batches: number[][] = Array.from({ length: 2 * (ALPHA_STEPS + 1) }, () => [])
+  let batchStyles: string[] = []
+  let batchTheme = ''
+  let lastP: { x: number; y: number } | null = null // pointer in page coordinates
+  let wakeLeft = 0 // px of travel until the next wake ring
+  let lastMoveT = 0
+  let nextPulse = 0
+  const taps: { x: number; y: number }[] = []
   listen(window, 'pointermove', (e) => {
     mp = { x: e.clientX, y: e.clientY, t: performance.now() }
     if (isDown) {
@@ -177,8 +204,8 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
   listen(window, 'pointerup', () => { isDown = false })
   listen(window, 'pointerdown', (e) => {
     if (particleStore.getMode() !== 'site') return
-    ripples.push({ x: e.clientX, y: e.clientY, t: performance.now() })
-    if (ripples.length > 4) ripples.shift()
+    taps.push({ x: e.clientX, y: e.clientY })
+    if (taps.length > 4) taps.shift()
   }, { passive: true })
   const onOut = (e: MouseEvent) => { if (!e.relatedTarget) mp = null }
   document.addEventListener('mouseout', onOut)
@@ -226,7 +253,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     // With animations off, redraw only when something visible changed.
     if (!on) {
       const a = active ? zs(active) : null
-      const sig = [W, H, rt, dark, mode, raised, active?.id, a?.idx, m ? m.x + ',' + m.y : '', ripples.length, zones.length].join('|')
+      const sig = [W, H, rt, dark, mode, raised, active?.id, a?.idx, m ? m.x + ',' + m.y : '', zones.length].join('|')
       if (sig === lastSig) return
       lastSig = sig
     }
@@ -234,16 +261,100 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, W, H)
     const accRGB = dark ? '95,245,196' : '5,150,105'
+    const acc2RGB = dark ? '124,200,255' : '74,158,234'
     const baseRGB = dark ? '238,242,240' : '11,13,12'
 
+    // No wake across a jump (the grid was hidden behind the Qgent panel or another mode).
+    if (!site || raised) lastP = null
     if (site && !raised) {
       const gap = small ? 26 : 30
       const offY = ((rt % gap) + gap) % gap
+
+      if (on) {
+        if (m) {
+          // Wake: rings along the pointer's path across the page since the last frame (also the
+          // page scrolling under a still pointer). Faster = stronger, capped.
+          const py = m.y - rt
+          if (lastP) {
+            const dx = m.x - lastP.x
+            const dy = py - lastP.y
+            const dist = Math.hypot(dx, dy)
+            if (dist > 0.5) {
+              lastMoveT = now
+              if (dist < 700) {
+                const a = Math.min(0.5, 0.18 + dist * 0.012)
+                let along = wakeLeft
+                while (along <= dist) {
+                  const f = along / dist
+                  ripples.add(lastP.x + dx * f, lastP.y + dy * f, now, a, 560)
+                  along += WAKE_STEP
+                }
+                wakeLeft = along - dist
+              }
+            }
+          }
+          lastP = { x: m.x, y: py }
+          // A resting mouse breathes: a soft ring from the cursor every few seconds.
+          if (now - lastMoveT < 700) nextPulse = Math.max(nextPulse, now + 1000)
+          else if (fine && now > nextPulse) {
+            ripples.add(m.x, py, now, 0.5, 1300)
+            nextPulse = now + 2800
+          }
+        } else {
+          lastP = null
+        }
+        for (const t of taps) ripples.add(t.x, t.y - rt, now, 1.1, 1500)
+        taps.length = 0
+        ripples.prune(now)
+      } else {
+        taps.length = 0
+        lastP = null
+        ripples.clear()
+      }
+
       const bandY = on ? ((T * 140) % (H + 300)) - 150 : -999
-      const hl: number[] = []
+      const calm = !on || ripples.empty
+      const half = gap / 2
+      const ly0 = offY - half // screen y of lattice row 0
+      const lc = Math.ceil(W / half) + 2
+      const lr = Math.ceil((H + gap) / half) + 2
+      if (!calm) {
+        if (latH.length !== lc * lr) {
+          latH = new Float32Array(lc * lr)
+          latDX = new Float32Array(lc * lr)
+          latDY = new Float32Array(lc * lr)
+        }
+        ripples.accumulate(now, 0, ly0 - rt, half, lc, lr, latH, latDX, latDY)
+      }
+      const theme = accRGB + acc2RGB
+      if (theme !== batchTheme) {
+        batchTheme = theme
+        batchStyles = []
+        for (const rgb of [accRGB, acc2RGB]) for (let q = 0; q <= ALPHA_STEPS; q++) batchStyles.push('rgba(' + rgb + ',' + (q / ALPHA_STEPS).toFixed(3) + ')')
+      }
+      for (const list of batches) list.length = 0
+      const addDot = (x: number, y: number, size: number, tint: number, alpha: number) => {
+        const q = Math.min(ALPHA_STEPS, Math.max(1, Math.round(alpha * ALPHA_STEPS)))
+        batches[tint * (ALPHA_STEPS + 1) + q].push(x, y, size)
+      }
+
       ctx.fillStyle = 'rgba(' + baseRGB + ',' + (dark ? '0.08' : '0.1') + ')'
-      for (let gy = offY; H > gy; gy += gap) {
-        for (let gx = gap / 2; W > gx; gx += gap) {
+      for (let gy = offY, j = 1; H > gy; gy += gap, j += 2) {
+        for (let gx = half, i = 1; W > gx; gx += gap, i += 2) {
+          let px = gx
+          let py = gy
+          let w = 0
+          let tint = 0
+          if (!calm) {
+            const idx = j * lc + i
+            const hv = latH[idx]
+            px += latDX[idx] * RIPPLE_SHIFT
+            py += latDY[idx] * RIPPLE_SHIFT
+            const ah = hv < 0 ? -hv : hv
+            if (ah > RIPPLE_FROM) w = Math.min(1, (ah - RIPPLE_FROM) / (RIPPLE_FULL - RIPPLE_FROM))
+            tint = hv < 0 ? 1 : 0
+          }
+          // The green glow around the pointer.
           let k = 0
           if (m) {
             const dx = gx - m.x
@@ -253,25 +364,41 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
           }
           const db = Math.abs(gy - bandY)
           if (60 > db) k = Math.max(k, (1 - db / 60) * 0.35)
-          for (let q = 0; ripples.length > q; q++) {
-            const rp = ripples[q]
-            const age = (now - rp.t) / 900
-            if (1 > age) {
-              const dd = Math.abs(Math.hypot(gx - rp.x, gy - rp.y) - age * 320)
-              if (22 > dd) k = Math.max(k, (1 - dd / 22) * (1 - age))
-            }
+          const kk = w > k ? w : k
+          if (kk > 0.02) {
+            const t = w > k ? tint : 0
+            // Troughs (blue) a touch softer than crests, so the rings read as light on dark water.
+            addDot(px, py, 1.5 + kk * 2.6, t, (0.12 + kk * 0.62) * (t ? 0.8 : 1))
+          } else {
+            ctx.fillRect(px - 0.75, py - 0.75, 1.5, 1.5)
           }
-          if (k > 0.02) hl.push(gx, gy, k)
-          else ctx.fillRect(gx - 0.75, gy - 0.75, 1.5, 1.5)
         }
       }
-      for (let q = 0; hl.length > q; q += 3) {
-        const k = hl[q + 2]
-        const s = 1.5 + k * 2.6
-        ctx.fillStyle = 'rgba(' + accRGB + ',' + (0.12 + k * 0.6).toFixed(2) + ')'
-        ctx.fillRect(hl[q] - s / 2, hl[q + 1] - s / 2, s, s)
+      // Where a wave is passing, fill in the cells between the dots so the rings read as smooth
+      // circles; everywhere else the grid stays sparse.
+      if (!calm) {
+        for (let j = 0; j < lr; j++) {
+          const row = j * lc
+          const y = ly0 + j * half
+          for (let i = 0; i < lc; i++) {
+            if (i & 1 && j & 1) continue // a regular grid dot
+            const hv = latH[row + i]
+            const ah = hv < 0 ? -hv : hv
+            if (ah < 0.12) continue
+            const w = Math.min(1, (ah - 0.12) / 0.4)
+            addDot(i * half + latDX[row + i] * RIPPLE_SHIFT, y + latDY[row + i] * RIPPLE_SHIFT, 1 + w * 1.6, hv < 0 ? 1 : 0, w * (hv < 0 ? 0.42 : 0.55))
+          }
+        }
       }
-      while (ripples.length && now - ripples[0].t > 900) ripples.shift()
+      for (let bI = 0; bI < batches.length; bI++) {
+        const list = batches[bI]
+        if (!list.length) continue
+        ctx.fillStyle = batchStyles[bI]
+        for (let q = 0; q < list.length; q += 3) {
+          const sz = list[q + 2]
+          ctx.fillRect(list[q] - sz / 2, list[q + 1] - sz / 2, sz, sz)
+        }
+      }
 
       if (!small) {
         const cs: [number, number][] = []
