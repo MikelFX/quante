@@ -25,8 +25,8 @@
 .ad .doc-page .doc-body{margin-top:clamp(32px,4vw,56px);padding:clamp(22px,3vw,40px);border-radius:28px;max-width:52em}
 .ad .doc-page .doc-body p{margin:0;color:var(--fg2)}
 /* Sections below the first screen render only when they come near the viewport. Measured
-   (QA 2026-10-08, CPU 4×, 1.6 Mbit/s): homepage FCP 2.4 → 1.6 s, LCP 3.3 → 2.6 s, and the particle
-   loop runs smoother (40 → 85 fps idle). "auto" remembers each section's real size once rendered,
+   (QA 2026-10-08, CPU 4×, A/B with identical CSS delivery): homepage FCP −0.8 s, LCP −0.7 s, and
+   the particle loop runs smoother (40 → 85 fps idle). "auto" remembers each section's real size once rendered,
    so the scrollbar and #anchors settle. Full-page screenshots show unrendered sections as empty. */
 .ad main > .sec:not(.mod-top),.ad main > .paths-sec,.ad > footer{content-visibility:auto;contain-intrinsic-size:auto 900px}
 /* SectionSizes renders everything for one frame after load so the real heights are remembered. */
