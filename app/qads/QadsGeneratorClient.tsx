@@ -19,6 +19,7 @@ import { SiteFooter } from '@/components/SiteFooter'
 import { QADS_STYLES, type QadsStyleId } from '@/lib/qads/styles'
 import { computeGeneratorCost, type HiggsfieldOutputKind } from '@/lib/qads/pricing'
 import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
+import { QadsBackdrop } from './QadsBackdrop'
 import './qads.css'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -387,6 +388,9 @@ export function QadsGeneratorClient() {
       }
       setActiveGenerationId(data.generationId as string)
       setDetail(null)
+      // The backdrop's camera flash, from the Generate button (QadsBackdrop.tsx).
+      const go = document.querySelector('.qz-go')?.getBoundingClientRect()
+      if (go) window.dispatchEvent(new CustomEvent('qz:flash', { detail: { x: go.left + go.width / 2, y: go.top + go.height / 2 } }))
       setBalance(b => (b === null ? b : Math.max(0, b - cost.totalCredits)))
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     } catch (err) {
@@ -454,19 +458,21 @@ export function QadsGeneratorClient() {
   // ─── Render ──
   return (
     <div className="qnt-public qp-dark qz" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <QadsBackdrop />
       <PublicNav />
 
       <main style={{ flex: 1, padding: '0 1.25rem clamp(3rem,6vw,5rem)', width: '100%' }}>
         <header className="qz-hero">
-          <span className="qz-pill"><b>Qads</b>Ad videos and photos to download</span>
-          <h1 className="qz-h1">An ad from <em>one photo.</em></h1>
-          <p className="qz-sub">Drop a product photo into the box and download finished videos and photos. Where you post them is up to you.</p>
+          <span className="qz-pill" data-qz-calm><b>Qads</b>Ad videos and photos to download</span>
+          <h1 className="qz-h1" data-qz-calm>An ad from <em>one photo.</em></h1>
+          <p className="qz-sub" data-qz-calm>Drop a product photo into the box and download finished videos and photos. Where you post them is up to you.</p>
         </header>
 
         {/* ── Composer ── */}
         <section
           ref={boxRef}
           className={'qz-box' + (dragOver ? ' drag' : '')}
+          data-qz-subject
           aria-label="Create an ad"
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false) }}
@@ -612,7 +618,7 @@ export function QadsGeneratorClient() {
           </div>
         </section>
 
-        <div className="qz-under">
+        <div className="qz-under" data-qz-calm>
           <span>
             <span className="dot" aria-hidden="true" />
             {agency
@@ -625,7 +631,7 @@ export function QadsGeneratorClient() {
         </div>
         {(uploadError || submitError) && <p className="qz-err" role="alert">{uploadError ?? submitError}</p>}
 
-        <div className="qz-quick" role="group" aria-label="Quick start">
+        <div className="qz-quick" data-qz-calm role="group" aria-label="Quick start">
           <span>Quick start</span>
           {QUICK.map(p => (
             <button key={p.label} type="button" className="qz-chip" onClick={() => applyPreset(p)}>
@@ -649,7 +655,7 @@ export function QadsGeneratorClient() {
 
         {!detail && !activeGenerationId && (
           <section className="qz-gal" aria-labelledby="qz-gal-h">
-            <h2 id="qz-gal-h">What one photo turns into</h2>
+            <h2 id="qz-gal-h" data-qz-calm>What one photo turns into</h2>
             <div className="qz-tiles">
               {GALLERY.map(p => {
                 const on = form.style === p.style && form.formats.length === 1 && form.formats[0] === p.format && form.outputTypes.length === 1 && form.outputTypes[0] === p.kind

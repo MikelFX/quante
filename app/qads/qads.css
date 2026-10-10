@@ -2,7 +2,13 @@
    starts, a style gallery and the results. AssetraDigital look through the --q-* tokens (dark and
    light). Everything is scoped under .qz: global CSS is never unloaded on client navigation. */
 
-.qz { --qz-w: 940px; }
+.qz { --qz-w: 940px; position: relative; z-index: 0; }
+
+/* ── studio-lights background (QadsBackdrop.tsx) ──────────────────────── */
+/* It replaces the shared public grid on this page. The page is its own stacking context, so the
+   canvas (z-index -1) paints above the page background and below everything else. */
+.qnt-public.qp-dark.qz::before { content: none; }
+.qz-backdrop { position: fixed; inset: 0; z-index: -1; display: block; pointer-events: none; }
 .qz .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ── hero ─────────────────────────────────────────────────────────────── */
