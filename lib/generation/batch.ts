@@ -5,10 +5,11 @@
 // 'running' and runs each through exactly the pipeline of a single generation
 // (lib/generation/run.ts) inside after(), so every store gets its own 300 s budget.
 //
-// Who kicks: the batch POST, every status poll (the batch page, the dashboard banner) and — in
-// production — each finished job, which calls POST /api/quante/batch/[id]/kick (CRON_SECRET) so
-// the batch keeps going with no page open (the Hobby plan has no per-minute cron). A claim is an
-// atomic `update … where status = 'queued'`, so overlapping kicks never start a job twice.
+// Who kicks: the batch POST, every status poll (the batch page, the dashboard banner), in
+// production each finished job (POST /api/quante/batch/[id]/kick, CRON_SECRET — the next store
+// starts right away with no page open) and, as a safety net, the per-minute cron
+// /api/cron/batch-kick. A claim is an atomic `update … where status = 'queued'`, so overlapping
+// kicks never start a job twice.
 //
 // Agency only: no credits are debited (credits_debited false) and the project limit doesn't
 // apply; the daily fair-use cap counts every job of the batch up front.

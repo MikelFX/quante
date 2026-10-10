@@ -57,6 +57,8 @@ test('batch generation: Agency only, fair use counted up front, internal kick be
   assert.match(batch, /agency: true,\s*charged: false/, 'batch runs debit nothing')
   assert.match(batch, /\.eq\('id', q\.id\)\.eq\('status', 'queued'\)/, 'claims are atomic')
   assert.match(src('app/api/quante/batch/[id]/kick/route.ts'), /isAuthorizedCron\(request\)/)
+  assert.match(src('app/api/cron/batch-kick/route.ts'), /isAuthorizedCron\(request\)/)
+  assert.match(src('vercel.json'), /"\/api\/cron\/batch-kick", "schedule": "\* \* \* \* \*"/, 'the per-minute safety net is scheduled')
 })
 
 test('the plan text promises nothing the code lacks', () => {
