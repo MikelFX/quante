@@ -34,6 +34,7 @@
     "@stripe/stripe-js": "^9.7.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.107.0",
+    "@vercel/analytics": "^2.0.1",
     "@vercel/sandbox": "^3.5.0",
     "@vercel/sdk": "^1.21.9",
     "@vercel/speed-insights": "^2.0.0",
