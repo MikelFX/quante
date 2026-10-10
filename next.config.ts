@@ -16,6 +16,16 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), usb=()' },
 ]
 
+// "/x/:path*" as two rules: compiled into an absolute destination, an empty :path* leaves a
+// trailing slash ("https://host/x/"), which then costs a second redirect.
+function hostRedirects(paths: readonly string[], host: string, origin: string) {
+  const has = [{ type: 'host' as const, value: host }]
+  return paths.flatMap((p) => {
+    const sources = p.endsWith('/:path*') ? [p.slice(0, -'/:path*'.length), p.slice(0, -1) + '+'] : [p]
+    return sources.map((source) => ({ source, has, destination: origin + source, permanent: true }))
+  })
+}
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
@@ -27,18 +37,8 @@ const nextConfig: NextConfig = {
       // Domain split (lib/domains.ts): the website lives on assetradigital.agency, the app on
       // quantecode.com. Each host sends the other surface's paths across; /api/* never moves.
       // Previews and localhost match neither host and keep serving both surfaces.
-      ...SITE_PATHS.map((source) => ({
-        source,
-        has: [{ type: 'host' as const, value: APP_HOST_PATTERN }],
-        destination: SITE_ORIGIN + source,
-        permanent: true,
-      })),
-      ...APP_PATHS.map((source) => ({
-        source,
-        has: [{ type: 'host' as const, value: SITE_HOST_PATTERN }],
-        destination: APP_ORIGIN + source,
-        permanent: true,
-      })),
+      ...hostRedirects(SITE_PATHS, APP_HOST_PATTERN, SITE_ORIGIN),
+      ...hostRedirects(APP_PATHS, SITE_HOST_PATTERN, APP_ORIGIN),
       // Qads moved out of the Studio (was /project/:id/ads/...) and into a
       // standalone generator at /qads that doesn't tie to a specific project.
       // 308 (permanent, preserves method) rather than 307 so search engines +
