@@ -4,7 +4,7 @@ import { ParticleZone } from '@ad/ui'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
-import { CREDIT_COSTS } from '@/lib/config'
+import { AGENCY_BATCH_SIZE, CREDIT_COSTS } from '@/lib/config'
 
 type Stage = 'chat' | 'ready' | 'generating'
 
@@ -585,10 +585,15 @@ export default function NewProjectPage() {
       {/* Header */}
       <p style={{
         fontSize: 10, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)',
-        textTransform: 'uppercase', letterSpacing: '.1em', margin: '0 0 2rem',
+        textTransform: 'uppercase', letterSpacing: '.1em', margin: agencyPlan ? '0 0 .75rem' : '0 0 2rem',
       }}>
         New project
       </p>
+      {agencyPlan && stage === 'chat' && (
+        <p style={{ margin: '0 0 2rem', fontSize: 13, color: 'var(--q-fg3)' }}>
+          Several stores? <a href="/new/batch" style={{ color: 'var(--q-acc-text)', fontWeight: 600 }}>Generate up to {AGENCY_BATCH_SIZE} at once →</a>
+        </p>
+      )}
 
       {/* Resume banner: shown when a generation marker survived a reload/crash. Level 3 —
           when the marker has a jobId, status comes live from the polling effect above

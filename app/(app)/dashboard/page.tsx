@@ -5,6 +5,7 @@ import { CREDIT_COSTS } from '@/lib/config'
 import Link from 'next/link'
 import { DashboardGrid } from './DashboardGrid'
 import { DashboardHeader } from './DashboardHeader'
+import { BatchBanner } from './BatchBanner'
 import { DashboardEmptyState } from './DashboardEmptyState'
 // Shared one-time welcome grant (atomic RPC, verified accounts only). The old inline
 // read-then-insert here raced with /api/credits/balance and could grant twice.
@@ -43,7 +44,9 @@ export default async function DashboardPage() {
   return (
     <div className="q-page-wrap">
 
-      <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} />
+      <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} batch={isAgency} />
+
+      {isAgency && <BatchBanner />}
 
       {verificationRequired && (
         <div role="status" style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', fontSize: 13, color: 'var(--q-warn-text)' }}>

@@ -22,7 +22,7 @@ test('store generation debits nothing on Agency, behind the daily fair-use cap',
   assert.match(g, /const charged = !agency/)
   assert.match(g, /charged \? await debitCredits\(/)
   assert.match(g, /AGENCY_FAIR_USE\.generationsPerDay/)
-  assert.match(g, /if \(!codeSaved && charged\)/, 'no refund of a debit that never happened')
+  assert.match(src('lib/generation/run.ts'), /if \(!codeSaved && charged\)/, 'no refund of a debit that never happened')
 })
 
 test('every other store-work charge skips Agency', () => {
@@ -49,10 +49,20 @@ test('Qads is included for Agency with a daily cap on renders', () => {
   assert.match(fair, /qadsPhotosPerDay/)
 })
 
+test('batch generation: Agency only, fair use counted up front, internal kick behind CRON_SECRET', () => {
+  assert.match(src('app/api/quante/batch/route.ts'), /isAgencyUser\(userId\)/)
+  const batch = src('lib/generation/batch.ts')
+  assert.match(batch, /AGENCY_FAIR_USE\.generationsPerDay/)
+  assert.match(batch, /AGENCY_BATCH_CONCURRENCY/)
+  assert.match(batch, /agency: true,\s*charged: false/, 'batch runs debit nothing')
+  assert.match(batch, /\.eq\('id', q\.id\)\.eq\('status', 'queued'\)/, 'claims are atomic')
+  assert.match(src('app/api/quante/batch/[id]/kick/route.ts'), /isAuthorizedCron\(request\)/)
+})
+
 test('the plan text promises nothing the code lacks', () => {
   const plan = src('lib/agency-plan.ts')
   assert.doesNotMatch(plan, /priority/i, 'there is no priority queue')
-  assert.match(plan, /Batch generation[^\n]*soon: true/, 'batch generation is marked as coming until it ships')
+  assert.doesNotMatch(plan, /soon: true/, 'every line ships')
   for (const f of ['app/(app)/billing/page.tsx', 'app/(app)/dashboard/page.tsx', 'app/(app)/project/[id]/StudioClient.tsx']) {
     assert.doesNotMatch(src(f), /Priority generation|batch limit|batch slots|Agency batch/i, f)
   }

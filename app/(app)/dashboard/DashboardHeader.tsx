@@ -2,13 +2,16 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { AGENCY_BATCH_SIZE } from '@/lib/config'
 
 interface Props {
   atLimit: boolean
   limitLabel: string
+  /** Agency: offer batch generation next to "New project". */
+  batch?: boolean
 }
 
-export function DashboardHeader({ atLimit, limitLabel }: Props) {
+export function DashboardHeader({ atLimit, limitLabel, batch = false }: Props) {
   return (
     <div style={{
       display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
@@ -42,7 +45,9 @@ export function DashboardHeader({ atLimit, limitLabel }: Props) {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.08 }}
+          style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
         >
+          {batch && <Link href="/new/batch" className="q-btn q-btn-gl">Batch · up to {AGENCY_BATCH_SIZE}</Link>}
           <Link href="/new" className="q-btn">
             + New project
           </Link>

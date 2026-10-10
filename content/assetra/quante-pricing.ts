@@ -49,7 +49,7 @@ export const quantePricing = {
   // What Agency includes (lib/agency-plan.ts is the app's list; the numbers come from lib/config.ts).
   agency: {
     monthlyUsd: AGENCY_MONTHLY_USD,
-    summary: 'neomezeně obchodů · generování, úpravy a Qads bez kreditů (fair use) · export bez značky Quante · hosting v ceně',
+    summary: `neomezeně obchodů · hromadné generování až ${AGENCY_BATCH_SIZE} obchodů · generování, úpravy a Qads bez kreditů (fair use) · export bez značky Quante · hosting v ceně`,
     fairUse: `${AGENCY_FAIR_USE.generationsPerDay} generování obchodu, ${AGENCY_FAIR_USE.qadsVideosPerDay} videí a ${AGENCY_FAIR_USE.qadsPhotosPerDay} fotek v Qads denně`,
     bulkExport: AGENCY_BATCH_SIZE,
   },

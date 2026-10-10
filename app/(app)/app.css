@@ -142,6 +142,10 @@
   box-shadow: none;
 }
 .q-btn-gl:hover { background: rgb(var(--q-ink-rgb) / .08); border-color: var(--q-line2); }
+/* A link styled as a button: the design's `.ad a { color: inherit }` (higher specificity) would
+   otherwise turn the text light on the mint button in the dark theme. */
+.ad a.q-btn { color: var(--q-acc-ink); }
+.ad a.q-btn-gl { color: var(--q-fg); }
 .q-card {
   position: relative;
   border-radius: 22px;

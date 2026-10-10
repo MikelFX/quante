@@ -22,13 +22,16 @@ export const AGENCY_TRIAL_DAYS = process.env.AGENCY_TRIAL_DAYS === 'true' ? 7 : 
 // Agency has no limit on projects (lib/tier.ts activeProjectLimit). The users.project_limit
 // value stored for Agency rows is only the batch size: how many stores one bulk export takes.
 export const AGENCY_BATCH_SIZE = 20
+// Stores of one batch generated at the same time (lib/generation/batch.ts) — keeps the Claude
+// API rate limit and the Vercel build queue in check; the rest of the batch waits its turn.
+export const AGENCY_BATCH_CONCURRENCY = 5
 export const AGENCY_PROJECT_LIMIT = AGENCY_BATCH_SIZE
 export const FREE_PROJECT_LIMIT = 3   // applies to both 'free' and 'credit' tiers
 
 // ─── Agency fair use (per user, rolling 24 h / 1 h) ───────────────────────────
 export const AGENCY_FAIR_USE = {
   generationsPerDay: 50,
-  generationsPerHour: 20,
+  generationsPerHour: 30,   // above one full batch, so a batch never locks out single generations
   qadsVideosPerDay: 20,
   qadsPhotosPerDay: 100,
 } as const
