@@ -3,7 +3,7 @@
 // /qads — ad videos and photos from a product photo. One composer box: product photos, a text box
 // (type @ to pick a product from your Quante store) and a bar of options — output, formats, style,
 // variants, video length, ad-copy language — with the exact credit price on the Generate button.
-// Results and history follow below; under them the community wall (QadsCommunityWall.tsx). Every
+// Results follow below, then the community wall (QadsCommunityWall.tsx) and the history. Every
 // Generate asks whether the finished outputs may go on that public wall (ShareConsent).
 //
 // Auth flow: the box can be filled in signed out. Adding a photo or Generate saves the draft to
@@ -20,7 +20,7 @@ import { SiteFooter } from '@/components/SiteFooter'
 import { QADS_STYLES, type QadsStyleId } from '@/lib/qads/styles'
 import { computeGeneratorCost, type HiggsfieldOutputKind } from '@/lib/qads/pricing'
 import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
-import { QadsBackdrop } from './QadsBackdrop'
+import { ParticleMode } from '@ad/ui/particles'
 import { QadsCommunityWall } from './QadsCommunityWall'
 import './qads.css'
 
@@ -375,9 +375,6 @@ export function QadsGeneratorClient() {
       }
       setActiveGenerationId(data.generationId as string)
       setDetail(null)
-      // The backdrop's camera flash, from the Generate button (QadsBackdrop.tsx).
-      const go = document.querySelector('.qz-go')?.getBoundingClientRect()
-      if (go) window.dispatchEvent(new CustomEvent('qz:flash', { detail: { x: go.left + go.width / 2, y: go.top + go.height / 2 } }))
       setBalance(b => (b === null ? b : Math.max(0, b - cost.totalCredits)))
       requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     } catch (err) {
@@ -439,21 +436,21 @@ export function QadsGeneratorClient() {
   // ─── Render ──
   return (
     <div className="qnt-public qp-dark qz" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <QadsBackdrop />
+      {/* The website's dot grid (root ParticleField) behind the page, as on every AssetraDigital page. */}
+      <ParticleMode mode="site" />
       <PublicNav />
 
       <main style={{ flex: 1, padding: '0 1.25rem', width: '100%' }}>
         <header className="qz-hero">
-          <span className="qz-pill" data-qz-calm><b>Qads</b>Ad videos and photos to download</span>
-          <h1 className="qz-h1" data-qz-calm>An ad from <em>one photo.</em></h1>
-          <p className="qz-sub" data-qz-calm>Drop a product photo into the box and download finished videos and photos. Where you post them is up to you.</p>
+          <span className="qz-pill"><b>Qads</b>Ad videos and photos to download</span>
+          <h1 className="qz-h1">An ad from <em>one photo.</em></h1>
+          <p className="qz-sub">Drop a product photo into the box and download finished videos and photos. Where you post them is up to you.</p>
         </header>
 
         {/* ── Composer ── */}
         <section
           ref={boxRef}
           className={'qz-box' + (dragOver ? ' drag' : '')}
-          data-qz-subject
           aria-label="Create an ad"
           onDragOver={e => { e.preventDefault(); setDragOver(true) }}
           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false) }}
@@ -599,7 +596,7 @@ export function QadsGeneratorClient() {
           </div>
         </section>
 
-        <div className="qz-under" data-qz-calm>
+        <div className="qz-under">
           <span>
             <span className="dot" aria-hidden="true" />
             {agency
@@ -619,19 +616,26 @@ export function QadsGeneratorClient() {
             : activeGenerationId
               ? <div style={pendingCard}>Writing the prompts and ad copy, then generating. Results appear here as they finish.</div>
               : null}
-          {isSignedIn && history.length > 0 && (
-            <HistoryPanel
-              history={history}
-              activeGenerationId={activeGenerationId}
-              onSelect={setActiveGenerationId}
-              onShared={(id, share) => setHistory(h => h.map(g => (g.id === id ? { ...g, shareCommunity: share } : g)))}
-            />
-          )}
         </section>
 
       </main>
 
       <QadsCommunityWall />
+
+      {/* History sits under the wall; picking a past generation opens it in the results above. */}
+      {isSignedIn && history.length > 0 && (
+        <section className="qz-history" aria-label="Your generations">
+          <HistoryPanel
+            history={history}
+            activeGenerationId={activeGenerationId}
+            onSelect={(id) => {
+              setActiveGenerationId(id)
+              requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+            }}
+            onShared={(id, share) => setHistory(h => h.map(g => (g.id === id ? { ...g, shareCommunity: share } : g)))}
+          />
+        </section>
+      )}
 
       {askShare && <ShareConsent onAnswer={(share) => void startGeneration(share)} onCancel={() => setAskShare(false)} />}
 
