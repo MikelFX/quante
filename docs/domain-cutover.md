@@ -1,8 +1,7 @@
 # Přepnutí domény: AssetraDigital web + Quante (checklist)
 
-Stav k 2026-10-10. Doména webu je **assetradigital.agency**. Kód na větvi `assetradigital` je na přepnutí
-připravený (bod 2). Na `main` (= produkce quantecode.com) zatím nic nejde: merge do `main` je samotné
-přepnutí, `/` na quantecode.com pak přesměruje na assetradigital.agency.
+Stav k 2026-10-10: **přepnuto.** Web běží na **assetradigital.agency**, aplikace na quantecode.com
+(`main` = `assetradigital`, nasazeno 2026-10-10). Zbývající body níže jsou nezaškrtnuté.
 
 ## 0. Rozhodnutí před přepnutím (dělá majitel)
 
@@ -46,8 +45,8 @@ seznamy test shodí) a že Clerk na web nepronikne.
 
 ## 3. Vercel (dělá majitel)
 
-- [ ] Projekt `mikelfxs-projects/quante` → Settings → Domains: přidat `assetradigital.agency` a `www.assetradigital.agency`
-      (www nastavit jako redirect na assetradigital.agency). U registrátora nastavit DNS přesně podle Vercelu.
+- [x] Projekt `mikelfxs-projects/quante`: `assetradigital.agency` a `www.assetradigital.agency` (308 na hlavní doménu)
+      přidané 2026-10-10; doména je na DNS Vercelu, certifikát vydaný.
 - [ ] Settings → Environment Variables: nechat zapnuté „Automatically expose System Environment Variables“
       (z něj je `NEXT_PUBLIC_VERCEL_ENV`). `NEXT_PUBLIC_SITE_URL` a `NEXT_PUBLIC_APP_URL` **neměnit**.
 - [ ] Zkontrolovat, že BotID funguje na produkci (OIDC je zapnuté — ověřeno 2026-10-08).
@@ -71,7 +70,9 @@ seznamy test shodí) a že Clerk na web nepronikne.
 
 ## 5. Merge a ověření
 
-- [ ] Až DNS na Vercelu svítí zeleně: merge `assetradigital` → `main`, počkat na produkční build.
+- [x] Merge `assetradigital` → `main` (2026-10-10), produkční build Ready. Ověřeno naostro: obě domény, přesměrování
+      oběma směry, www → hlavní doména, robots/sitemap podle hostu, canonical, `/og`, web bez Clerku, odkazy do aplikace
+      absolutní.
 - [ ] Ověřit: assetradigital.agency `/` a `/quante*`; quantecode.com `/` → assetradigital.agency; `/dashboard`, `/login`,
       `/qads` na quantecode.com fungují; přihlášení a odhlášení; Studio náhled obchodu; Publish; formulář poptávky
       na assetradigital.agency (dorazí e-mail); Qgent na webu; Qgent ve Studiu; „Objednat Agency“ → Billing →
