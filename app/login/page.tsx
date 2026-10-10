@@ -2,6 +2,7 @@ import { SignIn } from '@clerk/nextjs'
 import Link from 'next/link'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
 import { siteHref } from '@/lib/domains'
+import { returnTo } from '@/lib/auth/return-to'
 import { buildMetadata } from '@/lib/seo'
 
 // noindex on purpose — auth pages have no search-intent value and can
@@ -15,7 +16,11 @@ export const metadata = buildMetadata({
   robots: 'noindex',
 })
 
-export default function LoginPage() {
+type Search = Promise<Record<string, string | string[] | undefined>>
+
+export default async function LoginPage({ searchParams }: { searchParams: Search }) {
+  // Back to where the visitor came from (e.g. /qads after "Generate") — lib/auth/after-sign-in.ts.
+  const to = await returnTo(searchParams)
   return (
     <div className="qnt-public qp-dark" style={{
       minHeight: '100dvh', display: 'flex', flexDirection: 'column',
@@ -28,7 +33,7 @@ export default function LoginPage() {
         <Link href={siteHref('/quante')} aria-label="Quante" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 44, marginBottom: 28, textDecoration: 'none' }}>
           <QuanteBrand size="lg" />
         </Link>
-        <SignIn routing="hash" />
+        <SignIn routing="hash" forceRedirectUrl={to} signUpForceRedirectUrl={to} />
       </div>
     </div>
   )

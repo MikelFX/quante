@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server'
 import { APP_ORIGIN, SITE_ORIGIN, isSitePath } from '@/lib/domains'
+import { afterSignInPath, redirectParam } from '@/lib/auth/after-sign-in'
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
@@ -71,14 +72,17 @@ const withClerk = clerkMiddleware(async (auth, req) => {
   }
 
   const { userId } = await auth()
-  // Signed-in users hitting the login/signup pages get bounced to the
-  // Studio — those pages have no meaning for an already-authed session.
+  // Signed-in users hitting the login/signup pages are sent on — to the redirect_url they came
+  // with (e.g. back to /qads after "Generate"), else the dashboard. Clerk refreshes the sign-in
+  // page right after a sign-in, and this redirect must not swallow its redirect_url
+  // (lib/auth/after-sign-in.ts).
   // Homepage + every marketing page (/qads, /pricing, /showcase, /about,
   // /domains, /contact, /terms, /privacy) stay reachable while logged in
   // so a merchant deep in the Studio can jump back to marketing / their
   // generator without having to sign out first.
   if (isAuthRoute(req) && userId) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
+    const to = afterSignInPath(redirectParam(req.nextUrl.searchParams), req.nextUrl.origin, [APP_ORIGIN])
+    return NextResponse.redirect(new URL(to, req.url))
   }
   if (isProtectedRoute(req)) await auth.protect()
 })
