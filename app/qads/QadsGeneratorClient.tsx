@@ -3,7 +3,8 @@
 // /qads — ad videos and photos from a product photo. One composer box: product photos, a text box
 // (type @ to pick a product from your Quante store) and a bar of options — output, formats, style,
 // variants, video length, ad-copy language — with the exact credit price on the Generate button.
-// Quick starts and a style gallery set the options in one click; results and history follow below.
+// Results and history follow below; under them the community wall (QadsCommunityWall.tsx). Every
+// Generate asks whether the finished outputs may go on that public wall (ShareConsent).
 //
 // Auth flow: the box can be filled in signed out. Adding a photo or Generate saves the draft to
 // sessionStorage and goes to /login?redirect_url=/qads; after sign-in the draft is restored and
@@ -20,6 +21,7 @@ import { QADS_STYLES, type QadsStyleId } from '@/lib/qads/styles'
 import { computeGeneratorCost, type HiggsfieldOutputKind } from '@/lib/qads/pricing'
 import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
 import { QadsBackdrop } from './QadsBackdrop'
+import { QadsCommunityWall } from './QadsCommunityWall'
 import './qads.css'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -65,6 +67,8 @@ interface GenerationSummary {
   createdAt: string
   completedAt: string | null
   itemCounts: { total: number; completed: number; failed: number }
+  /** Finished outputs are on the public community wall. */
+  shareCommunity?: boolean
 }
 
 interface GenerationItem {
@@ -120,6 +124,7 @@ const DEFAULT_FORM: FormState = {
 }
 
 const DRAFT_KEY = 'qads:draft:v1'
+const SHARE_KEY = 'qads:share-last'
 
 const FORMATS: Array<{ id: Format; note: string }> = [
   { id: '9:16', note: 'Stories, Reels, TikTok' },
@@ -136,23 +141,6 @@ const LANGS: Array<{ id: Language; label: string }> = [
 const DURATIONS = [4, 5, 6, 7, 8, 9, 10]
 const VARIANTS = [1, 2, 3, 4]
 
-interface Preset { label: string; kind: HiggsfieldOutputKind; style: QadsStyleId; format: Format }
-
-const QUICK: Preset[] = [
-  { label: 'UGC video for TikTok', kind: 'video', style: 'ugc', format: '9:16' },
-  { label: 'Packshot for your store', kind: 'image', style: 'packshot', format: '1:1' },
-  { label: 'Cinematic reel', kind: 'video', style: 'cinematic', format: '9:16' },
-  { label: 'Lifestyle for the feed', kind: 'image', style: 'lifestyle', format: '4:5' },
-]
-
-const GALLERY: Preset[] = [
-  { label: 'Lifestyle', kind: 'video', style: 'lifestyle', format: '9:16' },
-  { label: 'Studio packshot', kind: 'image', style: 'packshot', format: '1:1' },
-  { label: 'Cinematic', kind: 'video', style: 'cinematic', format: '9:16' },
-  { label: 'UGC', kind: 'video', style: 'ugc', format: '4:5' },
-  { label: 'Minimal', kind: 'image', style: 'minimal', format: '4:5' },
-]
-
 /** Small swatch per style on the Style button — the design palette, not product imagery. */
 const SWATCH: Record<QadsStyleId, string> = {
   lifestyle: 'radial-gradient(circle at 75% 20%, rgb(var(--q-acc-rgb) / .7), transparent 70%), var(--q-s2)',
@@ -162,17 +150,7 @@ const SWATCH: Record<QadsStyleId, string> = {
   minimal: 'radial-gradient(circle at 68% 32%, rgb(var(--q-acc2-rgb) / .75) 0 28%, var(--q-s1) 30%)',
 }
 
-/** Abstract preview layers per style (qads.css). */
-const ART: Record<QadsStyleId, ReactNode> = {
-  lifestyle: <><i className="sun" /><i className="floor" /><i className="obj" /></>,
-  packshot: <><i className="shadow" /><i className="obj" /></>,
-  cinematic: <><i className="beam" /><i className="floor" /><i className="obj" /></>,
-  ugc: <><i className="grid" /><i className="obj" /><i className="rec" /></>,
-  minimal: <><i className="orb" /><i className="line" /><i className="obj" /></>,
-}
-
 const styleLabel = (id: QadsStyleId) => QADS_STYLES.find((s) => s.id === id)?.label ?? id
-const ratio = (f: Format) => f.replace(':', ' / ')
 
 /** Product name for the ad copy when no product was picked: the first phrase of the brief. */
 function nameFromBrief(brief: string): string {
@@ -204,6 +182,7 @@ export function QadsGeneratorClient() {
   // Agency plan: Qads included (no credits), behind a daily fair-use cap.
   const [agency, setAgency] = useState(false)
   const [menu, setMenu] = useState<MenuId | null>(null)
+  const [askShare, setAskShare] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textRef = useRef<HTMLTextAreaElement | null>(null)
@@ -342,7 +321,8 @@ export function QadsGeneratorClient() {
     fileInputRef.current?.click()
   }
 
-  const handleSubmit = async () => {
+  // Generate asks first whether the results may go on the public community wall.
+  const handleSubmit = () => {
     if (!isSignedIn) {
       persistDraftAndSignIn(form)
       return
@@ -351,6 +331,12 @@ export function QadsGeneratorClient() {
       setSubmitError('Add at least one photo of the product.')
       return
     }
+    if (!submitting) setAskShare(true)
+  }
+
+  const startGeneration = async (shareCommunity: boolean) => {
+    setAskShare(false)
+    try { localStorage.setItem(SHARE_KEY, shareCommunity ? '1' : '0') } catch {}
     // The ad copy needs a product name: the picked product, else the first phrase of the brief.
     const brief = form.brief.trim()
     const picked = form.productName.trim()
@@ -375,6 +361,7 @@ export function QadsGeneratorClient() {
           variantsPerFormat: form.variantsPerFormat,
           videoDurationSeconds: wantsVideo ? form.videoDurationSeconds : null,
           language: form.language,
+          shareCommunity,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -436,12 +423,6 @@ export function QadsGeneratorClient() {
     })
   }
 
-  const applyPreset = (p: Preset) => {
-    setForm(prev => ({ ...prev, outputTypes: [p.kind], style: p.style, formats: [p.format] }))
-    boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    textRef.current?.focus({ preventScroll: true })
-  }
-
   const onBriefChange = (el: HTMLTextAreaElement) => {
     const v = el.value
     setForm(prev => ({ ...prev, brief: v }))
@@ -461,7 +442,7 @@ export function QadsGeneratorClient() {
       <QadsBackdrop />
       <PublicNav />
 
-      <main style={{ flex: 1, padding: '0 1.25rem clamp(3rem,6vw,5rem)', width: '100%' }}>
+      <main style={{ flex: 1, padding: '0 1.25rem', width: '100%' }}>
         <header className="qz-hero">
           <span className="qz-pill" data-qz-calm><b>Qads</b>Ad videos and photos to download</span>
           <h1 className="qz-h1" data-qz-calm>An ad from <em>one photo.</em></h1>
@@ -631,17 +612,7 @@ export function QadsGeneratorClient() {
         </div>
         {(uploadError || submitError) && <p className="qz-err" role="alert">{uploadError ?? submitError}</p>}
 
-        <div className="qz-quick" data-qz-calm role="group" aria-label="Quick start">
-          <span>Quick start</span>
-          {QUICK.map(p => (
-            <button key={p.label} type="button" className="qz-chip" onClick={() => applyPreset(p)}>
-              {p.kind === 'video' ? <Video aria-hidden="true" /> : <ImageIcon aria-hidden="true" />}
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ── Results / gallery ── */}
+        {/* ── Results ── */}
         <section ref={resultsRef} className="qz-results" aria-live="polite">
           {detail
             ? <ResultsPanel detail={detail} activeGenerationId={activeGenerationId} onItemRegenerated={() => setPollNonce(n => n + 1)} />
@@ -649,31 +620,20 @@ export function QadsGeneratorClient() {
               ? <div style={pendingCard}>Writing the prompts and ad copy, then generating. Results appear here as they finish.</div>
               : null}
           {isSignedIn && history.length > 0 && (
-            <HistoryPanel history={history} activeGenerationId={activeGenerationId} onSelect={setActiveGenerationId} />
+            <HistoryPanel
+              history={history}
+              activeGenerationId={activeGenerationId}
+              onSelect={setActiveGenerationId}
+              onShared={(id, share) => setHistory(h => h.map(g => (g.id === id ? { ...g, shareCommunity: share } : g)))}
+            />
           )}
         </section>
 
-        {!detail && !activeGenerationId && (
-          <section className="qz-gal" aria-labelledby="qz-gal-h">
-            <h2 id="qz-gal-h" data-qz-calm>What one photo turns into</h2>
-            <div className="qz-tiles">
-              {GALLERY.map(p => {
-                const on = form.style === p.style && form.formats.length === 1 && form.formats[0] === p.format && form.outputTypes.length === 1 && form.outputTypes[0] === p.kind
-                return (
-                  <button key={p.label} type="button" className="qz-tile" aria-pressed={on} onClick={() => applyPreset(p)} aria-label={`${p.label}, ${p.format} ${p.kind === 'video' ? 'video' : 'photo'} — use this`}>
-                    <span className={`qz-art ${p.style}`} style={{ aspectRatio: ratio(p.format) } as CSSProperties} aria-hidden="true">
-                      <span className="badge">{p.kind === 'video' ? <><Video />{form.videoDurationSeconds} s</> : 'photo'}</span>
-                      {ART[p.style]}
-                    </span>
-                    <b>{p.label}</b>
-                    <small>{p.format} · {p.kind === 'video' ? 'video' : 'photo'}</small>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-        )}
       </main>
+
+      <QadsCommunityWall />
+
+      {askShare && <ShareConsent onAnswer={(share) => void startGeneration(share)} onCancel={() => setAskShare(false)} />}
 
       <SiteFooter />
     </div>
@@ -902,7 +862,20 @@ function StatusPill({ status }: { status: GenerationItem['status'] }) {
   )
 }
 
-function HistoryPanel({ history, activeGenerationId, onSelect }: { history: GenerationSummary[]; activeGenerationId: string | null; onSelect: (id: string) => void }) {
+function HistoryPanel({ history, activeGenerationId, onSelect, onShared }: { history: GenerationSummary[]; activeGenerationId: string | null; onSelect: (id: string) => void; onShared: (id: string, share: boolean) => void }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  const toggleShare = async (g: GenerationSummary) => {
+    if (busy) return
+    setBusy(g.id)
+    const share = !g.shareCommunity
+    const res = await fetch(`/api/qads/generations/${g.id}/share`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ share }),
+    }).catch(() => null)
+    if (res?.ok) onShared(g.id, share)
+    setBusy(null)
+  }
   return (
     <div style={{ padding: 16, borderRadius: 12, border: '1px solid var(--qp-line)', background: 'var(--qp-surface)' }}>
       <div style={{ fontFamily: 'var(--qp-mono)', fontSize: 11, color: 'var(--qp-mut)', textTransform: 'uppercase', letterSpacing: '.10em', marginBottom: 12 }}>
@@ -912,26 +885,43 @@ function HistoryPanel({ history, activeGenerationId, onSelect }: { history: Gene
         {history.map(g => {
           const active = g.id === activeGenerationId
           return (
-            <button
+            <div
               key={g.id}
-              type="button"
-              onClick={() => onSelect(g.id)}
               style={{
-                padding: '10px 12px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
+                borderRadius: 8,
                 border: `1px solid ${active ? 'var(--qp-accent)' : 'var(--qp-line)'}`,
                 background: active ? 'rgb(var(--q-acc-rgb) / 0.06)' : 'var(--qp-bg-alt)',
-                color: 'var(--qp-ink)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                display: 'flex', alignItems: 'center', gap: 8, paddingRight: 8,
               }}
             >
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{g.productName}</div>
-                <div style={{ fontSize: 11, color: 'var(--qp-mut)', marginTop: 3 }}>
-                  {new Date(g.createdAt).toLocaleDateString('en-US')} · {g.itemCounts.completed}/{g.itemCounts.total} · {g.status}
+              <button
+                type="button"
+                onClick={() => onSelect(g.id)}
+                style={{
+                  flex: 1, minWidth: 0, padding: '10px 12px', cursor: 'pointer', textAlign: 'left',
+                  border: 0, background: 'transparent', color: 'var(--qp-ink)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{g.productName}</div>
+                  <div style={{ fontSize: 11, color: 'var(--qp-mut)', marginTop: 3 }}>
+                    {new Date(g.createdAt).toLocaleDateString('en-US')} · {g.itemCounts.completed}/{g.itemCounts.total} · {g.status}
+                  </div>
                 </div>
-              </div>
-              <span style={{ fontSize: 11, color: 'var(--qp-mut)', fontFamily: 'var(--qp-mono)' }}>{g.totalCredits} cr.</span>
-            </button>
+                <span style={{ fontSize: 11, color: 'var(--qp-mut)', fontFamily: 'var(--qp-mono)' }}>{g.totalCredits} cr.</span>
+              </button>
+              <button
+                type="button"
+                className="qz-share-toggle"
+                aria-pressed={!!g.shareCommunity}
+                disabled={busy === g.id}
+                onClick={() => void toggleShare(g)}
+                title={g.shareCommunity ? 'On the community wall — click to take it down' : 'Private — click to share on the community wall'}
+              >
+                {g.shareCommunity ? 'Shared' : 'Private'}
+              </button>
+            </div>
           )
         })}
       </div>
@@ -954,6 +944,37 @@ function btnSmallGhost(): React.CSSProperties {
     padding: '6px 10px', borderRadius: 6, fontSize: 11, fontWeight: 500,
     background: 'transparent', color: 'var(--qp-sub)', border: '1px solid var(--qp-line)', cursor: 'pointer',
   }
+}
+
+/** Asked on every Generate: may the finished photos and videos go on the community wall? */
+function ShareConsent({ onAnswer, onCancel }: { onAnswer: (share: boolean) => void; onCancel: () => void }) {
+  const firstRef = useRef<HTMLButtonElement | null>(null)
+  // The last answer is offered first; the question is still asked every time.
+  const [lastShared] = useState(() => {
+    try { return localStorage.getItem(SHARE_KEY) === '1' } catch { return false }
+  })
+  useEffect(() => {
+    firstRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onCancel])
+  const share = <button ref={lastShared ? firstRef : undefined} type="button" className="qz-go qz-consent-yes" onClick={() => onAnswer(true)}>Share to community</button>
+  const keep = <button ref={lastShared ? undefined : firstRef} type="button" className="qz-b qz-consent-no" onClick={() => onAnswer(false)}>Keep private</button>
+  return (
+    <div className="qz-consent" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
+      <div className="qz-consent-box" role="dialog" aria-modal="true" aria-labelledby="qz-consent-h" aria-describedby="qz-consent-p">
+        <button type="button" className="qz-consent-x" onClick={onCancel} aria-label="Cancel"><X aria-hidden="true" /></button>
+        <p className="qz-consent-k">Community library</p>
+        <h2 id="qz-consent-h">Share this ad with the Qads community?</h2>
+        <p id="qz-consent-p">
+          The finished photos and videos from this generation would appear on the public wall on this page.
+          Your uploaded product photos are never shown. You can take them down anytime in your history.
+        </p>
+        <div className="qz-consent-actions">{lastShared ? <>{share}{keep}</> : <>{keep}{share}</>}</div>
+      </div>
+    </div>
+  )
 }
 
 // ─── Persistence helpers ────────────────────────────────────────────

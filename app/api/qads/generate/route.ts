@@ -41,6 +41,7 @@ import {
 import { failItemAndRefund } from '@/lib/qads/items'
 import { reserveAgencyRenders } from '@/lib/qads/fair-use'
 import { isAgencyUser } from '@/lib/tier'
+import { isMissingCommunityColumn } from '@/lib/qads/community'
 import { buildQadsWebhookUrl } from '@/lib/qads/webhook-token'
 import { isOwnQadsInputPath, signQadsInputPaths } from '@/lib/qads/inputs'
 import { getQadsStyle, isValidStyleId, type QadsStyleId } from '@/lib/qads/styles'
@@ -76,6 +77,8 @@ const REQUEST_SCHEMA = z.object({
   // (see buildSeedanceVideoRequest) and charged per second.
   videoDurationSeconds: z.number().int().min(4).max(10).nullable().optional(),
   language: z.enum(['cs', 'en', 'sk', 'de']),
+  // Asked on every Generate: may the finished outputs appear on the public community wall?
+  shareCommunity: z.boolean().optional().default(false),
 })
 
 type ValidatedRequest = z.infer<typeof REQUEST_SCHEMA>
@@ -189,7 +192,7 @@ export async function POST(request: Request) {
 
   // ── 4a. Persist the generation up front so every debit has a row the
   // sweep cron can reconcile if this function dies mid-flight.
-  const { error: genError } = await supabaseAdmin.from('qads_generations').insert({
+  const generationRow = {
     id: generationId,
     user_id: userId,
     project_id: parsed.projectId ?? null,
@@ -204,7 +207,16 @@ export async function POST(request: Request) {
     language: parsed.language,
     total_credits_reserved: agency ? 0 : cost.totalCredits,
     status: 'queued',
-  })
+    share_community: parsed.shareCommunity,
+  }
+  let { error: genError } = await supabaseAdmin.from('qads_generations').insert(generationRow)
+  if (genError && isMissingCommunityColumn(genError)) {
+    // Community library not set up yet (supabase/migration-qads-community.sql): generate unshared.
+    console.warn('[qads/generate] share_community column missing — generating without sharing')
+    const withoutShare: Partial<typeof generationRow> = { ...generationRow }
+    delete withoutShare.share_community
+    ;({ error: genError } = await supabaseAdmin.from('qads_generations').insert(withoutShare))
+  }
   if (genError) {
     console.error('[qads/generate] qads_generations insert failed:', genError.message)
     await refundGeneratorCredits({ userId, generationId, reason: 'qads_generation_hard_failure' })
