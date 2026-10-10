@@ -5,11 +5,12 @@ import { moduleBySlug, modules, modulesStatusLine, quanteApp, quanteFlow, quante
 import { quantePricing } from '@/content/assetra/quante-pricing'
 import { ModuleCard } from '../../_components/quante/ModuleCard'
 import { QuantePricing } from '../../_components/quante/QuantePricing'
+import { siteShare } from '../../_components/seo'
 
 export const metadata: Metadata = {
   title: 'Quante — celý e-shop na jednom místě',
   description: quanteIntro.sub + ' Generate, Qdit, Qads a další moduly v jednom propojeném celku.',
-  openGraph: { locale: 'cs_CZ', siteName: 'Assetra Digital', title: 'Quante — celý e-shop na jednom místě', description: quanteIntro.sub },
+  ...siteShare({ path: '/quante', title: 'Quante — celý e-shop na jednom místě', description: quanteIntro.sub }),
 }
 
 export default function QuantePage() {

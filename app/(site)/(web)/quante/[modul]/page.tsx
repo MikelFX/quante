@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { moduleBySlug, modules } from '@/content/assetra/modules'
 import { ModulePage } from '../../../_components/quante/ModulePage'
+import { siteShare } from '../../../_components/seo'
 
 export const dynamicParams = false
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ modul: st
   return {
     title,
     description: m.lead,
-    openGraph: { locale: 'cs_CZ', siteName: 'Assetra Digital', title: `${m.name} · Quante`, description: m.lead },
+    ...siteShare({ path: `/quante/${m.slug}`, title: `${m.name} · Quante`, description: m.lead }),
   }
 }
 

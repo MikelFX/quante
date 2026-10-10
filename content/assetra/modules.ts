@@ -11,6 +11,8 @@
 //  - qscan, qails: no product code yet → 'dev': labelled „Ve vývoji“, no way into the app,
 //    no dates promised.
 
+import { appHref } from '@/lib/domains'
+
 export type ModuleStatus = 'live' | 'dev'
 export type ModuleSlug = 'generate' | 'qscan' | 'qgent' | 'qdit' | 'qads' | 'qails'
 
@@ -36,12 +38,14 @@ export interface QuanteModule {
   app?: { label: string; href: string }
 }
 
-/** Quante app entry points (Clerk sends signed-out visitors to /login first). */
+/** Quante app entry points (Clerk sends signed-out visitors to /login first). The app has its own
+ *  host (lib/domains.ts), so in production these are absolute. */
 export const quanteApp = {
-  dashboard: '/dashboard',
-  signup: '/signup',
-  newStore: '/new',
-  qads: '/qads',
+  dashboard: appHref('/dashboard'),
+  signup: appHref('/signup'),
+  newStore: appHref('/new'),
+  qads: appHref('/qads'),
+  agency: appHref('/billing#agency'),
 } as const
 
 // Order of the cards on the homepage and /quante (as in the design).

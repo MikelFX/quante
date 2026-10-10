@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server'
+import { APP_ORIGIN, SITE_ORIGIN, isSitePath } from '@/lib/domains'
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
@@ -55,7 +56,8 @@ function isForeignOriginApiWrite(req: NextRequest): boolean {
   const origin = req.headers.get('origin')
   if (!origin) return false
 
-  const allowed = new Set<string>([req.nextUrl.origin])
+  // The request's own origin plus both hosts of the domain split (lib/domains.ts).
+  const allowed = new Set<string>([req.nextUrl.origin, SITE_ORIGIN, APP_ORIGIN])
   const site = originOf(process.env.NEXT_PUBLIC_APP_URL)
   if (site) allowed.add(site)
   const site2 = originOf(process.env.NEXT_PUBLIC_SITE_URL)
@@ -63,7 +65,7 @@ function isForeignOriginApiWrite(req: NextRequest): boolean {
   return !allowed.has(origin)
 }
 
-export const proxy = clerkMiddleware(async (auth, req) => {
+const withClerk = clerkMiddleware(async (auth, req) => {
   if (isForeignOriginApiWrite(req)) {
     return NextResponse.json({ error: 'Cross-origin request blocked' }, { status: 403 })
   }
@@ -80,6 +82,13 @@ export const proxy = clerkMiddleware(async (auth, req) => {
   }
   if (isProtectedRoute(req)) await auth.protect()
 })
+
+export function proxy(req: NextRequest, ev: NextFetchEvent) {
+  // The AssetraDigital website pages never use Clerk (lib/domains.ts, components/auth/QuanteClerk.tsx):
+  // skip it there — no session lookup, no handshake redirect. /api/* always goes through Clerk.
+  if (isSitePath(req.nextUrl.pathname)) return NextResponse.next()
+  return withClerk(req, ev)
+}
 
 export const config = {
   matcher: [

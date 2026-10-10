@@ -1,6 +1,7 @@
 import { SignUp } from '@clerk/nextjs'
 import Link from 'next/link'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
+import { siteHref } from '@/lib/domains'
 import { buildMetadata } from '@/lib/seo'
 
 // Signup indexable — this is the "convert" landing for the free-credits
@@ -22,7 +23,7 @@ export default function SignUpPage() {
       <div className="qp-bg-grid" />
       <div className="qp-bg-scan" />
       <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 420 }}>
-        <Link href="/quante" aria-label="Quante" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 44, marginBottom: 28, textDecoration: 'none' }}>
+        <Link href={siteHref('/quante')} aria-label="Quante" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 44, marginBottom: 28, textDecoration: 'none' }}>
           <QuanteBrand size="lg" />
         </Link>
         <SignUp routing="hash" />

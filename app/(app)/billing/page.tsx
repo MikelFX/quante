@@ -1,4 +1,3 @@
-import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
 import { getUserRecord } from '@/lib/tier'
@@ -6,6 +5,8 @@ import { CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
 import { AGENCY_MONTHLY_USD, CREDIT_COSTS } from '@/lib/config'
 import { PurchaseButtons } from './PurchaseButtons'
 import { AgencyPortalButton } from './AgencyPortalButton'
+import { AgencyUpgradeButton } from './AgencyUpgradeButton'
+import { siteHref } from '@/lib/domains'
 import { ensureWelcomeGrant } from '@/app/api/credits/welcome-grant'
 import { getBalance } from '@/lib/credits'
 
@@ -290,14 +291,17 @@ export default async function BillingPage({ searchParams }: Props) {
       </div>
 
       {/* Agency upsell */}
-      <div style={{ borderRadius: 12, border: '1px solid rgb(var(--q-ok-rgb) / .15)', background: 'rgb(var(--q-ok-rgb) / .04)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+      <div id="agency" style={{ scrollMarginTop: 80, borderRadius: 12, border: '1px solid rgb(var(--q-ok-rgb) / .15)', background: 'rgb(var(--q-ok-rgb) / .04)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: '0 0 3px' }}>Agency plan — ${AGENCY_MONTHLY_USD}/month</p>
           <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>Generate &amp; export up to 20 stores at once · unlimited projects · white-label ZIP export</p>
         </div>
-        <Link href="/quante#cenik" style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: 'var(--q-ok-text)', padding: '6px 14px', borderRadius: 7, border: '1px solid rgb(var(--q-ok-rgb) / .3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-          See Agency plan →
-        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <a href={siteHref('/quante#cenik')} style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: 'var(--q-ok-text)', whiteSpace: 'nowrap' }}>
+            What&apos;s included →
+          </a>
+          <AgencyUpgradeButton stripeReady={stripeReady} />
+        </div>
       </div>
 
       {/* Credit packs */}

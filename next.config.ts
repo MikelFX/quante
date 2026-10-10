@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { withBotId } from 'botid/next/config';
+import { APP_HOST_PATTERN, APP_ORIGIN, APP_PATHS, SITE_HOST_PATTERN, SITE_ORIGIN, SITE_PATHS } from './lib/domains';
 
 // Baseline security headers for every platform response. Deliberately NO script-src
 // CSP yet: Clerk, Stripe and Supabase need an allowlist rolled out in Report-Only
@@ -23,6 +24,21 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // Domain split (lib/domains.ts): the website lives on assetradigital.agency, the app on
+      // quantecode.com. Each host sends the other surface's paths across; /api/* never moves.
+      // Previews and localhost match neither host and keep serving both surfaces.
+      ...SITE_PATHS.map((source) => ({
+        source,
+        has: [{ type: 'host' as const, value: APP_HOST_PATTERN }],
+        destination: SITE_ORIGIN + source,
+        permanent: true,
+      })),
+      ...APP_PATHS.map((source) => ({
+        source,
+        has: [{ type: 'host' as const, value: SITE_HOST_PATTERN }],
+        destination: APP_ORIGIN + source,
+        permanent: true,
+      })),
       // Qads moved out of the Studio (was /project/:id/ads/...) and into a
       // standalone generator at /qads that doesn't tie to a specific project.
       // 308 (permanent, preserves method) rather than 307 so search engines +

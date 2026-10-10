@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     }],
     mode: 'subscription',
     success_url: `${origin}/billing?agency_success=1`,
-    cancel_url: `${origin}/pricing?cancelled=1`,
+    cancel_url: `${origin}/billing?cancelled=1#agency`,
     metadata: { userId, type: 'agency' },
     subscription_data: {
       metadata: { userId, type: 'agency' },

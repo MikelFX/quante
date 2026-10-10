@@ -15,6 +15,7 @@
 //         bought through Quante). Connecting x.bob-shop.com no longer blocks bob-shop.com.
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { HOSTING_ROOT_DOMAIN } from '@/lib/hosting/vercel'
+import { APP_ORIGIN, SITE_ORIGIN } from '@/lib/domains'
 import { normalizeHostname } from '@/lib/namecheap'
 import {
   type DomainRow,
@@ -102,6 +103,11 @@ export function blockedZones(): string[] {
   if (appHost) zones.add(appHost)
   const siteHost = hostOf(process.env.NEXT_PUBLIC_SITE_URL)
   if (siteHost) zones.add(siteHost)
+  // Both hosts of the domain split (lib/domains.ts) — the website and the app.
+  for (const origin of [SITE_ORIGIN, APP_ORIGIN]) {
+    const h = hostOf(origin)
+    if (h) zones.add(h)
+  }
   return [...zones]
 }
 

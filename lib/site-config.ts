@@ -9,6 +9,8 @@
 // TODO(michal) placeholders — the footer renderer detects the
 // "TODO(michal)" prefix and omits any field that still has one, so an
 // unfilled block never leaks a placeholder to the public site.
+import { siteHref } from '@/lib/domains'
+
 const companyName  = 'QuanteCode s.r.o.'
 const founderName  = 'Michal Svoboda'
 const founderRole  = 'Founder'
@@ -43,16 +45,17 @@ export const domainProvider = {
 // Keep empty to render no social row at all.
 export const socialLinks: Array<{ label: string; href: string }> = []
 
+/** Website links are absolute in production — the website lives on its own host (lib/domains.ts). */
 export const footerNav = {
   product: [
-    { label: 'Quante',     href: '/quante' },
-    { label: 'Pricing',    href: '/quante#cenik' },
+    { label: 'Quante',     href: siteHref('/quante') },
+    { label: 'Pricing',    href: siteHref('/quante#cenik') },
     { label: 'Changelog',  href: '/changelog' },
     { label: 'Qads',       href: '/qads', badge: 'New' as const },
   ],
   company: [
-    { label: 'Assetra Digital', href: '/' },
-    { label: 'Contact',         href: '/#kontakt' },
+    { label: 'Assetra Digital', href: siteHref('/') },
+    { label: 'Contact',         href: siteHref('/#kontakt') },
   ],
   legal: [
     { label: 'Terms of Service', href: '/terms' },

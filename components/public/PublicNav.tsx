@@ -4,14 +4,15 @@ import Link from 'next/link'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { LiquidGlassDefs } from './LiquidGlassDefs'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
+import { siteHref } from '@/lib/domains'
 
 // The marketing pages moved to the Czech AssetraDigital site (app/(site)); this nav is left
 // on the remaining Quante pages (Qads, changelog, legal) until they get the new design.
 const LINKS = [
-  { href: '/quante', label: 'Quante' },
-  { href: '/quante#cenik', label: 'Pricing' },
+  { href: siteHref('/quante'), label: 'Quante' },
+  { href: siteHref('/quante#cenik'), label: 'Pricing' },
   { href: '/qads', label: 'Qads' },
-  { href: '/', label: 'Assetra Digital' },
+  { href: siteHref('/'), label: 'Assetra Digital' },
 ]
 
 // Shared sticky glass nav for every public/marketing page. Deliberately the
@@ -66,7 +67,7 @@ export function PublicNav() {
           justifyContent: 'space-between',
         }}
       >
-        <Link href="/quante" aria-label="Quante" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
+        <Link href={siteHref('/quante')} aria-label="Quante" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
           <QuanteBrand />
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
