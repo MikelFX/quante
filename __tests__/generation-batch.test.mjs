@@ -80,6 +80,16 @@ test('one batch at a time: a second one backs out and leaves no rows', async () 
   assert.equal(jobs().length, 3)
 })
 
+test('a stale batch (its invocations died) does not block the next one', async () => {
+  const { batchId } = await createBatch(U, items(2))
+  const old = new Date(Date.now() - 11 * 60_000).toISOString()
+  for (const j of jobs()) { j.created_at = old; if (j.batch_index === 0) j.code_version_id = 'cv1' }
+  const next = await createBatch(U, items(2))
+  assert.equal(next.ok, true)
+  const first = jobs().filter((j) => j.batch_id === batchId)
+  assert.deepEqual(first.map((j) => j.status).sort(), ['completed', 'failed'], 'saved code = completed, nothing saved = failed')
+})
+
 test('the daily fair-use cap counts the whole batch up front', async () => {
   const now = new Date().toISOString()
   __db.tables.generation_jobs = Array.from({ length: AGENCY_FAIR_USE.generationsPerDay - 3 }, (_, i) => ({ id: 'old' + i, user_id: U, status: 'completed', created_at: now }))

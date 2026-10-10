@@ -83,8 +83,25 @@ async function expireOldQueued(userId: string) {
   await supabaseAdmin
     .from('generation_jobs')
     .update({ status: 'failed', phase: null, error: 'Batch expired before this store was started.' })
-    .eq('user_id', userId).eq('status', 'queued')
+    .eq('user_id', userId).eq('status', 'queued').not('batch_id', 'is', null)
     .lt('created_at', new Date(Date.now() - DAY_MS).toISOString())
+}
+
+/**
+ * A batch job still 'running' past the in-flight window was killed with its invocation: close it
+ * so it stops holding a slot or blocking the next batch. Code already saved = the store exists
+ * (only its preview deploy may be missing) → completed; otherwise failed. Agency: nothing was
+ * debited, nothing to refund. `batchId` null = all of the user's batches.
+ */
+async function closeStale(userId: string, batchId: string | null) {
+  const stale = new Date(Date.now() - IN_FLIGHT_WINDOW_MS).toISOString()
+  for (const saved of [false, true]) {
+    let q = supabaseAdmin.from('generation_jobs')
+      .update(saved ? { status: 'completed', phase: null } : { status: 'failed', phase: null, error: 'Generation timed out.', raw_output: '', files: {} })
+      .eq('user_id', userId).eq('status', 'running').lt('created_at', stale)
+    q = batchId ? q.eq('batch_id', batchId) : q.not('batch_id', 'is', null)
+    await (saved ? q.not('code_version_id', 'is', null) : q.is('code_version_id', null))
+  }
 }
 
 /**
@@ -94,6 +111,7 @@ async function expireOldQueued(userId: string) {
  */
 export async function createBatch(userId: string, items: Required<BatchItem>[]): Promise<{ ok: true; batchId: string } | Fail> {
   await expireOldQueued(userId)
+  await closeStale(userId, null)
 
   const since = new Date(Date.now() - DAY_MS).toISOString()
   const { count: today, error: countError } = await supabaseAdmin
@@ -132,15 +150,17 @@ export async function createBatch(userId: string, items: Required<BatchItem>[]):
 
   const drop = async () => { await supabaseAdmin.from('generation_jobs').delete().eq('batch_id', batchId).eq('user_id', userId) }
 
-  // One active batch per user: the oldest active one wins, a newer one backs out.
-  const { data: oldest, error: oldestError } = await supabaseAdmin
+  // One active batch per user: any other unfinished batch means ours backs out. Two batches
+  // created at the same moment both back out — never both run. (No ordering by time: a claim
+  // restarts created_at, and clocks differ between the app and the database.)
+  const { data: other, error: otherError } = await supabaseAdmin
     .from('generation_jobs').select('batch_id')
     .eq('user_id', userId).not('batch_id', 'is', null).in('status', ['queued', 'running'])
-    .order('created_at', { ascending: true }).order('id', { ascending: true })
+    .neq('batch_id', batchId)
     .limit(1)
-  if (oldestError || (oldest ?? [])[0]?.batch_id !== batchId) {
+  if (otherError || (other ?? []).length > 0) {
     await drop()
-    return oldestError
+    return otherError
       ? { ok: false, status: 500, error: 'Could not start the batch. Please try again.' }
       : { ok: false, status: 409, error: 'A batch is already running. Wait for it to finish, then start the next one.' }
   }
@@ -161,14 +181,7 @@ export async function createBatch(userId: string, items: Required<BatchItem>[]):
  * after() of the current request. Returns how many it started. Safe to call often.
  */
 export async function kickBatch(batchId: string, userId: string): Promise<number> {
-  // A 'running' job past the in-flight window was killed with its invocation — close it so it
-  // stops holding a slot (Agency: nothing was debited, nothing to refund).
-  const stale = new Date(Date.now() - IN_FLIGHT_WINDOW_MS).toISOString()
-  await supabaseAdmin
-    .from('generation_jobs')
-    .update({ status: 'failed', phase: null, error: 'Generation timed out.', raw_output: '', files: {} })
-    .eq('batch_id', batchId).eq('user_id', userId).eq('status', 'running')
-    .lt('created_at', stale).is('code_version_id', null)
+  await closeStale(userId, batchId)
 
   const { count: running, error: runningError } = await supabaseAdmin
     .from('generation_jobs').select('id', { count: 'exact', head: true })

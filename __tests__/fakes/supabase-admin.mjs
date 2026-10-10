@@ -1,5 +1,5 @@
 // In-memory stand-in for lib/supabase/admin.ts in unit tests: just enough of the PostgREST query
-// builder (select / insert / update / delete, eq / lt / gte / is / not-is-null / in, order, limit,
+// builder (select / insert / update / delete, eq / neq / lt / gte / is / not-is-null / in, order, limit,
 // maybeSingle, count+head) for code that only reads and writes rows. Each statement runs
 // atomically when awaited, like a single SQL statement. Tables: __db.tables[name] = rows[].
 export const __db = { tables: {}, reset() { this.tables = {} } }
@@ -9,6 +9,7 @@ function matches(row, filters) {
     const v = row[col]
     switch (op) {
       case 'eq': return v === val
+      case 'neq': return v !== val
       case 'lt': return v < val
       case 'gte': return v >= val
       case 'is': return val === null ? v === null || v === undefined : v === val
@@ -41,6 +42,7 @@ class Query {
   update(patch) { this.kind = 'update'; this.patch = patch; return this }
   delete() { this.kind = 'delete'; return this }
   eq(c, v) { this.filters.push(['eq', c, v]); return this }
+  neq(c, v) { this.filters.push(['neq', c, v]); return this }
   lt(c, v) { this.filters.push(['lt', c, v]); return this }
   gte(c, v) { this.filters.push(['gte', c, v]); return this }
   is(c, v) { this.filters.push(['is', c, v]); return this }
