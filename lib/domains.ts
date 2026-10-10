@@ -1,6 +1,6 @@
 // Which host serves what (docs/domain-cutover.md). One deployment answers on both hosts:
 //   - the AssetraDigital website (route group app/(site), Czech) on SITE_ORIGIN,
-//   - the Quante app on APP_ORIGIN — Clerk's production instance, the Studio's store previews
+//   - the Quante app on APP_ORIGIN — sign-in (Clerk), the Studio's store previews
 //     (FRAME_ANCESTORS), the stores' QUANTE_API_URL and every payment webhook are bound to it.
 // next.config.ts sends each host's foreign paths to the other host (301). /api/* answers on both
 // hosts and is never redirected: the website calls /api/leads and /api/qgent/public relatively.

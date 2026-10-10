@@ -1,9 +1,10 @@
 import { ClerkProvider } from '@clerk/nextjs'
 
 // Clerk for the Quante app only. It is NOT in the root layout: the AssetraDigital website
-// (app/(site), served on assetradigital.agency) runs without Clerk — the production instance is
-// bound to quantecode.com, so on the website host it could only fail, and it would load its
-// script and third-party cookies for nothing. Every layout that renders Clerk components or hooks
+// (app/(site), served on assetradigital.agency) runs without Clerk — sign-in lives on
+// quantecode.com (a Clerk production instance is bound to one domain; the development instance
+// production uses today runs a handshake redirect on a visitor's first request), so on the website
+// it would only add redirects, its script and third-party cookies. Every layout that renders Clerk components or hooks
 // wraps its tree in this: app/(app), app/(marketing), app/login, app/signup, app/qads.
 // Server-side auth() keeps working everywhere through clerkMiddleware in proxy.ts.
 export function QuanteClerk({ children }: { children: React.ReactNode }) {

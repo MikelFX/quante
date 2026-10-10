@@ -18,7 +18,7 @@ přepnutí, `/` na quantecode.com pak přesměruje na assetradigital.agency.
 | Co | Kde | Proč |
 |---|---|---|
 | Web AssetraDigital: `/`, `/quante`, `/quante/*`, české právní stránky, `/design`, `/og` (`SITE_PATHS`) | **assetradigital.agency** | nová značka |
-| Aplikace Quante: `/dashboard`, `/new`, `/project/*`, `/billing`, `/settings`, `/admin`, `/marketplace`, `/login`, `/signup`, `/qads`, `/changelog`, `/terms`, `/privacy`, `/cookies`, `/refund`, `/invoice/*`, `/preview/*` (`APP_PATHS`) | **quantecode.com** (beze změny) | Clerk produkční instance je navázaná na quantecode.com; náhledy obchodů ve Studiu povolují rámování jen z `*.quantecode.com` (`FRAME_ANCESTORS`) |
+| Aplikace Quante: `/dashboard`, `/new`, `/project/*`, `/billing`, `/settings`, `/admin`, `/marketplace`, `/login`, `/signup`, `/qads`, `/changelog`, `/terms`, `/privacy`, `/cookies`, `/refund`, `/invoice/*`, `/preview/*` (`APP_PATHS`) | **quantecode.com** (beze změny) | přihlášení (Clerk) běží jen tady; náhledy obchodů ve Studiu povolují rámování jen z `*.quantecode.com` (`FRAME_ANCESTORS`) |
 | API `/api/*` | **na obou hostech, nikdy se nepřesměrovává** | web volá `/api/leads` a `/api/qgent/public` relativně; obchody volají `QUANTE_API_URL`; Stripe, Vercel, PayPal, Comgate, GoPay a Qads webhooky jsou registrované na quantecode.com |
 | Obchody | `*.stores.quantecode.com` + vlastní domény (beze změny) | `HOSTING_ROOT_DOMAIN` |
 
@@ -59,7 +59,10 @@ seznamy test shodí) a že Clerk na web nepronikne.
       quantecode.com ověřená není → e-maily jdou přes `onboarding@resend.dev` a jen na e-mail vlastníka účtu; to se
       týká i e-mailů o objednávkách v Quante. Po ověření nastavit `LEAD_NOTIFY_FROM` (a zkontrolovat `objednavky@`,
       `billing@`, `orders@`).
-- [ ] **Clerk**: beze změny (web Clerk nepoužívá). Nastavit jméno aplikace (dnes „My Application“).
+- [ ] **Clerk**: web Clerk nepoužívá. Produkce ale dnes běží na **vývojové** instanci Clerku (`pk_test_…`,
+      `tough-platypus-65.clerk.accounts.dev`) — přechod na produkční instanci (vlastní DNS záznamy pro
+      quantecode.com, nové klíče na Vercelu, převod existujících uživatelů a jejich `user_id` v databázi) je
+      samostatný úkol s vlastním plánem. Nastavit jméno aplikace (dnes „My Application“).
 - [ ] **Stripe / PayPal / Comgate / GoPay / Vercel webhooky**: beze změny (quantecode.com/api/*).
 - [x] **Supabase**: migrace `migration-assetra-leads.sql`, `migration-qgent-public.sql`, `migration-qgent-shop.sql`
       — spuštěné 2026-10-08.
