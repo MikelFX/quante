@@ -22,8 +22,11 @@ const FETCH_TIMEOUT_MS = 60_000
 const DEFAULT_ASSET_HOSTS = [
   '.higgsfield.ai',
   'higgsfield.ai',
-  // Higgsfield's CloudFront distribution for generation outputs.
+  // Higgsfield's CloudFront distributions for generation outputs (exact hosts — never all of
+  // cloudfront.net, which any AWS customer can serve from).
   'd8j0ntlcm91z4.cloudfront.net',
+  // Seen 2026-10-10 on a Marketing Studio image, returned by the authenticated status poll.
+  'd3u0tzju9qaucj.cloudfront.net',
 ]
 
 // mime → file extension. Anything not listed is rejected.
