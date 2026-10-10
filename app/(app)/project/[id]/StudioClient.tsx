@@ -3737,7 +3737,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
             background: 'rgb(var(--q-ok-rgb) / .08)',
             color: 'var(--q-ok-text)', border: '1px solid rgb(var(--q-ok-rgb) / .2)',
           }}>
-            Priority
+            Agency
           </span>
         ) : (
           <span style={{ fontFamily: 'var(--q-mono)', fontSize: 11, color: 'var(--q-fg3)' }}>

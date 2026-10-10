@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { anthropic, ITERATION_MODEL, SYSTEM_PROMPT_SECTION } from '@/lib/claude'
 import { ShopManifestSchema, SectionSchema } from '@/lib/manifest-schema'
 import { getOwnedProject } from '@/lib/auth/project'
-import { debitCredits, refundDebit } from '@/lib/credits'
+import { debitUnlessAgency, refundDebit } from '@/lib/credits'
 import type { ShopManifest } from '@/types/manifest'
 
 const SECTION_COST = 2
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
 
   // Debit atomically BEFORE calling Claude (audit #1); the new version id is the ref.
   const versionId = randomUUID()
-  const debit = await debitCredits(userId, SECTION_COST, 'section', versionId)
+  const debit = await debitUnlessAgency(userId, SECTION_COST, 'section', versionId)
   if (!debit.ok) {
     if (debit.error === 'insufficient_credits') {
       return errorResponse(`Insufficient credits. Need ${SECTION_COST}, have ${debit.balance ?? 0}.`, 402)

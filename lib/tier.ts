@@ -44,6 +44,19 @@ function isMissingColumn(error: { code?: string } | null | undefined): boolean {
   return error?.code === '42703' || error?.code === 'PGRST204'
 }
 
+/** The Agency subscription is in effect: active, or in its trial (the webhook grants the tier for both). */
+export function hasAgencyPlan(record: Pick<UserRecord, 'tier' | 'subscription_status'>): boolean {
+  return record.tier === 'agency' && (record.subscription_status === 'active' || record.subscription_status === 'trialing')
+}
+
+/**
+ * Max active (non-archived) projects, or null for no limit. Agency has none; pass the result of
+ * isAgencyUser() so a billing hold also drops the Agency bonus here.
+ */
+export function activeProjectLimit(record: UserRecord, agency: boolean): number | null {
+  return agency ? null : record.project_limit
+}
+
 /**
  * Active Agency plan AND no billing hold (audit F2). A chargeback on an Agency invoice
  * only sets users.billing_hold (the subscription stays 'active' until Stripe moves it),
@@ -53,7 +66,7 @@ function isMissingColumn(error: { code?: string } | null | undefined): boolean {
  */
 export async function isAgencyUser(userId: string): Promise<boolean> {
   const record = await getUserRecord(userId)
-  if (record.tier !== 'agency' || record.subscription_status !== 'active') return false
+  if (!hasAgencyPlan(record)) return false
 
   const { data, error } = await supabaseAdmin
     .from('users')

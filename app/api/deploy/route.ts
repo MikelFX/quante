@@ -4,7 +4,7 @@ import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { buildStoreFiles, toStoreSlug, SCAFFOLD_VERSION } from '@/lib/store-template/build'
 import { CREDIT_COSTS } from '@/lib/config'
-import { debitCredits, refundDebit } from '@/lib/credits'
+import { debitUnlessAgency, refundDebit } from '@/lib/credits'
 import { getOwnedProject } from '@/lib/auth/project'
 import { getHostingGate, hasUsedHostingTrial, claimHostingTrial, releaseHostingTrial } from '@/lib/hosting/gate'
 import {
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
     // SECURITY (audit #35): debit atomically BEFORE the Vercel build so concurrent
     // requests can't each pass a stale balance check; refund if the build never starts.
     const debitRef = randomUUID()
-    const debit = await debitCredits(userId, PREVIEW_DEPLOY_COST, 'preview_deploy', debitRef)
+    const debit = await debitUnlessAgency(userId, PREVIEW_DEPLOY_COST, 'preview_deploy', debitRef)
     if (!debit.ok) {
       if (debit.error === 'insufficient_credits') {
         return NextResponse.json(

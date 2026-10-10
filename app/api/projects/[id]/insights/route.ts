@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getOwnedProject } from '@/lib/auth/project'
-import { debitCredits, refundDebit } from '@/lib/credits'
+import { debitUnlessAgency, refundDebit } from '@/lib/credits'
 import { anthropic, INTAKE_MODEL } from '@/lib/claude'
 import { parseProductsFile, PRODUCTS_FILE } from '@/lib/store-products'
 import type { CodeVersionFiles } from '@/types/store-code'
@@ -153,7 +153,7 @@ export async function POST(_request: Request, { params }: Params) {
   // below. (Previously a read-then-insert that computed balance_after in app code,
   // which raced and could mint/lose credits.)
   const debitRef = randomUUID()
-  const debit = await debitCredits(userId, INSIGHTS_COST, 'insights', debitRef)
+  const debit = await debitUnlessAgency(userId, INSIGHTS_COST, 'insights', debitRef)
   if (!debit.ok) {
     // Nothing was debited and Claude is not called — don't let this use up an attempt.
     if (attemptId) await supabaseAdmin.from('quante_request_attempts').delete().eq('id', attemptId)

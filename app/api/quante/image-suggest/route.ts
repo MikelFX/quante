@@ -6,7 +6,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { randomUUID } from 'crypto'
 import { getOwnedProject } from '@/lib/auth/project'
-import { debitCredits, refundDebit } from '@/lib/credits'
+import { debitUnlessAgency, refundDebit } from '@/lib/credits'
 import { anthropic, ITERATION_MODEL, messageText } from '@/lib/claude'
 import { NextResponse } from 'next/server'
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   // Atomic debit BEFORE the Claude/Unsplash calls; refundDebit (this request only) on failure.
   const creditRef = randomUUID()
-  const debit = await debitCredits(userId, SUGGEST_COST, 'image_suggest', creditRef)
+  const debit = await debitUnlessAgency(userId, SUGGEST_COST, 'image_suggest', creditRef)
   if (!debit.ok) {
     if (debit.error === 'insufficient_credits') {
       return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
@@ -102,7 +102,7 @@ Good examples: "ceramic coffee mug white", "leather wallet flat lay", "skincare 
       creditUrl: r.user.links.html + '?utm_source=quante&utm_medium=referral',
     }))
 
-    return NextResponse.json({ images, query, creditsUsed: SUGGEST_COST, balanceAfter: debit.balance })
+    return NextResponse.json({ images, query, creditsUsed: debit.agency ? 0 : SUGGEST_COST, balanceAfter: debit.balance })
   } catch (err) {
     await refund()
     console.error('[image-suggest] error:', err)

@@ -4,6 +4,7 @@ import { ParticleZone } from '@ad/ui'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
+import { CREDIT_COSTS } from '@/lib/config'
 
 type Stage = 'chat' | 'ready' | 'generating'
 
@@ -106,6 +107,16 @@ export default function NewProjectPage() {
   const [error, setError] = useState('')
   // True when the last generate attempt failed for lack of credits (402) — shows a Billing link.
   const [errorNeedsCredits, setErrorNeedsCredits] = useState(false)
+  // Agency: generating a store is included in the plan (no credits, fair use).
+  const [agencyPlan, setAgencyPlan] = useState(false)
+  useEffect(() => {
+    let off = false
+    fetch('/api/credits/balance')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { tier?: string } | null) => { if (!off && d?.tier === 'agency') setAgencyPlan(true) })
+      .catch(() => {})
+    return () => { off = true }
+  }, [])
   const [codeChunks, setCodeChunks] = useState('')
   const [stageIndex, setStageIndex] = useState(0)
 
@@ -814,7 +825,7 @@ export default function NewProjectPage() {
                 ← Keep refining
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)' }}>10 cr</span>
+                <span style={{ fontSize: 11, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)' }}>{agencyPlan ? 'Included' : `${CREDIT_COSTS.generate} cr`}</span>
                 <button
                   type="button"
                   onClick={handleGenerate}

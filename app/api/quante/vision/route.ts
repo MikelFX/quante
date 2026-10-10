@@ -6,7 +6,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { randomUUID } from 'crypto'
 import { getOwnedProject } from '@/lib/auth/project'
-import { debitCredits, refundDebit } from '@/lib/credits'
+import { debitUnlessAgency, refundDebit } from '@/lib/credits'
 import { anthropic, ITERATION_MODEL, messageText } from '@/lib/claude'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { rateLimit } from '@/lib/rate-limit'
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
 
   // Atomic debit BEFORE the Claude call; refundDebit (this request's debit only) on failure.
   const creditRef = randomUUID()
-  const debit = await debitCredits(userId, VISION_COST, 'vision', creditRef)
+  const debit = await debitUnlessAgency(userId, VISION_COST, 'vision', creditRef)
   if (!debit.ok) {
     if (debit.error === 'insufficient_credits') {
       return NextResponse.json({ error: 'Insufficient credits' }, { status: 402 })
@@ -159,7 +159,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Vision model returned invalid JSON' }, { status: 500 })
     }
 
-    return NextResponse.json({ vision, creditsUsed: VISION_COST, balanceAfter: debit.balance })
+    return NextResponse.json({ vision, creditsUsed: debit.agency ? 0 : VISION_COST, balanceAfter: debit.balance })
   } catch (err) {
     // Refund on API error
     await refund()

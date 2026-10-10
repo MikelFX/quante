@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
-import { getUserRecord } from '@/lib/tier'
+import { getUserRecord, hasAgencyPlan } from '@/lib/tier'
 import { CREDIT_COSTS } from '@/lib/config'
 import Link from 'next/link'
 import { DashboardGrid } from './DashboardGrid'
@@ -17,7 +17,7 @@ export default async function DashboardPage() {
 
   const supabase = await createClient()
   const record = await getUserRecord(userId)
-  const isAgency = record.tier === 'agency' && record.subscription_status === 'active'
+  const isAgency = hasAgencyPlan(record)
 
   // Welcome credits wait for a verified email — surface that instead of a silent 0 balance.
   let verificationRequired = false
@@ -36,8 +36,9 @@ export default async function DashboardPage() {
   const projects = projectsResult.data ?? []
   const archived = archivedResult.data ?? []
   const activeCount = projects.length
-  const atLimit = activeCount >= record.project_limit
-  const limitLabel = `${activeCount} / ${record.project_limit} active`
+  // Agency has no project limit (lib/tier.ts).
+  const atLimit = !isAgency && activeCount >= record.project_limit
+  const limitLabel = isAgency ? `${activeCount} active · no limit` : `${activeCount} / ${record.project_limit} active`
 
   return (
     <div className="q-page-wrap">
@@ -53,10 +54,7 @@ export default async function DashboardPage() {
       {/* At-limit warning */}
       {atLimit && (
         <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', fontSize: 13, color: 'var(--q-warn-text)' }}>
-          {isAgency
-            ? <>You&apos;ve reached the Agency batch limit (20 simultaneous stores). <a href="mailto:support@quantecode.com" style={{ color: 'var(--q-warn-text)' }}>Contact us for a custom plan.</a></>
-            : <><Link href="/billing#agency" style={{ color: 'var(--q-warn-text)' }}>Upgrade to Agency</Link> to generate &amp; export up to 20 stores at once.</>
-          }
+          <Link href="/billing#agency" style={{ color: 'var(--q-warn-text)' }}>Upgrade to Agency</Link> for unlimited stores.
         </div>
       )}
 

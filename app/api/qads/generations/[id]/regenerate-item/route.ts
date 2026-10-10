@@ -25,6 +25,8 @@ import {
   QADS_BILLING_HOLD_MESSAGE,
 } from '@/lib/qads/credits'
 import { failItemAndRefund, TERMINAL_ITEM_STATUSES } from '@/lib/qads/items'
+import { reserveAgencyRenders } from '@/lib/qads/fair-use'
+import { isAgencyUser } from '@/lib/tier'
 import { buildQadsWebhookUrl } from '@/lib/qads/webhook-token'
 import { isOwnQadsInputPath, signQadsInputPaths } from '@/lib/qads/inputs'
 import { creditsPerItem } from '@/lib/qads/pricing'
@@ -113,8 +115,18 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       .is('higgsfield_request_id', null)
   }
 
+  // ── Agency: included, behind the daily fair-use cap (lib/qads/fair-use.ts) ──
+  const agency = await isAgencyUser(userId)
+  if (agency) {
+    const fair = await reserveAgencyRenders(userId, generationId, kind === 'video' ? 1 : 0, kind === 'image' ? 1 : 0)
+    if (!fair.ok) {
+      await releaseClaim()
+      return NextResponse.json({ error: fair.message, code: fair.error }, { status: fair.error === 'fair_use' ? 429 : 503 })
+    }
+  }
+
   // ── Atomic debit ──
-  const reserve = await reserveGeneratorCredits({ userId, amount: cost, generationId })
+  const reserve = agency ? ({ ok: true } as const) : await reserveGeneratorCredits({ userId, amount: cost, generationId })
   if (!reserve.ok) {
     await releaseClaim()
     if (reserve.error === 'billing_hold') {
@@ -128,13 +140,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       { status: reserve.error === 'insufficient_credits' ? 402 : 500 },
     )
   }
-  if ((await countRecentReserves(userId)) > QADS_RESERVES_PER_HOUR) {
+  if (!agency && (await countRecentReserves(userId)) > QADS_RESERVES_PER_HOUR) {
     await refundGeneratorCredits({ userId, amount: cost, generationId, reason: 'qads_rate_limited' })
     await releaseClaim()
     return NextResponse.json({ error: `Rate limit reached — max ${QADS_RESERVES_PER_HOUR} Qads renders per hour.` }, { status: 429 })
   }
 
-  const itemRef = { id: itemId, generation_id: generationId, user_id: userId, credits_charged: cost }
+  const charged = agency ? 0 : cost
+  const itemRef = { id: itemId, generation_id: generationId, user_id: userId, credits_charged: charged }
   const submitInput: MediaGenerationInput = {
     kind,
     prompt: item.prompt_used as string,
@@ -156,7 +169,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       mime_type: null,
       error_message: null,
       completed_at: null,
-      credits_charged: cost,
+      credits_charged: charged,
     }).eq('id', itemId).eq('status', 'queued').select('id').maybeSingle()
     if (!updated) {
       // Lost our claim (should not happen) — don't leave a paid, orphaned job.

@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
+import { AGENCY_BATCH_SIZE } from '@/lib/config'
 
 interface Project {
   id: string
@@ -65,19 +66,23 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
 
   const visibleProjects = projects.filter(p => !deletedIds.has(p.id))
 
+  // One bulk export takes up to AGENCY_BATCH_SIZE stores (/api/export/bulk); Agency itself has no
+  // project limit, so the selection is capped here instead of failing at export time.
+  const selectable = Math.min(visibleProjects.length, AGENCY_BATCH_SIZE)
+
   const toggle = useCallback((id: string) => {
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
-      else next.add(id)
+      else if (next.size < AGENCY_BATCH_SIZE) next.add(id)
       return next
     })
   }, [])
 
   const toggleAll = useCallback(() => {
-    if (selected.size === visibleProjects.length) setSelected(new Set())
-    else setSelected(new Set(visibleProjects.map(p => p.id)))
-  }, [selected, visibleProjects])
+    if (selected.size === selectable) setSelected(new Set())
+    else setSelected(new Set(visibleProjects.slice(0, AGENCY_BATCH_SIZE).map(p => p.id)))
+  }, [selected, selectable, visibleProjects])
 
   async function handleBulkExport() {
     if (exporting || selected.size === 0) return
@@ -130,7 +135,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
   }
 
   const anySelected = selected.size > 0
-  const allSelected = selected.size === visibleProjects.length && visibleProjects.length > 0
+  const allSelected = selected.size === selectable && selectable > 0
 
   return (
     <>
@@ -157,7 +162,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
           <span style={{ fontSize: 13, color: 'var(--q-fg)', fontWeight: 500 }}>
             {selected.size} selected
             <span style={{ fontSize: 11, color: 'var(--q-ok-text)', marginLeft: 8, fontFamily: 'var(--q-mono)' }}>
-              unlimited
+              up to {AGENCY_BATCH_SIZE} per export
             </span>
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -194,7 +199,7 @@ export function DashboardGrid({ projects, isAgency, exportCostPerProject: _, cre
             <div className={`check-box${allSelected ? ' checked' : ''}`}>
               {allSelected && <span style={{ color: 'var(--q-acc-ink)', fontSize: 10, fontWeight: 700, lineHeight: 1 }}>✓</span>}
             </div>
-            {allSelected ? 'Deselect all' : 'Select all'}
+            {allSelected ? 'Deselect all' : visibleProjects.length > AGENCY_BATCH_SIZE ? `Select ${AGENCY_BATCH_SIZE}` : 'Select all'}
           </button>
         </div>
       )}

@@ -35,10 +35,10 @@ export function QuantePricing({ num = '03' }: { num?: string }) {
           <li key={c.label}><span className="n">{c.label}</span><i /><b>{c.value}</b></li>
         ))}
         <li><span className="n">Hosting obchodu</span><i /><b>{p.hosting.annualUsd} USD ročně, první měsíc zdarma</b></li>
-        <li><span className="n">Agency</span><i /><b>{p.agency.monthlyUsd} USD měsíčně · až {p.agency.projects} obchodů, úpravy a opravy bez kreditů, export bez značky Quante</b></li>
+        <li><span className="n">Agency</span><i /><b>{p.agency.monthlyUsd} USD měsíčně · {p.agency.summary}</b></li>
       </ul>
       <AgencyCta />
-      <p className="fine">Kredity za generování a úpravy se strhávají předem. Když se obchod nepodaří sestavit ani po pěti automatických opravách, vrátí se.</p>
+      <p className="fine">Kredity za generování a úpravy se strhávají předem. Když se obchod nepodaří sestavit ani po pěti automatických opravách, vrátí se. Fair use u Agency: {p.agency.fairUse}.</p>
     </>
   )
 }

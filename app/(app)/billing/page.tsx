@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
-import { getUserRecord } from '@/lib/tier'
+import { getUserRecord, hasAgencyPlan } from '@/lib/tier'
+import { AGENCY_FEATURES, AGENCY_SUMMARY } from '@/lib/agency-plan'
 import { CREDIT_PACKS, isStripeConfigured } from '@/lib/stripe'
 import { AGENCY_MONTHLY_USD, CREDIT_COSTS } from '@/lib/config'
 import { PurchaseButtons } from './PurchaseButtons'
@@ -69,7 +70,7 @@ export default async function BillingPage({ searchParams }: Props) {
 
   const supabase = await createClient()
   const record = await getUserRecord(userId)
-  const isAgency = record.tier === 'agency' && record.subscription_status === 'active'
+  const isAgency = hasAgencyPlan(record)
   const stripeReady = isStripeConfigured()
 
   // Project count for agency
@@ -99,7 +100,7 @@ export default async function BillingPage({ searchParams }: Props) {
 
         {params.agency_success && (
           <div style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-ok-rgb) / .3)', background: 'rgb(var(--q-ok-rgb) / .07)', fontSize: 13, color: 'var(--q-ok-text)' }}>
-            Agency plan activated — unlimited generations and exports are now available.
+            Agency plan activated — unlimited stores, and generations, edits and Qads without credits (fair use).
           </div>
         )}
 
@@ -147,7 +148,7 @@ export default async function BillingPage({ searchParams }: Props) {
                 Active stores
               </p>
               <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--q-fg)', margin: 0 }}>
-                {projectCount ?? 0} / {record.project_limit} batch slots
+                {projectCount ?? 0} · no limit
               </p>
             </div>
           </div>
@@ -159,32 +160,15 @@ export default async function BillingPage({ searchParams }: Props) {
             What{"'"}s included
           </p>
           <div style={{ borderRadius: 10, border: '1px solid rgb(var(--q-ink-rgb) / .07)', overflow: 'hidden' }}>
-            {[
-              ['Batch-generate & export up to 20 stores at once', '✓'],
-              ['Unlimited generations', '✓'],
-              ['Unlimited iterations', '✓'],
-              ['Full ZIP export — white-label, no branding', '✓'],
-              ['Priority generation queue', '✓'],
-            ].map(([feature, check], i, arr) => (
-              <div key={feature} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid rgb(var(--q-ink-rgb) / .05)' : 'none' }}>
-                <span style={{ fontSize: 13, color: 'var(--q-fg)' }}>{feature}</span>
-                <span style={{ fontSize: 13, color: 'var(--q-ok-text)', fontFamily: 'var(--q-mono)' }}>{check}</span>
+            {AGENCY_FEATURES.map(({ text, soon }, i, arr) => (
+              <div key={text} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid rgb(var(--q-ink-rgb) / .05)' : 'none' }}>
+                <span style={{ fontSize: 13, color: soon ? 'var(--q-fg3)' : 'var(--q-fg)' }}>{text}</span>
+                <span style={{ fontSize: soon ? 11 : 13, color: soon ? 'var(--q-fg3)' : 'var(--q-ok-text)', fontFamily: 'var(--q-mono)', whiteSpace: 'nowrap' }}>{soon ? 'Coming soon' : '✓'}</span>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Custom plan */}
-        {(projectCount ?? 0) >= record.project_limit && (
-          <div style={{ padding: '12px 16px', borderRadius: 10, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)' }}>
-            <p style={{ fontSize: 13, color: 'var(--q-warn-text)', margin: '0 0 4px' }}>
-              You{"'"}ve reached the Agency batch limit (20 simultaneous stores).
-            </p>
-            <a href="mailto:support@quantecode.com" style={{ fontSize: 13, color: 'var(--q-warn-text)', fontWeight: 600 }}>
-              Contact us for a custom enterprise plan →
-            </a>
-          </div>
-        )}
       </div>
     )
   }
@@ -294,7 +278,7 @@ export default async function BillingPage({ searchParams }: Props) {
       <div id="agency" style={{ scrollMarginTop: 80, borderRadius: 12, border: '1px solid rgb(var(--q-ok-rgb) / .15)', background: 'rgb(var(--q-ok-rgb) / .04)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', margin: '0 0 3px' }}>Agency plan — ${AGENCY_MONTHLY_USD}/month</p>
-          <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>Generate &amp; export up to 20 stores at once · unlimited projects · white-label ZIP export</p>
+          <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>{AGENCY_SUMMARY}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <a href={siteHref('/quante#cenik')} style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: 'var(--q-ok-text)', whiteSpace: 'nowrap' }}>

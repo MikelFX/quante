@@ -118,7 +118,7 @@ export function buildQgentKnowledge() {
         creditPacks: quantePricing.packs.map((p) => `${p.credits} kreditů za ${p.price} USD`),
         costs: quantePricing.costs.map((c) => `${c.label}: ${c.value}`),
         hosting: `${quantePricing.hosting.annualUsd} USD ročně, první měsíc zdarma`,
-        agency: `${quantePricing.agency.monthlyUsd} USD měsíčně, až ${quantePricing.agency.projects} obchodů, úpravy a opravy bez kreditů, export bez značky Quante`,
+        agency: `${quantePricing.agency.monthlyUsd} USD měsíčně: ${quantePricing.agency.summary.replaceAll(' · ', ', ')}. Fair use: ${quantePricing.agency.fairUse}. Hromadný export až ${quantePricing.agency.bulkExport} obchodů naráz. Objednává se v aplikaci v Billing.`,
       },
       appUrl: '/dashboard (přihlášení), nový obchod /new, Qads /qads',
     },

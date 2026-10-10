@@ -18,7 +18,7 @@ import { PublicNav } from '@/components/public/PublicNav'
 import { SiteFooter } from '@/components/SiteFooter'
 import { QADS_STYLES, type QadsStyleId } from '@/lib/qads/styles'
 import { computeGeneratorCost, type HiggsfieldOutputKind } from '@/lib/qads/pricing'
-import { CREDIT_COSTS } from '@/lib/config'
+import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
 import './qads.css'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -200,6 +200,8 @@ export function QadsGeneratorClient() {
   const [history, setHistory] = useState<GenerationSummary[]>([])
   const [projects, setProjects] = useState<StoreProject[]>([])
   const [balance, setBalance] = useState<number | null>(null)
+  // Agency plan: Qads included (no credits), behind a daily fair-use cap.
+  const [agency, setAgency] = useState(false)
   const [menu, setMenu] = useState<MenuId | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -234,8 +236,9 @@ export function QadsGeneratorClient() {
         if (genRes.ok) setHistory((await genRes.json()).generations ?? [])
         if (projRes.ok) setProjects((await projRes.json()).projects ?? [])
         if (balRes.ok) {
-          const b = (await balRes.json()) as { balance?: number }
+          const b = (await balRes.json()) as { balance?: number | null; tier?: string }
           if (typeof b.balance === 'number') setBalance(b.balance)
+          setAgency(b.tier === 'agency')
         }
       } catch {}
     })()
@@ -603,7 +606,7 @@ export function QadsGeneratorClient() {
             <button type="button" className="qz-go" disabled={(isSignedIn && !canSubmit) || submitting} onClick={() => void handleSubmit()} title={isLoaded && !isSignedIn ? 'Sign in and generate' : undefined}>
               {submitting ? 'Starting…' : 'Generate'}
               {isLoaded && !isSignedIn && !submitting && <span className="vh"> (sign in first)</span>}
-              <span className="cr">{cost.totalCredits} cr</span>
+              <span className="cr">{agency ? 'Included' : `${cost.totalCredits} cr`}</span>
               <span className="ar" aria-hidden="true"><ArrowRight /></span>
             </button>
           </div>
@@ -612,9 +615,11 @@ export function QadsGeneratorClient() {
         <div className="qz-under">
           <span>
             <span className="dot" aria-hidden="true" />
-            {form.photos.length === 0 ? 'Add a photo and go.' : `${cost.imageCredits ? `Photos ${cost.imageCredits} cr · ` : ''}${cost.videoCredits ? `Videos ${cost.videoCredits} cr · ` : ''}Prompts and ad copy ${cost.strategyCredits} cr.`}
+            {agency
+              ? `Included in your Agency plan — fair use ${AGENCY_FAIR_USE.qadsVideosPerDay} videos and ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day.`
+              : form.photos.length === 0 ? 'Add a photo and go.' : `${cost.imageCredits ? `Photos ${cost.imageCredits} cr · ` : ''}${cost.videoCredits ? `Videos ${cost.videoCredits} cr · ` : ''}Prompts and ad copy ${cost.strategyCredits} cr.`}
             {isLoaded && !isSignedIn && starterCovers && ` Your first ${CREDIT_COSTS.welcome_grant} credits are free — enough for a video and a photo.`}
-            {isSignedIn && balance !== null && <> Balance {balance} cr · <Link href="/billing">Top up</Link></>}
+            {isSignedIn && !agency && balance !== null && <> Balance {balance} cr · <Link href="/billing">Top up</Link></>}
           </span>
           <span className="qz-kbd">Send<kbd>Enter</kbd></span>
         </div>

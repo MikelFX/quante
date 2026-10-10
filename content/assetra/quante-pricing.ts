@@ -2,7 +2,7 @@
 // lib/credit-packs.ts (what Stripe sells), lib/config.ts (what each action debits, hosting,
 // Agency) and lib/qads/pricing.ts (Qads). Prices are USD, as Stripe charges them.
 
-import { AGENCY_MONTHLY_USD, CREDIT_COSTS, HOSTING_ANNUAL_USD } from '@/lib/config'
+import { AGENCY_BATCH_SIZE, AGENCY_FAIR_USE, AGENCY_MONTHLY_USD, CREDIT_COSTS, HOSTING_ANNUAL_USD } from '@/lib/config'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { QADS_GENERATOR_CREDIT_COSTS as QADS } from '@/lib/qads/pricing'
 import type { ModuleSlug } from './modules'
@@ -46,7 +46,13 @@ export const quantePricing = {
     { label: 'Stažení kódu jako ZIP', value: credits(CREDIT_COSTS.export) },
   ],
   hosting: { annualUsd: HOSTING_ANNUAL_USD, trialDays: 30 },
-  agency: { monthlyUsd: AGENCY_MONTHLY_USD, projects: 20 },
+  // What Agency includes (lib/agency-plan.ts is the app's list; the numbers come from lib/config.ts).
+  agency: {
+    monthlyUsd: AGENCY_MONTHLY_USD,
+    summary: 'neomezeně obchodů · generování, úpravy a Qads bez kreditů (fair use) · export bez značky Quante · hosting v ceně',
+    fairUse: `${AGENCY_FAIR_USE.generationsPerDay} generování obchodu, ${AGENCY_FAIR_USE.qadsVideosPerDay} videí a ${AGENCY_FAIR_USE.qadsPhotosPerDay} fotek v Qads denně`,
+    bulkExport: AGENCY_BATCH_SIZE,
+  },
 }
 
 /** The cost rows that belong on a module page. */

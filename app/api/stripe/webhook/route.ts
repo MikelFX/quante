@@ -1130,6 +1130,8 @@ async function handleSubscriptionEvent(eventSub: Stripe.Subscription): Promise<v
         current_period_end: periodEnd,
         project_limit: AGENCY_PROJECT_LIMIT,
       })
+      // Agency has no project limit: bring back what a lapsed subscription archived.
+      await restoreArchivedProjects(userId)
     } else {
       // past_due / unpaid / incomplete / canceled — not paid, so no agency limits.
       // Credit balance is kept; excess projects are archived once the subscription is
@@ -1348,6 +1350,18 @@ async function archiveExcessProjects(userId: string, limit: number): Promise<voi
     .from('projects')
     .update({ status: 'archived', updated_at: new Date().toISOString() })
     .in('id', toArchive)
+}
+
+// ─── Agency (re)activated: un-archive ─────────────────────────────────────────
+// Projects are archived by a lapsed Agency subscription (archiveExcessProjects) and, rarely, by
+// generate's over-limit fallback; otherwise they are 'draft'. Every archived one goes back. Idempotent.
+async function restoreArchivedProjects(userId: string): Promise<void> {
+  const { error } = await supabaseAdmin
+    .from('projects')
+    .update({ status: 'draft', updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('status', 'archived')
+  if (error) console.error(`[webhook] restoring archived projects failed for ${userId}:`, error.message)
 }
 
 // ─── Customer payment confirmed email ────────────────────────────────────────

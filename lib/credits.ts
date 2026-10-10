@@ -13,6 +13,7 @@
 //   try { ...do the work... } catch { await refundDebit(userId, ref, 'iterate', 'iterate_failed') }
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { isAgencyUser } from '@/lib/tier'
 
 export type DebitResult =
   | { ok: true; balance: number; id: string }
@@ -80,6 +81,18 @@ export async function debitCredits(
   const d = data as { ok: boolean; error?: string; balance?: number; id?: string }
   if (!d.ok) return { ok: false, error: (d.error as 'insufficient_credits') ?? 'rpc_error', balance: d.balance }
   return { ok: true, balance: d.balance ?? 0, id: d.id ?? '' }
+}
+
+export type PlanDebitResult = (DebitResult & { agency?: undefined }) | { ok: true; agency: true; balance?: undefined; id?: undefined }
+
+/**
+ * debitCredits, except on the Agency plan: store work is included there (lib/config.ts), so
+ * nothing is debited. Callers keep their refund paths unchanged — refunding a ref that was
+ * never debited is a no-op (refund_debit returns refunded 0).
+ */
+export async function debitUnlessAgency(userId: string, amount: number, reason: string, refId: string | null = null): Promise<PlanDebitResult> {
+  if (await isAgencyUser(userId)) return { ok: true, agency: true }
+  return debitCredits(userId, amount, reason, refId)
 }
 
 /** Atomically grant credits. Idempotent per (user, reason, refId) when refId is given. */

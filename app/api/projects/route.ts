@@ -1,17 +1,15 @@
 import { auth } from '@clerk/nextjs/server'
 import { createClient } from '@/lib/supabase/server'
-import { getUserRecord } from '@/lib/tier'
+import { activeProjectLimit, getUserRecord, isAgencyUser } from '@/lib/tier'
 import { NextResponse } from 'next/server'
 
 const MAX_NAME_LEN = 100
 
-function limitResponse(tier: string, limit: number) {
-  const isAgency = tier === 'agency'
+// Only non-Agency accounts have a limit (Agency: unlimited projects, lib/tier.ts).
+function limitResponse(limit: number) {
   return NextResponse.json(
     {
-      error: isAgency
-        ? `Agency batch limit reached (${limit} simultaneous stores). Contact support for a custom plan.`
-        : `Active store limit reached (${limit}). Upgrade to Agency to generate & export up to 20 stores at once.`,
+      error: `Active store limit reached (${limit}). Upgrade to Agency for unlimited stores.`,
       code: 'PROJECT_LIMIT_REACHED',
       limit,
     },
@@ -30,15 +28,14 @@ export async function POST(request: Request) {
     : 'Untitled store'
 
   // Enforce project limit server-side (fast pre-check)
-  const record = await getUserRecord(userId)
-  const { count: activeCount } = await supabase
-    .from('projects')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .neq('status', 'archived')
-
-  if ((activeCount ?? 0) >= record.project_limit) {
-    return limitResponse(record.tier, record.project_limit)
+  const limit = activeProjectLimit(await getUserRecord(userId), await isAgencyUser(userId))
+  if (limit !== null) {
+    const { count: activeCount } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .neq('status', 'archived')
+    if ((activeCount ?? 0) >= limit) return limitResponse(limit)
   }
 
   const { data: project, error } = await supabase
@@ -51,6 +48,8 @@ export async function POST(request: Request) {
     console.error('[projects POST] insert failed:', error?.message)
     return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
   }
+
+  if (limit === null) return NextResponse.json(project)
 
   // SECURITY: the count-then-insert above is racy — N parallel POSTs all pass the
   // pre-check. Re-check after inserting: rank the user's active projects oldest-first
@@ -65,13 +64,13 @@ export async function POST(request: Request) {
     .order('id', { ascending: true })
 
   const rank = (active ?? []).findIndex((p) => p.id === project.id)
-  if (listErr || rank === -1 || rank >= record.project_limit) {
+  if (listErr || rank === -1 || rank >= limit) {
     await supabase.from('projects').delete().eq('id', project.id).eq('user_id', userId)
     if (listErr) {
       console.error('[projects POST] limit re-check failed:', listErr.message)
       return NextResponse.json({ error: 'Failed to create project' }, { status: 500 })
     }
-    return limitResponse(record.tier, record.project_limit)
+    return limitResponse(limit)
   }
 
   return NextResponse.json(project)

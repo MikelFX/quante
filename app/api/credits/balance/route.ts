@@ -1,5 +1,5 @@
 import { auth } from '@clerk/nextjs/server'
-import { getUserRecord } from '@/lib/tier'
+import { getUserRecord, hasAgencyPlan } from '@/lib/tier'
 import { getBalance } from '@/lib/credits'
 import { NextResponse } from 'next/server'
 import { ensureWelcomeGrant } from '../welcome-grant'
@@ -11,7 +11,7 @@ export async function GET() {
   const record = await getUserRecord(userId)
 
   // Agency users don't use credits — return tier info only
-  if (record.tier === 'agency' && record.subscription_status === 'active') {
+  if (hasAgencyPlan(record)) {
     return NextResponse.json({ balance: null, tier: 'agency', project_limit: record.project_limit })
   }
 

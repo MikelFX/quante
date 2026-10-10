@@ -8,7 +8,7 @@ import { auth } from '@clerk/nextjs/server'
 import { randomUUID } from 'crypto'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getOwnedProject } from '@/lib/auth/project'
-import { debitCredits, refundDebit } from '@/lib/credits'
+import { debitUnlessAgency, refundDebit } from '@/lib/credits'
 import { anthropic, ITERATION_MODEL, messageText } from '@/lib/claude'
 import { validateCustomComponent } from '@/lib/sandbox/validate-component'
 import { rateLimit } from '@/lib/rate-limit'
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   // Atomic debit BEFORE the Claude call; refundDebit on any failure. The refund adds
   // back only this request's debit, so concurrent spends are never erased.
   const creditRef = randomUUID()
-  const debit = await debitCredits(userId, COMPONENT_COST, 'custom_component', creditRef)
+  const debit = await debitUnlessAgency(userId, COMPONENT_COST, 'custom_component', creditRef)
   if (!debit.ok) {
     if (debit.error === 'insufficient_credits') {
       return NextResponse.json({ error: `Insufficient credits. Need ${COMPONENT_COST}, have ${debit.balance ?? 0}.` }, { status: 402 })
@@ -157,7 +157,7 @@ export async function POST(request: Request) {
       code: rawCode,
       warnings: validation.warnings,
       section: { type: 'customComponent', ref },
-      creditsUsed: COMPONENT_COST,
+      creditsUsed: debit.agency ? 0 : COMPONENT_COST,
       balanceAfter: debit.balance,
     })
   } catch (err) {

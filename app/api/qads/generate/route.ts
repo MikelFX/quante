@@ -39,6 +39,8 @@ import {
   QADS_BILLING_HOLD_MESSAGE,
 } from '@/lib/qads/credits'
 import { failItemAndRefund } from '@/lib/qads/items'
+import { reserveAgencyRenders } from '@/lib/qads/fair-use'
+import { isAgencyUser } from '@/lib/tier'
 import { buildQadsWebhookUrl } from '@/lib/qads/webhook-token'
 import { isOwnQadsInputPath, signQadsInputPaths } from '@/lib/qads/inputs'
 import { getQadsStyle, isValidStyleId, type QadsStyleId } from '@/lib/qads/styles'
@@ -139,34 +141,50 @@ export async function POST(request: Request) {
     videoDurationSeconds: videoDurationSeconds ?? 0,
   })
   const generationId = randomUUID()
-  const reserve = await reserveGeneratorCredits({ userId, amount: cost.totalCredits, generationId })
-  if (!reserve.ok) {
-    if (reserve.error === 'insufficient_credits') {
-      return NextResponse.json(
-        { error: 'insufficient_credits', code: 'insufficient_credits', balance: reserve.balance, needed: reserve.needed },
-        { status: 402 },
-      )
-    }
-    if (reserve.error === 'billing_hold') {
-      return NextResponse.json({ error: QADS_BILLING_HOLD_MESSAGE, code: 'billing_hold' }, { status: 402 })
-    }
-    return NextResponse.json({ error: 'Failed to reserve credits', code: 'db_error' }, { status: 500 })
-  }
-
-  // ── 3. Rate limit (counts include our own debit → race-safe) ──
-  const recentReserves = await countRecentReserves(userId)
   const since = new Date(Date.now() - 3_600_000).toISOString()
-  const { count: recentGenerations } = await supabaseAdmin
+  const countRecentGenerations = async () => (await supabaseAdmin
     .from('qads_generations')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .gte('created_at', since)
-  if (recentReserves > QADS_RESERVES_PER_HOUR || (recentGenerations ?? 0) >= QADS_GENERATIONS_PER_HOUR) {
-    await refundGeneratorCredits({ userId, generationId, reason: 'qads_rate_limited' })
-    return NextResponse.json(
-      { error: `Rate limit reached — max ${QADS_GENERATIONS_PER_HOUR} generations per hour.`, code: 'rate_limited' },
-      { status: 429 },
-    )
+    .gte('created_at', since)).count ?? 0
+  const rateLimited = () => NextResponse.json(
+    { error: `Rate limit reached — max ${QADS_GENERATIONS_PER_HOUR} generations per hour.`, code: 'rate_limited' },
+    { status: 429 },
+  )
+
+  // Agency: Qads included, no credits — the daily fair-use cap (lib/qads/fair-use.ts) instead.
+  const agency = await isAgencyUser(userId)
+  if (agency) {
+    if ((await countRecentGenerations()) >= QADS_GENERATIONS_PER_HOUR) return rateLimited()
+    const perKind = formats.length * parsed.variantsPerFormat
+    const fair = await reserveAgencyRenders(userId, generationId, wantVideos ? perKind : 0, wantImages ? perKind : 0)
+    if (!fair.ok) {
+      return NextResponse.json(
+        { error: fair.message, code: fair.error === 'fair_use' ? 'fair_use' : 'db_error' },
+        { status: fair.error === 'fair_use' ? 429 : 503 },
+      )
+    }
+  } else {
+    const reserve = await reserveGeneratorCredits({ userId, amount: cost.totalCredits, generationId })
+    if (!reserve.ok) {
+      if (reserve.error === 'insufficient_credits') {
+        return NextResponse.json(
+          { error: 'insufficient_credits', code: 'insufficient_credits', balance: reserve.balance, needed: reserve.needed },
+          { status: 402 },
+        )
+      }
+      if (reserve.error === 'billing_hold') {
+        return NextResponse.json({ error: QADS_BILLING_HOLD_MESSAGE, code: 'billing_hold' }, { status: 402 })
+      }
+      return NextResponse.json({ error: 'Failed to reserve credits', code: 'db_error' }, { status: 500 })
+    }
+
+    // ── 3. Rate limit (counts include our own debit → race-safe) ──
+    const recentReserves = await countRecentReserves(userId)
+    if (recentReserves > QADS_RESERVES_PER_HOUR || (await countRecentGenerations()) >= QADS_GENERATIONS_PER_HOUR) {
+      await refundGeneratorCredits({ userId, generationId, reason: 'qads_rate_limited' })
+      return rateLimited()
+    }
   }
 
   // ── 4a. Persist the generation up front so every debit has a row the
@@ -184,7 +202,7 @@ export async function POST(request: Request) {
     variants_per_format: parsed.variantsPerFormat,
     video_duration_s: videoDurationSeconds,
     language: parsed.language,
-    total_credits_reserved: cost.totalCredits,
+    total_credits_reserved: agency ? 0 : cost.totalCredits,
     status: 'queued',
   })
   if (genError) {
@@ -337,7 +355,7 @@ export async function POST(request: Request) {
     prompt_used: it.prompt,
     higgsfield_model: it.kind === 'image' ? HIGGSFIELD_MODELS.image.slug : HIGGSFIELD_MODELS.video.slug,
     status: 'queued',
-    credits_charged: it.credits,
+    credits_charged: agency ? 0 : it.credits,
   }))
   const { data: items, error: itemsError } = await supabaseAdmin
     .from('qads_items')
@@ -400,7 +418,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     generationId,
     status: 'generating',
-    totalCredits: cost.totalCredits,
+    totalCredits: agency ? 0 : cost.totalCredits,
     itemCount: pendingItems.length,
   })
 }

@@ -2,8 +2,11 @@
 // Never inline these constants in route files.
 
 // ─── Agency subscription ──────────────────────────────────────────────────────
-// Create a recurring Price in the Stripe dashboard (€399/month, EUR) and paste
-// the Price ID into STRIPE_AGENCY_PRICE_ID.
+// A recurring Stripe Price of AGENCY_MONTHLY_USD per month; its ID goes into
+// STRIPE_AGENCY_PRICE_ID. What the plan includes (decided with the owner 2026-10-10):
+// no project limit, store work without credits (generation, chat/editor/Qgent edits,
+// image actions, insights, preview deploys) and Qads included — each behind the daily
+// fair-use caps below, which protect the real API cost behind "unlimited".
 export const AGENCY_PRICE_ID = process.env.STRIPE_AGENCY_PRICE_ID ?? ''
 export const AGENCY_MONTHLY_USD = 699
 
@@ -16,8 +19,19 @@ export const HOSTING_MONTHLY_USD = 9.99
 export const AGENCY_TRIAL_DAYS = process.env.AGENCY_TRIAL_DAYS === 'true' ? 7 : 0
 
 // ─── Project limits ───────────────────────────────────────────────────────────
-export const AGENCY_PROJECT_LIMIT = 20
+// Agency has no limit on projects (lib/tier.ts activeProjectLimit). The users.project_limit
+// value stored for Agency rows is only the batch size: how many stores one bulk export takes.
+export const AGENCY_BATCH_SIZE = 20
+export const AGENCY_PROJECT_LIMIT = AGENCY_BATCH_SIZE
 export const FREE_PROJECT_LIMIT = 3   // applies to both 'free' and 'credit' tiers
+
+// ─── Agency fair use (per user, rolling 24 h / 1 h) ───────────────────────────
+export const AGENCY_FAIR_USE = {
+  generationsPerDay: 50,
+  generationsPerHour: 20,
+  qadsVideosPerDay: 20,
+  qadsPhotosPerDay: 100,
+} as const
 
 // ─── Agency AI rate limits ────────────────────────────────────────────────────
 // Per-minute cap on Claude calls for agency users (abuse guard; not credit-based).

@@ -7,7 +7,7 @@ import { createVercelPreviewDeploy, ensureProjectVercel, summarizeDeploymentFail
 import { buildStoreFiles, filterAiStoreFiles, SCAFFOLD_VERSION } from '@/lib/store-template/build'
 import { withTokenClasses } from '@/lib/store-template/style-codemod'
 import { insertDeploymentRow } from '@/lib/hosting/deployments'
-import { getUserRecord } from '@/lib/tier'
+import { activeProjectLimit, getUserRecord, isAgencyUser } from '@/lib/tier'
 import {
   AI_FILTER_PROMPT_NOTE,
   describeDroppedFiles,
@@ -26,7 +26,7 @@ import type { GenerationPhase } from '@/lib/generation-poll'
 // `after()`'s callback runs within this SAME budget — it does not grant extra time beyond it.
 export const maxDuration = 300
 
-import { CREDIT_COSTS } from '@/lib/config'
+import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
 
 const PRIMARY_MODEL = MODELS.generation
 const FALLBACK_MODEL = MODELS.fallback
@@ -162,6 +162,10 @@ interface RunParams {
   brief: string
   projectName: string | undefined
   existingProjectId: string | undefined
+  /** Agency plan: no project limit, no credits (fair use instead). */
+  agency: boolean
+  /** Credits were debited up front (ref = jobId) — false for Agency. */
+  charged: boolean
 }
 
 // ── Architecture note (Level 3 — see docs/update-log.md) ──────────────────────────────
@@ -178,7 +182,7 @@ interface RunParams {
 // now is polling GET /api/quante/generate/status?jobId=..., which reads exactly the state
 // this function is writing here — there is no other channel.
 async function runGeneration(params: RunParams): Promise<void> {
-  const { jobId, userId, brief, projectName, existingProjectId } = params
+  const { jobId, userId, brief, projectName, existingProjectId, agency, charged } = params
   const startedAt = Date.now()
   // Set once the code_versions row exists — past that point the user has received the
   // paid work, so a later failure is not refunded.
@@ -394,13 +398,13 @@ async function runGeneration(params: RunParams): Promise<void> {
       // Re-check the project limit right before the insert: POST checked it minutes ago,
       // and a project created meanwhile (POST /api/projects) would otherwise push the
       // user over it. Refunded uncapped (infraFailure) — the user did nothing wrong.
-      const record = await getUserRecord(userId)
+      const limit = activeProjectLimit(await getUserRecord(userId), agency)
       const { count: activeCount, error: countError } = await supabaseAdmin
         .from('projects').select('id', { count: 'exact', head: true })
         .eq('user_id', userId).neq('status', 'archived')
       if (countError) throw new Error('Failed to create project.')
-      if ((activeCount ?? 0) >= record.project_limit) {
-        throw new Error(`Active project limit reached (${activeCount ?? 0}/${record.project_limit}). Delete a project first, then generate again.`)
+      if (limit !== null && (activeCount ?? 0) >= limit) {
+        throw new Error(`Active project limit reached (${activeCount ?? 0}/${limit}). Delete a project first, then generate again.`)
       }
 
       const { data: project, error: projError } = await supabaseAdmin
@@ -416,7 +420,7 @@ async function runGeneration(params: RunParams): Promise<void> {
       const { count: afterCount, error: afterCountError } = await supabaseAdmin
         .from('projects').select('id', { count: 'exact', head: true })
         .eq('user_id', userId).neq('status', 'archived')
-      if (afterCountError || (afterCount ?? 0) > record.project_limit) {
+      if (afterCountError || (limit !== null && (afterCount ?? 0) > limit)) {
         const { error: deleteError } = await supabaseAdmin
           .from('projects').delete().eq('id', project.id).eq('user_id', userId)
         if (deleteError) {
@@ -424,7 +428,7 @@ async function runGeneration(params: RunParams): Promise<void> {
           await supabaseAdmin.from('projects').update({ status: 'archived' }).eq('id', project.id).eq('user_id', userId)
         }
         if (afterCountError) throw new Error('Failed to create project.')
-        throw new Error(`Active project limit reached (${record.project_limit}/${record.project_limit}). Delete a project first, then generate again.`)
+        throw new Error(`Active project limit reached (${limit}/${limit}). Delete a project first, then generate again.`)
       }
 
       projectId = project.id
@@ -598,7 +602,8 @@ async function runGeneration(params: RunParams): Promise<void> {
     console.error('[generate:bg] job failed:', err)
     let message = err instanceof Error ? err.message : 'Generation failed unexpectedly.'
     // Refund the up-front debit unless the code was already saved (the user got the work).
-    if (!codeSaved) {
+    // Agency runs debit nothing, so there is nothing to refund.
+    if (!codeSaved && charged) {
       // Core file removed by our own safety filter: uncapped while the small daily
       // allowance lasts (FILTER_REFUNDS_PER_DAY), otherwise the normal capped refund.
       let capped = !infraFailure
@@ -683,10 +688,13 @@ export async function POST(request: Request) {
     .from('generation_jobs')
     .update({ status: 'failed', phase: null, error: 'Generation timed out.', raw_output: '', files: {} })
     .eq('user_id', userId).eq('status', 'running').lt('created_at', staleBefore).is('code_version_id', null)
-    .select('id')
+    .select('id, credits_debited')
   for (const stale of staleJobs ?? []) {
-    await refundGeneration(userId, stale.id as string, true)
+    if (stale.credits_debited !== false) await refundGeneration(userId, stale.id as string, true)
   }
+
+  // Agency: no credits and no project limit, behind the daily fair-use cap instead.
+  const agency = await isAgencyUser(userId)
 
   // One generation in flight per user — parallel requests used to all pass the checks
   // below before any of them had written anything.
@@ -699,28 +707,40 @@ export async function POST(request: Request) {
   }
 
   // Rate limit — counts job rows of every status, so failed generations count too.
+  const hourly = agency ? AGENCY_FAIR_USE.generationsPerHour : GENERATE_RATE_LIMIT
   const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString()
   const { count: recentCount, error: recentError } = await supabaseAdmin
     .from('generation_jobs').select('id', { count: 'exact', head: true })
     .eq('user_id', userId).gte('created_at', oneHourAgo)
 
-  if (recentError || (recentCount ?? 0) >= GENERATE_RATE_LIMIT) {
+  if (recentError || (recentCount ?? 0) >= hourly) {
     return NextResponse.json(
-      { error: `Rate limit reached — max ${GENERATE_RATE_LIMIT} generations per hour.` },
+      { error: `Rate limit reached — max ${hourly} generations per hour.` },
       { status: 429 },
     )
+  }
+  if (agency) {
+    const { count: dayCount, error: dayError } = await supabaseAdmin
+      .from('generation_jobs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).gte('created_at', new Date(Date.now() - 86_400_000).toISOString())
+    if (dayError || (dayCount ?? 0) >= AGENCY_FAIR_USE.generationsPerDay) {
+      return NextResponse.json(
+        { error: `Fair-use limit reached — the Agency plan includes ${AGENCY_FAIR_USE.generationsPerDay} generations a day. Try again later.` },
+        { status: 429 },
+      )
+    }
   }
 
   // Project limit check — fail fast before calling Claude (only when creating a new project).
   // Racing requests can't both pass it: the in-flight re-check below lets only one through.
-  if (!existingProjectId) {
-    const record = await getUserRecord(userId)
+  const limit = activeProjectLimit(await getUserRecord(userId), agency)
+  if (!existingProjectId && limit !== null) {
     const { count: activeCount } = await supabaseAdmin
       .from('projects').select('*', { count: 'exact', head: true })
       .eq('user_id', userId).neq('status', 'archived')
-    if ((activeCount ?? 0) >= record.project_limit) {
+    if ((activeCount ?? 0) >= limit) {
       return NextResponse.json({
-        error: `Active project limit reached (${activeCount ?? 0}/${record.project_limit}). Delete a project first, or upgrade to Agency for up to 20 stores.`,
+        error: `Active project limit reached (${activeCount ?? 0}/${limit}). Delete a project first, or upgrade to Agency for unlimited stores.`,
       }, { status: 403 })
     }
   }
@@ -728,8 +748,10 @@ export async function POST(request: Request) {
   // Debit up front, atomically, keyed by the job id — the balance check and the debit are
   // one locked DB operation, so parallel requests can't overspend, and no later write
   // can overwrite credit movements that happen while the job runs. Refunded on failure.
+  // Agency debits nothing (fair use above).
   const jobId = randomUUID()
-  const debit = await debitCredits(userId, GENERATE_COST, 'generate', jobId)
+  const charged = !agency
+  const debit = charged ? await debitCredits(userId, GENERATE_COST, 'generate', jobId) : ({ ok: true } as const)
   if (!debit.ok) {
     if (debit.error === 'insufficient_credits') {
       return NextResponse.json({ error: `Insufficient credits. Need ${GENERATE_COST}, have ${debit.balance ?? 0}.` }, { status: 402 })
@@ -753,14 +775,14 @@ export async function POST(request: Request) {
       brief,
       status: 'running',
       phase: 'designing',
-      credits_debited: true,
+      credits_debited: charged,
     })
     .select('id')
     .single()
 
   if (jobError || !job) {
     console.error('[generate] generation_jobs insert failed:', jobError)
-    await refundGeneration(userId, jobId, false)
+    if (charged) await refundGeneration(userId, jobId, false)
     return NextResponse.json({ error: 'Could not start generation. Please try again.' }, { status: 500 })
   }
 
@@ -776,7 +798,7 @@ export async function POST(request: Request) {
         .update({ status: 'failed', phase: null, error: 'A generation is already running.' })
         .eq('id', jobId)
     }
-    await refundGeneration(userId, jobId, false)
+    if (charged) await refundGeneration(userId, jobId, false)
     return oldest === null
       ? NextResponse.json({ error: 'Could not start generation. Please try again.' }, { status: 500 })
       : NextResponse.json({ error: 'A generation is already running. Please wait for it to finish.' }, { status: 409 })
@@ -792,6 +814,8 @@ export async function POST(request: Request) {
     brief,
     projectName,
     existingProjectId,
+    agency,
+    charged,
   }))
 
   return NextResponse.json({ jobId, projectId: existingProjectId ?? null }, { status: 202 })
