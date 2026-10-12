@@ -1,10 +1,18 @@
-// Ripples on the website's dot grid. Every disturbance — the pointer's wake as it moves across the
-// page, a tap, the soft pulse of a resting pointer — sends out one ring-shaped wave packet: a few
+// Ripples on the website's dot grid. Every disturbance — the mouse's wake as it moves across the
+// page, a click, the soft pulse of a resting mouse — sends out one ring-shaped wave packet: a few
 // crests around a front that travels outward, losing strength with time and distance, calm behind
 // it like water. The engine samples the sum of all packets at every dot: the height tints the dot
 // (crest mint, trough blue) and the slope shifts it along the ring. Positions are page coordinates,
 // so ripples stay where they were made while the page scrolls. Pure maths, no DOM — tested in
 // __tests__/ad-ripples.test.mjs.
+
+/**
+ * Which pointers make waves: only a mouse. On touch screens the waves looked wrong (owner,
+ * 2026-10-12), so a finger never starts one — no wake, no rings, no glow.
+ */
+export function ripplesFrom(pointerType: string): boolean {
+  return pointerType === 'mouse'
+}
 
 export const RIPPLE = {
   /** Front speed, px per ms. */

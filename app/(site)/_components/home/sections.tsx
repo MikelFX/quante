@@ -28,9 +28,7 @@ export function Hero() {
           </div>
           <CheckList className="rv" delaySec={0.75} items={hero.checks} />
         </div>
-        <ParticleZone className="orb rv" style={delay(0.2)} shapes={['@logo', '@sphere', '@torus', '@cube']}>
-          <span className="orb-l">Táhni nebo <b>klikni</b></span>
-        </ParticleZone>
+        <ParticleZone className="orb rv" style={delay(0.2)} shapes={['@logo', '@sphere', '@torus', '@cube']} />
       </div>
       <HeroStage />
       <BinaryStrip text="ASSETRA DIGITAL/WEB/E-SHOP/0 KC PREDEM/" />

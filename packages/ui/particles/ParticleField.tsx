@@ -7,8 +7,9 @@ const getMode = () => particleStore.getMode()
 const getServerMode = () => 'off' as const
 
 /**
- * The one fixed particle canvas. Lives in the root layout so the swarm survives client
- * navigation and flies from the old page's zone into the new one. Renders nothing until a
+ * The website's fixed background canvas (dot grid, ripples, light band, path between zones) and
+ * the engine, which also draws every <ParticleZone>'s formation into that zone's own canvas.
+ * Lives in the root layout so it survives client navigation. Renders nothing until a
  * <ParticleMode> below it switches it on, and loads the engine only after the page has
  * finished loading and the browser is idle, so it never competes with the first paint.
  */

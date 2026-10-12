@@ -81,9 +81,7 @@ export default function DesignPage() {
               </div>
               <CheckList className="rv" delaySec={0.75} items={['Archivo, Geist a JetBrains Mono', 'Tmavý i světlý motiv', 'Funguje i bez animací']} />
             </div>
-            <ParticleZone className="orb rv" style={delay(0.2)} shapes={['@logo', '@sphere', '@torus', '@cube']}>
-              <span className="orb-l">Táhni nebo <b>klikni</b></span>
-            </ParticleZone>
+            <ParticleZone className="orb rv" style={delay(0.2)} shapes={['@logo', '@sphere', '@torus', '@cube']} />
           </div>
         </InView>
 
@@ -224,8 +222,8 @@ export default function DesignPage() {
             <SectionLabel num="05">Částice</SectionLabel>
             <SectionTitle>Roj, který drží web pohromadě</SectionTitle>
             <Sub>
-              Aktivní je zóna nejblíž středu obrazovky. Roj do ní přeletí a složí tvar, tvary se střídají po 4,8 s.
-              Ťuknutí roj rozprskne do dalšího tvaru, tažení ho otáčí.
+              Každá zóna má vlastní formaci, která zůstává na svém místě: otáčí se a vlní a tvary v ní se střídají
+              po 4,8 s. Na myš ani dotyk nereaguje.
             </Sub>
             <div className={s.zones}>
               {ZONES.map((z) => (

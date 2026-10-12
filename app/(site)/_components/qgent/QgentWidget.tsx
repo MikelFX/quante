@@ -8,8 +8,8 @@ import { QGENT_QUICK_PROMPTS } from '@/content/assetra/qgent'
 import type { QgentAction } from '@ad/qgent/public'
 import { offerPrefill } from './prefill'
 
-// Qgent on the AssetraDigital website: floating button bottom-right, glass panel with the
-// particle swarm in its header (AD logo while idle, AGENT while answering). Answers stream from
+// Qgent on the AssetraDigital website: floating button bottom-right, glass panel with a particle
+// formation in its header (AD logo while idle, AGENT while answering). Answers stream from
 // POST /api/qgent/public. The model can only scroll, open a page, or OFFER a lead-form prefill
 // that happens after the visitor confirms it here. The chat lives in sessionStorage only.
 
@@ -264,7 +264,7 @@ export function QgentWidget() {
         <section ref={panel} id="qg-panel" className="qg-panel glass" role="dialog" aria-modal="true" aria-labelledby="qg-title" onKeyDown={onPanelKey}>
           <header className="qg-head">
             <div className="qg-top">
-              <ParticleZone className="qg-pz" priority shapes={busy ? ['AGENT'] : ['@logo']} />
+              <ParticleZone className="qg-pz" floating shapes={busy ? ['AGENT'] : ['@logo']} />
               <button type="button" className="ib qg-x" aria-label="Zavřít asistenta" onClick={close}>
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>

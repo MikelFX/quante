@@ -6,9 +6,11 @@ export type ParticleMode = 'off' | 'site' | 'app'
 export interface ZoneRecord {
   id: number
   el: HTMLElement
+  /** The formation's own canvas inside the zone: <ParticleZone> renders it, the engine draws it. */
+  canvas: HTMLCanvasElement
   keys: string[]
-  /** A priority zone (e.g. the open Qgent panel) wins over the zone nearest the viewport centre. */
-  priority: boolean
+  /** On a floating panel (the open Qgent assistant), not in the page: no signal path runs to it. */
+  floating: boolean
 }
 
 type Listener = () => void
@@ -51,8 +53,8 @@ export const particleStore = {
     return () => modeListeners.delete(fn)
   },
 
-  addZone(el: HTMLElement, keys: string[], priority: boolean): () => void {
-    const rec: ZoneRecord = { id: ++seq, el, keys, priority }
+  addZone(el: HTMLElement, canvas: HTMLCanvasElement, keys: string[], floating: boolean): () => void {
+    const rec: ZoneRecord = { id: ++seq, el, canvas, keys, floating }
     zones = sortZones([...zones, rec])
     emit(zoneListeners)
     return () => {

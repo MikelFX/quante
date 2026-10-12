@@ -246,7 +246,7 @@ export function QgentPanel({ projectId, draftMode, onApplied, onBalanceRefresh }
 
       {running && (
         <div style={{ ...card, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center' }} aria-live="polite">
-          <ParticleZone className="q-load-pz" priority shapes={['AGENT']} style={{ height: 120, width: '100%' }} />
+          <ParticleZone className="q-load-pz" shapes={['AGENT']} style={{ height: 120, width: '100%' }} />
           <p style={{ fontSize: 13, fontWeight: 600, margin: 0, color: 'var(--q-fg)' }}>Qgent is going through your store</p>
           <p style={small}>Pages, products, links, texts and SEO. This usually takes a minute or two.</p>
         </div>

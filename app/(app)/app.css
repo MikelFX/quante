@@ -102,6 +102,11 @@
 .ad-app .pz {
   max-height: 220px;
 }
+/* On the website a formation's canvas sits behind the content; app panels (the Studio) have opaque
+   backgrounds that would hide it, so here it stays in front. */
+.ad-app .pz > canvas {
+  z-index: auto;
+}
 
 /* ── Shared app pieces (dashboard, billing, settings, new, marketplace) ── */
 .q-h1 {
@@ -168,7 +173,7 @@
   height: 200px;
   aspect-ratio: auto;
 }
-/* the swarm is painted on the canvas behind the page: a frosted card would blur it */
+/* a plain, lighter card for the empty state's particle formation (no frosted glass) */
 .q-card.q-empty {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;

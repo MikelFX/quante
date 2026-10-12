@@ -55,7 +55,7 @@
 .ad .card.w4 .ch h3{font-size:clamp(26px,2.3vw,36px)}
 
 /* ── Qgent, the public assistant (app/(site)/_components/qgent) ─────────── */
-/* z: page 1 · nav 50 · grain 60 · Qgent 70 · lifted particle canvas 75 · cursor 80 */
+/* z: page 1 · nav 50 · grain 60 · Qgent 70 · cursor 80 */
 .ad .qg-fab{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));z-index:70;display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 22px 0 16px;border-radius:999px;appearance:none;color:var(--fg);font:600 14px/1 var(--sans);cursor:pointer;transition:transform .4s var(--ease)}
 .ad .qg-fab:hover{transform:translateY(-2px)}
 .ad .qg-fab:focus-visible,.ad .qg-panel :focus-visible{outline:2px solid var(--acc);outline-offset:2px}

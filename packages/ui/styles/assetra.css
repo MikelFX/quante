@@ -95,10 +95,7 @@
 .ad .checks{display:flex;flex-wrap:wrap;gap:8px;list-style:none;margin:30px 0 0;padding:0}
 .ad .checks li{display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;font:500 13px/1 var(--sans);color:var(--fg2)}
 .ad .checks i{width:16px;height:16px;border-radius:50%;background:var(--acc);color:var(--accInk);display:grid;place-items:center;font:800 10px/1 var(--sans);font-style:normal}
-.ad .orb{position:relative;aspect-ratio:1/1;width:100%;max-width:640px;justify-self:center;cursor:grab}
-.ad .orb canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.ad .orb-l{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--fg3);white-space:nowrap}
-.ad .orb-l b{color:var(--accText);font-weight:500}
+.ad .orb{position:relative;aspect-ratio:1/1;width:100%;max-width:640px;justify-self:center}
 .ad .stagew{position:relative;padding:20px 0 90px}
 .ad .dev{position:relative;container-type:inline-size;aspect-ratio:1200/720;width:min(1120px,100%);margin:0 auto}
 .ad .br{position:absolute;left:0;top:0;width:82%;border-radius:1.6cqw;background:#f3f1ec;color:#1b1c1a;overflow:hidden;border:1px solid var(--glb);box-shadow:0 6cqw 14cqw -6cqw var(--shadow),0 0 0 1px rgba(0,0,0,.06)}
@@ -462,7 +459,11 @@
 
 .ad>main,.ad>section,.ad>footer{position:relative;z-index:1}
 .ad .sh2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.85fr);gap:clamp(20px,4vw,64px);align-items:end}
-.ad .pz{position:relative;width:100%;aspect-ratio:16/10;max-height:340px;cursor:grab;touch-action:pan-y}
+/* Particle formations stay on their place and ignore the mouse and touch (owner, 2026-10-12): no grab
+   cursor, normal scrolling. Each zone holds its formation's canvas, behind the content around it as
+   the design's shared canvas was. */
+.ad .pz{position:relative;width:100%;aspect-ratio:16/10;max-height:340px}
+.ad .pz>canvas{z-index:-1}
 .ad .pz::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;background:linear-gradient(var(--acc),var(--acc)) 0 0/16px 1px no-repeat,linear-gradient(var(--acc),var(--acc)) 0 0/1px 16px no-repeat,linear-gradient(var(--acc),var(--acc)) 100% 0/16px 1px no-repeat,linear-gradient(var(--acc),var(--acc)) 100% 0/1px 16px no-repeat,linear-gradient(var(--acc),var(--acc)) 0 100%/16px 1px no-repeat,linear-gradient(var(--acc),var(--acc)) 0 100%/1px 16px no-repeat,linear-gradient(var(--acc),var(--acc)) 100% 100%/16px 1px no-repeat,linear-gradient(var(--acc),var(--acc)) 100% 100%/1px 16px no-repeat}
 .ad .pz-s{flex:1 1 280px;min-width:240px;height:220px;aspect-ratio:auto;max-height:none;align-self:stretch}
 .ad .pz-l{aspect-ratio:auto;height:240px;max-height:none;margin-top:24px}

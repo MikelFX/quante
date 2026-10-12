@@ -40,8 +40,8 @@ export default function RootLayout({
         <ThemeScript />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        {/* One particle canvas for the whole app, so the swarm survives navigation. Idle until a
-            <ParticleMode> (AssetraDigital pages) switches it on. */}
+        {/* The particle engine and the website's background canvas, here so they survive navigation.
+            Idle until a <ParticleMode> (AssetraDigital pages) switches it on. */}
         <ParticleField />
         <AnnouncementBanner />
         <TooltipProvider>

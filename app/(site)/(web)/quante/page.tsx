@@ -38,9 +38,7 @@ export default function QuantePage() {
               items={[`${quantePricing.welcomeCredits} kreditů zdarma`, 'Opravy buildu zdarma', 'Kód si stáhnete']}
             />
           </div>
-          <ParticleZone className="orb rv" style={delay(0.2)} shapes={['Q', '@cube']}>
-            <span className="orb-l">Táhni nebo <b>klikni</b></span>
-          </ParticleZone>
+          <ParticleZone className="orb rv" style={delay(0.2)} shapes={['Q', '@cube']} />
         </div>
       </InView>
 
