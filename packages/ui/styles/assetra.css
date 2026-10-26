@@ -7,8 +7,8 @@
 .ad::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--bg);transition:background .6s}
 :root:has(.ad){color-scheme:dark}
 :root[data-theme="light"]:has(.ad){color-scheme:light}
-.ad{--bg:#0b0a0c;--bg2:#121014;--fg:#f2eef0;--fg2:#b0a8ad;--fg3:#91898e;--dim:#433d45;--line:rgba(242,238,240,.09);--line2:rgba(242,238,240,.18);--grid:rgba(242,238,240,.04);--acc:#ff5ad2;--acc2:#c19bff;--accInk:#1c0517;--accText:#ff5ad2;--gl1:rgba(255,255,255,.075);--gl2:rgba(255,255,255,.015);--glb:rgba(255,255,255,.12);--glh:rgba(255,255,255,.22);--shadow:rgba(0,0,0,.75);--pc:242,238,240;color-scheme:dark}
-[data-theme="light"] .ad{--bg:#efedee;--bg2:#e5e2e4;--fg:#141215;--fg2:#3e393d;--fg3:#5d565b;--dim:#aaa4a8;--line:rgba(20,18,21,.1);--line2:rgba(20,18,21,.22);--grid:rgba(20,18,21,.05);--acc:#e040c8;--acc2:#9a6cf0;--accInk:#1c0517;--accText:#a3168f;--gl1:rgba(255,255,255,.7);--gl2:rgba(255,255,255,.35);--glb:rgba(255,255,255,.9);--glh:rgba(255,255,255,1);--shadow:rgba(40,20,35,.22);--pc:20,18,21;color-scheme:light}
+.ad{--bg:#0b0a0c;--bg2:#121014;--fg:#f2eef0;--fg2:#b0a8ad;--fg3:#91898e;--dim:#433d45;--line:rgba(242,238,240,.09);--line2:rgba(242,238,240,.18);--grid:rgba(242,238,240,.04);--acc:#ff5ad2;--acc2:#c19bff;--acc3:#ff9a3d;--accInk:#1c0517;--accText:#ff5ad2;--gl1:rgba(255,255,255,.075);--gl2:rgba(255,255,255,.015);--glb:rgba(255,255,255,.12);--glh:rgba(255,255,255,.22);--shadow:rgba(0,0,0,.75);--pc:242,238,240;color-scheme:dark}
+[data-theme="light"] .ad{--bg:#efedee;--bg2:#e5e2e4;--fg:#141215;--fg2:#3e393d;--fg3:#5d565b;--dim:#aaa4a8;--line:rgba(20,18,21,.1);--line2:rgba(20,18,21,.22);--grid:rgba(20,18,21,.05);--acc:#e040c8;--acc2:#9a6cf0;--acc3:#f0842a;--accInk:#1c0517;--accText:#a3168f;--gl1:rgba(255,255,255,.7);--gl2:rgba(255,255,255,.35);--glb:rgba(255,255,255,.9);--glh:rgba(255,255,255,1);--shadow:rgba(40,20,35,.22);--pc:20,18,21;color-scheme:light}
 .ad *,.ad *::before,.ad *::after{box-sizing:border-box}
 .ad a{color:inherit;text-decoration:none}
 .ad ::selection{background:var(--acc);color:var(--accInk)}

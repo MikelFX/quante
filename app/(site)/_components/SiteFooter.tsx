@@ -24,7 +24,7 @@ export function SiteFooter() {
       <div className="w">
         <ParticleZone className="pz-f" shapes={['@logo', '@sphere']} />
       </div>
-      <BinaryStrip text="HOSTING/ZALOHY/SPRAVA/VLASTNI KOD/" />
+      <BinaryStrip text="AI/SOFTWARE/CRM/WEB/E-SHOP/" />
       <GiantWordmark />
       <div className="w ftb">
         <span>© 2026 {company.name}</span>

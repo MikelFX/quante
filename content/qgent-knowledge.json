@@ -12,9 +12,124 @@
     "phone": null,
     "email": null,
     "responseTime": null,
-    "howToReachUs": "Formulář poptávky na hlavní stránce (sekce Kontakt). Konzultace je zdarma."
+    "howToReachUs": "Formulář poptávky na hlavní stránce nebo na stránce Web & Eshop (sekce Kontakt). Konzultace je zdarma."
+  },
+  "ai": {
+    "what": "Napojíme AI do vašich systémů, postavíme software kolem jednoho AI jádra, CRM nebo interní nástroj. Pro firmy, agentury, startupy i jednotlivce.",
+    "services": [
+      {
+        "name": "AI integrace do vašich systémů",
+        "what": "Napojíme AI tam, kde už pracujete: e-shop, CRM, účetnictví, helpdesk, e-mail nebo interní databáze. Nemusíte nic vyměňovat, AI se přizpůsobí vašim procesům.",
+        "includes": [
+          "Napojení přes API",
+          "E-shop, CRM, ERP, helpdesk",
+          "Práce s vašimi daty",
+          "Bez výměny stávajících systémů"
+        ]
+      },
+      {
+        "name": "Systém kolem AI jádra",
+        "what": "Celý produkt, jehož srdcem je AI model: od zadání přes logiku až po rozhraní pro uživatele. Takhle jsme postavili i vlastní Quante.",
+        "includes": [
+          "Návrh architektury",
+          "Výběr a nastavení modelu",
+          "Hlídání nákladů a limitů",
+          "Webové rozhraní i API"
+        ]
+      },
+      {
+        "name": "CRM na míru",
+        "what": "Zákazníci, obchody a úkoly přesně podle toho, jak prodáváte. AI v něm třídí poptávky, navrhuje odpovědi a připomíná, co je potřeba udělat.",
+        "includes": [
+          "Zákazníci a obchody",
+          "Úkoly a připomínky",
+          "AI shrnutí a návrhy odpovědí",
+          "Napojení na e-mail a web"
+        ]
+      },
+      {
+        "name": "AI asistenti a chatboti",
+        "what": "Asistent na web, do e-shopu nebo pro váš tým. Odpovídá z vašich podkladů a ví, kdy věc předat člověku. Jeden takový najdete na tomhle webu vpravo dole.",
+        "includes": [
+          "Odpovědi z vašich dokumentů",
+          "Zákaznická podpora",
+          "Interní znalostní báze",
+          "Předání člověku"
+        ]
+      },
+      {
+        "name": "Automatizace procesů",
+        "what": "Opakovanou práci převezme AI: čtení faktur a dokumentů, třídění e-mailů, přepis dat mezi systémy, pravidelné reporty.",
+        "includes": [
+          "Vytěžování dokumentů",
+          "Třídění e-mailů",
+          "Přenos dat mezi systémy",
+          "Pravidelné reporty"
+        ]
+      },
+      {
+        "name": "Software jakéhokoliv typu",
+        "what": "Interní nástroje, klientské portály, administrace, webové i mobilní aplikace. Když se to dá naprogramovat, postavíme to.",
+        "includes": [
+          "Webové aplikace",
+          "Interní nástroje a administrace",
+          "Klientské portály",
+          "MVP pro startupy"
+        ]
+      }
+    ],
+    "forWhom": [
+      "Firmy: Méně ruční práce, rychlejší odpovědi zákazníkům a přehled v datech.",
+      "Agentury: AI řešení pro vaše klienty. Pod vaší značkou, nebo s námi jako technickým partnerem.",
+      "Startupy: Z nápadu funkční MVP, které ukážete zákazníkům i investorům.",
+      "Jednotlivci: Máte nápad na aplikaci nebo nástroj? Probereme ho a postavíme."
+    ],
+    "commonIdeas": [
+      "Odpovědi na dotazy zákazníků 24/7",
+      "Vytěžení faktur a objednávek",
+      "Chat nad firemními dokumenty",
+      "Návrhy nabídek a e-mailů",
+      "Třídění a kvalifikace poptávek",
+      "Popisky produktů do e-shopu",
+      "Shrnutí schůzek a hovorů",
+      "Reporty z prodejních dat",
+      "Překlady a lokalizace",
+      "Reklamní videa a fotky",
+      "Kontrola smluv a dokumentů",
+      "Interní asistent pro zaměstnance"
+    ],
+    "ownProducts": [
+      "Quante: AI vytvoří celý e-shop podle zadání. Úpravy v chatu, kód si stáhnete.",
+      "Qgent: AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.",
+      "Qads: Reklamní videa a fotky produktů, které vytvoří AI."
+    ],
+    "process": [
+      {
+        "step": 1,
+        "title": "Konzultace",
+        "text": "Zdarma. Probereme nápad, vaše data a co má AI dělat."
+      },
+      {
+        "step": 2,
+        "title": "Návrh a prototyp",
+        "text": "Navrhneme řešení a ověříme, že funguje na vašich datech."
+      },
+      {
+        "step": 3,
+        "title": "Vývoj",
+        "text": "Postavíme ho a napojíme na vaše systémy."
+      },
+      {
+        "step": 4,
+        "title": "Spuštění a provoz",
+        "text": "Spustíme, hlídáme a dál vylepšujeme."
+      }
+    ],
+    "pricing": null,
+    "note": "Ceny ani termíny AI řešení a softwaru na webu nejsou: každý projekt nacení po konzultaci podle rozsahu. Seznam nápadů je jen inspirace, ne hotové produkty."
   },
   "agency": {
+    "page": "/web-eshop",
     "what": "Weby a e-shopy na míru bez vstupní investice. Klient platí měsíční paušál, ve kterém je hosting, správa a drobné úpravy. Klientské weby běží na Vercelu, každý e-shop má vlastní administraci.",
     "services": [
       {
@@ -305,39 +420,64 @@
   "navigation": {
     "sections": [
       {
-        "key": "sluzby",
+        "key": "ai-sluzby",
         "page": "/",
-        "title": "Služby: firemní web, e-shop, správa a hosting"
+        "title": "AI služby: integrace, systémy kolem AI, CRM, asistenti, automatizace, software"
       },
       {
-        "key": "smlouva",
+        "key": "pro-koho",
         "page": "/",
-        "title": "Pravidla ve smlouvě"
+        "title": "Pro koho: firmy, agentury, startupy, jednotlivci"
       },
       {
-        "key": "cenik",
+        "key": "napady",
         "page": "/",
-        "title": "Ceník webů a e-shopů na míru"
+        "title": "Co firmy chtějí nejčastěji (nápady)"
       },
       {
-        "key": "postup",
+        "key": "postaveno",
         "page": "/",
-        "title": "Jak spolupráce probíhá"
+        "title": "Naše vlastní AI produkty"
       },
       {
-        "key": "prace",
+        "key": "ai-postup",
         "page": "/",
-        "title": "Ukázka práce: návrh e-shopu Harwo"
-      },
-      {
-        "key": "quante",
-        "page": "/",
-        "title": "Quante na hlavní stránce"
+        "title": "Jak probíhá spolupráce na AI řešení"
       },
       {
         "key": "kontakt",
         "page": "/",
         "title": "Kontakt a formulář poptávky"
+      },
+      {
+        "key": "sluzby",
+        "page": "/web-eshop",
+        "title": "Web & Eshop: firemní web, e-shop, správa a hosting"
+      },
+      {
+        "key": "smlouva",
+        "page": "/web-eshop",
+        "title": "Pravidla ve smlouvě (weby a e-shopy)"
+      },
+      {
+        "key": "cenik",
+        "page": "/web-eshop",
+        "title": "Ceník webů a e-shopů na míru"
+      },
+      {
+        "key": "postup",
+        "page": "/web-eshop",
+        "title": "Jak probíhá spolupráce na webu nebo e-shopu"
+      },
+      {
+        "key": "prace",
+        "page": "/web-eshop",
+        "title": "Ukázka práce: návrh e-shopu Harwo"
+      },
+      {
+        "key": "quante",
+        "page": "/web-eshop",
+        "title": "Quante na stránce Web & Eshop"
       },
       {
         "key": "quante-moduly",
@@ -359,7 +499,12 @@
       {
         "key": "home",
         "path": "/",
-        "title": "Hlavní stránka AssetraDigital"
+        "title": "Hlavní stránka AssetraDigital: AI řešení a software na míru"
+      },
+      {
+        "key": "web-eshop",
+        "path": "/web-eshop",
+        "title": "Web & Eshop: weby a e-shopy na míru"
       },
       {
         "key": "quante",
@@ -417,6 +562,7 @@
     "IČO, sídlo a zápis v obchodním rejstříku (firma se zakládá)",
     "telefon a e-mail",
     "do kdy se ozveme",
+    "cena a termín AI řešení a softwaru na míru (nacení se po konzultaci)",
     "cena správy při jednorázové platbě a hodinová sazba",
     "jestli jsou ceny s DPH, nebo bez",
     "obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)",

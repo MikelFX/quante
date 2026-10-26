@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 // metadataBase to the website's own host (lib/domains.ts). Every page passes its share image
 // explicitly — a child page's openGraph replaces the parent's, it is not merged.
 
-export const siteOgImage = { url: '/og', width: 1200, height: 630, alt: 'Assetra Digital — web nebo e-shop bez vstupní investice' }
+export const siteOgImage = { url: '/og', width: 1200, height: 630, alt: 'Assetra Digital — AI řešení a software na míru' }
 
 export function siteShare({ path, title, description, type }: { path: string; title: string; description: string; type?: 'website' }): Metadata {
   return {

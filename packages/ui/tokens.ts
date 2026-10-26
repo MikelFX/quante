@@ -13,6 +13,7 @@ export const tokens = {
     line2: 'rgba(242,238,240,.18)',
     acc: '#ff5ad2',
     acc2: '#c19bff',
+    acc3: '#ff9a3d',
     accInk: '#1c0517',
     accText: '#ff5ad2',
   },
@@ -26,6 +27,7 @@ export const tokens = {
     line2: 'rgba(20,18,21,.22)',
     acc: '#e040c8',
     acc2: '#9a6cf0',
+    acc3: '#f0842a',
     accInk: '#1c0517',
     accText: '#a3168f',
   },
@@ -43,6 +45,7 @@ export const tokenLabels: Record<TokenName, string> = {
   line2: 'Linka 2',
   acc: 'Akcent (magenta)',
   acc2: 'Akcent 2 (lila)',
+  acc3: 'Akcent 3 (oranžová, 3D)',
   accInk: 'Text na akcentu',
   accText: 'Akcent jako text',
 }
