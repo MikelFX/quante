@@ -3,9 +3,9 @@
 //
 // Two layers:
 // • The fixed background canvas, 'site' mode only: a dot grid that scrolls with the page and carries
-//   ripples (ripples.ts). The mouse glows green and leaves a wake of rings as it moves across the
+//   ripples (ripples.ts). The mouse glows magenta and leaves a wake of rings as it moves across the
 //   page (also when the page scrolls under it), a click drops a stone in, a resting mouse sends a
-//   soft pulse; crests tint the dots mint, troughs blue, and the dots shift along the rings. Only a
+//   soft pulse; crests tint the dots magenta, troughs lilac, and the dots shift along the rings. Only a
 //   mouse makes waves: on touch screens they looked wrong (owner, 2026-10-12). A light band sweeps
 //   down the page and (on desktop) a dotted path with a running signal links the zones.
 // • One formation per <ParticleZone> (formation.ts), drawn into the zone's own canvas, so it scrolls
@@ -226,7 +226,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
   let latH = new Float32Array(0)
   let latDX = new Float32Array(0)
   let latDY = new Float32Array(0)
-  // Coloured grid dots per [tint][opacity step], and formation dots per [grey | mint][opacity step]:
+  // Coloured grid dots per [tint][opacity step], and formation dots per [grey | accent][opacity step]:
   // x, y, size triples, reused every frame.
   const batches: number[][] = Array.from({ length: 2 * (ALPHA_STEPS + 1) }, () => [])
   const dots: number[][] = Array.from({ length: 2 * (ALPHA_STEPS + 1) }, () => [])
@@ -366,7 +366,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
           if (ah > RIPPLE_FROM) w = Math.min(1, (ah - RIPPLE_FROM) / (RIPPLE_FULL - RIPPLE_FROM))
           tint = hv < 0 ? 1 : 0
         }
-        // The green glow around the mouse.
+        // The magenta glow around the mouse.
         let k = 0
         if (m) {
           const dx = gx - m.x
@@ -550,9 +550,9 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     const on = motionAllowed(reduced)
     const dark = document.documentElement.getAttribute('data-theme') !== 'light'
     const T = now * 0.001
-    const accRGB = dark ? '95,245,196' : '5,150,105'
-    const acc2RGB = dark ? '124,200,255' : '74,158,234'
-    const baseRGB = dark ? '238,242,240' : '11,13,12'
+    const accRGB = dark ? '255,90,210' : '196,38,172'
+    const acc2RGB = dark ? '193,155,255' : '154,108,240'
+    const baseRGB = dark ? '242,238,240' : '20,18,21'
     if (theme !== accRGB + acc2RGB + baseRGB) {
       theme = accRGB + acc2RGB + baseRGB
       batchStyles = styleSteps([accRGB, acc2RGB])

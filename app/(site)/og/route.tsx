@@ -21,7 +21,7 @@ export function GET() {
           flexDirection: 'column',
           justifyContent: 'space-between',
           padding: 72,
-          background: `radial-gradient(circle at 82% 18%, rgba(95,245,196,.22), transparent 46%), ${t.bg}`,
+          background: `radial-gradient(circle at 82% 18%, rgba(255,90,210,.22), transparent 46%), ${t.bg}`,
           color: t.fg,
         }}
       >

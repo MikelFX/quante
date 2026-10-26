@@ -7,8 +7,8 @@
 .ad::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--bg);transition:background .6s}
 :root:has(.ad){color-scheme:dark}
 :root[data-theme="light"]:has(.ad){color-scheme:light}
-.ad{--bg:#070808;--bg2:#0d0f0f;--fg:#eef2f0;--fg2:#a9b0ac;--fg3:#8a918d;--dim:#3c413e;--line:rgba(238,242,240,.09);--line2:rgba(238,242,240,.18);--grid:rgba(238,242,240,.04);--acc:#5ff5c4;--acc2:#7cc8ff;--accInk:#03130d;--accText:#5ff5c4;--gl1:rgba(255,255,255,.075);--gl2:rgba(255,255,255,.015);--glb:rgba(255,255,255,.12);--glh:rgba(255,255,255,.22);--shadow:rgba(0,0,0,.75);--pc:238,242,240;color-scheme:dark}
-[data-theme="light"] .ad{--bg:#eef0ee;--bg2:#e4e7e4;--fg:#0b0d0c;--fg2:#3b413e;--fg3:#5a615d;--dim:#a7aca9;--line:rgba(11,13,12,.1);--line2:rgba(11,13,12,.22);--grid:rgba(11,13,12,.05);--acc:#2fe0a3;--acc2:#4a9eea;--accInk:#03130d;--accText:#04704f;--gl1:rgba(255,255,255,.7);--gl2:rgba(255,255,255,.35);--glb:rgba(255,255,255,.9);--glh:rgba(255,255,255,1);--shadow:rgba(20,40,30,.22);--pc:11,13,12;color-scheme:light}
+.ad{--bg:#0b0a0c;--bg2:#121014;--fg:#f2eef0;--fg2:#b0a8ad;--fg3:#91898e;--dim:#433d45;--line:rgba(242,238,240,.09);--line2:rgba(242,238,240,.18);--grid:rgba(242,238,240,.04);--acc:#ff5ad2;--acc2:#c19bff;--accInk:#1c0517;--accText:#ff5ad2;--gl1:rgba(255,255,255,.075);--gl2:rgba(255,255,255,.015);--glb:rgba(255,255,255,.12);--glh:rgba(255,255,255,.22);--shadow:rgba(0,0,0,.75);--pc:242,238,240;color-scheme:dark}
+[data-theme="light"] .ad{--bg:#efedee;--bg2:#e5e2e4;--fg:#141215;--fg2:#3e393d;--fg3:#5d565b;--dim:#aaa4a8;--line:rgba(20,18,21,.1);--line2:rgba(20,18,21,.22);--grid:rgba(20,18,21,.05);--acc:#e040c8;--acc2:#9a6cf0;--accInk:#1c0517;--accText:#a3168f;--gl1:rgba(255,255,255,.7);--gl2:rgba(255,255,255,.35);--glb:rgba(255,255,255,.9);--glh:rgba(255,255,255,1);--shadow:rgba(40,20,35,.22);--pc:20,18,21;color-scheme:light}
 .ad *,.ad *::before,.ad *::after{box-sizing:border-box}
 .ad a{color:inherit;text-decoration:none}
 .ad ::selection{background:var(--acc);color:var(--accInk)}
@@ -121,30 +121,30 @@
 .ad .bag::before{content:"";position:absolute;left:0;right:0;top:0;height:1cqw;border-radius:.4cqw .4cqw 0 0;background:rgba(0,0,0,.22)}
 .ad .bag::after{content:"";position:absolute;left:20%;right:20%;top:40%;height:32%;border-radius:.25cqw;background:#f4f0e6}
 .ad .add{font:600 .95cqw/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;color:#1b1c1a;border:1px solid rgba(0,0,0,.2);border-radius:99px;padding:.7cqw;text-align:center}
-.ad .ph{position:absolute;right:2%;bottom:-4%;width:24%;aspect-ratio:9/19;border-radius:3.6cqw;background:#0b0d0d;border:1px solid var(--glb);padding:.9cqw;box-shadow:0 5cqw 10cqw -4cqw var(--shadow),inset 0 0 0 1px rgba(255,255,255,.06);animation:ad-fl 7s ease-in-out infinite}
-.ad .ph-s{height:100%;display:flex;flex-direction:column;gap:1cqw;overflow:hidden;border-radius:2.8cqw;background:linear-gradient(180deg,#141917,#0e1110);color:#e9eeeb;padding:3.2cqw 1.6cqw 1.4cqw}
+.ad .ph{position:absolute;right:2%;bottom:-4%;width:24%;aspect-ratio:9/19;border-radius:3.6cqw;background:#0d0b0d;border:1px solid var(--glb);padding:.9cqw;box-shadow:0 5cqw 10cqw -4cqw var(--shadow),inset 0 0 0 1px rgba(255,255,255,.06);animation:ad-fl 7s ease-in-out infinite}
+.ad .ph-s{height:100%;display:flex;flex-direction:column;gap:1cqw;overflow:hidden;border-radius:2.8cqw;background:linear-gradient(180deg,#18151a,#100e11);color:#eee9ec;padding:3.2cqw 1.6cqw 1.4cqw}
 .ad .ph-t{display:flex;justify-content:space-between;align-items:baseline;font:700 1.75cqw/1 var(--sans)}
-.ad .ph-t small{font:500 .95cqw/1 var(--mono);color:#8d9692}
-.ad .ph-k{border-radius:1.2cqw;padding:1.2cqw;background:linear-gradient(135deg,rgba(95,245,196,.18),rgba(124,200,255,.08));border:1px solid rgba(95,245,196,.25)}
-.ad .ph-k small{display:block;font:500 .85cqw/1 var(--mono);color:#9fb3ab;text-transform:uppercase;letter-spacing:.08em}
+.ad .ph-t small{font:500 .95cqw/1 var(--mono);color:#958c92}
+.ad .ph-k{border-radius:1.2cqw;padding:1.2cqw;background:linear-gradient(135deg,rgba(255,90,210,.18),rgba(193,155,255,.08));border:1px solid rgba(255,90,210,.25)}
+.ad .ph-k small{display:block;font:500 .85cqw/1 var(--mono);color:#b3a3ad;text-transform:uppercase;letter-spacing:.08em}
 .ad .ph-k b{display:block;margin-top:.6cqw;font-family:var(--disp);font-stretch:78%;font-weight:850;font-size:2.5cqw;line-height:1}
-.ad .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.35cqw .7cqw;align-items:center;padding:.9cqw;border-radius:1cqw;background:rgba(233,238,235,.05);font-size:1cqw;line-height:1.2}
-.ad .o-n{font:500 .9cqw/1 var(--mono);color:#8d9692}
+.ad .row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.35cqw .7cqw;align-items:center;padding:.9cqw;border-radius:1cqw;background:rgba(238,233,236,.05);font-size:1cqw;line-height:1.2}
+.ad .o-n{font:500 .9cqw/1 var(--mono);color:#958c92}
 .ad .o-a{font-weight:700;text-align:right}
-.ad .o-s{grid-column:2/4;justify-self:end;font:600 .8cqw/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:.4cqw .65cqw;border-radius:99px;background:rgba(233,238,235,.08);color:#b9c2be}
-.ad .o-s.ok{background:rgba(95,245,196,.15);color:#5ff5c4}
-@keyframes ad-rowA{from{opacity:0;transform:translateY(-1.2cqw) scale(.96);background:rgba(95,245,196,.25)}to{opacity:1;transform:none}}
-@keyframes ad-rowB{from{opacity:0;transform:translateY(-1.2cqw) scale(.96);background:rgba(95,245,196,.25)}to{opacity:1;transform:none}}
+.ad .o-s{grid-column:2/4;justify-self:end;font:600 .8cqw/1 var(--mono);text-transform:uppercase;letter-spacing:.05em;padding:.4cqw .65cqw;border-radius:99px;background:rgba(238,233,236,.08);color:#c2b9be}
+.ad .o-s.ok{background:rgba(255,90,210,.15);color:#ff5ad2}
+@keyframes ad-rowA{from{opacity:0;transform:translateY(-1.2cqw) scale(.96);background:rgba(255,90,210,.25)}to{opacity:1;transform:none}}
+@keyframes ad-rowB{from{opacity:0;transform:translateY(-1.2cqw) scale(.96);background:rgba(255,90,210,.25)}to{opacity:1;transform:none}}
 .ad .row.na{animation:ad-rowA 1.2s var(--ease) both}
 .ad .row.nb{animation:ad-rowB 1.2s var(--ease) both}
-.ad .toast{position:absolute;right:12%;top:8%;width:30%;display:flex;gap:1cqw;align-items:center;padding:1.2cqw 1.3cqw;border-radius:1.6cqw;color:#e9eeeb;background:rgba(18,22,21,.82);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid rgba(233,238,235,.16);box-shadow:0 3cqw 6cqw -2cqw rgba(0,0,0,.7);font-size:clamp(10px,1.1cqw,14px);line-height:1.3}
+.ad .toast{position:absolute;right:12%;top:8%;width:30%;display:flex;gap:1cqw;align-items:center;padding:1.2cqw 1.3cqw;border-radius:1.6cqw;color:#eee9ec;background:rgba(22,19,22,.82);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid rgba(238,233,236,.16);box-shadow:0 3cqw 6cqw -2cqw rgba(0,0,0,.7);font-size:clamp(10px,1.1cqw,14px);line-height:1.3}
 @keyframes ad-toA{0%{opacity:0;transform:translateY(-2cqw) scale(.9)}8%,86%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-.8cqw) scale(.98)}}
 @keyframes ad-toB{0%{opacity:0;transform:translateY(-2cqw) scale(.9)}8%,86%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-.8cqw) scale(.98)}}
 .ad .toast.ta{animation:ad-toA 3.6s var(--ease) both}
 .ad .toast.tb{animation:ad-toB 3.6s var(--ease) both}
-.ad .toast i{flex:none;display:grid;place-items:center;width:2.6cqw;height:2.6cqw;border-radius:.8cqw;background:#5ff5c4;color:#03130d;font:800 1.4cqw/1 var(--sans);font-style:normal}
+.ad .toast i{flex:none;display:grid;place-items:center;width:2.6cqw;height:2.6cqw;border-radius:.8cqw;background:#ff5ad2;color:#1c0517;font:800 1.4cqw/1 var(--sans);font-style:normal}
 .ad .toast b{display:block;font-weight:700}
-.ad .toast small{font:500 clamp(9px,.9cqw,12px)/1.3 var(--mono);color:#b4bbb7}
+.ad .toast small{font:500 clamp(9px,.9cqw,12px)/1.3 var(--mono);color:#bbb4b8}
 .ad .fc{position:absolute;display:flex;align-items:center;gap:.8cqw;padding:.9cqw 1.2cqw;border-radius:1.2cqw;font:600 clamp(10px,1.15cqw,14px)/1.2 var(--sans);white-space:nowrap;animation:ad-fl 6s ease-in-out infinite}
 .ad .fc small{display:block;font:500 clamp(9px,.9cqw,12px)/1.2 var(--mono);color:var(--fg3)}
 .ad .fc i{width:1cqw;height:1cqw;min-width:8px;min-height:8px;border-radius:50%;background:var(--acc);animation:ad-ping 2s infinite}
@@ -537,3 +537,17 @@
    never peeks into the button's clip box. Same roll, slightly longer travel. */
 .ad .btn .t span+span{top:calc(100% + .3em)}
 .ad .btn:hover .t span{transform:translateY(calc(-100% - .3em))}
+
+/* ── Dither look (2026-10-26, owner's reference: charcoal strokes with a magenta airbrushed halo on
+   off-white, a fine pixel grain throughout — only just noticeable). Colours stay tokens; the
+   texture is --q-px / --q-px-mask (app-tokens.css, scripts/pixel-texture.mjs). Fonts untouched. */
+.ad::before{background:radial-gradient(70% 55% at 88% -8%,color-mix(in srgb,var(--acc) 9%,transparent),transparent 72%),radial-gradient(55% 50% at -6% 108%,color-mix(in srgb,var(--acc2) 7%,transparent),transparent 72%),var(--bg)}
+/* The grain over the whole website: static 2 px cells instead of the moving film grain. */
+.ad .grain{inset:0;opacity:1;background-image:var(--q-px);background-size:192px 192px;image-rendering:pixelated;animation:none}
+/* Glows are sprayed, not smooth: the blurred blob is cut by the pixel mask. */
+.ad .glow{opacity:.56;-webkit-mask:var(--q-px-mask) 0 0/192px 192px;mask:var(--q-px-mask) 0 0/192px 192px}
+/* The halo around display type. Gradient-filled words keep none (a shadow would paint over the fill). */
+.ad .h1,.ad .h2,.ad .big,.ad .giant,.ad .tr span,.ad .live,.ad .menu a.mi{text-shadow:0 0 .42em color-mix(in srgb,var(--acc) 24%,transparent)}
+[data-theme="light"] .ad .h1,[data-theme="light"] .ad .h2,[data-theme="light"] .ad .big,[data-theme="light"] .ad .giant,[data-theme="light"] .ad .tr span,[data-theme="light"] .ad .live,[data-theme="light"] .ad .menu a.mi{text-shadow:0 0 .36em color-mix(in srgb,var(--acc) 34%,transparent)}
+.ad .h1 .hl,.ad .big span,.ad .zero b{text-shadow:none}
+.ad .big span,.ad .zero b{filter:drop-shadow(0 0 .1em color-mix(in srgb,var(--acc) 38%,transparent))}
