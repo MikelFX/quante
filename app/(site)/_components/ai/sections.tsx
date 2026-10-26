@@ -28,9 +28,9 @@ export function AiHero() {
         </div>
         <div className="ai-stage rv" style={delay(0.2)}>
           <Object3D kind="core" size="lg" />
-          <Object3D kind="chat" size="sm" className="ai-fl f1" />
-          <Object3D kind="spark" size="sm" className="ai-fl f2" />
-          <Object3D kind="grid" size="sm" className="ai-fl f3" />
+          <Object3D kind="chat" size="sm" sway className="ai-fl f1" />
+          <Object3D kind="spark" size="sm" sway className="ai-fl f2" />
+          <Object3D kind="grid" size="sm" sway className="ai-fl f3" />
         </div>
       </div>
       <BinaryStrip text="ASSETRA DIGITAL/AI/SOFTWARE/CRM/AUTOMATIZACE/" />

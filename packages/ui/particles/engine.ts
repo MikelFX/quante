@@ -107,7 +107,9 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
   let raf = 0
   let lastSig = ''
   const resize = () => {
-    dpr = Math.min(window.devicePixelRatio || 1, 2)
+    // Phones draw at 1.5× at most: the canvases are cleared and redrawn every frame, and 2× (or
+    // 3×) density made scrolling stutter while the square dots look the same.
+    dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 760 ? 1.5 : 2)
     W = window.innerWidth
     H = window.innerHeight
     tooTall = H > MAX_VIEWPORT_H
@@ -542,6 +544,30 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     g.globalAlpha = 1
   }
 
+  // Accent colours come from the page, not from code: magenta on the AssetraDigital website, green
+  // on Quante (the app's .ad-app and the website's /quante pages, .ad-q). Read again every 30
+  // frames, so a route or theme change follows without a style lookup per frame.
+  const hexRGB = (v: string, fallback: string) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(v.trim())
+    if (!m) return fallback
+    const n = parseInt(m[1], 16)
+    return (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255)
+  }
+  let accCache = { acc: '', acc2: '', n: 0, dark: true }
+  const accents = (dark: boolean) => {
+    if (accCache.acc && accCache.dark === dark && accCache.n++ < 30) return accCache
+    const el = document.querySelector('.ad-q') ?? document.querySelector('.ad')
+    const cs = getComputedStyle(el ?? document.documentElement)
+    const get = (site: string, app: string) => cs.getPropertyValue(site) || cs.getPropertyValue(app)
+    accCache = {
+      acc: hexRGB(dark ? get('--acc', '--q-acc') : get('--accText', '--q-acc-text'), dark ? '95,245,196' : '5,150,105'),
+      acc2: hexRGB(get('--acc2', '--q-acc2'), dark ? '124,200,255' : '74,158,234'),
+      n: 0,
+      dark,
+    }
+    return accCache
+  }
+
   // ── frame ──────────────────────────────────────────────────────────────
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
@@ -550,8 +576,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     const on = motionAllowed(reduced)
     const dark = document.documentElement.getAttribute('data-theme') !== 'light'
     const T = now * 0.001
-    const accRGB = dark ? '255,90,210' : '196,38,172'
-    const acc2RGB = dark ? '193,155,255' : '154,108,240'
+    const { acc: accRGB, acc2: acc2RGB } = accents(dark)
     const baseRGB = dark ? '242,238,240' : '20,18,21'
     if (theme !== accRGB + acc2RGB + baseRGB) {
       theme = accRGB + acc2RGB + baseRGB

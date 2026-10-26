@@ -551,3 +551,10 @@
 [data-theme="light"] .ad .h1,[data-theme="light"] .ad .h2,[data-theme="light"] .ad .big,[data-theme="light"] .ad .giant,[data-theme="light"] .ad .tr span,[data-theme="light"] .ad .live,[data-theme="light"] .ad .menu a.mi{text-shadow:0 0 .36em color-mix(in srgb,var(--acc) 34%,transparent)}
 .ad .h1 .hl,.ad .big span,.ad .zero b{text-shadow:none}
 .ad .big span,.ad .zero b{filter:drop-shadow(0 0 .1em color-mix(in srgb,var(--acc) 38%,transparent))}
+
+/* Phones: frosted glass costs a blur of everything behind each card on every scroll frame. Over
+   this background the blur is all but invisible, so cards get a matching solid tint instead
+   (the floating nav keeps its blur — page text scrolls under it). */
+@media (hover:none){
+  .ad .glass:not(.nav){-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(180deg,var(--gl1),var(--gl2)),color-mix(in srgb,var(--bg) 55%,transparent)}
+}

@@ -121,11 +121,13 @@
 .ad .o3-lg{--o3:min(440px,76vw)}
 .ad .o3-g{position:absolute;inset:4%;border-radius:32%;background:radial-gradient(circle at 72% 26%,color-mix(in srgb,var(--acc3) 75%,transparent),transparent 62%),radial-gradient(circle at 28% 74%,var(--acc),transparent 66%);filter:blur(calc(var(--o3)*.16));opacity:.5;transform:translateY(10%) scale(1.08)}
 [data-theme="light"] .ad .o3-g{opacity:.42}
-.ad .o3-r{position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(16deg) rotateY(-24deg) rotateZ(3deg);animation:ad-o3 8s ease-in-out infinite}
+.ad .o3-r{position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(16deg) rotateY(-24deg) rotateZ(3deg)}
+/* sways only while on screen (Object3D sets data-play) */
+.ad .o3[data-play="1"] .o3-r{animation:ad-o3 8s ease-in-out infinite}
 .ad .o3:nth-of-type(2n) .o3-r{animation-delay:-3s}
 @keyframes ad-o3{0%,100%{transform:rotateX(16deg) rotateY(-24deg) rotateZ(3deg) translateY(0)}50%{transform:rotateX(9deg) rotateY(-13deg) rotateZ(1deg) translateY(-3%)}}
 .ad .o3-f,.ad .o3-e{position:absolute;inset:0;border-radius:24%}
-.ad .o3-e{transform:translateZ(calc(var(--z)*var(--o3)*-.013));background:linear-gradient(225deg,color-mix(in srgb,var(--acc3) 72%,black),color-mix(in srgb,var(--acc) 60%,black));box-shadow:inset 0 0 0 1px rgb(255 255 255 / .08)}
+.ad .o3-e{transform:translateZ(calc(var(--z)*var(--o3)*-.023));background:linear-gradient(225deg,color-mix(in srgb,var(--acc3) 72%,black),color-mix(in srgb,var(--acc) 60%,black));box-shadow:inset 0 0 0 1px rgb(255 255 255 / .08)}
 .ad .o3-f{background:radial-gradient(110% 80% at 88% 6%,color-mix(in srgb,var(--acc3) 45%,white),transparent 40%),linear-gradient(225deg,var(--acc3) 0%,color-mix(in srgb,var(--acc3) 50%,var(--acc)) 40%,var(--acc) 74%,color-mix(in srgb,var(--acc) 72%,black) 100%);box-shadow:inset 0 0 0 calc(var(--o3)*.008) rgb(255 255 255 / .45),inset calc(var(--o3)*.014) calc(var(--o3)*.016) calc(var(--o3)*.022) rgb(255 255 255 / .55),inset calc(var(--o3)*-.022) calc(var(--o3)*-.03) calc(var(--o3)*.06) rgb(0 0 0 / .32)}
 .ad .o3-p{position:absolute;inset:11%;border-radius:20%;background:linear-gradient(225deg,color-mix(in srgb,var(--acc3) 86%,black),color-mix(in srgb,var(--acc) 84%,black));box-shadow:inset 0 calc(var(--o3)*.02) calc(var(--o3)*.045) rgb(0 0 0 / .38),0 calc(var(--o3)*.004) 0 rgb(255 255 255 / .35);outline:calc(var(--o3)*.006) solid rgb(255 255 255 / .38);outline-offset:calc(var(--o3)*.022)}
 .ad .o3-p>i{position:absolute;display:block}
@@ -180,3 +182,9 @@
   .ad .ai-fl.f3{--o3:62px}
 }
 @media (max-width:560px){.ad .ai-who{grid-template-columns:minmax(0,1fr)}}
+
+/* ── Quante pages on the website stay green (owner, 2026-10-26) ─────────────
+   /quante and /quante/<modul> wrap their content in .ad-q: Quante's own mint/ice accents, the rest
+   of the website (nav, footer, background) stays AssetraDigital magenta. */
+.ad .ad-q{--acc:#5ff5c4;--acc2:#7cc8ff;--accInk:#03130d;--accText:#5ff5c4}
+[data-theme="light"] .ad .ad-q{--acc:#2fe0a3;--acc2:#4a9eea;--accInk:#03130d;--accText:#04704f}

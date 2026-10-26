@@ -1,6 +1,7 @@
 /* AssetraDigital tokens for the Quante app (--q-*). Global on :root, so portals and pop-ups
    outside the app shell get them too; they follow <html data-theme>. The website uses the design
-   tokens in assetra.css (scoped to .ad) — values here mirror them. Colours that carry text have
+   tokens in assetra.css (scoped to .ad). Since 2026-10-26 the website is magenta and Quante stays
+   green (owner): these are Quante's colours, app.css maps the .ad variables onto them in the app. Colours that carry text have
    a -text variant: the light theme needs darker shades for 4.5:1 contrast.
    The app's hard-coded colours were moved onto these by scripts/assetra-recolor.mjs. */
 
@@ -28,40 +29,40 @@
 }
 
 :root {
-  --q-bg: #0b0a0c;
-  --q-bg-rgb: 11 10 12;
-  --q-s1: #121014;
-  --q-s2: #18161a;
-  --q-s3: #201d22;
-  --q-dim: #433d45;
+  --q-bg: #070808;
+  --q-bg-rgb: 7 8 8;
+  --q-s1: #0d0f0f;
+  --q-s2: #131615;
+  --q-s3: #1a1e1c;
+  --q-dim: #3c413e;
 
-  --q-fg: #f2eef0;
-  --q-fg2: #b0a8ad;
-  --q-fg3: #91898e;
-  --q-fg4: #827a7f;
-  --q-ink-rgb: 242 238 240;
-  --q-line: rgb(242 238 240 / .09);
-  --q-line2: rgb(242 238 240 / .18);
+  --q-fg: #eef2f0;
+  --q-fg2: #a9b0ac;
+  --q-fg3: #8a918d;
+  --q-fg4: #777d7a;
+  --q-ink-rgb: 238 242 240;
+  --q-line: rgb(238 242 240 / .09);
+  --q-line2: rgb(238 242 240 / .18);
 
-  --q-acc: #ff5ad2;
-  --q-acc-rgb: 255 90 210;
-  --q-acc-text: #ff5ad2;
-  --q-acc-hi: #ffa8e6;
-  --q-acc-hover: #ff80dd;
-  --q-acc-ink: #1c0517;
-  --q-acc2: #c19bff;
-  --q-acc2-rgb: 193 155 255;
-  --q-acc2-text: #c19bff;
+  --q-acc: #5ff5c4;
+  --q-acc-rgb: 95 245 196;
+  --q-acc-text: #5ff5c4;
+  --q-acc-hi: #a6f9dd;
+  --q-acc-hover: #8af8d3;
+  --q-acc-ink: #03130d;
+  --q-acc2: #7cc8ff;
+  --q-acc2-rgb: 124 200 255;
+  --q-acc2-text: #7cc8ff;
 
-  --q-ok: #6fe3b0;
-  --q-ok-rgb: 111 227 176;
-  --q-ok-text: #6fe3b0;
+  --q-ok: #5ff5c4;
+  --q-ok-rgb: 95 245 196;
+  --q-ok-text: #5ff5c4;
   --q-warn: #f0a73a;
   --q-warn-rgb: 240 167 58;
   --q-warn-text: #f0a73a;
-  --q-danger: #ff6b4a;
-  --q-danger-rgb: 255 107 74;
-  --q-danger-text: #ff8a6e;
+  --q-danger: #ff7a70;
+  --q-danger-rgb: 255 122 112;
+  --q-danger-text: #ff8f86;
   --q-on-danger: #1a0503;
 
   --q-glass1: rgb(255 255 255 / .075);
@@ -84,34 +85,34 @@
 }
 
 :root[data-theme="light"] {
-  --q-bg: #efedee;
-  --q-bg-rgb: 239 237 238;
-  --q-s1: #f6f4f5;
-  --q-s2: #fbfafa;
+  --q-bg: #eef0ee;
+  --q-bg-rgb: 238 240 238;
+  --q-s1: #f6f7f6;
+  --q-s2: #fbfcfb;
   --q-s3: #ffffff;
-  --q-dim: #aaa4a8;
+  --q-dim: #a7aca9;
 
-  --q-fg: #141215;
-  --q-fg2: #3e393d;
-  --q-fg3: #5d565b;
-  --q-fg4: #665f64;
-  --q-ink-rgb: 20 18 21;
-  --q-line: rgb(20 18 21 / .1);
-  --q-line2: rgb(20 18 21 / .22);
+  --q-fg: #0b0d0c;
+  --q-fg2: #3b413e;
+  --q-fg3: #5a615d;
+  --q-fg4: #646b67;
+  --q-ink-rgb: 11 13 12;
+  --q-line: rgb(11 13 12 / .1);
+  --q-line2: rgb(11 13 12 / .22);
 
-  --q-acc: #e040c8;
-  --q-acc-rgb: 224 64 200;
-  --q-acc-text: #a3168f;
-  --q-acc-hi: #a3168f;
-  --q-acc-hover: #cc2fb4;
-  --q-acc-ink: #1c0517;
-  --q-acc2: #9a6cf0;
-  --q-acc2-rgb: 154 108 240;
-  --q-acc2-text: #6a3cc0;
+  --q-acc: #2fe0a3;
+  --q-acc-rgb: 47 224 163;
+  --q-acc-text: #04704f;
+  --q-acc-hi: #04704f;
+  --q-acc-hover: #26c990;
+  --q-acc-ink: #03130d;
+  --q-acc2: #4a9eea;
+  --q-acc2-rgb: 74 158 234;
+  --q-acc2-text: #1f6fb5;
 
-  --q-ok: #2fbf86;
-  --q-ok-rgb: 47 191 134;
-  --q-ok-text: #0b6b47;
+  --q-ok: #2fe0a3;
+  --q-ok-rgb: 47 224 163;
+  --q-ok-text: #04704f;
   --q-warn: #f0a73a;
   --q-warn-rgb: 240 167 58;
   --q-warn-text: #8a4b06;
@@ -124,7 +125,7 @@
   --q-glass2: rgb(255 255 255 / .35);
   --q-glass-border: rgb(255 255 255 / .9);
   --q-glass-hi: rgb(255 255 255 / 1);
-  --q-shadow: rgb(40 20 35 / .22);
+  --q-shadow: rgb(20 40 30 / .22);
   --q-icon-invert: none;
 
 }
