@@ -25,12 +25,12 @@ export function SmartLink({ href, className, children, ...rest }: { href: string
   return <Link href={href} className={className} prefetch={PROTECTED_APP.test(href) ? false : undefined} {...rest}>{children}</Link>
 }
 
-/** The AD mark: A and D share one vertical stroke; the mint pixel inside the A blinks. */
+/** The AD mark: an A built from a 7 × 7 pixel grid; the accent pixel in the middle of the crossbar blinks. */
 export function AdMark({ className = 'mark' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 44 32" aria-hidden="true">
-      <path d="M3 29 L20 3 L20 29 M20 3 H25 A13 13 0 0 1 25 29 H20" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="square" strokeLinejoin="miter" />
-      <rect className="px" x="12.6" y="18.2" width="4.6" height="4.6" />
+    <svg className={className} viewBox="0 0 56 56" aria-hidden="true">
+      <path d="M16 0h24v8h-24zM8 8h16v8h-16zM32 8h16v8h-16zM0 16h16v8h-16zM40 16h16v8h-16zM0 24h16v8h-16zM40 24h16v8h-16zM0 32h24v8h-24zM32 32h24v8h-24zM0 40h16v8h-16zM40 40h16v8h-16zM0 48h16v8h-16zM40 48h16v8h-16z" fill="currentColor" />
+      <rect className="px" x="24" y="32" width="8" height="8" />
     </svg>
   )
 }

@@ -94,41 +94,18 @@ function wave(N: number): Shape {
   return out
 }
 
-// The AD mark: A and D share one vertical stroke; the last 10 % of points form the mint pixel.
+// The AD mark: an A on a 7 × 7 pixel grid; the last 10 % of points form the accent pixel
+// in the middle of the crossbar.
+const LOGO_GRID = ['..XXX..', '.XX.XX.', 'XX...XX', 'XX...XX', 'XXX.XXX', 'XX...XX', 'XX...XX']
+const LOGO_CELLS: Array<[number, number]> = []
+LOGO_GRID.forEach((row, y) => [...row].forEach((c, x) => { if (c === 'X') LOGO_CELLS.push([x, y]) }))
+
 function logo(N: number, lineN: number): Shape {
-  const segs = [[3, 29, 20, 3], [20, 3, 20, 29], [20, 3, 25, 3], [25, 29, 20, 29]]
-  const lens = segs.map((q) => Math.hypot(q[2] - q[0], q[3] - q[1]))
-  const arc = Math.PI * 13
-  const tot = lens[0] + lens[1] + lens[2] + lens[3] + arc
   const pts: Pt[] = []
   for (let i = 0; i < N; i++) {
-    let lx = 0
-    let ly = 0
-    if (i >= lineN) {
-      lx = 12.6 + Math.random() * 4.6
-      ly = 18.2 + Math.random() * 4.6
-    } else {
-      let rem = Math.random() * tot
-      let found = false
-      for (let j = 0; j < 4 && !found; j++) {
-        if (lens[j] > rem) {
-          const q = segs[j]
-          const f = rem / lens[j]
-          lx = q[0] + (q[2] - q[0]) * f
-          ly = q[1] + (q[3] - q[1]) * f
-          found = true
-        } else {
-          rem -= lens[j]
-        }
-      }
-      if (!found) {
-        const an = -Math.PI / 2 + (rem / arc) * Math.PI
-        lx = 25 + Math.cos(an) * 13
-        ly = 16 + Math.sin(an) * 13
-      }
-      lx += rnd(2.2)
-      ly += rnd(2.2)
-    }
+    const [cx, cy] = i >= lineN ? [3, 4] : LOGO_CELLS[Math.floor(Math.random() * LOGO_CELLS.length)]
+    const lx = (cx + 0.1 + Math.random() * 0.8) * 8
+    const ly = (cy + 0.1 + Math.random() * 0.8) * 8
     pts.push([lx, -ly, rnd(2)])
   }
   return norm(pts, true)

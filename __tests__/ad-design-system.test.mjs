@@ -78,7 +78,7 @@ test('3D particle shapes have N points normalised into [-1, 1]', () => {
   }
 })
 
-test('the AD logo keeps the last 10 % of points for the mint pixel', () => {
+test('the AD logo keeps the last 10 % of points for the accent pixel', () => {
   const N = 1300
   const lineN = N - Math.floor(N * 0.1)
   const s = shapes.buildShape('@logo', N, lineN, 'sans-serif')
