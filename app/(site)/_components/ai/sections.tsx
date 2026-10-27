@@ -1,10 +1,12 @@
 import Image from 'next/image'
+import type { ReactNode } from 'react'
 import {
   BinaryStrip, Button, Card, CharHeading, CheckList, InView, ParticleZone, Pill, SectionLabel, SectionTitle, Sub, Tapes,
   Timeline, cx, delay,
 } from '@ad/ui'
 import { cta } from '@/content/assetra/site'
-import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop } from '@/content/assetra/ai'
+import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop, productScreens } from '@/content/assetra/ai'
+import { LoopVideo } from './LoopVideo'
 import { Object3D } from './Object3D'
 
 // Homepage (AI solutions, 2026-10-26). Same building blocks as the web & e-shop page
@@ -118,25 +120,123 @@ export function AiIdeas() {
   )
 }
 
+/** Our own products: a short header, then one showcase section per product (Branka-style). */
 export function AiBuilt() {
+  const [quante, qgent, qads] = aiBuilt.items
   return (
-    <InView className="sec" id="postaveno">
-      <div className="w">
-        <SectionLabel num="04">{aiBuilt.label}</SectionLabel>
-        <SectionTitle>{aiBuilt.title}</SectionTitle>
-        <Sub>{aiBuilt.sub}</Sub>
-        <div className="ai-built">
-          {aiBuilt.items.map((b, i) => (
-            <Card key={b.title} reveal delaySec={0.1 * (i + 1)} className="ai-card">
-              <Object3D kind={b.kind} size="sm" />
-              <h3>{b.title}</h3>
-              <p>{b.text}</p>
-              <Button href={b.href}>{b.cta}</Button>
-            </Card>
-          ))}
+    <>
+      <InView className="sec pr-head" id="postaveno">
+        <div className="w">
+          <SectionLabel num="04">{aiBuilt.label}</SectionLabel>
+          <SectionTitle>{aiBuilt.title}</SectionTitle>
+          <Sub>{aiBuilt.sub}</Sub>
+          <nav className="pr-jump rv" aria-label="Naše produkty">
+            {[...aiBuilt.items, { id: 'branka', title: aiBranka.title }].map((p) => (
+              <a key={p.id} href={'#' + p.id}>{p.title}</a>
+            ))}
+          </nav>
         </div>
+      </InView>
+      <Product item={quante} className="ad-q">
+        <div className="pr-stage">
+          <div className="glow" aria-hidden="true" />
+          <Browser url={productScreens.quante.url} className="pr-win">
+            <LoopVideo
+              src={productScreens.quante.video}
+              poster={productScreens.quante.poster}
+              label="Quante Studio: zadání v chatu, sestavení obchodu a hotový e-shop"
+            />
+          </Browser>
+          <span className="pr-float pr-log glass" aria-hidden="true">
+            <Image src={productScreens.quante.steps[1].src} alt="" width={1280} height={620} sizes="260px" />
+          </span>
+          <span className="pr-badge glass" aria-hidden="true"><i />Nasazeno</span>
+        </div>
+        <ul className="pr-steps">
+          {productScreens.quante.steps.map((st, i) => (
+            <li key={st.src} className="rv" style={delay(0.08 * i)}>
+              <Browser className="pr-mini">
+                <Image src={st.src} alt={`Quante Studio: ${st.caption}`} width={1280} height={620} sizes="(max-width: 900px) 92vw, 380px" />
+              </Browser>
+              <b>{st.caption}</b>
+              <span>{st.text}</span>
+            </li>
+          ))}
+        </ul>
+      </Product>
+      <Product item={qgent} reverse>
+        <div className="pr-stage pr-qg">
+          <div className="glow" aria-hidden="true" />
+          <span className="pr-chat glass">
+            <Image src={productScreens.qgent.src} alt={productScreens.qgent.alt} width={615} height={915} sizes="(max-width: 900px) 70vw, 330px" />
+          </span>
+          <div className="pr-find glass" aria-hidden="true">
+            <small><i />Qgent · návrh</small>
+            <b>{productScreens.qgent.finding.title}</b>
+            <code>{productScreens.qgent.finding.edit}</code>
+            <span className="pr-acts"><span className="ok">Potvrdit</span><span>Upravit</span></span>
+          </div>
+          <span className="pr-badge pr-undo glass" aria-hidden="true">↺ Změnu jde vrátit</span>
+        </div>
+      </Product>
+      <Product item={qads} className="ad-q">
+        <div className="pr-stage pr-qa">
+          <div className="glow" aria-hidden="true" />
+          <Browser url={productScreens.qads.url} className="pr-win">
+            <Image src={productScreens.qads.composer} alt="Qads: nahrání fotky produktu a tlačítko Generate" width={1400} height={693} sizes="(max-width: 900px) 92vw, 600px" />
+          </Browser>
+          {productScreens.qads.ads.map((ad, i) => (
+            <span key={ad.video} className={cx('pr-ad', i === 0 ? 'a1' : 'a2')}>
+              <LoopVideo src={ad.video} poster={ad.poster} label={`Reklama vytvořená v Qads (${ad.label})`} />
+              <em>{ad.label}</em>
+            </span>
+          ))}
+          <span className="pr-ad pr-sq">
+            <Image src={productScreens.qads.photo.src} alt="Reklamní fotka vytvořená v Qads" width={1080} height={1080} sizes="150px" />
+            <em>{productScreens.qads.photo.label}</em>
+          </span>
+        </div>
+      </Product>
+    </>
+  )
+}
+
+/** One product showcase: text on one side, its screens on the other; extra rows below. */
+function Product({ item, reverse, className, children }: {
+  item: (typeof aiBuilt.items)[number]; reverse?: boolean; className?: string; children: ReactNode
+}) {
+  const [stage, ...rest] = Array.isArray(children) ? children : [children]
+  return (
+    <InView className={cx('sec pr', className)} id={item.id}>
+      <div className="w">
+        <div className={cx('br-grid', reverse && 'rev')}>
+          <div className="br-txt">
+            <p className="br-kick rv">{item.kicker}</p>
+            <h2 className="br-h rv" style={delay(0.08)}>{item.title}</h2>
+            <p className="br-lead rv" style={delay(0.14)}>{item.lead}</p>
+            <ul className="feat rv" style={delay(0.2)}>{item.features.map((f) => <li key={f}>{f}</li>)}</ul>
+            <div className="ctas rv" style={delay(0.26)}>
+              <Button href={item.href} variant="pri" arrow>{item.cta}</Button>
+            </div>
+          </div>
+          <div className="rv" style={delay(0.12)}>{stage}</div>
+        </div>
+        {rest}
       </div>
     </InView>
+  )
+}
+
+/** A glass browser window around a product screen. */
+function Browser({ url, className, children }: { url?: string; className?: string; children: ReactNode }) {
+  return (
+    <div className={cx('pr-br glass', className)}>
+      <div className="pr-bar" aria-hidden="true">
+        <i /><i /><i />
+        {url && <span>{url}</span>}
+      </div>
+      <div className="pr-body">{children}</div>
+    </div>
   )
 }
 
