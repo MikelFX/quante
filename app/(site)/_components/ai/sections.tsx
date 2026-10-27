@@ -1,9 +1,10 @@
+import Image from 'next/image'
 import {
   BinaryStrip, Button, Card, CharHeading, CheckList, InView, ParticleZone, Pill, SectionLabel, SectionTitle, Sub, Tapes,
   Timeline, cx, delay,
 } from '@ad/ui'
 import { cta } from '@/content/assetra/site'
-import { aiAudience, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop } from '@/content/assetra/ai'
+import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop } from '@/content/assetra/ai'
 import { Object3D } from './Object3D'
 
 // Homepage (AI solutions, 2026-10-26). Same building blocks as the web & e-shop page
@@ -139,13 +140,66 @@ export function AiBuilt() {
   )
 }
 
+/** A phone with a screenshot of our own product (Branka). */
+function Phone({ src, alt, className }: { src: string; alt: string; className?: string }) {
+  return (
+    <span className={cx('br-ph', className)}>
+      <Image src={src} alt={alt} width={780} height={1688} sizes="(max-width: 900px) 46vw, 240px" />
+    </span>
+  )
+}
+
+export function AiBranka() {
+  return (
+    <InView className="sec" id="branka">
+      <div className="w">
+        <div className="br-grid">
+          <div className="br-txt">
+            <SectionLabel num="05">{aiBranka.label}</SectionLabel>
+            <p className="br-kick rv">{aiBranka.kicker}</p>
+            <h2 className="br-h rv" style={delay(0.08)}>{aiBranka.title}</h2>
+            <p className="br-lead rv" style={delay(0.14)}>{aiBranka.lead}</p>
+            <ul className="feat rv" style={delay(0.2)}>{aiBranka.features.map((f) => <li key={f}>{f}</li>)}</ul>
+            <div className="ctas rv" style={delay(0.26)}>
+              <Button href={aiBranka.href} variant="pri" arrow>{aiBranka.cta}</Button>
+              <Button href={'#' + cta.target}>Chci něco podobného</Button>
+            </div>
+          </div>
+          <div className="br-stage rv" style={delay(0.15)}>
+            <div className="glow" aria-hidden="true" />
+            {aiBranka.stage.map((p, i) => (
+              <Phone key={p.src} src={p.src} alt={p.alt} className={['l', 'c', 'r'][i]} />
+            ))}
+          </div>
+        </div>
+        <ul className="br-shots">
+          {aiBranka.screens.map((sc, i) => (
+            <li key={sc.src} className="rv" style={delay(0.06 * i)}>
+              <Phone src={sc.src} alt={`Branka: ${sc.caption}`} />
+              <b>{sc.caption}</b>
+              <span>{sc.text}</span>
+            </li>
+          ))}
+        </ul>
+        <Card reveal className="br-auto">
+          <div>
+            <h3>{aiBranka.automate.title}</h3>
+            <p>{aiBranka.automate.text}</p>
+          </div>
+          <Button href={'#' + cta.target} variant="pri" beam arrow>{aiBranka.automate.cta}</Button>
+        </Card>
+      </div>
+    </InView>
+  )
+}
+
 export function AiWebShop() {
   return (
     <InView className="sec" id="web-eshop">
       <div className="w">
         <Card reveal className="ai-ws">
           <div>
-            <SectionLabel num="05" reveal={false}>{aiWebShop.label}</SectionLabel>
+            <SectionLabel num="06" reveal={false}>{aiWebShop.label}</SectionLabel>
             <h2>{aiWebShop.title}</h2>
             <p>{aiWebShop.text}</p>
             <Button href={aiWebShop.href} variant="pri" arrow>{aiWebShop.cta}</Button>
@@ -163,7 +217,7 @@ export function AiProcess() {
       <div className="w">
         <div className="sh2">
           <div>
-            <SectionLabel num="06">{aiSteps.label}</SectionLabel>
+            <SectionLabel num="07">{aiSteps.label}</SectionLabel>
             <SectionTitle>{aiSteps.title}</SectionTitle>
           </div>
           <ParticleZone shapes={['01', '02', '03', '04']} />

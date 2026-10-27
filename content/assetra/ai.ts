@@ -79,7 +79,7 @@ export const aiAudience = {
 export const aiIdeas = {
   label: 'Nápady',
   title: 'Co firmy chtějí nejčastěji',
-  sub: 'Pro inspiraci. Když tu svůj nápad nevidíte, napište nám ho.',
+  sub: 'Pro inspiraci. Když tu svůj nápad nevidíte, napište nám ho: zkusíme zautomatizovat cokoliv, co nám zadáte.',
   items: [
     'Odpovědi na dotazy zákazníků 24/7',
     'Vytěžení faktur a objednávek',
@@ -106,6 +106,45 @@ export const aiBuilt = {
     { kind: 'chat', title: 'Qgent', text: 'AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.', href: '/quante/qgent', cta: 'Detail Qgent' },
     { kind: 'spark', title: 'Qads', text: 'Reklamní videa a fotky produktů, které vytvoří AI.', href: '/quante/qads', cta: 'Detail Qads' },
   ] satisfies { kind: Object3DKind; title: string; text: string; href: string; cta: string }[],
+}
+
+/**
+ * BRANKA — our software for gyms, courts and classes (owner, 2026-10-27). Screens are the
+ * product's own app screenshots from branka-site.vercel.app (public/branka/). Product facts only
+ * as that site states them; its price stays on its own site.
+ */
+export const aiBranka = {
+  label: 'Branka',
+  title: 'Branka',
+  kicker: 'Software pro fitka, kurty a lekce',
+  lead: 'Rezervace po telefonu, storna přes Messenger a permanentky v sešitě nahradí jedna aplikace. Členové si v ní rezervují a otevírají dveře telefonem, majitel vidí celé fitko na jedné obrazovce. Provoz bez recepce.',
+  features: [
+    'Rezervace kurtů, lekcí i trenérů',
+    'Dveře se otevírají telefonem nebo QR kódem',
+    'Platby kartou, Apple Pay a Google Pay rovnou na účet fitka',
+    'Kdo je uvnitř, tržby a rezervace v reálném čase',
+    'Aplikace pro iOS i Android, administrace na webu',
+    'Převod členů ze starého systému, tabulky i sešitu',
+  ],
+  href: 'https://branka-site.vercel.app',
+  cta: 'Prohlédnout Branku',
+  /** Three phones in the stage: left, centre (front), right. */
+  stage: [
+    { src: '/branka/rezervace.webp', alt: 'Branka: rozvrh kurtů s volnými a obsazenými časy' },
+    { src: '/branka/domu.webp', alt: 'Branka: úvodní obrazovka člena s počtem lidí ve fitku a další rezervací' },
+    { src: '/branka/sprava.webp', alt: 'Branka: správa fitka s lidmi uvnitř, tržbami a otevřením dveří na dálku' },
+  ],
+  screens: [
+    { src: '/branka/vstup.webp', caption: 'Vstup', text: 'Klepni a dveře se odemknou.' },
+    { src: '/branka/trener.webp', caption: 'Trenéři', text: 'Profil, hodnocení a volné termíny.' },
+    { src: '/branka/ja.webp', caption: 'Statistiky', text: 'Návštěvy, čas v pohybu, série týdnů.' },
+    { src: '/branka/vstup-open.webp', caption: 'Otevřeno', text: 'Bez čipů, karet a klíčů.' },
+  ],
+  automate: {
+    title: 'Zautomatizujeme i to vaše',
+    text: 'Branka je jeden příklad provozu, který jde automatizovat. Pošlete nám, co vás ve firmě zdržuje, a zkusíme zautomatizovat jakékoliv zadání, které nám dáte: rezervace, objednávky, dokumenty, provoz, cokoliv.',
+    cta: 'Zadat automatizaci',
+  },
 }
 
 export const aiWebShop = {

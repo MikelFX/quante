@@ -3,7 +3,7 @@
 // by `npm run qgent:knowledge`; a test fails when the JSON is out of date. Unknown facts stay null —
 // the assistant must say they are clarified at the consultation, never guess.
 
-import { aiAudience, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps } from './ai'
+import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps } from './ai'
 import { company, contact, contract, legalPages, pricing, services, steps, work } from './site'
 import { modules, quanteFlow, quanteIntro } from './modules'
 import { moduleCosts, quantePricing } from './quante-pricing'
@@ -82,6 +82,13 @@ export function buildQgentKnowledge() {
       forWhom: aiAudience.items.map((a) => `${a.title}: ${a.text}`),
       commonIdeas: aiIdeas.items,
       ownProducts: aiBuilt.items.map((b) => `${b.title}: ${b.text}`),
+      branka: {
+        what: `${aiBranka.title}: ${aiBranka.kicker}. ${aiBranka.lead}`,
+        features: aiBranka.features,
+        website: aiBranka.href,
+        note: 'Cenu a podrobnosti o Brance najde návštěvník na jejím webu.',
+      },
+      automateAnything: aiBranka.automate.text,
       process: aiSteps.steps.map((s, i) => ({ step: i + 1, title: s.title, text: s.text })),
       pricing: null,
       note: 'Ceny ani termíny AI řešení a softwaru na webu nejsou: každý projekt nacení po konzultaci podle rozsahu. Seznam nápadů je jen inspirace, ne hotové produkty.',
