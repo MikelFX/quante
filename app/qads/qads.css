@@ -1,4 +1,5 @@
-/* Qads generator (/qads): one composer box — photos, a text box and a bar of options — then the
+/* Qads generator (/qads): one minimal composer box — a big photo target, a text box, the Generate
+   button and options folded behind one pill — then the
    results, the community wall and the history. AssetraDigital look through the --q-* tokens (dark
    and light). Everything is scoped under .qz: global CSS is never unloaded on client navigation. */
 
@@ -16,17 +17,26 @@
 .qz .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ── hero ─────────────────────────────────────────────────────────────── */
-.qz-hero { text-align: center; padding: clamp(36px, 6vw, 80px) 0 4px; }
+.qz-hero { text-align: center; padding: clamp(28px, 6vw, 72px) 0 0; }
 .qz-pill { display: inline-flex; align-items: center; gap: 10px; padding: 5px 14px 5px 5px; border-radius: 999px; border: 1px solid var(--q-glass-border); background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2)); font: 500 13px/1 var(--q-sans); color: var(--q-fg2); }
 .qz-pill b { padding: 6px 10px; border-radius: 999px; background: var(--q-acc); color: var(--q-acc-ink); font: 600 11px/1 var(--q-mono); letter-spacing: .04em; }
-.qz-h1 { margin: 22px 0 14px; font-family: var(--q-disp); font-weight: 850; font-stretch: 66%; font-size: clamp(46px, 7.2vw, 96px); line-height: .92; letter-spacing: -.01em; text-transform: uppercase; color: var(--q-fg); }
+.qz-h1 { margin: 0; font-family: var(--q-disp); font-weight: 850; font-stretch: 66%; font-size: clamp(46px, 7.2vw, 96px); line-height: .92; letter-spacing: -.01em; text-transform: uppercase; color: var(--q-fg); }
 .qz-h1 em { font-style: normal; color: var(--q-acc-text); }
 .qz-sub { max-width: 560px; margin: 0 auto; font: 400 17px/1.55 var(--q-sans); color: var(--q-fg2); }
 
 /* ── composer box ─────────────────────────────────────────────────────── */
-.qz-box { position: relative; max-width: var(--qz-w); margin: 34px auto 0; border-radius: 28px; background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2)), var(--q-s1); border: 1px solid var(--q-glass-border); box-shadow: inset 0 1px 0 var(--q-glass-hi), 0 30px 80px -40px var(--q-shadow); transition: border-color .25s, box-shadow .25s; }
+.qz-box { position: relative; max-width: 720px; margin: clamp(22px, 4vw, 36px) auto 0; border-radius: 28px; background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2)), var(--q-s1); border: 1px solid var(--q-glass-border); box-shadow: inset 0 1px 0 var(--q-glass-hi), 0 30px 80px -40px var(--q-shadow); transition: border-color .25s, box-shadow .25s; }
 .qz-box:focus-within { border-color: rgb(var(--q-acc-rgb) / .5); box-shadow: inset 0 1px 0 var(--q-glass-hi), 0 0 0 4px rgb(var(--q-acc-rgb) / .1), 0 30px 80px -40px var(--q-shadow); }
 .qz-box.drag { border-color: var(--q-acc); border-style: dashed; }
+/* the one obvious place to start: a big photo target */
+.qz-drop { display: grid; justify-items: center; align-content: center; gap: 6px; width: calc(100% - 24px); min-height: 150px; margin: 12px 12px 0; padding: 20px; border-radius: 20px; border: 1.5px dashed rgb(var(--q-acc-rgb) / .45); background: rgb(var(--q-acc-rgb) / .05); color: var(--q-fg); cursor: pointer; transition: border-color .2s, background .2s; }
+.qz-drop:hover, .qz-drop:focus-visible { border-color: var(--q-acc); background: rgb(var(--q-acc-rgb) / .09); outline: none; }
+.qz-drop:disabled { cursor: wait; opacity: .7; }
+.qz-drop-ic { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; background: var(--q-acc); color: var(--q-acc-ink); box-shadow: 0 10px 28px -12px rgb(var(--q-acc-rgb) / .9); }
+.qz-drop-ic svg { width: 24px; height: 24px; }
+.qz-drop-t { margin-top: 6px; font: 600 16px/1.3 var(--q-sans); }
+.qz-drop-s { font: 400 13px/1.3 var(--q-sans); color: var(--q-fg3); }
+@media (pointer: coarse) { .qz-drop-s { display: none; } }
 .qz-att { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 14px 14px 0; }
 .qz-add { flex: none; width: 62px; height: 62px; display: grid; place-items: center; align-content: center; gap: 3px; border-radius: 16px; border: 1px dashed var(--q-line2); background: rgb(var(--q-ink-rgb) / .03); color: var(--q-fg2); font: 500 11px/1 var(--q-sans); cursor: pointer; transition: border-color .2s, color .2s; }
 .qz-add:hover, .qz-add:focus-visible { border-color: var(--q-acc); color: var(--q-fg); outline: none; }
@@ -35,14 +45,19 @@
 .qz-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .qz-thumb button { position: absolute; top: 3px; right: 3px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgb(var(--q-bg-rgb) / .78); color: var(--q-fg); cursor: pointer; }
 .qz-thumb button svg { width: 13px; height: 13px; }
-.qz-att-hint { flex: 1 1 180px; min-width: 0; font: 400 12.5px/1.45 var(--q-sans); color: var(--q-fg3); }
+/* touch: the 44px hit area (globals.css) stays, but only a small circle in the corner is drawn */
+@media (pointer: coarse) {
+  .qz-thumb, .qz-add { width: 72px; height: 72px; }
+  .qz-thumb button { top: 0; right: 0; width: 44px; height: 44px; place-items: start end; padding: 4px; background: transparent; }
+  .qz-thumb button svg { box-sizing: content-box; padding: 5px; border-radius: 50%; background: rgb(var(--q-bg-rgb) / .78); }
+}
 .qz-tag { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin: 12px 16px 0; padding: 6px 6px 6px 12px; border-radius: 999px; border: 1px solid rgb(var(--q-acc-rgb) / .4); background: rgb(var(--q-acc-rgb) / .08); color: var(--q-fg); font: 500 13px/1.2 var(--q-sans); }
 .qz-tag span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qz-tag small { color: var(--q-fg3); font-size: 12px; }
 .qz-tag button { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 0; background: transparent; color: var(--q-fg2); cursor: pointer; }
 .qz-tag button:hover { background: rgb(var(--q-ink-rgb) / .08); }
 .qz-tag svg { width: 14px; height: 14px; }
-.qz-text { display: block; width: 100%; min-height: 72px; max-height: 240px; padding: 14px 18px 14px; border: 0; outline: 0; resize: none; background: transparent; color: var(--q-fg); font: 400 17px/1.5 var(--q-sans); }
+.qz-text { display: block; width: 100%; min-height: 56px; max-height: 240px; padding: 14px 18px 14px; border: 0; outline: 0; resize: none; background: transparent; color: var(--q-fg); font: 400 17px/1.5 var(--q-sans); }
 .qz-text::placeholder { color: var(--q-fg3); }
 
 /* ── option bar ───────────────────────────────────────────────────────── */
@@ -56,7 +71,8 @@
 .qz-b .dn { width: 14px; height: 14px; opacity: .6; margin-right: -4px; }
 .qz-b.ico { width: 42px; padding: 0; justify-content: center; }
 .qz-b.sm { min-width: 44px; justify-content: center; font-variant-numeric: tabular-nums; }
-.qz-sep { width: 1px; height: 24px; margin: 0 2px; background: var(--q-line2); }
+.qz-set { min-width: 0; }
+.qz-set[aria-expanded="true"] .dn { transform: rotate(180deg); }
 .qz-sw { width: 18px; height: 18px; flex: none; border-radius: 6px; border: 1px solid var(--q-line2); }
 .qz-go { margin-left: auto; display: inline-flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 7px 0 20px; border-radius: 999px; border: 0; background: var(--q-acc); color: var(--q-acc-ink); font: 650 15px/1 var(--q-sans); cursor: pointer; box-shadow: 0 12px 30px -14px rgb(var(--q-acc-rgb) / .8); transition: transform .3s var(--q-ease), background .2s; }
 .qz-go:hover { background: var(--q-acc-hover); }
@@ -66,6 +82,13 @@
 .qz-go .cr { padding: 6px 9px; border-radius: 999px; background: rgb(var(--q-bg-rgb) / .16); font: 600 12px/1 var(--q-mono); }
 .qz-go .ar { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: rgb(var(--q-bg-rgb) / .14); }
 .qz-go .ar svg { width: 16px; height: 16px; }
+
+/* folded options: one labelled row of chips per setting */
+.qz-opts { display: grid; gap: 12px; padding: 4px 14px 16px; }
+.qz-row { display: grid; grid-template-columns: 110px 1fr; align-items: start; gap: 10px; }
+.qz-row-l { padding-top: 13px; font: 600 10.5px/1 var(--q-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--q-fg4); }
+.qz-row-c { display: flex; flex-wrap: wrap; gap: 6px; }
+.qz-row-c .qz-b { min-height: 36px; padding: 0 12px; font-size: 13px; }
 
 /* dropdown menus */
 .qz-menu { position: relative; }
@@ -81,12 +104,10 @@
 .qz-pop-note button { margin-top: 8px; }
 
 /* ── under the box ────────────────────────────────────────────────────── */
-.qz-under { max-width: var(--qz-w); margin: 12px auto 0; padding: 0 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px; font: 400 12.5px/1.45 var(--q-sans); color: var(--q-fg3); }
-.qz-under .dot { display: inline-block; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; background: var(--q-acc); vertical-align: 1px; }
+.qz-under { max-width: 720px; margin: 12px auto 0; text-align: center; font: 400 12.5px/1.45 var(--q-sans); color: var(--q-fg3); }
+.qz-under:empty { display: none; }
 .qz-under a { color: var(--q-acc-text); text-decoration: underline; text-underline-offset: 3px; }
-.qz-under kbd { margin-left: 6px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--q-line2); background: rgb(var(--q-ink-rgb) / .04); color: var(--q-fg2); font: 500 11px/1 var(--q-mono); }
-@media (pointer: coarse) { .qz-kbd { display: none; } }
-.qz-err { max-width: var(--qz-w); margin: 12px auto 0; padding: 10px 14px; border-radius: 14px; border: 1px solid rgb(var(--q-danger-rgb) / .35); background: rgb(var(--q-danger-rgb) / .08); color: var(--q-danger-text); font: 500 13px/1.45 var(--q-sans); }
+.qz-err { max-width: 720px; margin: 12px auto 0; padding: 10px 14px; border-radius: 14px; border: 1px solid rgb(var(--q-danger-rgb) / .35); background: rgb(var(--q-danger-rgb) / .08); color: var(--q-danger-text); font: 500 13px/1.45 var(--q-sans); }
 
 /* ── results ──────────────────────────────────────────────────────────── */
 .qz-results:empty { display: none; }
@@ -94,12 +115,11 @@
 .qz-results { max-width: 1100px; margin: clamp(40px, 6vw, 72px) auto 0; display: flex; flex-direction: column; gap: 24px; scroll-margin-top: 90px; }
 
 @media (max-width: 720px) {
-  .qz-text { font-size: 16px; min-height: 104px; }
-  .qz-go { width: 100%; justify-content: space-between; margin-left: 0; }
-  .qz-sep { display: none; }
-  .qz-pre { display: none; }
+  .qz-text { font-size: 16px; }
+  .qz-go { order: 3; width: 100%; justify-content: space-between; margin-left: 0; }
   .qz-b { padding: 0 11px; }
-  .qz-under { flex-direction: column; align-items: flex-start; }
+  .qz-row { grid-template-columns: 1fr; gap: 6px; }
+  .qz-row-l { padding-top: 0; }
 }
 [data-motion="off"] .qz *, [data-motion="off"] .qz *::before, [data-motion="off"] .qz *::after { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { .qz *, .qz *::before, .qz *::after { transition: none !important; } }

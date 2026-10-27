@@ -1,8 +1,9 @@
 'use client'
 
-// /qads — ad videos and photos from a product photo. One composer box: product photos, a text box
-// (type @ to pick a product from your Quante store) and a bar of options — output, formats, style,
-// variants, video length, ad-copy language — with the exact credit price on the Generate button.
+// /qads — ad videos and photos from a product photo. One minimal composer box: a big "Add a product
+// photo" target, an optional text box (type @ to pick a product from your Quante store) and the
+// Generate button with the exact credit price. Secondary options — output, formats, style, variants,
+// video length, ad-copy language — are folded behind one "options" pill.
 // Results follow below, then the community wall (QadsCommunityWall.tsx) and the history. Every
 // Generate asks whether the finished outputs may go on that public wall (ShareConsent).
 //
@@ -14,7 +15,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
-import { ArrowRight, AtSign, Check, ChevronDown, Image as ImageIcon, Plus, RectangleVertical, Video, X } from 'lucide-react'
+import { ArrowRight, AtSign, ChevronDown, Image as ImageIcon, ImagePlus, Plus, SlidersHorizontal, Video, X } from 'lucide-react'
 import { PublicNav } from '@/components/public/PublicNav'
 import { SiteFooter } from '@/components/SiteFooter'
 import { QADS_STYLES, type QadsStyleId } from '@/lib/qads/styles'
@@ -160,7 +161,7 @@ function nameFromBrief(brief: string): string {
   return cut.slice(0, Math.max(cut.lastIndexOf(' '), 40)).trim()
 }
 
-type MenuId = 'formats' | 'style' | 'variants' | 'duration' | 'lang' | 'product'
+type MenuId = 'product'
 
 // ─── Component ──────────────────────────────────────────────────────
 
@@ -182,6 +183,7 @@ export function QadsGeneratorClient() {
   // Agency plan: Qads included (no credits), behind a daily fair-use cap.
   const [agency, setAgency] = useState(false)
   const [menu, setMenu] = useState<MenuId | null>(null)
+  const [showOptions, setShowOptions] = useState(false)
   const [askShare, setAskShare] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -432,6 +434,7 @@ export function QadsGeneratorClient() {
   }
 
   const formatLabel = form.formats.length > 1 ? `${form.formats[0]} +${form.formats.length - 1}` : form.formats[0]
+  const optionsSummary = `${formatLabel} · ${styleLabel(form.style)}`
 
   // ─── Render ──
   return (
@@ -442,12 +445,10 @@ export function QadsGeneratorClient() {
 
       <main style={{ flex: 1, padding: '0 1.25rem', width: '100%' }}>
         <header className="qz-hero">
-          <span className="qz-pill"><b>Qads</b>Ad videos and photos to download</span>
           <h1 className="qz-h1">An ad from <em>one photo.</em></h1>
-          <p className="qz-sub">Drop a product photo into the box and download finished videos and photos. Where you post them is up to you.</p>
         </header>
 
-        {/* ── Composer ── */}
+        {/* ── Composer: one obvious start (the photo), an optional line of text, one button ── */}
         <section
           ref={boxRef}
           className={'qz-box' + (dragOver ? ' drag' : '')}
@@ -456,32 +457,37 @@ export function QadsGeneratorClient() {
           onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false) }}
           onDrop={e => { e.preventDefault(); setDragOver(false); void handleUpload(e.dataTransfer?.files ?? null) }}
         >
-          <div className="qz-att">
-            {form.photos.map((p, i) => (
-              <div key={p.storagePath} className="qz-thumb">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.signedUrl} alt={`Product photo ${i + 1}`} />
-                <button type="button" onClick={() => removePhoto(i)} aria-label={`Remove photo ${i + 1}`}><X /></button>
-              </div>
-            ))}
-            {form.photos.length < 4 && (
-              <button type="button" className="qz-add" onClick={addPhoto} disabled={uploading}>
-                <Plus aria-hidden="true" />
-                {uploading ? 'Uploading…' : 'Photo'}
-              </button>
-            )}
-            <span className="qz-att-hint">
-              {form.photos.length === 0 ? <>JPG, PNG or WebP, up to 4 photos. Drag them here.<br />On a phone, snap the product straight away.</> : `${form.photos.length} of 4 photos`}
-            </span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/jpeg,image/png,image/webp"
-              style={{ display: 'none' }}
-              onChange={e => void handleUpload(e.target.files)}
-            />
-          </div>
+          {form.photos.length === 0 ? (
+            <button type="button" className="qz-drop" onClick={addPhoto} disabled={uploading}>
+              <span className="qz-drop-ic" aria-hidden="true"><ImagePlus /></span>
+              <span className="qz-drop-t">{uploading ? 'Uploading…' : 'Add a product photo'}</span>
+              <span className="qz-drop-s">or drag it here</span>
+            </button>
+          ) : (
+            <div className="qz-att">
+              {form.photos.map((p, i) => (
+                <div key={p.storagePath} className="qz-thumb">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.signedUrl} alt={`Product photo ${i + 1}`} />
+                  <button type="button" onClick={() => removePhoto(i)} aria-label={`Remove photo ${i + 1}`}><X /></button>
+                </div>
+              ))}
+              {form.photos.length < 4 && (
+                <button type="button" className="qz-add" onClick={addPhoto} disabled={uploading} aria-label="Add another photo">
+                  <Plus aria-hidden="true" />
+                  {uploading && <span className="vh">Uploading…</span>}
+                </button>
+              )}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: 'none' }}
+            onChange={e => void handleUpload(e.target.files)}
+          />
 
           {form.productName && (
             <span className="qz-tag">
@@ -493,15 +499,15 @@ export function QadsGeneratorClient() {
           )}
 
           <div className="qz-menu">
-            <label htmlFor="qz-brief" className="vh">What should the ad show?</label>
+            <label htmlFor="qz-brief" className="vh">What should the ad show? Optional. Type @ to pick a product from your store.</label>
             <textarea
               id="qz-brief"
               ref={textRef}
               className="qz-text"
-              rows={2}
+              rows={1}
               maxLength={2000}
               value={form.brief}
-              placeholder={form.productName ? 'Anything to add? Mood, audience, a line the ad should say… (optional)' : 'What should the ad show? Name the product and the mood — optional. Or type @ to pick a product from your store.'}
+              placeholder={form.productName ? 'Anything to add? (optional)' : 'Describe the ad (optional)'}
               onChange={e => onBriefChange(e.currentTarget)}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -527,65 +533,12 @@ export function QadsGeneratorClient() {
                 <AtSign aria-hidden="true" />
               </button>
             </div>
-            <span className="qz-sep" aria-hidden="true" />
-            <button type="button" className="qz-b" aria-pressed={wantsVideo} onClick={() => toggleOutput('video')}>
-              <Video aria-hidden="true" />Video
+            <button type="button" className="qz-b qz-set" aria-expanded={showOptions} aria-controls="qz-opts" onClick={() => setShowOptions(v => !v)}>
+              <SlidersHorizontal aria-hidden="true" />
+              <span className="vh">Options: </span>
+              {optionsSummary}
+              <ChevronDown className="dn" aria-hidden="true" />
             </button>
-            <button type="button" className="qz-b" aria-pressed={form.outputTypes.includes('image')} onClick={() => toggleOutput('image')}>
-              <ImageIcon aria-hidden="true" />Photo
-            </button>
-
-            <Menu id="formats" open={menu === 'formats'} onToggle={toggleMenu} label={`Formats: ${form.formats.join(', ')}`} button={<><RectangleVertical aria-hidden="true" />{formatLabel}</>}>
-              <p className="qz-pop-h">Formats</p>
-              {FORMATS.map(f => (
-                <button key={f.id} type="button" role="menuitemcheckbox" aria-checked={form.formats.includes(f.id)} className="qz-opt" onClick={() => toggleFormat(f.id)}>
-                  <Check className="ck" aria-hidden="true" />
-                  <span>{f.id}<small>{f.note}</small></span>
-                </button>
-              ))}
-            </Menu>
-
-            <Menu id="style" open={menu === 'style'} onToggle={toggleMenu} wide label={`Style: ${styleLabel(form.style)}`} button={<><span className="qz-sw" style={{ background: SWATCH[form.style] }} aria-hidden="true" /><span className="qz-pre">Style:</span>{styleLabel(form.style)}</>}>
-              <p className="qz-pop-h">Style</p>
-              {QADS_STYLES.map(s => (
-                <button key={s.id} type="button" role="menuitemradio" aria-checked={form.style === s.id} className="qz-opt" onClick={() => { setForm(prev => ({ ...prev, style: s.id })); setMenu(null) }}>
-                  <span className="qz-sw" style={{ background: SWATCH[s.id], marginTop: 1 }} aria-hidden="true" />
-                  <span>{s.label}<small>{s.description}</small></span>
-                </button>
-              ))}
-            </Menu>
-
-            <Menu id="variants" open={menu === 'variants'} onToggle={toggleMenu} label={`${form.variantsPerFormat} variant${form.variantsPerFormat === 1 ? '' : 's'} per format`} plain button={<>×{form.variantsPerFormat}</>}>
-              <p className="qz-pop-h">Variants per format</p>
-              {VARIANTS.map(n => (
-                <button key={n} type="button" role="menuitemradio" aria-checked={form.variantsPerFormat === n} className="qz-opt" onClick={() => { setForm(prev => ({ ...prev, variantsPerFormat: n })); setMenu(null) }}>
-                  <Check className="ck" aria-hidden="true" />
-                  <span>{n} variant{n === 1 ? '' : 's'}</span>
-                </button>
-              ))}
-            </Menu>
-
-            {wantsVideo && (
-              <Menu id="duration" open={menu === 'duration'} onToggle={toggleMenu} label={`Video length: ${form.videoDurationSeconds} seconds`} plain button={<>{form.videoDurationSeconds} s</>}>
-                <p className="qz-pop-h">Video length</p>
-                {DURATIONS.map(s => (
-                  <button key={s} type="button" role="menuitemradio" aria-checked={form.videoDurationSeconds === s} className="qz-opt" onClick={() => { setForm(prev => ({ ...prev, videoDurationSeconds: s })); setMenu(null) }}>
-                    <Check className="ck" aria-hidden="true" />
-                    <span>{s} seconds</span>
-                  </button>
-                ))}
-              </Menu>
-            )}
-
-            <Menu id="lang" open={menu === 'lang'} onToggle={toggleMenu} label={`Ad copy language: ${LANGS.find(l => l.id === form.language)?.label}`} plain button={<>{form.language.toUpperCase()}</>}>
-              <p className="qz-pop-h">Ad copy language</p>
-              {LANGS.map(l => (
-                <button key={l.id} type="button" role="menuitemradio" aria-checked={form.language === l.id} className="qz-opt" onClick={() => { setForm(prev => ({ ...prev, language: l.id })); setMenu(null) }}>
-                  <Check className="ck" aria-hidden="true" />
-                  <span>{l.label}</span>
-                </button>
-              ))}
-            </Menu>
 
             <button type="button" className="qz-go" disabled={(isSignedIn && !canSubmit) || submitting} onClick={() => void handleSubmit()} title={isLoaded && !isSignedIn ? 'Sign in and generate' : undefined}>
               {submitting ? 'Starting…' : 'Generate'}
@@ -594,19 +547,56 @@ export function QadsGeneratorClient() {
               <span className="ar" aria-hidden="true"><ArrowRight /></span>
             </button>
           </div>
+
+          {/* Secondary options stay folded away; the defaults (video + photo, 9:16, Lifestyle) just work. */}
+          {showOptions && (
+            <div id="qz-opts" className="qz-opts">
+              <OptionRow label="Output">
+                <Chip on={wantsVideo} onClick={() => toggleOutput('video')}><Video aria-hidden="true" />Video</Chip>
+                <Chip on={form.outputTypes.includes('image')} onClick={() => toggleOutput('image')}><ImageIcon aria-hidden="true" />Photo</Chip>
+              </OptionRow>
+              <OptionRow label="Format">
+                {FORMATS.map(f => (
+                  <Chip key={f.id} on={form.formats.includes(f.id)} title={f.note} onClick={() => toggleFormat(f.id)}>{f.id}</Chip>
+                ))}
+              </OptionRow>
+              <OptionRow label="Style">
+                {QADS_STYLES.map(s => (
+                  <Chip key={s.id} on={form.style === s.id} title={s.description} onClick={() => setForm(prev => ({ ...prev, style: s.id }))}>
+                    <span className="qz-sw" style={{ background: SWATCH[s.id] }} aria-hidden="true" />{s.label}
+                  </Chip>
+                ))}
+              </OptionRow>
+              <OptionRow label="Variants">
+                {VARIANTS.map(n => (
+                  <Chip key={n} on={form.variantsPerFormat === n} onClick={() => setForm(prev => ({ ...prev, variantsPerFormat: n }))}>×{n}</Chip>
+                ))}
+              </OptionRow>
+              {wantsVideo && (
+                <OptionRow label="Length">
+                  {DURATIONS.map(s => (
+                    <Chip key={s} on={form.videoDurationSeconds === s} onClick={() => setForm(prev => ({ ...prev, videoDurationSeconds: s }))}>{s} s</Chip>
+                  ))}
+                </OptionRow>
+              )}
+              <OptionRow label="Copy language">
+                {LANGS.map(l => (
+                  <Chip key={l.id} on={form.language === l.id} title={l.label} onClick={() => setForm(prev => ({ ...prev, language: l.id }))}>{l.id.toUpperCase()}</Chip>
+                ))}
+              </OptionRow>
+            </div>
+          )}
         </section>
 
-        <div className="qz-under">
-          <span>
-            <span className="dot" aria-hidden="true" />
-            {agency
-              ? `Included in your Agency plan — fair use ${AGENCY_FAIR_USE.qadsVideosPerDay} videos and ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day.`
-              : form.photos.length === 0 ? 'Add a photo and go.' : `${cost.imageCredits ? `Photos ${cost.imageCredits} cr · ` : ''}${cost.videoCredits ? `Videos ${cost.videoCredits} cr · ` : ''}Prompts and ad copy ${cost.strategyCredits} cr.`}
-            {isLoaded && !isSignedIn && starterCovers && ` Your first ${CREDIT_COSTS.welcome_grant} credits are free — enough for a video and a photo.`}
-            {isSignedIn && !agency && balance !== null && <> Balance {balance} cr · <Link href="/billing">Top up</Link></>}
-          </span>
-          <span className="qz-kbd">Send<kbd>Enter</kbd></span>
-        </div>
+        <p className="qz-under">
+          {agency
+            ? `Included in Agency · ${AGENCY_FAIR_USE.qadsVideosPerDay} videos, ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day`
+            : isLoaded && !isSignedIn && starterCovers
+              ? `${CREDIT_COSTS.welcome_grant} credits free to start`
+              : isSignedIn && balance !== null
+                ? <>Balance {balance} cr · <Link href="/billing">Top up</Link></>
+                : null}
+        </p>
         {(uploadError || submitError) && <p className="qz-err" role="alert">{uploadError ?? submitError}</p>}
 
         {/* ── Results ── */}
@@ -651,17 +641,18 @@ const pendingCard: CSSProperties = {
 
 // ─── Sub-components ─────────────────────────────────────────────────
 
-/** A pill in the option bar that opens a menu; `plain` pills (×1, 5 s, CS) skip the chevron. */
-function Menu({ id, open, onToggle, label, button, wide, plain, children }: { id: MenuId; open: boolean; onToggle: (id: MenuId) => void; label: string; button: ReactNode; wide?: boolean; plain?: boolean; children: ReactNode }) {
+/** One labelled row of choices in the folded options panel. */
+function OptionRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="qz-menu">
-      <button type="button" className={'qz-b' + (plain ? ' sm' : '')} aria-haspopup="menu" aria-expanded={open} aria-label={label} onClick={() => onToggle(id)}>
-        {button}
-        {!plain && <ChevronDown className="dn" aria-hidden="true" />}
-      </button>
-      {open && <div className={'qz-pop' + (wide ? ' wide' : '')} role="menu" aria-label={label}>{children}</div>}
+    <div className="qz-row" role="group" aria-label={label}>
+      <span className="qz-row-l" aria-hidden="true">{label}</span>
+      <div className="qz-row-c">{children}</div>
     </div>
   )
+}
+
+function Chip({ on, onClick, title, children }: { on: boolean; onClick: () => void; title?: string; children: ReactNode }) {
+  return <button type="button" className="qz-b" aria-pressed={on} title={title} onClick={onClick}>{children}</button>
 }
 
 function ProductMenu({ projects, signedIn, onPick, onSignIn }: { projects: StoreProject[]; signedIn: boolean; onPick: (p: StoreProduct, projectId: string) => void; onSignIn: () => void }) {
