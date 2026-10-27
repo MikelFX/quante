@@ -103,6 +103,20 @@
       "Qgent: AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.",
       "Qads: Reklamní videa a fotky produktů, které vytvoří AI."
     ],
+    "branka": {
+      "what": "Branka: Software pro fitka, kurty a lekce. Rezervace po telefonu, storna přes Messenger a permanentky v sešitě nahradí jedna aplikace. Členové si v ní rezervují a otevírají dveře telefonem, majitel vidí celé fitko na jedné obrazovce. Provoz bez recepce.",
+      "features": [
+        "Rezervace kurtů, lekcí i trenérů",
+        "Dveře se otevírají telefonem nebo QR kódem",
+        "Platby kartou, Apple Pay a Google Pay rovnou na účet fitka",
+        "Kdo je uvnitř, tržby a rezervace v reálném čase",
+        "Aplikace pro iOS i Android, administrace na webu",
+        "Převod členů ze starého systému, tabulky i sešitu"
+      ],
+      "website": "https://branka-site.vercel.app",
+      "note": "Cenu a podrobnosti o Brance najde návštěvník na jejím webu."
+    },
+    "automateAnything": "Branka je jeden příklad provozu, který jde automatizovat. Pošlete nám, co vás ve firmě zdržuje, a zkusíme zautomatizovat jakékoliv zadání, které nám dáte: rezervace, objednávky, dokumenty, provoz, cokoliv.",
     "process": [
       {
         "step": 1,

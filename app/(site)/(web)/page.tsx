@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { aiHero } from '@/content/assetra/ai'
 import { siteShare } from '../_components/seo'
-import { AiAudience, AiBuilt, AiHero, AiIdeas, AiProcess, AiServices, AiWebShop } from '../_components/ai/sections'
+import { AiAudience, AiBranka, AiBuilt, AiHero, AiIdeas, AiProcess, AiServices, AiWebShop } from '../_components/ai/sections'
 import { Contact } from '../_components/home/sections'
 
 export const metadata: Metadata = {
@@ -18,6 +18,7 @@ export default function HomePage() {
       <AiAudience />
       <AiIdeas />
       <AiBuilt />
+      <AiBranka />
       <AiWebShop />
       <AiProcess />
       <Contact />
