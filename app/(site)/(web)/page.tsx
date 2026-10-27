@@ -1,25 +1,25 @@
 import type { Metadata } from 'next'
-import { hero } from '@/content/assetra/site'
+import { aiHero } from '@/content/assetra/ai'
 import { siteShare } from '../_components/seo'
-import { Contact, Contract, Hero, Paths, PricingSection, Process, Quante, Services, Work } from '../_components/home/sections'
+import { AiAudience, AiBuilt, AiHero, AiIdeas, AiProcess, AiServices, AiWebShop } from '../_components/ai/sections'
+import { Contact } from '../_components/home/sections'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Assetra Digital — web a e-shop bez vstupní investice' },
-  description: hero.lead,
-  ...siteShare({ path: '/', type: 'website', title: 'Web nebo e-shop bez vstupní investice', description: hero.lead }),
+  title: { absolute: 'Assetra Digital — AI řešení a software na míru' },
+  description: aiHero.lead,
+  ...siteShare({ path: '/', type: 'website', title: 'AI řešení a software na míru', description: aiHero.lead }),
 }
 
 export default function HomePage() {
   return (
     <>
-      <Hero />
-      <Paths />
-      <Services />
-      <Contract />
-      <PricingSection />
-      <Process />
-      <Work />
-      <Quante />
+      <AiHero />
+      <AiServices />
+      <AiAudience />
+      <AiIdeas />
+      <AiBuilt />
+      <AiWebShop />
+      <AiProcess />
       <Contact />
     </>
   )

@@ -112,3 +112,79 @@
 }
 @keyframes ad-qg-in{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes ad-qg-dot{0%,80%,100%{opacity:.25;transform:none}40%{opacity:1;transform:translateY(-3px)}}
+
+/* ── Glossy 3D objects (_components/ai/Object3D.tsx, owner's reference 2026-10-26) ───────────
+   A tilted slab with real thickness (.o3-e copies stepped back in Z), a magenta → orange face,
+   a recessed panel and raised glass pieces. Every size is a fraction of --o3. */
+.ad .o3{--o3:260px;position:relative;flex:none;width:var(--o3);aspect-ratio:1;perspective:calc(var(--o3)*4.5)}
+.ad .o3-sm{--o3:96px}
+.ad .o3-lg{--o3:min(440px,76vw)}
+.ad .o3-g{position:absolute;inset:4%;border-radius:32%;background:radial-gradient(circle at 72% 26%,color-mix(in srgb,var(--acc3) 75%,transparent),transparent 62%),radial-gradient(circle at 28% 74%,var(--acc),transparent 66%);filter:blur(calc(var(--o3)*.16));opacity:.5;transform:translateY(10%) scale(1.08)}
+[data-theme="light"] .ad .o3-g{opacity:.42}
+.ad .o3-r{position:absolute;inset:0;transform-style:preserve-3d;transform:rotateX(16deg) rotateY(-24deg) rotateZ(3deg)}
+/* sways only while on screen (Object3D sets data-play) */
+.ad .o3[data-play="1"] .o3-r{animation:ad-o3 8s ease-in-out infinite}
+.ad .o3:nth-of-type(2n) .o3-r{animation-delay:-3s}
+@keyframes ad-o3{0%,100%{transform:rotateX(16deg) rotateY(-24deg) rotateZ(3deg) translateY(0)}50%{transform:rotateX(9deg) rotateY(-13deg) rotateZ(1deg) translateY(-3%)}}
+.ad .o3-f,.ad .o3-e{position:absolute;inset:0;border-radius:24%}
+.ad .o3-e{transform:translateZ(calc(var(--z)*var(--o3)*-.023));background:linear-gradient(225deg,color-mix(in srgb,var(--acc3) 72%,black),color-mix(in srgb,var(--acc) 60%,black));box-shadow:inset 0 0 0 1px rgb(255 255 255 / .08)}
+.ad .o3-f{background:radial-gradient(110% 80% at 88% 6%,color-mix(in srgb,var(--acc3) 45%,white),transparent 40%),linear-gradient(225deg,var(--acc3) 0%,color-mix(in srgb,var(--acc3) 50%,var(--acc)) 40%,var(--acc) 74%,color-mix(in srgb,var(--acc) 72%,black) 100%);box-shadow:inset 0 0 0 calc(var(--o3)*.008) rgb(255 255 255 / .45),inset calc(var(--o3)*.014) calc(var(--o3)*.016) calc(var(--o3)*.022) rgb(255 255 255 / .55),inset calc(var(--o3)*-.022) calc(var(--o3)*-.03) calc(var(--o3)*.06) rgb(0 0 0 / .32)}
+.ad .o3-p{position:absolute;inset:11%;border-radius:20%;background:linear-gradient(225deg,color-mix(in srgb,var(--acc3) 86%,black),color-mix(in srgb,var(--acc) 84%,black));box-shadow:inset 0 calc(var(--o3)*.02) calc(var(--o3)*.045) rgb(0 0 0 / .38),0 calc(var(--o3)*.004) 0 rgb(255 255 255 / .35);outline:calc(var(--o3)*.006) solid rgb(255 255 255 / .38);outline-offset:calc(var(--o3)*.022)}
+.ad .o3-p>i{position:absolute;display:block}
+.ad .o3-key,.ad .o3-bar{border-radius:26%;background:linear-gradient(160deg,rgb(255 255 255 / .55),rgb(255 255 255 / .1) 44%,rgb(255 255 255 / .2));box-shadow:inset 0 0 0 calc(var(--o3)*.006) rgb(255 255 255 / .55),inset 0 calc(var(--o3)*.008) calc(var(--o3)*.005) rgb(255 255 255 / .75),inset 0 calc(var(--o3)*-.014) calc(var(--o3)*.022) rgb(0 0 0 / .2),0 calc(var(--o3)*.018) calc(var(--o3)*.026) rgb(0 0 0 / .32)}
+.ad .o3-bar{border-radius:999px}
+.ad .o3-orb{border-radius:50%;background:radial-gradient(circle at 34% 28%,white 0 6%,color-mix(in srgb,var(--acc3) 55%,white) 15%,var(--acc3) 34%,var(--acc) 72%,color-mix(in srgb,var(--acc) 68%,black));box-shadow:inset 0 0 0 calc(var(--o3)*.005) rgb(255 255 255 / .45),0 calc(var(--o3)*.018) calc(var(--o3)*.03) rgb(0 0 0 / .36)}
+.ad .o3-rod{border-radius:999px;background:linear-gradient(180deg,rgb(255 255 255 / .75),rgb(255 255 255 / .28));box-shadow:0 calc(var(--o3)*.008) calc(var(--o3)*.012) rgb(0 0 0 / .28)}
+.ad .o3-star{clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);background:radial-gradient(circle at 42% 36%,white 0 5%,color-mix(in srgb,var(--acc3) 45%,white) 16%,var(--acc3) 36%,var(--acc) 76%,color-mix(in srgb,var(--acc) 70%,black))}
+
+/* ── AI homepage (_components/ai/sections.tsx) ──────────────────────────── */
+.ad .ai-stage{position:relative;display:grid;place-items:center;min-height:min(560px,90vw)}
+.ad .ai-fl{position:absolute}
+.ad .ai-fl.f1{left:2%;top:10%}
+.ad .ai-fl.f2{right:4%;top:2%;--o3:78px}
+.ad .ai-fl.f3{right:8%;bottom:6%;--o3:84px}
+.ad .ai-fl .o3-r{animation-duration:6s}
+.ad .ai-list{display:grid;gap:clamp(56px,8vw,120px);margin-top:clamp(56px,7vw,100px)}
+.ad .ai-row{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(28px,5vw,80px);align-items:center}
+.ad .ai-row.rev .ai-txt{order:2}
+.ad .ai-txt{display:flex;flex-direction:column;gap:18px}
+.ad .ai-n{font:500 12px/1 var(--mono);letter-spacing:.14em;color:var(--accText)}
+.ad .ai-txt h3{margin:0;font-family:var(--disp);font-stretch:68%;font-weight:850;font-size:clamp(40px,4.6vw,72px);line-height:.92;text-transform:uppercase;text-wrap:balance}
+.ad .ai-txt p{margin:0;max-width:34em;font-size:clamp(16px,1.3vw,19px);color:var(--fg2)}
+.ad .ai-vis{display:grid;place-items:center;min-height:320px}
+.ad .ai-who{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:clamp(40px,5vw,64px)}
+.ad .ai-built{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:clamp(40px,5vw,64px)}
+.ad .ai-who .card,.ad .ai-built .card{grid-column:auto}
+.ad .ai-card{gap:14px}
+.ad .ai-card .o3{margin:6px 0 10px 4px}
+.ad .ai-card h3{margin:0;font-family:var(--disp);font-stretch:70%;font-weight:850;font-size:clamp(30px,2.6vw,40px);line-height:.95;text-transform:uppercase}
+.ad .ai-card p{margin:0;color:var(--fg2)}
+.ad .ai-card .btn{align-self:flex-start;margin-top:auto}
+.ad .ai-ideas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(260px,100%),1fr));gap:10px;list-style:none;margin:clamp(40px,5vw,64px) 0 0;padding:0}
+.ad .ai-ideas li{display:flex;align-items:center;gap:14px;min-height:72px;padding:16px 18px;border-radius:18px;font:500 15px/1.35 var(--sans);color:var(--fg)}
+.ad .ai-ideas li b{flex:none;font:500 11px/1 var(--mono);letter-spacing:.08em;color:var(--accText)}
+.ad .ai-ideas .ai-more{flex-wrap:wrap;border:1px dashed var(--line2);color:var(--fg2)}
+.ad .ai-ideas .ai-more .btn{min-height:44px;padding:0 4px;margin-left:auto;color:var(--accText)}
+.ad .ai-ws{display:grid;grid-template-columns:minmax(0,1.2fr) auto;gap:clamp(24px,4vw,64px);align-items:center;padding:clamp(28px,4vw,56px)}
+.ad .ai-ws h2{margin:16px 0 0;font-family:var(--disp);font-stretch:66%;font-weight:850;font-size:clamp(44px,5.6vw,92px);line-height:.92;text-transform:uppercase}
+.ad .ai-ws p{margin:16px 0 26px;max-width:32em;color:var(--fg2);font-size:clamp(16px,1.3vw,19px)}
+@media (max-width:1080px){.ad .ai-who{grid-template-columns:repeat(2,minmax(0,1fr))}.ad .ai-built{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){
+  .ad .ai-row{grid-template-columns:minmax(0,1fr)}
+  .ad .ai-row .ai-txt,.ad .ai-row.rev .ai-txt{order:2}
+  .ad .ai-vis{min-height:0}
+  .ad .ai-vis .o3{--o3:200px}
+  .ad .ai-ws{grid-template-columns:minmax(0,1fr)}
+  .ad .ai-ws .o3{--o3:180px;justify-self:center;order:-1}
+  .ad .ai-stage{min-height:0;padding:12px 0 24px}
+  .ad .ai-fl.f1{--o3:70px}
+  .ad .ai-fl.f2{--o3:58px}
+  .ad .ai-fl.f3{--o3:62px}
+}
+@media (max-width:560px){.ad .ai-who{grid-template-columns:minmax(0,1fr)}}
+
+/* ── Quante pages on the website stay green (owner, 2026-10-26) ─────────────
+   /quante and /quante/<modul> wrap their content in .ad-q: Quante's own mint/ice accents, the rest
+   of the website (nav, footer, background) stays AssetraDigital magenta. */
+.ad .ad-q{--acc:#5ff5c4;--acc2:#7cc8ff;--accInk:#03130d;--accText:#5ff5c4}
+[data-theme="light"] .ad .ad-q{--acc:#2fe0a3;--acc2:#4a9eea;--accInk:#03130d;--accText:#04704f}

@@ -1,8 +1,9 @@
 // Qgent's knowledge base for the public website assistant, built ONLY from the website content
-// (content/assetra/site.ts, modules.ts, quante-pricing.ts). Written to content/qgent-knowledge.json
+// (content/assetra/ai.ts, site.ts, modules.ts, quante-pricing.ts). Written to content/qgent-knowledge.json
 // by `npm run qgent:knowledge`; a test fails when the JSON is out of date. Unknown facts stay null —
 // the assistant must say they are clarified at the consultation, never guess.
 
+import { aiAudience, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps } from './ai'
 import { company, contact, contract, legalPages, pricing, services, steps, work } from './site'
 import { modules, quanteFlow, quanteIntro } from './modules'
 import { moduleCosts, quantePricing } from './quante-pricing'
@@ -10,13 +11,18 @@ import { LEAD_NEEDS } from '../../lib/assetra/lead'
 
 /** Places the assistant may scroll to (navigate tool) — section id on a page. */
 export const QGENT_SECTIONS = {
-  sluzby: { page: '/', id: 'sluzby', title: 'Služby: firemní web, e-shop, správa a hosting' },
-  smlouva: { page: '/', id: 'smlouva', title: 'Pravidla ve smlouvě' },
-  cenik: { page: '/', id: 'cenik', title: 'Ceník webů a e-shopů na míru' },
-  postup: { page: '/', id: 'postup', title: 'Jak spolupráce probíhá' },
-  prace: { page: '/', id: 'prace', title: 'Ukázka práce: návrh e-shopu Harwo' },
-  quante: { page: '/', id: 'quante', title: 'Quante na hlavní stránce' },
+  'ai-sluzby': { page: '/', id: 'sluzby', title: 'AI služby: integrace, systémy kolem AI, CRM, asistenti, automatizace, software' },
+  'pro-koho': { page: '/', id: 'pro-koho', title: 'Pro koho: firmy, agentury, startupy, jednotlivci' },
+  napady: { page: '/', id: 'napady', title: 'Co firmy chtějí nejčastěji (nápady)' },
+  postaveno: { page: '/', id: 'postaveno', title: 'Naše vlastní AI produkty' },
+  'ai-postup': { page: '/', id: 'postup', title: 'Jak probíhá spolupráce na AI řešení' },
   kontakt: { page: '/', id: 'kontakt', title: 'Kontakt a formulář poptávky' },
+  sluzby: { page: '/web-eshop', id: 'sluzby', title: 'Web & Eshop: firemní web, e-shop, správa a hosting' },
+  smlouva: { page: '/web-eshop', id: 'smlouva', title: 'Pravidla ve smlouvě (weby a e-shopy)' },
+  cenik: { page: '/web-eshop', id: 'cenik', title: 'Ceník webů a e-shopů na míru' },
+  postup: { page: '/web-eshop', id: 'postup', title: 'Jak probíhá spolupráce na webu nebo e-shopu' },
+  prace: { page: '/web-eshop', id: 'prace', title: 'Ukázka práce: návrh e-shopu Harwo' },
+  quante: { page: '/web-eshop', id: 'quante', title: 'Quante na stránce Web & Eshop' },
   'quante-moduly': { page: '/quante', id: 'moduly', title: 'Moduly Quante' },
   'quante-propojeni': { page: '/quante', id: 'propojeni', title: 'Jak moduly Quante navazují' },
   'quante-cenik': { page: '/quante', id: 'cenik', title: 'Ceník Quante: kredity, hosting, Agency' },
@@ -25,7 +31,8 @@ export type QgentSection = keyof typeof QGENT_SECTIONS
 
 /** Pages the assistant may open (openPage tool). */
 export const QGENT_PAGES = {
-  home: { path: '/', title: 'Hlavní stránka AssetraDigital' },
+  home: { path: '/', title: 'Hlavní stránka AssetraDigital: AI řešení a software na míru' },
+  'web-eshop': { path: '/web-eshop', title: 'Web & Eshop: weby a e-shopy na míru' },
   quante: { path: '/quante', title: 'Quante: přehled modulů' },
   ...Object.fromEntries(modules.map((m) => [`quante/${m.slug}`, { path: `/quante/${m.slug}`, title: `${m.name}${m.status === 'dev' ? ' (ve vývoji)' : ''}` }])),
   ...Object.fromEntries(legalPages.map((p) => [p.slug, { path: '/' + p.slug, title: `${p.title} (text zatím není hotový)` }])),
@@ -34,7 +41,7 @@ export const QGENT_PAGES = {
 /** Same choices as the lead form („Co potřebujete“). */
 export const QGENT_NEEDS = LEAD_NEEDS
 
-export const QGENT_QUICK_PROMPTS = ['Kolik stojí e-shop?', 'Jak probíhá spolupráce?', 'Co je Quante?'] as const
+export const QGENT_QUICK_PROMPTS = ['Co umíte s AI?', 'Kolik stojí e-shop?', 'Co je Quante?'] as const
 
 const statusCs = (s: 'live' | 'dev') => (s === 'live' ? 'k dispozici' : 've vývoji (termín se neuvádí, nic se neslibuje)')
 
@@ -67,9 +74,20 @@ export function buildQgentKnowledge() {
       phone: contact.phone,
       email: contact.email,
       responseTime: contact.responseTime,
-      howToReachUs: 'Formulář poptávky na hlavní stránce (sekce Kontakt). Konzultace je zdarma.',
+      howToReachUs: 'Formulář poptávky na hlavní stránce nebo na stránce Web & Eshop (sekce Kontakt). Konzultace je zdarma.',
+    },
+    ai: {
+      what: aiHero.lead,
+      services: aiServices.items.map((s) => ({ name: s.title, what: s.text, includes: s.features })),
+      forWhom: aiAudience.items.map((a) => `${a.title}: ${a.text}`),
+      commonIdeas: aiIdeas.items,
+      ownProducts: aiBuilt.items.map((b) => `${b.title}: ${b.text}`),
+      process: aiSteps.steps.map((s, i) => ({ step: i + 1, title: s.title, text: s.text })),
+      pricing: null,
+      note: 'Ceny ani termíny AI řešení a softwaru na webu nejsou: každý projekt nacení po konzultaci podle rozsahu. Seznam nápadů je jen inspirace, ne hotové produkty.',
     },
     agency: {
+      page: '/web-eshop',
       what: 'Weby a e-shopy na míru bez vstupní investice. Klient platí měsíční paušál, ve kterém je hosting, správa a drobné úpravy. Klientské weby běží na Vercelu, každý e-shop má vlastní administraci.',
       services: services.items.map((s) => ({
         name: s.title,
@@ -130,6 +148,7 @@ export function buildQgentKnowledge() {
       'IČO, sídlo a zápis v obchodním rejstříku (firma se zakládá)',
       'telefon a e-mail',
       'do kdy se ozveme',
+      'cena a termín AI řešení a softwaru na míru (nacení se po konzultaci)',
       'cena správy při jednorázové platbě a hodinová sazba',
       'jestli jsou ceny s DPH, nebo bez',
       'obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)',

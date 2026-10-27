@@ -16,6 +16,7 @@ export const APP_HOST_PATTERN = '(?:www\\.)?quantecode\\.com'
 /** Website paths: on the app host they redirect to SITE_ORIGIN. */
 export const SITE_PATHS = [
   '/',
+  '/web-eshop',
   '/quante',
   '/quante/:path*',
   '/obchodni-podminky',

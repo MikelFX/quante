@@ -2,7 +2,7 @@
 // notification e-mail. Pure functions, no imports from the app — tested in
 // __tests__/assetra-leads.test.mjs.
 
-export const LEAD_NEEDS = ['Firemní web', 'E-shop', 'Správa', 'Něco jiného'] as const
+export const LEAD_NEEDS = ['AI řešení', 'Software na míru', 'Firemní web', 'E-shop', 'Správa', 'Něco jiného'] as const
 export type LeadNeed = (typeof LEAD_NEEDS)[number]
 
 export interface LeadInput {

@@ -116,7 +116,7 @@ test('every --q-* token used by the app is defined for both themes', async () =>
     }
   }
   for (const d of ['app', 'components', 'packages']) walk(fileURLToPath(new URL('../' + d, import.meta.url)))
-  const fontOnly = new Set(['--q-sans', '--q-mono', '--q-disp', '--q-ease']) // theme-independent
+  const fontOnly = new Set(['--q-sans', '--q-mono', '--q-disp', '--q-ease', '--q-px', '--q-px-mask']) // theme-independent
   const missing = [...used].filter((t) => !dark.has(t) || (!light.has(t) && !fontOnly.has(t)))
   assert.deepEqual(missing, [])
   assert.ok(used.size > 20)

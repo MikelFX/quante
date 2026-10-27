@@ -30,7 +30,7 @@ export default function QuantePage() {
             </p>
             <div className="ctas rv" style={delay(0.65)}>
               <Button href={quanteApp.dashboard} variant="pri" beam arrow>Otevřít Quante</Button>
-              <Button href="/#kontakt">Uděláme to za vás</Button>
+              <Button href="/web-eshop#kontakt">Uděláme to za vás</Button>
             </div>
             <CheckList
               className="rv"
@@ -90,7 +90,7 @@ export default function QuantePage() {
             <span className="lbl">Uděláme to za vás</span>
             <h2>Web nebo e-shop na míru</h2>
             <p>Navrhneme, postavíme a spravujeme. Bez vstupní investice, za měsíční paušál.</p>
-            <Button href="/#kontakt">Domluvit konzultaci</Button>
+            <Button href="/web-eshop#kontakt">Domluvit konzultaci</Button>
           </div>
         </div>
       </InView>

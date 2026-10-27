@@ -50,10 +50,15 @@ test('the knowledge base holds nothing that must not be on the website', () => {
 })
 
 test('every section the assistant can scroll to exists on its page', () => {
-  const home = read('app/(site)/_components/home/sections.tsx')
-  const quante = read('app/(site)/(web)/quante/page.tsx')
+  const webShop = read('app/(site)/_components/home/sections.tsx')
+  // the homepage = AI sections + the shared contact section
+  const pages = {
+    '/': read('app/(site)/_components/ai/sections.tsx') + (read('app/(site)/(web)/page.tsx').includes('<Contact />') ? webShop.slice(webShop.indexOf('export function Contact')) : ''),
+    '/web-eshop': webShop,
+    '/quante': read('app/(site)/(web)/quante/page.tsx'),
+  }
   for (const [key, s] of Object.entries(QGENT_SECTIONS)) {
-    const src = s.page === '/' ? home : quante
+    const src = pages[s.page] ?? ''
     assert.ok(src.includes(`id="${s.id}"`), `${key} → ${s.page}#${s.id}`)
   }
   for (const p of Object.values(QGENT_PAGES)) assert.match(p.path, /^\/[a-z0-9/-]*$/)
@@ -67,7 +72,7 @@ test('only the three allowed tools exist, with closed inputs', () => {
 test('tool calls are validated', () => {
   const nav = q.checkToolCall('navigate', { sectionId: 'cenik' })
   assert.ok(nav.ok)
-  assert.deepEqual({ page: nav.action.page, anchor: nav.action.anchor }, { page: '/', anchor: 'cenik' })
+  assert.deepEqual({ page: nav.action.page, anchor: nav.action.anchor }, { page: '/web-eshop', anchor: 'cenik' })
   assert.equal(q.checkToolCall('navigate', { sectionId: 'javascript:alert(1)' }).ok, false)
   assert.equal(q.checkToolCall('openPage', { slug: '../dashboard' }).ok, false)
   assert.equal(q.checkToolCall('openPage', { slug: 'quante/qads' }).action.path, '/quante/qads')

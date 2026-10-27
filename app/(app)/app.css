@@ -2,6 +2,23 @@
    no grain, cursor, bands or giant type. Colours come from the --q-* tokens
    (packages/ui/styles/app-tokens.css); everything is scoped under .ad-app. */
 
+/* The design system's own variables (assetra.css, the website's magenta) follow the app's --q-*
+   tokens here: Quante stays green (owner, 2026-10-26). Doubled class beats [data-theme] .ad. */
+.ad.ad-app.ad-app {
+  --bg: var(--q-bg);
+  --bg2: var(--q-s1);
+  --fg: var(--q-fg);
+  --fg2: var(--q-fg2);
+  --fg3: var(--q-fg3);
+  --dim: var(--q-dim);
+  --line: var(--q-line);
+  --line2: var(--q-line2);
+  --acc: var(--q-acc);
+  --acc2: var(--q-acc2);
+  --accInk: var(--q-acc-ink);
+  --accText: var(--q-acc-text);
+  --shadow: var(--q-shadow);
+}
 .ad.ad-app {
   font-size: 16px;
   line-height: 1.5;
@@ -17,7 +34,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 .75rem 0 1rem;
-  background: rgb(var(--q-bg-rgb) / .72);
+  background: var(--q-px) 0 0 / 192px 192px, rgb(var(--q-bg-rgb) / .72);
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   backdrop-filter: blur(20px) saturate(170%);
   border-bottom: 1px solid var(--q-line);
@@ -48,7 +65,7 @@
 }
 
 .ad-app-side {
-  background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  background: var(--q-px) 0 0 / 192px 192px, linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   backdrop-filter: blur(20px) saturate(170%);
   border-right: 1px solid var(--q-line);
@@ -82,20 +99,36 @@
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
+  /* sprayed like the website's glows (the pixel mask, --q-px-mask) */
+  -webkit-mask: var(--q-px-mask) 0 0 / 192px 192px;
+  mask: var(--q-px-mask) 0 0 / 192px 192px;
 }
 .ad-app-ambient i:first-child {
   width: 560px;
   height: 560px;
   top: -160px;
   right: 8%;
-  background: radial-gradient(circle, rgb(var(--q-acc-rgb) / .14), transparent 70%);
+  background: radial-gradient(circle, rgb(var(--q-acc-rgb) / .2), transparent 70%);
 }
 .ad-app-ambient i:last-child {
   width: 420px;
   height: 420px;
   bottom: -140px;
   left: 18%;
-  background: radial-gradient(circle, rgb(var(--q-acc2-rgb) / .10), transparent 70%);
+  background: radial-gradient(circle, rgb(var(--q-acc2-rgb) / .14), transparent 70%);
+}
+
+/* The pixel grain behind the app's content (never over it: the Studio shows the merchant's store,
+   which keeps its own look). Glass surfaces carry the same grain in their own background. */
+.ad.ad-app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: var(--q-px);
+  background-size: 192px 192px;
+  image-rendering: pixelated;
 }
 
 /* Particle zones in the app (empty and loading states) are smaller and quieter. */
@@ -154,7 +187,7 @@
 .q-card {
   position: relative;
   border-radius: 22px;
-  background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  background: var(--q-px) 0 0 / 192px 192px, linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
   -webkit-backdrop-filter: blur(20px) saturate(170%);
   backdrop-filter: blur(20px) saturate(170%);
   border: 1px solid var(--q-glass-border);

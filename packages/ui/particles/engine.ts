@@ -3,9 +3,9 @@
 //
 // Two layers:
 // • The fixed background canvas, 'site' mode only: a dot grid that scrolls with the page and carries
-//   ripples (ripples.ts). The mouse glows green and leaves a wake of rings as it moves across the
+//   ripples (ripples.ts). The mouse glows magenta and leaves a wake of rings as it moves across the
 //   page (also when the page scrolls under it), a click drops a stone in, a resting mouse sends a
-//   soft pulse; crests tint the dots mint, troughs blue, and the dots shift along the rings. Only a
+//   soft pulse; crests tint the dots magenta, troughs lilac, and the dots shift along the rings. Only a
 //   mouse makes waves: on touch screens they looked wrong (owner, 2026-10-12). A light band sweeps
 //   down the page and (on desktop) a dotted path with a running signal links the zones.
 // • One formation per <ParticleZone> (formation.ts), drawn into the zone's own canvas, so it scrolls
@@ -107,7 +107,9 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
   let raf = 0
   let lastSig = ''
   const resize = () => {
-    dpr = Math.min(window.devicePixelRatio || 1, 2)
+    // Phones draw at 1.5× at most: the canvases are cleared and redrawn every frame, and 2× (or
+    // 3×) density made scrolling stutter while the square dots look the same.
+    dpr = Math.min(window.devicePixelRatio || 1, window.innerWidth < 760 ? 1.5 : 2)
     W = window.innerWidth
     H = window.innerHeight
     tooTall = H > MAX_VIEWPORT_H
@@ -226,7 +228,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
   let latH = new Float32Array(0)
   let latDX = new Float32Array(0)
   let latDY = new Float32Array(0)
-  // Coloured grid dots per [tint][opacity step], and formation dots per [grey | mint][opacity step]:
+  // Coloured grid dots per [tint][opacity step], and formation dots per [grey | accent][opacity step]:
   // x, y, size triples, reused every frame.
   const batches: number[][] = Array.from({ length: 2 * (ALPHA_STEPS + 1) }, () => [])
   const dots: number[][] = Array.from({ length: 2 * (ALPHA_STEPS + 1) }, () => [])
@@ -366,7 +368,7 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
           if (ah > RIPPLE_FROM) w = Math.min(1, (ah - RIPPLE_FROM) / (RIPPLE_FULL - RIPPLE_FROM))
           tint = hv < 0 ? 1 : 0
         }
-        // The green glow around the mouse.
+        // The magenta glow around the mouse.
         let k = 0
         if (m) {
           const dx = gx - m.x
@@ -542,6 +544,30 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     g.globalAlpha = 1
   }
 
+  // Accent colours come from the page, not from code: magenta on the AssetraDigital website, green
+  // on Quante (the app's .ad-app and the website's /quante pages, .ad-q). Read again every 30
+  // frames, so a route or theme change follows without a style lookup per frame.
+  const hexRGB = (v: string, fallback: string) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(v.trim())
+    if (!m) return fallback
+    const n = parseInt(m[1], 16)
+    return (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255)
+  }
+  let accCache = { acc: '', acc2: '', n: 0, dark: true }
+  const accents = (dark: boolean) => {
+    if (accCache.acc && accCache.dark === dark && accCache.n++ < 30) return accCache
+    const el = document.querySelector('.ad-q') ?? document.querySelector('.ad')
+    const cs = getComputedStyle(el ?? document.documentElement)
+    const get = (site: string, app: string) => cs.getPropertyValue(site) || cs.getPropertyValue(app)
+    accCache = {
+      acc: hexRGB(dark ? get('--acc', '--q-acc') : get('--accText', '--q-acc-text'), dark ? '95,245,196' : '5,150,105'),
+      acc2: hexRGB(get('--acc2', '--q-acc2'), dark ? '124,200,255' : '74,158,234'),
+      n: 0,
+      dark,
+    }
+    return accCache
+  }
+
   // ── frame ──────────────────────────────────────────────────────────────
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame)
@@ -550,9 +576,8 @@ export function startParticles(cv: HTMLCanvasElement): () => void {
     const on = motionAllowed(reduced)
     const dark = document.documentElement.getAttribute('data-theme') !== 'light'
     const T = now * 0.001
-    const accRGB = dark ? '95,245,196' : '5,150,105'
-    const acc2RGB = dark ? '124,200,255' : '74,158,234'
-    const baseRGB = dark ? '238,242,240' : '11,13,12'
+    const { acc: accRGB, acc2: acc2RGB } = accents(dark)
+    const baseRGB = dark ? '242,238,240' : '20,18,21'
     if (theme !== accRGB + acc2RGB + baseRGB) {
       theme = accRGB + acc2RGB + baseRGB
       batchStyles = styleSteps([accRGB, acc2RGB])

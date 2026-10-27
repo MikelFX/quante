@@ -21,7 +21,7 @@ export function GET() {
           flexDirection: 'column',
           justifyContent: 'space-between',
           padding: 72,
-          background: `radial-gradient(circle at 82% 18%, rgba(95,245,196,.22), transparent 46%), ${t.bg}`,
+          background: `radial-gradient(circle at 82% 18%, rgba(255,90,210,.22), transparent 46%), ${t.bg}`,
           color: t.fg,
         }}
       >
@@ -31,8 +31,8 @@ export function GET() {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <div style={{ display: 'flex', flexDirection: 'column', fontSize: 84, fontWeight: 800, lineHeight: 1.02, letterSpacing: '-0.02em' }}>
-            <span>Web nebo e-shop</span>
-            <span style={{ color: t.acc }}>bez vstupní investice.</span>
+            <span>AI řešení a software</span>
+            <span style={{ color: t.acc }}>na míru.</span>
           </div>
           <div style={{ display: 'flex', fontSize: 28, color: t.fg2 }}>{new URL(SITE_ORIGIN).host}</div>
         </div>

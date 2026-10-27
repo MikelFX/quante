@@ -9,7 +9,7 @@ create table if not exists public.leads (
   source       text not null default 'web',          -- 'web' (form), later 'qgent' (assistant, with consent)
   name         text not null default '',             -- „Jméno a firma“
   contact      text not null,                        -- „Kontakt“: phone or e-mail
-  need         text not null default '',             -- Firemní web | E-shop | Správa | Něco jiného | ''
+  need         text not null default '',             -- AI řešení | Software na míru | Firemní web | E-shop | Správa | Něco jiného | ''
   message      text not null default '',             -- „Pár slov k zadání“
   status       text not null default 'new',          -- new | contacted | won | lost | spam
   notified_at  timestamptz,                          -- notification e-mail delivered to Resend

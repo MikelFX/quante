@@ -1,4 +1,5 @@
-// AssetraDigital website copy, taken 1:1 from design/assetradigital-design-v2.dc.html.
+// AssetraDigital website copy, taken 1:1 from design/assetradigital-design-v2.dc.html. Since
+// 2026-10-26 this is the Web & Eshop page (/web-eshop); the homepage copy is ai.ts.
 // This file is data, not markup: the pages render it and the Qgent knowledge base is built
 // from it. Anything we do not know yet is `null` and renders as a visible [placeholder] —
 // never invent company data, prices, contacts or promises.
@@ -16,11 +17,11 @@ export const contact = {
   responseTime: null as string | null, // „Ozveme se do [doba]“
 }
 
-/** Homepage sections by id; Quante has its own page. */
+/** Homepage (AI) sections by id; Web & Eshop and Quante have their own pages. */
 export const nav: { id?: string; href?: string; label: string; num: string }[] = [
   { id: 'sluzby', label: 'Služby', num: '01' },
-  { id: 'cenik', label: 'Ceník', num: '03' },
-  { id: 'prace', label: 'Ukázka práce', num: '05' },
+  { id: 'pro-koho', label: 'Pro koho', num: '02' },
+  { href: '/web-eshop', label: 'Web & Eshop', num: '05' },
   { href: '/quante', label: 'Quante', num: '06' },
 ]
 
@@ -127,7 +128,7 @@ export const work = {
 export const contactSection = {
   label: 'Kontakt',
   title: ['Pojďme', 'to probrat'],
-  needs: ['Firemní web', 'E-shop', 'Správa', 'Něco jiného'],
+  needs: ['AI řešení', 'Software na míru', 'Firemní web', 'E-shop', 'Správa', 'Něco jiného'],
 }
 
 export const legalPages = [
