@@ -96,16 +96,83 @@ export const aiIdeas = {
   ],
 }
 
-/** Our own AI products — everything here exists in this repository. */
+/**
+ * Our own AI products — everything here exists in this repository. Each one gets its own showcase
+ * section on the homepage (owner, 2026-10-27). Facts follow content/assetra/modules.ts.
+ * Screens in public/produkty/: Quante = a recording of the Studio (public/quante-hero.mp4), Qads =
+ * the /qads composer + ads from the community seed, Qgent = the website assistant.
+ */
 export const aiBuilt = {
   label: 'Už to děláme',
   title: 'Vlastní AI produkty',
   sub: 'AI nejen nabízíme, sami na ní stavíme. Tohle jsou naše vlastní produkty.',
   items: [
-    { kind: 'grid', title: 'Quante', text: 'AI vytvoří celý e-shop podle zadání. Úpravy v chatu, kód si stáhnete.', href: '/quante', cta: 'Prohlédnout Quante' },
-    { kind: 'chat', title: 'Qgent', text: 'AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.', href: '/quante/qgent', cta: 'Detail Qgent' },
-    { kind: 'spark', title: 'Qads', text: 'Reklamní videa a fotky produktů, které vytvoří AI.', href: '/quante/qads', cta: 'Detail Qads' },
-  ] satisfies { kind: Object3DKind; title: string; text: string; href: string; cta: string }[],
+    {
+      id: 'quante',
+      kind: 'grid',
+      title: 'Quante',
+      text: 'AI vytvoří celý e-shop podle zadání. Úpravy v chatu, kód si stáhnete.',
+      kicker: 'AI, která postaví celý e-shop',
+      lead: 'Popíšete obchod a Quante ho postaví: napíše kód e-shopu, nasadí ho na Vercel a hlídá, aby se sestavil. Když build selže, přečte chybu a opraví se sám.',
+      features: ['Zadání v chatu', 'Kód pro každý obchod zvlášť', 'Sestaví a opraví se sám', 'Úpravy větou', 'Vlastní administrace', 'Kód si stáhnete jako ZIP'],
+      href: '/quante',
+      cta: 'Prohlédnout Quante',
+    },
+    {
+      id: 'qgent',
+      kind: 'chat',
+      title: 'Qgent',
+      text: 'AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.',
+      kicker: 'AI agent pro váš e-shop',
+      lead: 'Projde s vámi celý e-shop stránku po stránce, upozorní, co chybí nebo nefunguje, a navrhne úpravu. Provede ji až po vašem potvrzení. Na tomhle webu odpovídá návštěvníkům.',
+      features: ['Nejdřív náhled, pak změna', 'Všechno jde vrátit', 'Peníze a doprava jen se zvláštním potvrzením', 'Podklady pro reklamy v Qads'],
+      href: '/quante/qgent',
+      cta: 'Detail Qgent',
+    },
+    {
+      id: 'qads',
+      kind: 'spark',
+      title: 'Qads',
+      text: 'Reklamní videa a fotky produktů, které vytvoří AI.',
+      kicker: 'Reklama z jedné fotky',
+      lead: 'Nahrajete fotku produktu a Qads z ní udělá reklamní fotky a krátká videa pro sítě. Hotové soubory si stáhnete a použijete, kde chcete.',
+      features: ['9:16, 4:5, 1:1 i 16:9', 'Pět stylů od packshotu po film', 'Videa 4 až 10 sekund', 'Reklamní texty ve čtyřech jazycích', 'Stažení jako ZIP'],
+      href: '/quante/qads',
+      cta: 'Detail Qads',
+    },
+  ] satisfies {
+    id: 'quante' | 'qgent' | 'qads'; kind: Object3DKind; title: string; text: string
+    kicker: string; lead: string; features: string[]; href: string; cta: string
+  }[],
+}
+
+/** Screens of our own products (public/produkty/). */
+export const productScreens = {
+  quante: {
+    video: '/produkty/quante-studio.mp4',
+    poster: '/produkty/quante-store.webp',
+    url: 'quantecode.com/project/aether',
+    steps: [
+      { src: '/produkty/quante-chat.webp', caption: 'Zadání', text: 'Quante se ptá jako designér.' },
+      { src: '/produkty/quante-build.webp', caption: 'Build', text: 'Chybu najde a opraví sám.' },
+      { src: '/produkty/quante-edit.webp', caption: 'Úpravy', text: 'Změnu napíšete jednou větou.' },
+    ],
+  },
+  qgent: {
+    src: '/produkty/qgent-answer.webp',
+    alt: 'Qgent na webu AssetraDigital odpovídá na dotaz, co umí v e-shopu',
+    /** The review card in the Studio, drawn in CSS. */
+    finding: { title: 'Na úvodní stránce chybí informace o dopravě.', edit: 'Doprava a platby v patičce' },
+  },
+  qads: {
+    composer: '/produkty/qads-composer.webp',
+    url: 'quantecode.com/qads',
+    ads: [
+      { video: '/produkty/qads-keyboard.mp4', poster: '/qads/community/video-keyboard.webp', label: 'Video 9:16' },
+      { video: '/produkty/qads-wheel.mp4', poster: '/qads/community/video-wheel.webp', label: 'Video 9:16' },
+    ],
+    photo: { src: '/qads/community/photo-lighter.webp', label: 'Fotka 1:1' },
+  },
 }
 
 /**
