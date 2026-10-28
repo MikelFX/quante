@@ -80,6 +80,12 @@ export const CREDIT_COSTS = {
   welcome_grant:    12,
 } as const
 
+// ─── Qscan ────────────────────────────────────────────────────────────────────
+// Scanning a store costs no credits (building the new store is a normal generation, charged
+// CREDIT_COSTS.generate). Scans copy images into our public bucket, so they are capped per day.
+export const QSCAN_DAILY_SCANS = 5
+export const QSCAN_DAILY_SCANS_AGENCY = 30
+
 // ─── Self-healing deploy loop ─────────────────────────────────────────────────
 // Max automatic fix attempts per failed build. After the last attempt fails,
 // the generate/iterate debit is refunded (reason 'generation_failed').

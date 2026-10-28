@@ -7,11 +7,12 @@ import { QuanteBrand } from '@/components/shell/QuanteBrand'
 import { siteHref } from '@/lib/domains'
 
 // The marketing pages moved to the Czech AssetraDigital site (app/(site)); this nav is left
-// on the remaining Quante pages (Qads, changelog, legal) until they get the new design.
+// on the remaining Quante pages (Qads, Qscan, changelog, legal) until they get the new design.
 const LINKS = [
   { href: siteHref('/quante'), label: 'Quante' },
   { href: siteHref('/quante#cenik'), label: 'Pricing' },
   { href: '/qads', label: 'Qads' },
+  { href: '/qscan', label: 'Qscan' },
   { href: siteHref('/'), label: 'Assetra Digital' },
 ]
 

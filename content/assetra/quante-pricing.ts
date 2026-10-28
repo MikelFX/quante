@@ -2,7 +2,7 @@
 // lib/credit-packs.ts (what Stripe sells), lib/config.ts (what each action debits, hosting,
 // Agency) and lib/qads/pricing.ts (Qads). Prices are USD, as Stripe charges them.
 
-import { AGENCY_BATCH_SIZE, AGENCY_FAIR_USE, AGENCY_MONTHLY_USD, CREDIT_COSTS, HOSTING_ANNUAL_USD } from '@/lib/config'
+import { AGENCY_BATCH_SIZE, AGENCY_FAIR_USE, AGENCY_MONTHLY_USD, CREDIT_COSTS, HOSTING_ANNUAL_USD, HOSTING_MONTHLY_USD, QSCAN_DAILY_SCANS } from '@/lib/config'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { QADS_GENERATOR_CREDIT_COSTS as QADS } from '@/lib/qads/pricing'
 import type { ModuleSlug } from './modules'
@@ -65,6 +65,13 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
         { label: 'Automatické opravy buildu', value: credits(CREDIT_COSTS.fix) },
         { label: 'Stažení kódu jako ZIP', value: credits(CREDIT_COSTS.export) },
         { label: 'Hosting', value: `${HOSTING_ANNUAL_USD} USD ročně, první měsíc zdarma` },
+      ]
+    case 'qscan':
+      return [
+        { label: 'Sken obchodu', value: `${free}, až ${QSCAN_DAILY_SCANS} skenů denně` },
+        { label: 'Postavení nového obchodu', value: credits(CREDIT_COSTS.generate) },
+        { label: 'Hosting', value: `${String(HOSTING_MONTHLY_USD).replace('.', ',')} USD měsíčně, nebo ${HOSTING_ANNUAL_USD} USD ročně` },
+        { label: 'Stažení kódu jako ZIP', value: credits(CREDIT_COSTS.export) },
       ]
     case 'qdit':
       return [

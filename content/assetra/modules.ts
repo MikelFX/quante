@@ -8,7 +8,10 @@
 //  - qads:     /qads — ad photos and videos from uploaded product photos, download only
 //  - qgent:    Studio → Qgent (app/api/projects/[id]/qgent, lib/qgent/shop.ts) + the website
 //              assistant (app/api/qgent/public)
-//  - qscan, qails: no product code yet → 'dev': labelled „Ve vývoji“, no way into the app,
+//  - qscan:    /qscan → /api/qscan (lib/qscan/*): reads a store by its address (platform APIs,
+//              JSON-LD, pages), copies its photos and short videos, then builds a new store via
+//              /api/quante/generate (verified 2026-10-28)
+//  - qails: no product code yet → 'dev': labelled „Ve vývoji“, no way into the app,
 //    no dates promised.
 
 import { appHref } from '@/lib/domains'
@@ -45,6 +48,7 @@ export const quanteApp = {
   signup: appHref('/signup'),
   newStore: appHref('/new'),
   qads: appHref('/qads'),
+  qscan: appHref('/qscan'),
   agency: appHref('/billing#agency'),
 } as const
 
@@ -77,21 +81,25 @@ export const modules: QuanteModule[] = [
   {
     slug: 'qscan',
     name: 'Qscan',
-    short: 'Sken stávajícího e-shopu podle adresy, rovnou do Quante.',
+    short: 'Stávající e-shop podle adresy převede do nového, lepšího obchodu v Quante.',
     tag: 'sken',
-    status: 'dev',
+    status: 'live',
     shapes: ['SCAN'],
-    lead: 'Sken stávajícího e-shopu podle adresy. Převezme kategorie, produkty a ceny a přenese je rovnou do Quante.',
+    lead: 'Zadáte adresu e-shopu nebo webu. Qscan z něj vezme produkty, ceny, fotky, videa a texty a Quante z nich postaví nový, graficky mnohem lepší obchod.',
     features: [
-      { title: 'Stačí adresa', text: 'Zadáte adresu e-shopu, který už máte. Nic neexportujete ručně.' },
-      { title: 'Kategorie, produkty a ceny', text: 'Qscan projde obchod a sesbírá, co v něm je.' },
-      { title: 'Rovnou do Quante', text: 'Ze skenu vznikne nový obchod v Quante, na kterém dál pracujete.' },
+      { title: 'Stačí adresa', text: 'Shopify, WooCommerce, Shoptet i obyčejný web. Nic neexportujete ručně.' },
+      { title: 'Produkty, fotky, videa', text: 'Projde obchod a sesbírá produkty s cenami a variantami, fotky, videa, texty, barvy a písma.' },
+      { title: 'Fotky u nás', text: 'Fotky a videa zkopíruje k nám, takže nový obchod funguje, i když ten starý vypnete.' },
+      { title: 'Nový obchod v Quante', text: 'Ze skenu vznikne běžný obchod v Quante, který dál upravujete ve Studiu.' },
+      { title: 'Hosting, nebo kód', text: 'Hotový obchod u nás hostujete měsíčně nebo ročně, nebo si stáhnete celý kód.' },
     ],
-    note: 'Qscan je ve vývoji a termín zatím neuvádíme. Chcete převést e-shop už teď? Domluvte si konzultaci.',
+    note: 'Skenujte jen obchod, který je váš nebo jehož obsah smíte použít. Videa vložená z YouTube a Vimea se nekopírují. Sken je zdarma, postavení obchodu stojí jako běžné vygenerování.',
     links: [
       { to: 'generate', text: 'Naskenovaný obchod postaví Quante Generate.' },
       { to: 'qdit', text: 'Úpravy po převodu uděláte v Qdit.' },
+      { to: 'qgent', text: 'Qgent nový obchod projde a navrhne, co ještě zlepšit.' },
     ],
+    app: { label: 'Naskenovat e-shop', href: quanteApp.qscan },
   },
   {
     slug: 'qgent',

@@ -5,7 +5,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 // quantecode.com (a Clerk production instance is bound to one domain; the development instance
 // production uses today runs a handshake redirect on a visitor's first request), so on the website
 // it would only add redirects, its script and third-party cookies. Every layout that renders Clerk components or hooks
-// wraps its tree in this: app/(app), app/(marketing), app/login, app/signup, app/qads.
+// wraps its tree in this: app/(app), app/(marketing), app/login, app/signup, app/qads, app/qscan.
 // Server-side auth() keeps working everywhere through clerkMiddleware in proxy.ts.
 export function QuanteClerk({ children }: { children: React.ReactNode }) {
   return (

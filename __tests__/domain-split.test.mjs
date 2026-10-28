@@ -68,7 +68,7 @@ test('outside production builds the cross-host links stay relative', () => {
 })
 
 // Clerk only in the Quante app: these layouts wrap their tree in <QuanteClerk>.
-const CLERK_ROOTS = ['app/(app)', 'app/(marketing)', 'app/login', 'app/signup', 'app/qads']
+const CLERK_ROOTS = ['app/(app)', 'app/(marketing)', 'app/login', 'app/signup', 'app/qads', 'app/qscan']
 // Shared components that use Clerk on the client, and where they may be used.
 const CLERK_COMPONENTS = { 'components/public/PublicNav.tsx': 'PublicNav' }
 

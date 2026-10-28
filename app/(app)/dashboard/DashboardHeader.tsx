@@ -48,6 +48,7 @@ export function DashboardHeader({ atLimit, limitLabel, batch = false }: Props) {
           style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
         >
           {batch && <Link href="/new/batch" className="q-btn q-btn-gl">Batch · up to {AGENCY_BATCH_SIZE}</Link>}
+          <Link href="/qscan" className="q-btn q-btn-gl">Import a store</Link>
           <Link href="/new" className="q-btn">
             + New project
           </Link>

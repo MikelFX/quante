@@ -2,6 +2,14 @@
 
 ---
 
+## 🔎 Qscan (2026-10-28)
+
+- [ ] Spustit `supabase/migration-qscan.sql` v Supabase SQL Editoru — bez ní `/qscan` hlásí „Qscan isn’t set up yet“ (503) a nic nekopíruje.
+- [ ] Ověřit, že bucket `store-assets` přijímá i `video/mp4` a `video/webm` (Qscan kopíruje max. 2 krátká videa na sken). Když bucket typy omezuje, videa se jen přeskočí a fotky fungují.
+- [ ] Otestovat na produkci: `/qscan` → adresa vlastního e-shopu → Build my new store → Studio / hosting / ZIP.
+
+---
+
 ## 🔐 Security audit 2026-09 — owner actions (doplněno 2026-09-24)
 
 Kompletní bezpečnostní audit + 4 kola oprav (detail v `docs/update-log.md`, záznam 2026-09-23 – 09-24). Kód je hotový, `tsc` čistý, 244/244 testů, `next build` prochází. **Všech 19 migrací je spuštěných v produkci a ověřených (2026-09-24).**

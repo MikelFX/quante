@@ -22,6 +22,7 @@ const SITE: Entry[] = [
 
 const APP: Entry[] = [
   { path: '/qads',      priority: 0.7, changeFrequency: 'monthly' },
+  { path: '/qscan',     priority: 0.7, changeFrequency: 'monthly' },
   { path: '/changelog', priority: 0.4, changeFrequency: 'weekly'  },
   { path: '/terms',     priority: 0.2, changeFrequency: 'yearly'  },
   { path: '/privacy',   priority: 0.2, changeFrequency: 'yearly'  },

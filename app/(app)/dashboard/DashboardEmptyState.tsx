@@ -18,9 +18,14 @@ export function DashboardEmptyState() {
       <p style={{ fontSize: 13, color: 'var(--muted-foreground)', marginBottom: 20, maxWidth: 280, margin: '0 auto 20px' }}>
         Describe a store and Quante builds it in seconds.
       </p>
-      <Link href="/new" className="q-btn">
-        Build your first store
-      </Link>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link href="/new" className="q-btn">
+          Build your first store
+        </Link>
+        <Link href="/qscan" className="q-btn q-btn-gl">
+          Import an existing store
+        </Link>
+      </div>
     </motion.div>
   )
 }
