@@ -91,3 +91,28 @@ export const JOB_STUCK_THRESHOLD_MS = 400_000
 export function isJobStuck(createdAtMs: number, nowMs: number, thresholdMs: number = JOB_STUCK_THRESHOLD_MS): boolean {
   return nowMs - createdAtMs > thresholdMs
 }
+
+// Builds the /project/[id] redirect target used by app/(app)/new/page.tsx (a fresh handleGenerate()
+// completion and the resume banner's "Open finished store" button) and by /qscan — same query-param contract
+// StudioClient.tsx's URL-bootstrap effect expects (did/vid/pu, see StudioClient.tsx).
+//
+// `deployError` (`de` query param): set when the follow-up preview deploy failed even
+// though the generation itself succeeded. Without this, StudioClient would fall into
+// the same "no did → no SSE → no watchdog → spinner forever" trap the earlier fix was
+// meant to close. With it, Studio can render the "build failed" state immediately on
+// mount instead of waiting for a stream that will never open.
+export function buildProjectUrl(
+  projectId: string,
+  deploymentId: string | null,
+  codeVersionId: string | null,
+  previewUrl: string | null,
+  deployError: string | null = null
+): string {
+  const params = new URLSearchParams()
+  if (deploymentId) params.set('did', deploymentId)
+  if (codeVersionId) params.set('vid', codeVersionId)
+  if (previewUrl) params.set('pu', previewUrl)
+  if (deployError) params.set('de', deployError.slice(0, 500))
+  const qs = params.toString()
+  return `/project/${projectId}${qs ? `?${qs}` : ''}`
+}

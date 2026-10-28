@@ -52,6 +52,7 @@ export const footerNav = {
     { label: 'Pricing',    href: siteHref('/quante#cenik') },
     { label: 'Changelog',  href: '/changelog' },
     { label: 'Qads',       href: '/qads', badge: 'New' as const },
+    { label: 'Qscan',      href: '/qscan', badge: 'New' as const },
   ],
   company: [
     { label: 'Assetra Digital', href: siteHref('/') },

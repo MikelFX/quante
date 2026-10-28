@@ -286,6 +286,32 @@
         "page": "/quante/generate"
       },
       {
+        "slug": "qscan",
+        "name": "Qscan",
+        "status": "k dispozici",
+        "what": "Zadáte adresu e-shopu nebo webu. Qscan z něj vezme produkty, ceny, fotky, videa a texty a Quante z nich postaví nový, graficky mnohem lepší obchod.",
+        "features": [
+          "Stačí adresa: Shopify, WooCommerce, Shoptet i obyčejný web. Nic neexportujete ručně.",
+          "Produkty, fotky, videa: Projde obchod a sesbírá produkty s cenami a variantami, fotky, videa, texty, barvy a písma.",
+          "Fotky u nás: Fotky a videa zkopíruje k nám, takže nový obchod funguje, i když ten starý vypnete.",
+          "Nový obchod v Quante: Ze skenu vznikne běžný obchod v Quante, který dál upravujete ve Studiu.",
+          "Hosting, nebo kód: Hotový obchod u nás hostujete měsíčně nebo ročně, nebo si stáhnete celý kód."
+        ],
+        "note": "Skenujte jen obchod, který je váš nebo jehož obsah smíte použít. Videa vložená z YouTube a Vimea se nekopírují. Sken je zdarma, postavení obchodu stojí jako běžné vygenerování.",
+        "connections": [
+          "Naskenovaný obchod postaví Quante Generate.",
+          "Úpravy po převodu uděláte v Qdit.",
+          "Qgent nový obchod projde a navrhne, co ještě zlepšit."
+        ],
+        "costs": [
+          "Sken obchodu: zdarma, až 5 skenů denně",
+          "Postavení nového obchodu: 10 kreditů",
+          "Hosting: 9,99 USD měsíčně, nebo 99 USD ročně",
+          "Stažení kódu jako ZIP: zdarma"
+        ],
+        "page": "/quante/qscan"
+      },
+      {
         "slug": "qgent",
         "name": "Qgent",
         "status": "k dispozici",
@@ -361,24 +387,6 @@
     ],
     "modulesInDevelopment": [
       {
-        "slug": "qscan",
-        "name": "Qscan",
-        "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
-        "what": "Sken stávajícího e-shopu podle adresy. Převezme kategorie, produkty a ceny a přenese je rovnou do Quante.",
-        "features": [
-          "Stačí adresa: Zadáte adresu e-shopu, který už máte. Nic neexportujete ručně.",
-          "Kategorie, produkty a ceny: Qscan projde obchod a sesbírá, co v něm je.",
-          "Rovnou do Quante: Ze skenu vznikne nový obchod v Quante, na kterém dál pracujete."
-        ],
-        "note": "Qscan je ve vývoji a termín zatím neuvádíme. Chcete převést e-shop už teď? Domluvte si konzultaci.",
-        "connections": [
-          "Naskenovaný obchod postaví Quante Generate.",
-          "Úpravy po převodu uděláte v Qdit."
-        ],
-        "costs": [],
-        "page": "/quante/qscan"
-      },
-      {
         "slug": "qails",
         "name": "Qails",
         "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
@@ -398,7 +406,7 @@
       }
     ],
     "flow": [
-      "Převod — Qscan přenese stávající e-shop podle adresy. (ve vývoji)",
+      "Převod — Qscan přenese stávající e-shop podle adresy.",
       "Stavba — Quante Generate postaví e-shop ze zadání a ohlídá, aby se sestavil.",
       "Doladění — V Qdit upravíte texty, vzhled a rozložení přímo na stránce.",
       "Kontrola — Qgent projde celý e-shop a navrhne úpravy, které po potvrzení provede.",
@@ -533,7 +541,7 @@
       {
         "key": "quante/qscan",
         "path": "/quante/qscan",
-        "title": "Qscan (ve vývoji)"
+        "title": "Qscan"
       },
       {
         "key": "quante/qgent",
@@ -580,6 +588,6 @@
     "cena správy při jednorázové platbě a hodinová sazba",
     "jestli jsou ceny s DPH, nebo bez",
     "obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)",
-    "termíny modulů ve vývoji (Qscan, Qails)"
+    "termíny modulů ve vývoji (Qails)"
   ]
 }

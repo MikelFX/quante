@@ -3,7 +3,7 @@
 import { ParticleZone } from '@ad/ui'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
+import { buildProjectUrl, decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
 import { AGENCY_BATCH_SIZE, CREDIT_COSTS } from '@/lib/config'
 
 type Stage = 'chat' | 'ready' | 'generating'
@@ -59,31 +59,6 @@ function loadPending(): PendingGeneration | null {
 
 function clearPending() {
   try { window.localStorage.removeItem(PENDING_KEY) } catch {}
-}
-
-// Builds the /project/[id] redirect target used both by a fresh handleGenerate() completion
-// and by the resume banner's "Open finished store" button — same query-param contract
-// StudioClient.tsx's URL-bootstrap effect expects (did/vid/pu, see StudioClient.tsx).
-//
-// `deployError` (`de` query param): set when the follow-up preview deploy failed even
-// though the generation itself succeeded. Without this, StudioClient would fall into
-// the same "no did → no SSE → no watchdog → spinner forever" trap the earlier fix was
-// meant to close. With it, Studio can render the "build failed" state immediately on
-// mount instead of waiting for a stream that will never open.
-function buildProjectUrl(
-  projectId: string,
-  deploymentId: string | null,
-  codeVersionId: string | null,
-  previewUrl: string | null,
-  deployError: string | null = null
-): string {
-  const params = new URLSearchParams()
-  if (deploymentId) params.set('did', deploymentId)
-  if (codeVersionId) params.set('vid', codeVersionId)
-  if (previewUrl) params.set('pu', previewUrl)
-  if (deployError) params.set('de', deployError.slice(0, 500))
-  const qs = params.toString()
-  return `/project/${projectId}${qs ? `?${qs}` : ''}`
 }
 
 const STAGES = [
