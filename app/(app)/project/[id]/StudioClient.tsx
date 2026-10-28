@@ -3608,7 +3608,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     }}>
       {/* Left: breadcrumb */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0, flex: 1 }}>
-        <Link href="/grideet" style={{
+        <Link href="/dashboard" style={{
           fontSize: 12, color: 'var(--q-fg3)', textDecoration: 'none',
           display: 'flex', alignItems: 'center', gap: 4,
           flexShrink: 0,
@@ -3617,7 +3617,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
           onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg)'}
           onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = 'var(--q-fg3)'}
         >
-          ◀ Grideet
+          ◀ Projects
         </Link>
         <span style={{ fontSize: 12, color: 'var(--q-fg4)', padding: '0 6px' }}>/</span>
         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--q-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -7094,7 +7094,7 @@ function CommandPalette({
     { group: 'Mode', label: 'Qgent',    hint: 'Review the store, confirm fixes', action: () => { onSwitchMode('qgent'); onClose() } },
     { group: 'Mode', label: 'Publish',  hint: 'Deploy & export',            action: () => { onSwitchMode('publish');  onClose() } },
     // Navigation
-    { group: 'Navigate', label: 'Grideet', action: () => { window.location.href = '/grideet'; onClose() } },
+    { group: 'Navigate', label: 'Dashboard', action: () => { window.location.href = '/dashboard'; onClose() } },
     { group: 'Navigate', label: 'Billing',   action: () => { window.location.href = '/billing';   onClose() } },
     { group: 'Navigate', label: 'Settings',  action: () => { window.location.href = '/settings';  onClose() } },
     // Actions

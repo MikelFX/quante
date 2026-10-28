@@ -16,7 +16,7 @@ export default function NotFound() {
         <Link href="/" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
           Go home
         </Link>
-        <Link href="/grideet" className={cn(buttonVariants({ size: 'sm' }))}>
+        <Link href="/dashboard" className={cn(buttonVariants({ size: 'sm' }))}>
           Dashboard
         </Link>
       </div>

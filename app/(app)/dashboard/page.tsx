@@ -1,6 +1,6 @@
-// Grideet — the account's workspace (CLAUDE.md §13h): everything the user made, grouped by brand
-// (store), each card leading on into a module. Replaced /dashboard (2026-10-28; /dashboard now
-// redirects here). Everything the dashboard had stays: batch banner, project limit, Agency bulk
+// The dashboard = Grideet, the account's workspace (CLAUDE.md §13h): everything the user made,
+// grouped by brand (store), each card leading on into a module. Shown to users as "Dashboard"
+// (owner 2026-10-28). Everything the old project list had stays: batch banner, project limit, Agency bulk
 // export, delete, archived notice, welcome-credit notice.
 import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
@@ -16,7 +16,7 @@ import { GrideetEmpty } from './GrideetEmpty'
 import { GrideetClient } from './GrideetClient'
 import './grideet.css'
 
-export const metadata = { title: 'Grideet · Quante' }
+export const metadata = { title: 'Dashboard · Quante' }
 
 interface Props { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
@@ -54,7 +54,7 @@ export default async function GrideetPage({ searchParams }: Props) {
         <div>
           <p className="ad-app-label" style={{ padding: '0 0 12px' }}>workspace</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <h1 className="q-h1">Grideet</h1>
+            <h1 className="q-h1">Dashboard</h1>
             <span className={`gd-limit${atLimit ? ' gd-limit-warn' : ''}`}>{limitLabel}</span>
           </div>
           <p className="gd-sub">Your stores and everything made for them, in one place.</p>

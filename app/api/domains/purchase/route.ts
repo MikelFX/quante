@@ -230,7 +230,7 @@ export async function POST(request: Request) {
 
   const successBase = projectId
     ? `${appUrl}/project/${projectId}`
-    : `${appUrl}/grideet`
+    : `${appUrl}/dashboard`
 
   // Stash the registrant PII server-side (not in Stripe metadata — no size
   // pressure, no lingering PII in the Stripe dashboard, and it lets us keep

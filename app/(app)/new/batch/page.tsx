@@ -223,7 +223,7 @@ function Progress({ batchId }: { batchId: string }) {
         <p style={{ margin: '6px 0 0', fontSize: 12.5, color: 'var(--q-fg3)' }}>
           {done
             ? 'The batch is finished. Open a store in the Studio to check its build and keep editing.'
-            : 'You can leave this page — the batch keeps going and the stores appear in Grideet as they are generated.'}
+            : 'You can leave this page — the batch keeps going and the stores appear on your dashboard as they are generated.'}
         </p>
       </div>
 
@@ -249,7 +249,7 @@ function Progress({ batchId }: { batchId: string }) {
       {done && (
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href="/new/batch" className="q-btn q-btn-gl">Start another batch</Link>
-          <Link href="/grideet" className="q-btn q-btn-gl">Grideet</Link>
+          <Link href="/dashboard" className="q-btn q-btn-gl">Dashboard</Link>
         </div>
       )}
     </div>

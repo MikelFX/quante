@@ -103,7 +103,7 @@ export function PublicNav() {
                 Sign out
               </button>
               <Link
-                href="/grideet"
+                href="/dashboard"
                 className="q-tap"
                 style={{
                   fontSize: 13.5,

@@ -5,7 +5,6 @@ import { afterSignInPath, redirectParam } from '@/lib/auth/after-sign-in'
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
-  '/grideet(.*)',
   '/new(.*)',
   '/project(.*)',
   '/billing(.*)',

@@ -1,4 +1,4 @@
-/* Grideet (app/(app)/grideet). Every selector is `gd-` prefixed under .ad-app: global CSS stays
+/* Dashboard (Grideet, app/(app)/dashboard). Every selector is `gd-` prefixed under .ad-app: global CSS stays
    loaded after client navigation, so nothing here may touch other pages. Colours are --q-* tokens
    only; the store preview's colours are the store's own data (inline style). No looping animations. */
 

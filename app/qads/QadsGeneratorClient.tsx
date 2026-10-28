@@ -1001,7 +1001,7 @@ function HistoryPanel({ history, activeGenerationId, onSelect, onShared }: { his
         })}
       </div>
       <p style={{ fontSize: 11, color: 'var(--qp-mut)', margin: '12px 0 0' }}>
-        Older campaigns from the Studio (before the new generator) live in the <Link href="/grideet" style={{ color: 'var(--qp-accent-deep)' }}>Grideet</Link>.
+        Older campaigns from the Studio (before the new generator) live in the <Link href="/dashboard" style={{ color: 'var(--qp-accent-deep)' }}>Dashboard</Link>.
       </p>
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
-// Agency (Grideet): progress of a running batch generation (lib/generation/batch.ts). Polls
-// GET /api/quante/batch, which also nudges the queue, and refreshes the grid whenever
+// Agency dashboard: progress of a running batch generation (lib/generation/batch.ts). Polls
+// GET /api/quante/batch, which also nudges the queue, and refreshes the project grid whenever
 // another store of the batch has been generated.
 
 import { useEffect, useRef, useState } from 'react'

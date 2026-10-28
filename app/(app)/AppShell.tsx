@@ -10,7 +10,7 @@ import '@ad/ui/styles/assetra.css'
 import './app.css'
 
 const NAV = [
-  { href: '/grideet',      icon: LayoutGrid, label: 'Grideet'     },
+  { href: '/dashboard',    icon: LayoutGrid, label: 'Projects'    },
   { href: '/new',          icon: Plus,       label: 'New'         },
   { href: '/marketplace',  icon: Store,      label: 'Marketplace' },
   { href: '/billing',      icon: CreditCard, label: 'Billing'     },
@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* ── Global header ──────────────────────────────────────────────── */}
       <header className="ad-app-head">
-        <Link href="/grideet" className="ad-app-logo" aria-label="Quante, Grideet">
+        <Link href="/dashboard" className="ad-app-logo" aria-label="Quante, projects">
           <AdMark />
           <span>Quante</span>
         </Link>
@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <p className="ad-app-label">workspace</p>
                 {NAV.map(({ href, icon: Icon, label }) => {
-                  const active = pathname === href || (href !== '/grideet' && pathname.startsWith(href))
+                  const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
                   return (
                     <SidebarLink key={href} href={href} icon={Icon} label={label} active={active} />
                   )
@@ -114,7 +114,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             }}
           >
             {NAV.map(({ href, icon: Icon, label }) => {
-              const active = pathname === href || (href !== '/grideet' && pathname.startsWith(href))
+              const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
               return (
                 <BottomNavItem key={href} href={href} icon={Icon} label={label} active={active} />
               )

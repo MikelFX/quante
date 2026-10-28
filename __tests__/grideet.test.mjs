@@ -123,7 +123,7 @@ test('actions only lead into existing flows; nothing here spends credits', () =>
   const share = video.actions.find((a) => a.type === 'qadsShare')
   assert.equal(share.payload.share, true)
   assert.ok(share.confirm, 'sharing asks first')
-  const client = src('app/(app)/grideet/GrideetClient.tsx')
+  const client = src('app/(app)/dashboard/GrideetClient.tsx')
   assert.doesNotMatch(client, /\/api\/quante\/(generate|iterate)|\/api\/export['"`]|debit/, 'no credit-spending call from the grid')
 })
 
@@ -232,16 +232,13 @@ test('filters and paging run on the server', async () => {
   assert.deepEqual(s.groups.map((g) => g.id), [null])
 })
 
-test('Grideet replaced the dashboard and is an app route', () => {
-  const { APP_PATHS } = { APP_PATHS: src('lib/domains.ts') }
-  assert.match(APP_PATHS, /'\/grideet\/:path\*'/)
-  assert.match(src('next.config.ts'), /source: '\/dashboard', destination: '\/grideet'/)
-  assert.match(src('proxy.ts'), /'\/grideet\(\.\*\)'/, 'sign-in protected')
-  assert.match(src('lib/auth/after-sign-in.ts'), /FALLBACK = '\/grideet'/)
-  const page = src('app/(app)/grideet/page.tsx')
-  for (const kept of ['BatchBanner', 'project_limit', 'archived', 'ensureWelcomeGrant']) assert.match(page, new RegExp(kept), kept)
-  const client = src('app/(app)/grideet/GrideetClient.tsx')
+test('Grideet is the dashboard and keeps everything the old one had', () => {
+  assert.match(src('lib/auth/after-sign-in.ts'), /FALLBACK = '\/dashboard'/)
+  const page = src('app/(app)/dashboard/page.tsx')
+  assert.match(page, /<h1 className="q-h1">Dashboard<\/h1>/, 'users see it as the Dashboard')
+  for (const kept of ['BatchBanner', 'project_limit', 'archived', 'ensureWelcomeGrant', 'loadGrideet']) assert.match(page, new RegExp(kept), kept)
+  const client = src('app/(app)/dashboard/GrideetClient.tsx')
   assert.match(client, /\/api\/export\/bulk/, 'Agency bulk export stays')
   assert.match(client, /method: 'DELETE'/, 'delete stays')
-  assert.match(src('app/(app)/grideet/GrideetMedia.tsx'), /MAX_PLAYING = 6/)
+  assert.match(src('app/(app)/dashboard/GrideetMedia.tsx'), /MAX_PLAYING = 6/)
 })

@@ -25,7 +25,7 @@ export default async function AdminPage() {
   if (!userId) redirect('/login')
 
   // Shared gate: verified primary email in ADMIN_EMAILS (fails closed if unset).
-  if (!(await requireAdmin())) redirect('/grideet')
+  if (!(await requireAdmin())) redirect('/dashboard')
 
   const { data: agencyUsers } = await supabaseAdmin
     .from('users')

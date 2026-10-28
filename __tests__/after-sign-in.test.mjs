@@ -15,9 +15,9 @@ test('returns to the page the visitor came from', () => {
   assert.equal(afterSignInPath('https://quantecode.com/qads', 'https://quante-git-x.vercel.app', ['https://quantecode.com']), '/qads')
 })
 
-test('anything else goes to Grideet (the workspace)', () => {
+test('anything else goes to the dashboard', () => {
   for (const bad of [null, '', 'https://evil.com/qads', '//evil.com/qads', 'javascript:alert(1)', '/login', '/signup?redirect_url=/qads', '/login/sso-callback']) {
-    assert.equal(afterSignInPath(bad, ORIGIN), '/grideet', String(bad))
+    assert.equal(afterSignInPath(bad, ORIGIN), '/dashboard', String(bad))
   }
 })
 

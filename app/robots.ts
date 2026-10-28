@@ -23,7 +23,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         disallow: [
           '/api/',
           '/dashboard',
-          '/grideet',
           '/billing',
           '/settings',
           '/admin',

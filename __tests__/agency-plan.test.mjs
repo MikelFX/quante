@@ -65,7 +65,7 @@ test('the plan text promises nothing the code lacks', () => {
   const plan = src('lib/agency-plan.ts')
   assert.doesNotMatch(plan, /priority/i, 'there is no priority queue')
   assert.doesNotMatch(plan, /soon: true/, 'every line ships')
-  for (const f of ['app/(app)/billing/page.tsx', 'app/(app)/grideet/page.tsx', 'app/(app)/project/[id]/StudioClient.tsx']) {
+  for (const f of ['app/(app)/billing/page.tsx', 'app/(app)/dashboard/page.tsx', 'app/(app)/project/[id]/StudioClient.tsx']) {
     assert.doesNotMatch(src(f), /Priority generation|batch limit|batch slots|Agency batch/i, f)
   }
 })
