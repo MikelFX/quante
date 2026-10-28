@@ -11,6 +11,10 @@
 // sessionStorage and goes to /login?redirect_url=/qads; after sign-in the draft is restored and
 // the visitor clicks once more. Qgent in the Studio hands over a partial draft the same way
 // (product, description, store, language).
+//
+// A switch above the box picks the mode: "Ad" (this composer) or "Tiktoker" (QadsTiktoker.tsx —
+// an AI character talks about the product). /qads?mode=tiktoker[&c=<traits>] opens the latter;
+// the website's launch panel links there.
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Link from 'next/link'
@@ -23,6 +27,8 @@ import { computeGeneratorCost, type HiggsfieldOutputKind } from '@/lib/qads/pric
 import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
 import { ParticleMode } from '@ad/ui/particles'
 import { QadsCommunityWall } from './QadsCommunityWall'
+import { QadsTiktoker } from './QadsTiktoker'
+import { traitsFromParam, type CharacterTraits } from '@/lib/qads/tiktoker'
 import './qads.css'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -162,6 +168,7 @@ function nameFromBrief(brief: string): string {
 }
 
 type MenuId = 'product'
+type Mode = 'ads' | 'tiktoker'
 
 // ─── Component ──────────────────────────────────────────────────────
 
@@ -186,6 +193,10 @@ export function QadsGeneratorClient() {
   const [showOptions, setShowOptions] = useState(false)
   const [askShare, setAskShare] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [mode, setMode] = useState<Mode>('ads')
+  const [initialTraits, setInitialTraits] = useState<CharacterTraits | null>(null)
+  // Tiktoker asks the same share question; its answer resolves this promise.
+  const [shareAsk, setShareAsk] = useState<((share: boolean | null) => void) | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textRef = useRef<HTMLTextAreaElement | null>(null)
   const boxRef = useRef<HTMLElement | null>(null)
@@ -204,6 +215,38 @@ export function QadsGeneratorClient() {
       sessionStorage.removeItem(DRAFT_KEY)
     }
   }, [])
+
+  // /qads?mode=tiktoker[&c=<traits>] — from the website's launch panel or a sign-in round trip.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    if (q.get('mode') !== 'tiktoker') return
+    setMode('tiktoker')
+    if (q.get('c')) setInitialTraits(traitsFromParam(q.get('c')))
+  }, [])
+
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    const url = new URL(window.location.href)
+    if (next === 'tiktoker') url.searchParams.set('mode', 'tiktoker')
+    else { url.searchParams.delete('mode'); url.searchParams.delete('c') }
+    window.history.replaceState(null, '', url.pathname + url.search)
+  }
+
+  const askTiktokerShare = () => new Promise<boolean | null>(resolve => {
+    setShareAsk(() => (share: boolean | null) => {
+      setShareAsk(null)
+      if (share !== null) { try { localStorage.setItem(SHARE_KEY, share ? '1' : '0') } catch {} }
+      resolve(share)
+    })
+  })
+
+  const onTiktokerStarted = (generationId: string, credits: number) => {
+    setActiveGenerationId(generationId)
+    setDetail(null)
+    setBalance(b => (b === null ? b : Math.max(0, b - credits)))
+    void fetch('/api/qads/generations').then(r => (r.ok ? r.json() : null)).then(d => { if (d) setHistory(d.generations ?? []) }).catch(() => {})
+    requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   // Load history, products and the credit balance once signed in
   useEffect(() => {
@@ -445,9 +488,30 @@ export function QadsGeneratorClient() {
 
       <main style={{ flex: 1, padding: '0 1.25rem', width: '100%' }}>
         <header className="qz-hero">
-          <h1 className="qz-h1">An ad from <em>one photo.</em></h1>
+          {mode === 'ads'
+            ? <h1 className="qz-h1">An ad from <em>one photo.</em></h1>
+            : <h1 className="qz-h1">Your product, <em>told by a creator.</em></h1>}
         </header>
 
+        <div className="qt-switch" role="tablist" aria-label="What to make">
+          <span className="qt-switch-glide" data-mode={mode} aria-hidden="true" />
+          <button type="button" role="tab" aria-selected={mode === 'ads'} onClick={() => switchMode('ads')}>Ad</button>
+          <button type="button" role="tab" aria-selected={mode === 'tiktoker'} onClick={() => switchMode('tiktoker')}>
+            Tiktoker <span className="qt-new-badge">New</span>
+          </button>
+        </div>
+
+        {mode === 'tiktoker' ? (
+          <QadsTiktoker
+            key={initialTraits ? 'from-link' : 'plain'}
+            signedIn={!!isSignedIn}
+            agency={agency}
+            initialTraits={initialTraits}
+            onSignIn={(returnTo) => { window.location.href = `/login?redirect_url=${encodeURIComponent(returnTo)}` }}
+            askShare={askTiktokerShare}
+            onStarted={onTiktokerStarted}
+          />
+        ) : (<>
         {/* ── Composer: one obvious start (the photo), an optional line of text, one button ── */}
         <section
           ref={boxRef}
@@ -598,6 +662,7 @@ export function QadsGeneratorClient() {
                 : null}
         </p>
         {(uploadError || submitError) && <p className="qz-err" role="alert">{uploadError ?? submitError}</p>}
+        </>)}
 
         {/* ── Results ── */}
         <section ref={resultsRef} className="qz-results" aria-live="polite">
@@ -628,6 +693,7 @@ export function QadsGeneratorClient() {
       )}
 
       {askShare && <ShareConsent onAnswer={(share) => void startGeneration(share)} onCancel={() => setAskShare(false)} />}
+      {shareAsk && <ShareConsent onAnswer={(share) => shareAsk(share)} onCancel={() => shareAsk(null)} />}
 
       <SiteFooter />
     </div>

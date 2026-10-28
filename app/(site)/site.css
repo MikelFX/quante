@@ -322,3 +322,128 @@
    of the website (nav, footer, background) stays AssetraDigital magenta. */
 .ad .ad-q{--acc:#5ff5c4;--acc2:#7cc8ff;--accInk:#03130d;--accText:#5ff5c4}
 [data-theme="light"] .ad .ad-q{--acc:#2fe0a3;--acc2:#4a9eea;--accInk:#03130d;--accText:#04704f}
+
+/* ── Qads Tiktoker launch panel (QadsLaunchPanel.tsx, owner 2026-10-28) ─────────────────────
+   Glides in from the bottom-left edge shortly after arrival — a card, not a modal: no backdrop,
+   the page stays usable. Closing folds it into the "Novinka" tab on the same edge. Quante green
+   (.ad-q). Everything animates transform / opacity only; paused while folded away. */
+.ad .ql-root{--ql-ease:cubic-bezier(.16,1,.3,1)}
+.ad .ql-panel{position:fixed;left:calc(20px + env(safe-area-inset-left));bottom:calc(20px + env(safe-area-inset-bottom));z-index:69;width:min(392px,calc(100vw - 40px));max-height:calc(100dvh - 40px);overflow:hidden auto;overscroll-behavior:contain;border-radius:28px;border:1px solid color-mix(in srgb,var(--fg) 12%,transparent);background:linear-gradient(180deg,var(--gl1),var(--gl2)),color-mix(in srgb,var(--bg) 84%,transparent);-webkit-backdrop-filter:blur(22px) saturate(1.3);backdrop-filter:blur(22px) saturate(1.3);box-shadow:0 40px 90px -40px rgba(0,0,0,.7),inset 0 1px 0 color-mix(in srgb,var(--fg) 10%,transparent);outline:none;transform-origin:0 100%;transition:transform .95s var(--ql-ease),opacity .6s var(--ql-ease),visibility 0s linear 0s}
+.ad .ql-panel[data-state="hidden"],.ad .ql-panel[data-state="tab"]{transform:translate3d(calc(-100% - 48px),24px,0) rotate(-3deg) scale(.96);opacity:0;visibility:hidden;transition:transform .7s var(--ql-ease),opacity .45s ease,visibility 0s linear .7s}
+.ad .ql-panel:not([data-state="open"]) *{animation-play-state:paused!important}
+.ad .ql-glow{position:absolute;inset:-40% -30% auto auto;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--acc) 38%,transparent),transparent 65%);filter:blur(10px);pointer-events:none;opacity:.55;animation:ad-ql-glow 9s ease-in-out infinite alternate}
+.ad .ql-head{position:relative;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 10px 0 20px}
+.ad .ql-collab{display:inline-flex;align-items:center;gap:8px;font:700 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
+.ad .ql-collab b{color:var(--accText)}
+.ad .ql-collab i{font-style:normal;font-size:14px;color:var(--fg3);opacity:.7}
+.ad .ql-x{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:50%;background:transparent;color:var(--fg2);cursor:pointer;transition:background .25s,transform .45s var(--ql-ease)}
+.ad .ql-x:hover{background:color-mix(in srgb,var(--fg) 8%,transparent);transform:rotate(90deg)}
+.ad .ql-x svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+.ad .ql-x:focus-visible,.ad .ql-chip:focus-visible,.ad .ql-go:focus-visible,.ad .ql-tab:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.ad .ql-body{position:relative;display:grid;grid-template-columns:118px minmax(0,1fr);gap:14px 16px;padding:6px 20px 18px}
+.ad .ql-copy{grid-column:1/-1}
+.ad .ql-kicker{display:flex;align-items:center;gap:10px;margin:0 0 10px;font:500 12.5px/1.2 var(--sans);color:var(--fg2)}
+.ad .ql-kicker span{padding:5px 9px;border-radius:999px;background:var(--acc);color:var(--accInk);font:700 10px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.ad .ql-h{margin:0;font:850 30px/.95 var(--disp);font-stretch:66%;text-transform:uppercase;letter-spacing:-.005em;color:var(--fg)}
+.ad .ql-h em{font-style:normal;color:var(--accText)}
+.ad .ql-p{margin:10px 0 0;font:400 14px/1.5 var(--sans);color:var(--fg2)}
+.ad .ql-pick{display:grid;align-content:start;gap:10px}
+.ad .ql-row{display:grid;gap:6px}
+.ad .ql-row-l{font:600 10px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--fg3)}
+.ad .ql-row-c{display:flex;flex-wrap:wrap;gap:5px}
+.ad .ql-chip{min-height:34px;padding:0 11px;border-radius:999px;border:1px solid color-mix(in srgb,var(--fg) 14%,transparent);background:color-mix(in srgb,var(--fg) 3%,transparent);color:var(--fg2);font:500 12.5px/1 var(--sans);cursor:pointer;transition:background .25s,border-color .25s,color .25s,transform .35s var(--ql-ease)}
+.ad .ql-chip:hover{color:var(--fg);border-color:color-mix(in srgb,var(--fg) 30%,transparent)}
+.ad .ql-chip:active{transform:scale(.95)}
+.ad .ql-chip[aria-pressed="true"]{color:var(--accText);border-color:color-mix(in srgb,var(--acc) 55%,transparent);background:color-mix(in srgb,var(--acc) 12%,transparent)}
+.ad .ql-go{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;padding:0 8px 0 22px;border-radius:999px;background:var(--acc);color:var(--accInk);font:650 15px/1 var(--sans);text-decoration:none;box-shadow:0 14px 36px -16px color-mix(in srgb,var(--acc) 85%,transparent);transition:transform .45s var(--ql-ease),box-shadow .45s var(--ql-ease)}
+.ad .ql-go:hover{transform:translateY(-2px);box-shadow:0 20px 44px -16px color-mix(in srgb,var(--acc) 95%,transparent)}
+.ad .ql-go i{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--accInk);color:var(--acc);transition:transform .45s var(--ql-ease)}
+.ad .ql-go:hover i{transform:translateX(3px)}
+.ad .ql-go svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ad .ql-fine{grid-column:1/-1;margin:-4px 0 0;font:400 11.5px/1.45 var(--sans);color:var(--fg3)}
+
+/* staggered entrance of the content, once the card has landed */
+.ad .ql-panel[data-state="open"] .ql-copy>*,.ad .ql-panel[data-state="open"] .ql-phone,.ad .ql-panel[data-state="open"] .ql-row,.ad .ql-panel[data-state="open"] .ql-go,.ad .ql-panel[data-state="open"] .ql-fine{animation:ad-ql-up .8s var(--ql-ease) backwards}
+.ad .ql-panel[data-state="open"] .ql-copy>:nth-child(1){animation-delay:.22s}
+.ad .ql-panel[data-state="open"] .ql-copy>:nth-child(2){animation-delay:.3s}
+.ad .ql-panel[data-state="open"] .ql-copy>:nth-child(3){animation-delay:.38s}
+.ad .ql-panel[data-state="open"] .ql-phone{animation-name:ad-ql-phone;animation-delay:.42s;animation-duration:1s}
+.ad .ql-panel[data-state="open"] .ql-row:nth-child(1){animation-delay:.5s}
+.ad .ql-panel[data-state="open"] .ql-row:nth-child(2){animation-delay:.56s}
+.ad .ql-panel[data-state="open"] .ql-row:nth-child(3){animation-delay:.62s}
+.ad .ql-panel[data-state="open"] .ql-go{animation-delay:.7s}
+.ad .ql-panel[data-state="open"] .ql-fine{animation-delay:.76s}
+
+/* the 9:16 preview: the character talks — words typed, mouth and sound bars in time */
+.ad .ql-phone{position:relative;align-self:start;width:118px;aspect-ratio:9/16;border-radius:20px;overflow:hidden;border:1px solid color-mix(in srgb,var(--fg) 14%,transparent);background:#1a1f1d;box-shadow:0 18px 40px -22px rgba(0,0,0,.8)}
+.ad .ql-scene{position:absolute;inset:0;background:radial-gradient(120% 70% at 30% 10%,#f6e7d3,transparent 60%),linear-gradient(180deg,#d9cbb8,#a8977f);transition:filter .6s var(--ql-ease)}
+.ad .ql-phone[data-style="sporty"] .ql-scene{background:radial-gradient(120% 70% at 70% 10%,#d8f3ea,transparent 60%),linear-gradient(180deg,#9fd3c2,#5f9e8b)}
+.ad .ql-phone[data-style="streetstyle"] .ql-scene{background:radial-gradient(120% 70% at 30% 10%,#e2d9f7,transparent 60%),linear-gradient(180deg,#8d86a8,#4b4660)}
+.ad .ql-phone[data-style="suits"] .ql-scene{background:radial-gradient(120% 70% at 50% 10%,#f1ece4,transparent 60%),linear-gradient(180deg,#bfb6a8,#6d665c)}
+.ad .ql-phone[data-style="retro"] .ql-scene{background:radial-gradient(120% 70% at 30% 10%,#ffe0b8,transparent 60%),linear-gradient(180deg,#e7a978,#a8603e)}
+.ad .ql-person{position:absolute;left:0;right:0;bottom:6%;width:100%;height:auto;animation:ad-ql-sway 5.5s ease-in-out infinite;transform-origin:50% 100%}
+.ad .ql-body-shape{fill:#f2efe9;transition:fill .5s var(--ql-ease)}
+.ad .ql-phone[data-style="sporty"] .ql-body-shape{fill:#2f6f5d}
+.ad .ql-phone[data-style="streetstyle"] .ql-body-shape{fill:#1f1d26}
+.ad .ql-phone[data-style="suits"] .ql-body-shape{fill:#2c3140}
+.ad .ql-phone[data-style="retro"] .ql-body-shape{fill:#c8553d}
+.ad .ql-hair,.ad .ql-person path{transition:fill .5s var(--ql-ease),d .5s var(--ql-ease)}
+.ad .ql-eyes{transform-box:fill-box;transform-origin:center;animation:ad-ql-blink 4.2s infinite}
+.ad .ql-mouth{transform-box:fill-box;transform-origin:center;transform:scaleY(.6)}
+.ad .ql-phone[data-talking="true"] .ql-mouth{animation:ad-ql-talk .26s ease-in-out infinite alternate}
+.ad .ql-prod rect:first-child{fill:var(--acc)}
+.ad .ql-prod-l{fill:var(--accInk);opacity:.5}
+.ad .ql-prod{transform-box:fill-box;transform-origin:50% 100%;animation:ad-ql-show 5.5s ease-in-out infinite}
+.ad .ql-bars{position:absolute;left:10px;top:12px;display:flex;align-items:flex-end;gap:2px;height:12px}
+.ad .ql-bars i{width:2px;height:100%;border-radius:1px;background:#fff;opacity:.85;transform:scaleY(.25);transform-origin:50% 100%}
+.ad .ql-phone[data-talking="true"] .ql-bars i{animation:ad-ql-bar .5s ease-in-out infinite alternate}
+.ad .ql-bars i:nth-child(2){animation-delay:-.2s}
+.ad .ql-bars i:nth-child(3){animation-delay:-.35s}
+.ad .ql-bars i:nth-child(4){animation-delay:-.1s}
+.ad .ql-bars i:nth-child(5){animation-delay:-.28s}
+.ad .ql-say{position:absolute;left:6px;right:6px;bottom:8px;margin:0;font:700 9px/1.2 var(--sans);color:#fff;text-align:center;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.ad .ql-say span{display:inline-block;opacity:0;transform:translateY(4px);transition:opacity .25s,transform .35s var(--ql-ease)}
+.ad .ql-say span[data-on="true"]{opacity:1;transform:none}
+.ad .ql-rec{position:absolute;right:8px;top:9px;padding:3px 6px;border-radius:999px;background:rgba(0,0,0,.35);color:#fff;font:600 8.5px/1 var(--mono);letter-spacing:.04em}
+
+/* the folded tab on the edge */
+.ad .ql-tab{position:fixed;left:0;bottom:calc(28px + env(safe-area-inset-bottom));z-index:69;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px 0 14px;border:1px solid color-mix(in srgb,var(--fg) 12%,transparent);border-left:0;border-radius:0 999px 999px 0;background:linear-gradient(180deg,var(--gl1),var(--gl2)),color-mix(in srgb,var(--bg) 84%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);color:var(--fg2);font:500 13px/1 var(--sans);cursor:pointer;transform:translateX(-105%);opacity:0;transition:transform .7s var(--ql-ease) .35s,opacity .4s ease .35s,color .25s}
+.ad .ql-tab b{color:var(--accText);font-weight:700}
+.ad .ql-tab[data-show="true"]{transform:none;opacity:1}
+.ad .ql-tab[data-show="false"]{pointer-events:none;transition-delay:0s}
+.ad .ql-tab:hover{color:var(--fg)}
+.ad .ql-dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 60%,transparent);animation:ad-ql-ping 2.4s ease-out infinite}
+.ad:has([data-menu="open"]) .ql-tab,.ad:has([data-menu="open"]) .ql-panel{display:none}
+
+@keyframes ad-ql-up{from{opacity:0;transform:translateY(12px)}}
+@keyframes ad-ql-phone{from{opacity:0;transform:translateY(16px) rotate(-4deg) scale(.92)}}
+@keyframes ad-ql-glow{to{transform:translate(-40px,30px) scale(1.15)}}
+@keyframes ad-ql-sway{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-2px) rotate(-1.2deg)}}
+@keyframes ad-ql-blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes ad-ql-talk{from{transform:scaleY(.5)}to{transform:scaleY(2.1)}}
+@keyframes ad-ql-show{0%,100%{transform:translateY(0) rotate(0)}40%,60%{transform:translateY(-6px) rotate(-6deg)}}
+@keyframes ad-ql-bar{to{transform:scaleY(1)}}
+@keyframes ad-ql-ping{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--acc) 60%,transparent)}80%,100%{box-shadow:0 0 0 9px transparent}}
+
+@media (max-width:560px){
+  .ad .ql-panel{left:10px;right:10px;width:auto;bottom:calc(80px + env(safe-area-inset-bottom));max-height:calc(100dvh - 100px);border-radius:24px;transform-origin:50% 100%}
+  .ad .ql-panel[data-state="hidden"],.ad .ql-panel[data-state="tab"]{transform:translate3d(0,calc(100% + 100px),0) scale(.98)}
+  .ad .ql-body{grid-template-columns:88px minmax(0,1fr);gap:10px 12px;padding:0 16px 14px}
+  .ad .ql-head{padding-top:8px}
+  .ad .ql-phone{width:88px;border-radius:16px}
+  .ad .ql-h{font-size:24px}
+  .ad .ql-p,.ad .ql-rec{display:none}
+  .ad .ql-kicker{margin-bottom:6px}
+  .ad .ql-pick{gap:6px}
+  .ad .ql-chip{min-height:40px;padding:0 10px}
+  .ad .ql-go{min-height:50px}
+  .ad .ql-tab{bottom:calc(84px + env(safe-area-inset-bottom))}
+}
+[data-motion="off"] .ad .ql-root *,[data-motion="off"] .ad .ql-root{animation:none!important;transition:none!important}
+@media (prefers-reduced-motion:reduce){
+  .ad .ql-root *{animation:none!important}
+  .ad .ql-panel,.ad .ql-tab{transition:opacity .3s ease,visibility 0s!important}
+  .ad .ql-panel[data-state="hidden"],.ad .ql-panel[data-state="tab"]{transform:none}
+}
+.ad .ql-phone::after{content:'';position:absolute;left:0;right:0;bottom:0;height:38%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.45));pointer-events:none}
+.ad .ql-say{z-index:1}

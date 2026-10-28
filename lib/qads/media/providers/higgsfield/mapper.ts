@@ -15,6 +15,8 @@
 // needs a human to browse and choose defaults from — that part remains a follow-up.
 
 import {
+  submitAiInfluencer,
+  submitWanReferenceToVideo,
   submitMarketingStudioImage,
   submitSeedanceReferenceToVideo,
   getRequestStatus,
@@ -23,6 +25,8 @@ import {
   type HiggsfieldStatusResponse,
 } from './client'
 import type { MediaGenerationInput, MediaGenerationHandle, MediaGenerationResult, MediaRequestStatus } from '../../types'
+import { parseCharacterRequest } from '../../../tiktoker'
+import { TIKTOKER_MODELS } from '../../../pricing'
 
 // Higgsfield's documented aspect_ratio enum has no native 4:5 (Instagram-portrait) value
 // — confirmed against the model's Input Schema, not assumed missing. 3:4 (0.75) is the
@@ -82,14 +86,46 @@ export function buildSeedanceVideoRequest(input: MediaGenerationInput) {
   }
 }
 
+// Tiktoker character: the stored request (traits + brief) with the product photo as the item
+// the character holds, and a fresh seed so "Regenerate" gives a new face.
+export function buildCharacterRequest(input: MediaGenerationInput, seed = 1 + Math.floor(Math.random() * 999_999)) {
+  const req = parseCharacterRequest(input.prompt)
+  if (!req) throw new Error('Invalid character request')
+  return {
+    ...req,
+    ...(input.referenceImageUrl ? { item_image_urls: [input.referenceImageUrl] } : {}),
+    seed,
+  }
+}
+
+// Tiktoker clip: always vertical, speech on (the prompt carries the exact spoken line), the
+// character sheet first and the product second — the prompt refers to them in that order.
+export function buildTiktokerVideoRequest(input: MediaGenerationInput) {
+  const images = [input.characterImageUrl, input.referenceImageUrl, input.modelImageUrl].filter((u): u is string => !!u)
+  return {
+    prompt: input.prompt,
+    image_urls: images.slice(0, 10),
+    resolution: TIKTOKER_MODELS.video.resolution,
+    aspect_ratio: '9:16' as const,
+    generate_audio: true,
+    duration: Number.isFinite(input.durationSeconds)
+      ? Math.min(30, Math.max(2, Math.round(input.durationSeconds as number)))
+      : 10,
+  }
+}
+
 export async function submitViaMapper(
   creds: HiggsfieldCredentials,
   input: MediaGenerationInput,
   presetId: string | undefined,
 ): Promise<MediaGenerationHandle> {
-  const response = input.kind === 'video'
-    ? await submitSeedanceReferenceToVideo(creds, buildSeedanceVideoRequest(input), input.webhookUrl)
-    : await submitMarketingStudioImage(creds, buildMarketingStudioRequest(input, presetId), input.webhookUrl)
+  const response = input.mode === 'character'
+    ? await submitAiInfluencer(creds, buildCharacterRequest(input), input.webhookUrl)
+    : input.mode === 'tiktoker'
+      ? await submitWanReferenceToVideo(creds, buildTiktokerVideoRequest(input), input.webhookUrl)
+      : input.kind === 'video'
+        ? await submitSeedanceReferenceToVideo(creds, buildSeedanceVideoRequest(input), input.webhookUrl)
+        : await submitMarketingStudioImage(creds, buildMarketingStudioRequest(input, presetId), input.webhookUrl)
 
   return {
     providerRequestId: response.request_id,

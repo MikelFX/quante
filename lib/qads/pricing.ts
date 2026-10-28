@@ -127,3 +127,99 @@ export function creditsPerItem(kind: HiggsfieldOutputKind, videoDurationSeconds:
   const seconds = Number.isFinite(videoDurationSeconds) ? Math.max(0, videoDurationSeconds) : 0
   return Math.max(1, Math.ceil(QADS_GENERATOR_CREDIT_COSTS.videoPerSecond * seconds))
 }
+
+// ─── Character + Tiktoker (AI creator talks about the product) ─────────
+// Two Higgsfield models (prices from console.higgsfield.ai model pages, checked 2026-10-28):
+//   • Character = Higgsfield AI Influencer (POST /higgsfield/ai-influencer): one character
+//     sheet, $0.05 per sheet.
+//   • Tiktoker video = Wan 3.0 Reference to Video (POST /alibaba/wan-3.0/reference-to-video),
+//     native audio, so the character speaks the script with lip sync. List price per output
+//     second: 480p $0.05, 720p $0.10, 1080p $0.20; the console currently shows a 60 % discount
+//     (720p ≈ $0.04/s) with no end date. Higgsfield's own "Marketing Studio" UGC video is not
+//     in the public API (docs.higgsfield.ai catalog, 2026-10-28) — Wan 3.0 is the documented
+//     model with image references + generated speech. Seedance 2.5 does the same at
+//     ~$0.46/s list (720p), too expensive for a 15 s clip.
+export const TIKTOKER_MODELS = {
+  character: {
+    slug: 'higgsfield/ai-influencer',
+    usdPerSheet: 0.05,
+  },
+  video: {
+    slug: 'higgsfield/wan-3.0-reference-to-video',
+    resolution: '720p' as const,
+    usdPerSecondList: 0.10,
+    // What Higgsfield charges right now (list price minus the console's current discount).
+    usdPerSecondNow: 0.04,
+  },
+  // The script is one short Claude call (MODELS.intake) with the product photo.
+  scriptUsd: 0.03,
+} as const
+
+export const TIKTOKER_DURATIONS = [10, 15] as const
+export type TiktokerDuration = (typeof TIKTOKER_DURATIONS)[number]
+
+// What one credit brings in at worst: the cheapest pack (Studio $69.99 / 500) after Stripe's
+// 2.9 % + $0.30 ≈ $0.135. The launch price divides our cost by this, so even the cheapest
+// credit covers it — at cost, no margin.
+export const USD_PER_CREDIT_FLOOR = 0.135
+
+// Launch offer (owner, 2026-10-28): 30 days at cost — the company earns nothing on it yet.
+// Prague midnights, in UTC.
+export const TIKTOKER_LAUNCH = {
+  startsAt: '2026-10-28T23:00:00Z',
+  endsAt: '2026-11-27T23:00:00Z',
+} as const
+
+export function isTiktokerLaunch(now: Date = new Date()): boolean {
+  const t = now.getTime()
+  return t >= Date.parse(TIKTOKER_LAUNCH.startsAt) && t < Date.parse(TIKTOKER_LAUNCH.endsAt)
+}
+
+// After the launch: about 2× the list cost at the blended $0.15/credit, the same markup the
+// other Qads videos aim for.
+export const TIKTOKER_CREDIT_COSTS = {
+  characterPerSheet: 1,
+  videoPerSecond: 1.4,
+  scriptPerGeneration: 2,
+} as const
+
+const atCost = (usd: number) => Math.max(1, Math.ceil(usd / USD_PER_CREDIT_FLOOR - 1e-9))
+
+/** Credits for one character sheet. Never 0. */
+export function characterCredits(now: Date = new Date()): number {
+  return isTiktokerLaunch(now) ? atCost(TIKTOKER_MODELS.character.usdPerSheet) : TIKTOKER_CREDIT_COSTS.characterPerSheet
+}
+
+/** Credits for one rendered Tiktoker clip (the video only, no script). Never 0. */
+export function tiktokerVideoCredits(seconds: number, now: Date = new Date()): number {
+  const s = Number.isFinite(seconds) ? Math.max(0, seconds) : 0
+  if (isTiktokerLaunch(now)) return atCost(TIKTOKER_MODELS.video.usdPerSecondNow * s)
+  return Math.max(1, Math.ceil(TIKTOKER_CREDIT_COSTS.videoPerSecond * s - 1e-9))
+}
+
+export function tiktokerScriptCredits(now: Date = new Date()): number {
+  return isTiktokerLaunch(now) ? atCost(TIKTOKER_MODELS.scriptUsd) : TIKTOKER_CREDIT_COSTS.scriptPerGeneration
+}
+
+export interface TiktokerCost {
+  videoCredits: number
+  scriptCredits: number
+  totalCredits: number
+  /** Our cost in USD at today's Higgsfield price (+ the script call). */
+  usdNow: number
+  launch: boolean
+}
+
+/** Same arithmetic on server and client, like computeGeneratorCost. */
+export function computeTiktokerCost(variants: number, seconds: number, now: Date = new Date()): TiktokerCost {
+  const per = tiktokerVideoCredits(seconds, now)
+  const videoCredits = per * variants
+  const scriptCredits = tiktokerScriptCredits(now)
+  return {
+    videoCredits,
+    scriptCredits,
+    totalCredits: videoCredits + scriptCredits,
+    usdNow: Number((variants * seconds * TIKTOKER_MODELS.video.usdPerSecondNow + TIKTOKER_MODELS.scriptUsd).toFixed(3)),
+    launch: isTiktokerLaunch(now),
+  }
+}

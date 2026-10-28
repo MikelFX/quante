@@ -354,6 +354,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - The generation system prompt (rule 6) allows image URLs only for a brief starting `QSCAN IMPORT`, and only on the `store-assets` path. Text read from the old site is quoted in the brief as source material, never instructions.
 - JS-only storefronts (no products in the HTML) scan with 0 products; the brief then builds from the copy. A headless-browser scan is a possible v2.
 
+## 13g. Qads Tiktoker + Character (2026-10-28)
+
+- /qads has a mode switch **Ad | Tiktoker** (`app/qads/QadsTiktoker.tsx`, `/qads?mode=tiktoker[&c=<traits>]`). Step 1 Character: curated traits (`lib/qads/tiktoker.ts` CHARACTER_TRAITS, allowlisted again on every parse) → Higgsfield **AI Influencer** sheet (`POST /api/qads/characters`, a `qads_generations` row with style `character` + one image item whose `prompt_used` is the JSON request). Step 2: product photo + character → `POST /api/qads/tiktoker`: one `MODELS.intake` call that sees the photo and writes the spoken script + video prompt (the prompt must carry the script verbatim, `withSpokenLine`) → **Wan 3.0 reference-to-video** with `generate_audio` (9:16, 720p, 10/15 s), style `tiktoker`, item `prompt_used` = `encodeTiktokerItem` (prompt + character id, for Regenerate). No migration: existing tables, webhook, sweep and refunds. Higgsfield's Marketing Studio UGC video is not in the public API.
+- Prices: `lib/qads/pricing.ts` TIKTOKER_*. **Launch offer** `TIKTOKER_LAUNCH` (30 days from 2026-10-29, owner): at cost, i.e. Higgsfield's current price divided by the cheapest net credit (`USD_PER_CREDIT_FLOOR`), no margin; afterwards ~2× list. Website copy prints both with fixed dates (Qgent knowledge stays stable).
+- Website launch panel `app/(site)/_components/qads-launch/QadsLaunchPanel.tsx` (+ `.ql-*` in site.css): glides in from the bottom-left 1.6 s after arrival, only during the launch, Quante green (`.ad-q`), "Qads × Higgsfield", trait chips with a talking 9:16 preview → `/qads?mode=tiktoker&c=…`; closing folds it into a "Novinka" edge tab (localStorage). Never a modal.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

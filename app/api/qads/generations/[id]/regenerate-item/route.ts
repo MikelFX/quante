@@ -29,7 +29,9 @@ import { reserveAgencyRenders } from '@/lib/qads/fair-use'
 import { isAgencyUser } from '@/lib/tier'
 import { buildQadsWebhookUrl } from '@/lib/qads/webhook-token'
 import { isOwnQadsInputPath, signQadsInputPaths } from '@/lib/qads/inputs'
-import { creditsPerItem } from '@/lib/qads/pricing'
+import { characterCredits, creditsPerItem, tiktokerVideoCredits } from '@/lib/qads/pricing'
+import { loadOwnCharacter, signOutput } from '@/lib/qads/charge'
+import { CHARACTER_STYLE, TIKTOKER_STYLE, decodeTiktokerItem } from '@/lib/qads/tiktoker'
 import type { MediaGenerationInput } from '@/lib/qads/media/types'
 
 export const maxDuration = 30
@@ -68,10 +70,16 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     return NextResponse.json({ error: 'Item is already generating' }, { status: 409 })
   }
 
-  // Cost matches the original item's kind + the generation's video duration.
+  // Cost matches the original item's kind + the generation's video duration. Tiktoker
+  // characters and talking videos have their own prices (and models).
   const kind = item.kind as 'image' | 'video'
   const durationSeconds = kind === 'video' ? Number(generation.video_duration_s ?? 0) : 0
-  const cost = creditsPerItem(kind, durationSeconds)
+  const mode = generation.style === CHARACTER_STYLE ? 'character' : generation.style === TIKTOKER_STYLE ? 'tiktoker' : 'ad'
+  const cost = mode === 'character'
+    ? characterCredits()
+    : mode === 'tiktoker'
+      ? tiktokerVideoCredits(durationSeconds)
+      : creditsPerItem(kind, durationSeconds)
 
   // Everything that can fail for config/input reasons is checked before we
   // claim or charge.
@@ -82,12 +90,24 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   // Defence in depth: older rows could hold foreign paths written before the
   // generate route validated them — never sign those with the service role.
   const paths = ((generation.input_photo_urls as string[] | null) ?? []).slice(0, 2)
-  if (paths.length === 0) return NextResponse.json({ error: 'Original photo unavailable' }, { status: 500 })
+  // A character may have been made without a product photo.
+  if (paths.length === 0 && mode !== 'character') return NextResponse.json({ error: 'Original photo unavailable' }, { status: 500 })
   if (!paths.every(p => isOwnQadsInputPath(userId, p))) {
     return NextResponse.json({ error: 'Original photo unavailable' }, { status: 400 })
   }
-  const signed = await signQadsInputPaths(paths)
+  const signed = paths.length ? await signQadsInputPaths(paths) : []
   if (!signed) return NextResponse.json({ error: 'Failed to load input photo' }, { status: 500 })
+
+  // A Tiktoker video re-renders with the same character sheet and the same spoken line.
+  let prompt = item.prompt_used as string
+  let characterImageUrl: string | undefined
+  if (mode === 'tiktoker') {
+    const stored = decodeTiktokerItem(prompt)
+    const character = stored ? await loadOwnCharacter(userId, stored.characterId) : null
+    characterImageUrl = character ? (await signOutput(character.bucket, character.path)) ?? undefined : undefined
+    if (!stored || !characterImageUrl) return NextResponse.json({ error: 'The character is no longer available' }, { status: 400 })
+    prompt = stored.prompt
+  }
 
   // ── Claim the item atomically (terminal → queued). Clearing the request id
   // detaches any late webhook for the previous attempt from this item.
@@ -150,10 +170,12 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   const itemRef = { id: itemId, generation_id: generationId, user_id: userId, credits_charged: charged }
   const submitInput: MediaGenerationInput = {
     kind,
-    prompt: item.prompt_used as string,
+    mode,
+    prompt,
     format: item.format as '1:1'|'4:5'|'9:16'|'16:9',
-    referenceImageUrl: signed[0],
+    referenceImageUrl: signed[0] ?? '',
     modelImageUrl: signed[1],
+    characterImageUrl,
     durationSeconds: kind === 'video' ? durationSeconds : undefined,
     webhookUrl: buildQadsWebhookUrl(itemId),
   }
