@@ -6,7 +6,7 @@ Stav k 2026-10-10: **přepnuto.** Web běží na **assetradigital.agency**, apli
 ## 0. Rozhodnutí před přepnutím (dělá majitel)
 
 - [x] **Doména webu**: assetradigital.agency.
-- [ ] **Kdo provozuje Quante**: QuanteCode s.r.o., nebo AssetraDigital s.r.o. (patička, obchodní podmínky, faktury).
+- [x] **Kdo provozuje Quante**: AssetraDigital s.r.o. (vlastník 2026-10-28). Quante je produkt, ne firma — patička, obchodní podmínky a e-maily uvádějí „a product of AssetraDigital s.r.o.“; název firmy jen z `content/assetra/site.ts` (`company`).
 - [ ] **Doplněné placeholdery na webu** (`content/assetra/site.ts`): IČO, sídlo, rejstřík, telefon, e-mail,
       doba odpovědi, cena správy, hodinová sazba, DPH, texty obchodních podmínek / ochrany osobních údajů /
       vzorové smlouvy. Bez nich web ukazuje viditelné `[doplnit]`. Po změně spustit `npm run qgent:knowledge`.
