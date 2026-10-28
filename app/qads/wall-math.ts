@@ -96,7 +96,9 @@ export function tilePose(i: number, L: WallLayout, q: number, W: number, H: numb
   }
   const start = FLY_FROM + rand(i, 1) * FLY_SPREAD
   const t = clamp01((q - start) / FLY_FOR)
-  if (t <= 0) return { x: slot.x, y: slot.y, z: -3000, rx: 0, ry: 0, rz: 0, s: 0.5, o: 0 }
+  // Waiting tiles rest invisibly on their slot at full size: the browser rasterises a layer at the
+  // scale it first sees, so a tile parked tiny and far away would fly in blurry, then re-raster.
+  if (t <= 0) return { x: slot.x, y: slot.y, z: 0, rx: 0, ry: 0, rz: 0, s: 1, o: 0 }
   const e = easeOutQuart(t)
   const ang = rand(i, 2) * Math.PI * 2
   const dist = Math.max(W, H) * (1.05 + rand(i, 3) * 0.6)
@@ -112,12 +114,29 @@ export function tilePose(i: number, L: WallLayout, q: number, W: number, H: numb
   }
 }
 
+/** True while tiles are still flying in — no video starts then (decoding would steal frames). */
+export function inFlight(q: number): boolean {
+  return q > FLY_FROM && q < FLY_FROM + FLY_SPREAD + FLY_FOR
+}
+
+/**
+ * The scene follows the scroll position with a short time constant (ms), so coarse or uneven
+ * scroll events on phones still give an even motion. Frame-rate independent.
+ */
+export function followQ(shown: number, target: number, dtMs: number, tauMs = 90): number {
+  const k = 1 - Math.exp(-Math.max(0, dtMs) / tauMs)
+  const next = shown + (target - shown) * k
+  return Math.abs(target - next) < 0.0004 ? target : next
+}
+
 /**
  * Fill `count` tiles: shared creations first (newest), then the seed, repeating the pool. With
- * `cols`, each row starts three pieces further on, so a repeat never sits right below itself.
+ * `cols`, each row starts three pieces further on (one when the pool is a multiple of three), so
+ * a repeat never sits right below itself.
  */
 export function fillWall<T>(community: T[], seed: T[], count: number, cols = count): T[] {
   const pool = [...community, ...seed]
   if (!pool.length) return []
-  return Array.from({ length: count }, (_, i) => pool[((i % cols) + Math.floor(i / cols) * 3) % pool.length])
+  const shift = pool.length % 3 === 0 ? 1 : 3
+  return Array.from({ length: count }, (_, i) => pool[((i % cols) + Math.floor(i / cols) * shift) % pool.length])
 }
