@@ -461,7 +461,7 @@
 @keyframes ad-spin{0%,40%{transform:rotate(0)}50%,90%{transform:rotate(90deg)}100%{transform:rotate(180deg)}}
 @keyframes ad-wv{0%,100%{font-stretch:62%}50%{font-stretch:82%;color:var(--acc)}}
 @media (hover:none){.ad [data-in="true"] .giant .lt{animation:ad-wv 3.6s ease-in-out infinite}}
-.ad .ftb{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 0 14px;font:500 12px/1 var(--mono);color:var(--fg3)}
+.ad .ftb{display:flex;justify-content:space-between;align-items:center;gap:16px;padding-top:8px;padding-bottom:14px;font:500 12px/1 var(--mono);color:var(--fg3)}
 .ad .ftb a{display:inline-flex;align-items:center;min-height:44px}
 .ad .ftb a:hover{color:var(--fg)}
 
