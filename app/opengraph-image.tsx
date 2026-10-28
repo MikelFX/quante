@@ -1,3 +1,4 @@
+import { AD_MARK_PATH, AD_MARK_PIXEL, AD_MARK_VIEWBOX } from '@ad/ui/mark'
 import { ImageResponse } from 'next/og'
 import { SITE_NAME } from '@/lib/seo'
 
@@ -6,8 +7,8 @@ import { SITE_NAME } from '@/lib/seo'
 // on every page that doesn't override). Dynamic renderer via next/og so
 // the image inherits any future copy change here without redeploying an
 // asset. Matches the light-minimal marketing theme: near-white bg,
-// near-black wordmark, near-black caption line, a single black dot as
-// the "action" mark.
+// near-black wordmark, near-black caption line, and the pixel-A mark (@ad/ui/mark) with
+// Quante's green accent pixel.
 
 export const runtime = 'edge'
 export const alt = 'Quante — AI e-commerce store generator'
@@ -41,15 +42,10 @@ export default function OpengraphImage() {
             letterSpacing: '-0.01em',
           }}
         >
-          <span
-            style={{
-              display: 'block',
-              width: 14,
-              height: 14,
-              borderRadius: 4,
-              background: '#D4FF3F',
-            }}
-          />
+          <svg width="34" height="34" viewBox={AD_MARK_VIEWBOX}>
+            <path d={AD_MARK_PATH} fill="#0A0A0A" />
+            <rect x={AD_MARK_PIXEL.x} y={AD_MARK_PIXEL.y} width={AD_MARK_PIXEL.size} height={AD_MARK_PIXEL.size} fill="#2fe0a3" />
+          </svg>
           {SITE_NAME.toLowerCase()}
         </div>
         <div
