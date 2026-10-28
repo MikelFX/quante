@@ -110,8 +110,8 @@ export const ACTION_COSTS: ActionCostRow[] = [
   {
     action: 'Download the source (ZIP)',
     cost: CREDIT_COSTS.export,
-    costLabel: 'Free',
-    freeReason: 'Your code is yours — no lock-in.',
+    costLabel: `${CREDIT_COSTS.export} credits per store`,
+    freeReason: 'Paid once per store; downloading it again later is free.',
   },
   {
     action: 'Deploy to Quante hosting',

@@ -4,7 +4,7 @@
 // the pricing config so a future edit can't silently break them:
 //
 //   1. Credit pack per-credit price strictly decreases as pack size grows.
-//   2. Export costs 0 credits (free — matches the "no lock-in" promise).
+//   2. Export costs CREDIT_COSTS.export credits once per store (owner, 2026-10-28).
 //   3. Deploy costs 0 credits (gated on active hosting plan, not credits).
 //   4. Every marketing "credit" caption is COMPUTED from CREDIT_COSTS or
 //      pack fields, not hand-typed — verified by re-computing the display
@@ -98,8 +98,11 @@ test('exactly one pack is marked popular', () => {
   assert.equal(popular.length, 1, `Expected exactly one popular pack, got ${popular.length}`)
 })
 
-test('export costs 0 credits (free per audit brief 1.4)', () => {
-  assert.equal(CREDIT_COSTS.export, 0, 'Regular export must be free — the About page attacks competitors for paywalling export.')
+test('export costs 5 credits, charged once per store (owner, 2026-10-28)', () => {
+  assert.equal(CREDIT_COSTS.export, 5, 'Downloading a store\'s code costs 5 credits — decided by the owner.')
+  const route = readFileSync(new URL('../app/api/export/route.ts', import.meta.url), 'utf8')
+  assert.match(route, /from\('exports'\)[\s\S]*?\.eq\('project_id', project\.id\)/, '/api/export must look for an earlier export of the same store')
+  assert.match(route, /alreadyPaid \? 0 : EXPORT_COST/, 'a store that was already exported must download free')
 })
 
 test('deploy costs 0 credits (hosting-gated per audit brief 1.3)', () => {

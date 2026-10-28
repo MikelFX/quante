@@ -90,7 +90,14 @@ export async function POST(request: Request) {
   // manifest mode (code-gen buildStoreFiles has no admin files — charging there was 10
   // credits for nothing) and not already purchased via /api/quante/admin-panel.
   const chargeAdmin = !codeVersion && includeAdmin && !paidAdmin
-  const cost = chargeAdmin ? EXPORT_ADMIN_COST : EXPORT_COST
+  // The code is paid once per store: any earlier export of this project (the exports row
+  // is written only after a successful build) makes every later download free.
+  const { count: earlierExports } = await supabaseAdmin
+    .from('exports')
+    .select('id', { count: 'exact', head: true })
+    .eq('project_id', project.id)
+  const alreadyPaid = (earlierExports ?? 0) > 0
+  const cost = chargeAdmin ? EXPORT_ADMIN_COST : alreadyPaid ? 0 : EXPORT_COST
   const debitReason = chargeAdmin ? 'export_admin' : 'export'
 
   // ── Atomic debit BEFORE building the ZIP (agency and 0-cost exports skip it) ──

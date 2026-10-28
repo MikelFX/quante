@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { QuanteBrand } from '@/components/shell/QuanteBrand'
 import { operator, socialLinks, footerNav } from '@/lib/site-config'
 
 // Light/glass footer for the public site. Only rendered on public pages
@@ -7,7 +8,6 @@ import { operator, socialLinks, footerNav } from '@/lib/site-config'
 // palette here rather than reuse the dark tokens above.
 const muted  = 'var(--qp-mut)'
 const subtle = 'var(--qp-sub)'
-const fg     = 'var(--qp-ink)'
 const mono   = 'var(--qp-mono)'
 
 function Col({ title, children }: { title: string; children: React.ReactNode }) {
@@ -77,8 +77,8 @@ export function SiteFooter() {
         }} className="footer-grid">
           {/* Brand */}
           <div>
-            <span style={{ fontFamily: mono, fontSize: 15, fontWeight: 600, color: fg, display: 'block', marginBottom: 8 }}>
-              quante
+            <span style={{ display: 'block', marginBottom: 10 }}>
+              <QuanteBrand />
             </span>
             <p style={{ fontSize: 12, color: muted, lineHeight: 1.6, maxWidth: 180 }}>
               AI-native e-commerce builder. Describe your store. We build it.

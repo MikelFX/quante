@@ -39,6 +39,9 @@ export function QuanteClerk({ children }: { children: React.ReactNode }) {
             boxShadow: 'inset 0 1px 0 var(--q-glass-hi), 0 24px 60px -28px var(--q-shadow)',
             borderRadius: '28px',
           },
+          // The Quante mark sits above the card (QuanteBrand); a logo uploaded in the Clerk
+          // dashboard would show a second, possibly outdated one inside it.
+          logoBox: { display: 'none' },
           headerTitle: { color: 'var(--q-fg)', fontWeight: '700' },
           headerSubtitle: { color: 'var(--q-fg3)' },
           socialButtonsBlockButton: {

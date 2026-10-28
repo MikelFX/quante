@@ -31,7 +31,7 @@ export const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: 'Can I export the same store more than once?',
-    a: 'Yes — export is free. Every export downloads a complete Next.js project you own outright, and you can re-export whenever you want.',
+    a: `Yes. The first download of a store costs ${CREDIT_COSTS.export} credits; every later download of the same store is free. Each export is a complete Next.js project you own outright.`,
   },
   {
     q: 'What does "Deploy to Quante hosting" mean?',
@@ -39,7 +39,7 @@ export const PRICING_FAQ: FaqItem[] = [
   },
   {
     q: 'Can I self-host instead?',
-    a: 'Yes. Export the ZIP (free) and deploy anywhere — Vercel\'s free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency. No hosting plan needed.',
+    a: `Yes. Export the ZIP (${CREDIT_COSTS.export} credits, once per store) and deploy anywhere — Vercel's free Hobby plan, Railway, Fly.io, your own VPS. The ZIP is a plain Next.js project with zero Quante dependency. No hosting plan needed.`,
   },
   {
     q: 'Do I need a subscription to build a store?',

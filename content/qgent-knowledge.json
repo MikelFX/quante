@@ -268,7 +268,7 @@
           "Sestaví a opraví se sám: Obchod se zkušebně sestaví na Vercelu. Když build selže, Quante přečte chybu, opraví kód a zkusí to znovu, až pětkrát.",
           "Úpravy větou: Změnu popíšete v chatu a Quante ji zapracuje.",
           "Vlastní administrace: Objednávky, produkty a zákazníci. Platby přes Comgate, GoPay nebo PayPal, štítky Zásilkovny, GLS a DHL.",
-          "Kód je váš: Celý projekt si kdykoli stáhnete jako ZIP, zdarma."
+          "Kód je váš: Celý projekt si stáhnete jako ZIP. Platíte jednou za obchod, každé další stažení je zdarma."
         ],
         "note": "Když se obchod nepodaří sestavit ani po pěti opravách, kredity za generování se vrátí. Opravy samotné jsou zdarma.",
         "connections": [
@@ -280,7 +280,7 @@
           "Vygenerování e-shopu: 10 kreditů",
           "Úprava v chatu: 1 kredit",
           "Automatické opravy buildu: zdarma",
-          "Stažení kódu jako ZIP: zdarma",
+          "Stažení kódu jako ZIP: 5 kreditů za obchod, další stažení zdarma",
           "Hosting: 99 USD ročně, první měsíc zdarma"
         ],
         "page": "/quante/generate"
@@ -307,7 +307,7 @@
           "Sken obchodu: zdarma, až 5 skenů denně",
           "Postavení nového obchodu: 10 kreditů",
           "Hosting: 9,99 USD měsíčně, nebo 99 USD ročně",
-          "Stažení kódu jako ZIP: zdarma"
+          "Stažení kódu jako ZIP: 5 kreditů za obchod, další stažení zdarma"
         ],
         "page": "/quante/qscan"
       },
@@ -432,7 +432,7 @@
         "Reklamní fotka v Qads: 1 kredit",
         "Reklamní video v Qads: 6 kreditů za 5 s",
         "Příprava reklam v Qads: 3 kredity za generování",
-        "Stažení kódu jako ZIP: zdarma"
+        "Stažení kódu jako ZIP: 5 kreditů za obchod, další stažení zdarma"
       ],
       "hosting": "99 USD ročně, první měsíc zdarma",
       "agency": "699 USD měsíčně: neomezeně obchodů, hromadné generování až 20 obchodů, generování, úpravy a Qads bez kreditů (fair use), export bez značky Quante, hosting v ceně. Fair use: 50 generování obchodu, 20 videí a 100 fotek v Qads denně. Hromadný export až 20 obchodů naráz. Objednává se v aplikaci v Billing."

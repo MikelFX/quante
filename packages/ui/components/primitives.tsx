@@ -1,3 +1,4 @@
+import { AD_MARK_PATH, AD_MARK_PIXEL, AD_MARK_VIEWBOX } from '../mark'
 import Link from 'next/link'
 import type { CSSProperties, ReactNode } from 'react'
 
@@ -28,9 +29,9 @@ export function SmartLink({ href, className, children, ...rest }: { href: string
 /** The AD mark: an A built from a 7 × 7 pixel grid; the accent pixel in the middle of the crossbar blinks. */
 export function AdMark({ className = 'mark' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 56 56" aria-hidden="true">
-      <path d="M16 0h24v8h-24zM8 8h16v8h-16zM32 8h16v8h-16zM0 16h16v8h-16zM40 16h16v8h-16zM0 24h16v8h-16zM40 24h16v8h-16zM0 32h24v8h-24zM32 32h24v8h-24zM0 40h16v8h-16zM40 40h16v8h-16zM0 48h16v8h-16zM40 48h16v8h-16z" fill="currentColor" />
-      <rect className="px" x="24" y="32" width="8" height="8" />
+    <svg className={className} viewBox={AD_MARK_VIEWBOX} aria-hidden="true">
+      <path d={AD_MARK_PATH} fill="currentColor" />
+      <rect className="px" x={AD_MARK_PIXEL.x} y={AD_MARK_PIXEL.y} width={AD_MARK_PIXEL.size} height={AD_MARK_PIXEL.size} />
     </svg>
   )
 }

@@ -1,3 +1,4 @@
+import { AD_MARK_PATH, AD_MARK_PIXEL, AD_MARK_VIEWBOX } from '@ad/ui/mark'
 import { ImageResponse } from 'next/og'
 import { tokens } from '@ad/ui/tokens'
 
@@ -31,9 +32,9 @@ export default async function Image() {
     (
       <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: 72, background: t.bg, color: t.fg }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-          <svg width="66" height="48" viewBox="0 0 44 32">
-            <path d="M3 29 L20 3 L20 29 M20 3 H25 A13 13 0 0 1 25 29 H20" fill="none" stroke={t.fg} strokeWidth="3.2" strokeLinecap="square" />
-            <rect x="12.6" y="18.2" width="4.6" height="4.6" fill={t.acc} />
+          <svg width="56" height="56" viewBox={AD_MARK_VIEWBOX}>
+            <path d={AD_MARK_PATH} fill={t.fg} />
+            <rect x={AD_MARK_PIXEL.x} y={AD_MARK_PIXEL.y} width={AD_MARK_PIXEL.size} height={AD_MARK_PIXEL.size} fill={t.acc} />
           </svg>
           <div style={{ display: 'flex', flexDirection: 'column', fontSize: 20, letterSpacing: 4, fontWeight: 700, lineHeight: 1.2, ...(display ? { fontFamily: 'Archivo Narrow' } : {}) }}>
             <span>ASSETRA</span>

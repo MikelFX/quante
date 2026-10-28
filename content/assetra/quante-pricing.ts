@@ -43,7 +43,7 @@ export const quantePricing = {
     { label: 'Reklamní fotka v Qads', value: credits(QADS.imagePerVariant) },
     { label: 'Reklamní video v Qads', value: `${kredity(videoExample)} za 5 s` },
     { label: 'Příprava reklam v Qads', value: `${kredity(QADS.strategyPerGeneration)} za generování` },
-    { label: 'Stažení kódu jako ZIP', value: credits(CREDIT_COSTS.export) },
+    { label: 'Stažení kódu jako ZIP', value: `${credits(CREDIT_COSTS.export)} za obchod, další stažení zdarma` },
   ],
   hosting: { annualUsd: HOSTING_ANNUAL_USD, trialDays: 30 },
   // What Agency includes (lib/agency-plan.ts is the app's list; the numbers come from lib/config.ts).
@@ -63,7 +63,7 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
         { label: 'Vygenerování e-shopu', value: credits(CREDIT_COSTS.generate) },
         { label: 'Úprava v chatu', value: credits(CREDIT_COSTS.iterate) },
         { label: 'Automatické opravy buildu', value: credits(CREDIT_COSTS.fix) },
-        { label: 'Stažení kódu jako ZIP', value: credits(CREDIT_COSTS.export) },
+        { label: 'Stažení kódu jako ZIP', value: `${credits(CREDIT_COSTS.export)} za obchod, další stažení zdarma` },
         { label: 'Hosting', value: `${HOSTING_ANNUAL_USD} USD ročně, první měsíc zdarma` },
       ]
     case 'qscan':
@@ -71,7 +71,7 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
         { label: 'Sken obchodu', value: `${free}, až ${QSCAN_DAILY_SCANS} skenů denně` },
         { label: 'Postavení nového obchodu', value: credits(CREDIT_COSTS.generate) },
         { label: 'Hosting', value: `${String(HOSTING_MONTHLY_USD).replace('.', ',')} USD měsíčně, nebo ${HOSTING_ANNUAL_USD} USD ročně` },
-        { label: 'Stažení kódu jako ZIP', value: credits(CREDIT_COSTS.export) },
+        { label: 'Stažení kódu jako ZIP', value: `${credits(CREDIT_COSTS.export)} za obchod, další stažení zdarma` },
       ]
     case 'qdit':
       return [
