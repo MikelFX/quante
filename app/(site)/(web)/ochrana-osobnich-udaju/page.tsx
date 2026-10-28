@@ -1,9 +1,14 @@
 import type { Metadata } from 'next'
-import { DocPlaceholder } from '../DocPlaceholder'
+import { privacy as doc, hasLegalPlaceholders } from '@/content/assetra/legal'
+import { LegalDoc } from '../LegalDoc'
 
-// Not written yet — kept out of search results until the real text is in.
-export const metadata: Metadata = { title: 'Ochrana osobních údajů', robots: { index: false, follow: true } }
+// Kept out of search results while the text still shows [placeholders] (company data not filled in yet).
+export const metadata: Metadata = {
+  title: doc.title,
+  description: doc.lead,
+  robots: hasLegalPlaceholders(doc) ? { index: false, follow: true } : undefined,
+}
 
 export default function Page() {
-  return <DocPlaceholder title="Ochrana osobních údajů" />
+  return <LegalDoc doc={doc} />
 }
