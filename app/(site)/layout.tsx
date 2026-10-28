@@ -4,7 +4,9 @@ import './site.css'
 import { Grain, ParticleMode, PointerFx } from '@ad/ui'
 import { SITE_ORIGIN } from '@/lib/domains'
 import { QgentWidget } from './_components/qgent/QgentWidget'
+import { OffscreenPause } from './_components/OffscreenPause'
 import { SectionSizes } from './_components/SectionSizes'
+import { ShineThrottle } from './_components/ShineThrottle'
 import { siteOgImage } from './_components/seo'
 
 // The website has its own host (lib/domains.ts): canonical and share URLs resolve against it.
@@ -25,6 +27,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       {children}
       <QgentWidget />
       <SectionSizes />
+      <OffscreenPause />
+      <ShineThrottle />
     </div>
   )
 }
