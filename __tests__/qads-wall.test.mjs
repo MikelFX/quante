@@ -72,6 +72,33 @@ test('the scatter is deterministic and the wall is filled from the pool', () => 
   // rows shift by three, so the tile below is never the same piece
   const wall = fillWall([], ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 14, 7)
   for (let c = 0; c < 7; c++) assert.notEqual(wall[c], wall[c + 7])
-  const small = fillWall([], ['a', 'b', 'c'], 12, 3)
-  for (let i = 0; i < 9; i++) assert.notEqual(small[i], small[i + 3])
+})
+
+test('smooth on phones: waiting tiles rest full size, no video starts mid-flight, q eases', async () => {
+  const { inFlight, followQ } = await import('../app/qads/wall-math.ts')
+  // a waiting tile is invisible but already at its final raster size (no blurry fly-in)
+  const wait = tilePose(L.cols, L, 0.5, W, H)
+  assert.equal(wait.o, 0)
+  assert.equal(wait.s, 1)
+  assert.equal(wait.z, 0)
+  assert.ok(!inFlight(1) && inFlight(1.5) && !inFlight(2))
+  // following the scroll: moves toward the target, never past it, frame-rate independent, settles
+  const a = followQ(1, 2, 16)
+  assert.ok(a > 1 && a < 2)
+  const twoSteps = followQ(followQ(1, 2, 8), 2, 8)
+  assert.ok(Math.abs(twoSteps - a) < 1e-9)
+  let q = 1
+  for (let f = 0; f < 120; f++) q = followQ(q, 2, 16)
+  assert.equal(q, 2)
+  assert.equal(followQ(1.5, 1.5, 16), 1.5)
+})
+
+test('a small pool (three seed pieces) still never repeats a piece right below itself', () => {
+  for (const n of [2, 3, 4, 5, 6, 9]) {
+    const pool = Array.from({ length: n }, (_, i) => 'p' + i)
+    for (const cols of [3, 4, 5, 7, 8]) {
+      const wall = fillWall([], pool, cols * ROWS, cols)
+      for (let i = 0; i + cols < wall.length; i++) assert.notEqual(wall[i], wall[i + cols], `n=${n} cols=${cols} i=${i}`)
+    }
+  }
 })

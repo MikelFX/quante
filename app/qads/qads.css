@@ -144,7 +144,8 @@
   -webkit-mask-repeat: no-repeat, repeat-x;
           mask-repeat: no-repeat, repeat-x;
 }
-.qz-wall.still .qz-wall-stage { position: relative; -webkit-mask: none; mask: none; }
+.qz-wall.still .qz-wall-stage, .qz-wall-stage.open { -webkit-mask: none; mask: none; }
+.qz-wall.still .qz-wall-stage { position: relative; }
 
 .qz-wall-head {
   /* below the sticky banner + site nav (~100 px) */
@@ -166,11 +167,14 @@
 .qz-wt-in {
   position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 16px;
   background: var(--q-s2); border: 1px solid var(--q-glass-border);
-  box-shadow:
-    inset 0 1px 0 var(--q-glass-hi),
-    0 28px 60px -28px var(--q-shadow),
-    0 0 calc(var(--qz-land, 0) * 46px) rgb(var(--q-acc-rgb) / calc(var(--qz-land, 0) * .75));
+  box-shadow: inset 0 1px 0 var(--q-glass-hi), 0 28px 60px -28px var(--q-shadow);
   transition: transform .5s var(--q-ease), border-color .3s;
+}
+/* The landing pulse: a fixed glow on its own layer whose opacity the script sets (animating the
+   shadow's size repainted every landing tile on every frame). */
+.qz-wt-glow {
+  position: absolute; inset: 0; border-radius: 16px; pointer-events: none; opacity: 0; will-change: opacity;
+  box-shadow: 0 0 46px rgb(var(--q-acc-rgb) / .75);
 }
 .qz-wt-in img, .qz-wt-in video { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* A soft scrim for the labels and a fine scanline, so the wall reads as one designed surface. */
@@ -198,7 +202,7 @@
 .qz-wt:hover figcaption { opacity: 1; transform: none; }
 @media (max-width: 720px) {
   .qz-wall { height: 240vh; }
-  .qz-wt-in { border-radius: 12px; }
+  .qz-wt-in, .qz-wt-glow { border-radius: 12px; }
   .qz-wt-idx { display: none; }
 }
 

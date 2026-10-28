@@ -7,10 +7,12 @@
 // screen; scrolling straightens it into a band, then the other pieces fly in from every direction
 // and settle into three more rows. Videos play only while they are on stage (a few at a time).
 // With animations off or reduced motion the finished wall is shown as is.
+// Smooth on phones: the scene eases after the scroll position, pictures are fetched and decoded
+// before the wall arrives, only transform/opacity change per frame, no video starts mid-flight.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { COMMUNITY_SEED, type WallMedia } from '@/content/qads/community-seed'
-import { fillWall, groupPose, landedAt, tilePose, wallLayout, ROWS, type WallLayout } from './wall-math'
+import { fillWall, followQ, groupPose, inFlight, landedAt, tilePose, wallLayout, ROWS, type WallLayout } from './wall-math'
 
 const GRAIN = 130 // height of the dissolving band, px
 const MAX_PLAYING = 6
@@ -22,9 +24,11 @@ export function QadsCommunityWall() {
   const headRef = useRef<HTMLElement | null>(null)
   const tileRefs = useRef<(HTMLElement | null)[]>([])
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
+  const glowRefs = useRef<(HTMLElement | null)[]>([])
   const [shared, setShared] = useState<WallMedia[]>([])
   const [layout, setLayout] = useState<WallLayout | null>(null)
   const [still, setStill] = useState(false)
+  const [near, setNear] = useState(false)
 
   useEffect(() => {
     let off = false
@@ -53,6 +57,20 @@ export function QadsCommunityWall() {
 
   const tiles = useMemo(() => (layout ? fillWall(shared, COMMUNITY_SEED, layout.cols * ROWS, layout.cols) : []), [layout, shared])
 
+  // Fetch and decode every picture well before the wall comes on screen, so no photo is still
+  // loading (or decoding on the main thread) while it flies in.
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section || near) return
+    const io = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setNear(true) }, { rootMargin: '150% 0px' })
+    io.observe(section)
+    return () => io.disconnect()
+  }, [near])
+  useEffect(() => {
+    if (!near) return
+    for (const el of planeRef.current?.querySelectorAll('img') ?? []) el.decode().catch(() => {})
+  }, [near, tiles])
+
   useEffect(() => {
     const section = sectionRef.current
     const stage = stageRef.current
@@ -60,10 +78,23 @@ export function QadsCommunityWall() {
     if (!section || !stage || !plane || !layout || !tiles.length) return
     let raf = 0
     let active = false
+    let shown = -1
+    let last = 0
     const playing = new Set<number>()
     const videos = videoRefs.current
+    // Phones decode only a few videos at once without dropping frames.
+    const maxPlaying = window.matchMedia('(pointer: coarse)').matches ? 3 : MAX_PLAYING
+    // Only changed values are written: an unchanged style write still costs a style pass.
+    const written = new WeakMap<HTMLElement, Record<string, string>>()
+    const put = (el: HTMLElement, prop: string, value: string) => {
+      let memo = written.get(el)
+      if (!memo) written.set(el, (memo = {}))
+      if (memo[prop] === value) return
+      memo[prop] = value
+      el.style.setProperty(prop, value)
+    }
 
-    const frame = () => {
+    const frame = (now: number) => {
       raf = 0
       const W = window.innerWidth
       const H = window.innerHeight
@@ -71,38 +102,48 @@ export function QadsCommunityWall() {
       // q: 0 → 1 while the stage scrolls into view, 1 → 2 while it is pinned (wall-math.ts).
       const enter = Math.min(1, Math.max(0, 1 - rect.top / H))
       const pinned = Math.min(1, Math.max(0, -rect.top / Math.max(1, rect.height - H)))
-      const q = still ? 2 : rect.top > 0 ? enter : 1 + pinned
+      const target = still ? 2 : rect.top > 0 ? enter : 1 + pinned
+      // The scene eases after the scroll position instead of jumping with every scroll event.
+      shown = shown < 0 || still || !active ? target : followQ(shown, target, Math.min(64, now - last))
+      last = now
+      const q = shown
 
       const head = headRef.current
       const g = groupPose(q, layout, H, head ? head.offsetTop + head.offsetHeight : undefined)
-      plane.style.transform = `translate3d(0, ${g.y.toFixed(1)}px, 0) rotateX(${g.tilt.toFixed(2)}deg) scale(${g.scale.toFixed(4)})`
+      put(plane, 'transform', `translate3d(0, ${g.y.toFixed(1)}px, 0) rotateX(${g.tilt.toFixed(2)}deg) scale(${g.scale.toFixed(4)})`)
 
       // The grain band rides the bottom edge of the screen, then slides away once the wall opens.
+      // Fully open, the mask is dropped: a masked 3D scene is re-composited through an offscreen
+      // surface on every frame, which is what made the fly-in stutter on phones.
       const visible = H - Math.max(0, rect.top)
       const reveal = still ? H + GRAIN : visible - GRAIN + Math.max(0, q - 1.05) * H * 2.2
-      stage.style.setProperty('--qz-reveal', `${Math.min(H + GRAIN, reveal).toFixed(1)}px`)
-      stage.style.setProperty('--qz-head', String(Math.min(1, Math.max(0, (q - 1.55) / 0.3))))
+      const open = reveal >= H + GRAIN
+      stage.classList.toggle('open', open)
+      put(stage, '--qz-reveal', `${Math.min(H + GRAIN, reveal).toFixed(1)}px`)
+      put(stage, '--qz-head', Math.min(1, Math.max(0, (q - 1.55) / 0.3)).toFixed(3))
 
       const want: number[] = []
       for (let i = 0; i < tiles.length; i++) {
         const el = tileRefs.current[i]
         if (!el) continue
         const p = tilePose(i, layout, q, W, H)
-        el.style.transform = `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, ${p.z.toFixed(1)}px) rotateX(${p.rx.toFixed(1)}deg) rotateY(${p.ry.toFixed(1)}deg) rotateZ(${p.rz.toFixed(1)}deg) scale(${p.s.toFixed(3)})`
-        el.style.opacity = p.o.toFixed(3)
-        // A short mint pulse as a piece lands.
-        const land = i < layout.cols ? 0 : Math.max(0, 1 - Math.abs(q - landedAt(i, layout)) / 0.05)
-        el.style.setProperty('--qz-land', land.toFixed(2))
+        put(el, 'transform', `translate3d(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px, ${p.z.toFixed(1)}px) rotateX(${p.rx.toFixed(1)}deg) rotateY(${p.ry.toFixed(1)}deg) rotateZ(${p.rz.toFixed(1)}deg) scale(${p.s.toFixed(3)})`)
+        put(el, 'opacity', p.o.toFixed(3))
+        // A short mint pulse as a piece lands — the glow is its own layer, only its opacity moves.
+        const glow = glowRefs.current[i]
+        if (glow) put(glow, 'opacity', still ? '0' : Math.max(0, 1 - Math.abs(q - landedAt(i, layout)) / 0.05).toFixed(2))
         // No autoplay with animations off or reduced motion: the videos rest on their posters.
         if (tiles[i].kind === 'video' && p.o > 0.85 && active && !still) want.push(i)
       }
 
-      // Play a few distinct videos; everything else rests on its poster.
+      // Play a few distinct videos; everything else rests on its poster. None starts while the
+      // tiles are flying in (starting a video costs main-thread and decoder time).
       const srcs = new Set<string>()
       const chosen = new Set<number>()
       for (const i of want) {
-        if (chosen.size >= MAX_PLAYING) break
+        if (chosen.size >= maxPlaying) break
         if (srcs.has(tiles[i].src)) continue
+        if (!playing.has(i) && inFlight(q)) continue
         srcs.add(tiles[i].src)
         chosen.add(i)
       }
@@ -111,13 +152,16 @@ export function QadsCommunityWall() {
         const v = videoRefs.current[i]
         if (!v) continue
         v.preload = 'auto'
-        v.play().then(() => playing.add(i)).catch(() => {})
+        playing.add(i)
+        v.play().catch(() => playing.delete(i))
       }
       for (const i of [...playing]) {
         if (chosen.has(i)) continue
         videoRefs.current[i]?.pause()
         playing.delete(i)
       }
+
+      if (shown !== target) schedule()
     }
     const schedule = () => { if (!raf) raf = requestAnimationFrame(frame) }
 
@@ -153,6 +197,7 @@ export function QadsCommunityWall() {
         <div ref={planeRef} className="qz-wall-plane">
           {tiles.map((m, i) => (
             <figure key={i} ref={(el) => { tileRefs.current[i] = el }} className="qz-wt" data-kind={m.kind}>
+              {layout && i >= layout.cols && <span ref={(el) => { glowRefs.current[i] = el }} className="qz-wt-glow" aria-hidden="true" />}
               <div className="qz-wt-in">
                 {m.kind === 'video' ? (
                   <video
@@ -167,7 +212,7 @@ export function QadsCommunityWall() {
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element -- remote signed URLs and seed WebPs, sized by the tile
-                  <img src={m.src} alt={m.label} loading="lazy" decoding="async" />
+                  <img src={m.src} alt={m.label} loading={near ? 'eager' : 'lazy'} decoding="async" />
                 )}
                 <span className="qz-wt-idx" aria-hidden="true">#{String(i + 1).padStart(2, '0')}</span>
                 <figcaption>{m.label}</figcaption>
