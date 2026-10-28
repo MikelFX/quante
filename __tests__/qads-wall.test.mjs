@@ -52,6 +52,18 @@ test('the wall opens: tilted far back first, almost facing the viewer at the end
   assert.ok(a.y < 0)
 })
 
+test('the finished wall stays below the heading and on screen', () => {
+  for (const [w, h] of [[390, 760], [390, 640], [1440, 900]]) {
+    const l = wallLayout(w, h)
+    const headBottom = h < 700 ? 230 : 210
+    const g = groupPose(2, l, h, headBottom)
+    const half = ((l.rows * l.tileH + (l.rows - 1) * l.gap) / 2) * g.scale
+    const centre = h / 2 + g.y
+    assert.ok(centre - half >= headBottom, `${w}x${h} top ${centre - half}`)
+    assert.ok(centre + half <= h, `${w}x${h} bottom ${centre + half}`)
+  }
+})
+
 test('the scatter is deterministic and the wall is filled from the pool', () => {
   assert.equal(rand(3, 2), rand(3, 2))
   assert.ok(rand(3, 2) >= 0 && rand(3, 2) < 1)
@@ -60,4 +72,6 @@ test('the scatter is deterministic and the wall is filled from the pool', () => 
   // rows shift by three, so the tile below is never the same piece
   const wall = fillWall([], ['a', 'b', 'c', 'd', 'e', 'f', 'g'], 14, 7)
   for (let c = 0; c < 7; c++) assert.notEqual(wall[c], wall[c + 7])
+  const small = fillWall([], ['a', 'b', 'c'], 12, 3)
+  for (let i = 0; i < 9; i++) assert.notEqual(small[i], small[i + 3])
 })

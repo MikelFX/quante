@@ -192,7 +192,7 @@ export function AiBuilt() {
             </span>
           ))}
           <span className="pr-ad pr-sq">
-            <Image src={productScreens.qads.photo.src} alt="Reklamní fotka vytvořená v Qads" width={1080} height={1080} sizes="150px" />
+            <Image src={productScreens.qads.photo.src} alt="Reklamní fotka vytvořená v Qads" width={611} height={1080} sizes="150px" />
             <em>{productScreens.qads.photo.label}</em>
           </span>
         </div>

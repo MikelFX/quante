@@ -71,18 +71,33 @@ export function landedAt(i: number, L: WallLayout): number {
   return i < L.cols ? 0 : FLY_FROM + rand(i, 1) * FLY_SPREAD + FLY_FOR
 }
 
-/** The whole wall: how far it is tilted back, where it sits, how large. */
-export function groupPose(q: number, L: WallLayout, H: number): { y: number; tilt: number; scale: number } {
+const WALL_MARGIN = 16
+
+/**
+ * The whole wall: how far it is tilted back, where it sits, how large. With `headBottom` (px from
+ * the top of the stage to the bottom of the heading) the finished wall sits between the heading
+ * and the bottom of the screen, shrunk if it would not fit — it never covers the heading's text.
+ */
+export function groupPose(q: number, L: WallLayout, H: number, headBottom?: number): { y: number; tilt: number; scale: number } {
   const open = easeInOut(clamp01(q / 1.3))
   const settle = easeInOut(clamp01((q - 1.65) / 0.35))
   const stripY = slotOf(0, L).y
   // At first the strip sits near the top of the stage; in the end the four rows fill the stage.
   const startY = -H / 2 + L.tileH * 0.55 - stripY
   // In the end the wall sits a little low, leaving room for the heading above it.
+  let endY = H * 0.1
+  let endScale = 1
+  if (headBottom != null) {
+    const top = headBottom + WALL_MARGIN
+    const room = Math.max(1, H - WALL_MARGIN - top)
+    const wallH = L.rows * L.tileH + (L.rows - 1) * L.gap
+    endScale = Math.min(1, room / wallH)
+    endY = top + room / 2 - H / 2
+  }
   return {
-    y: lerp(startY, H * 0.1, open),
+    y: lerp(startY, endY, open),
     tilt: lerp(lerp(44, 12, open), 5, settle),
-    scale: lerp(1.08, 1, open),
+    scale: lerp(1.08, endScale, open),
   }
 }
 
@@ -114,10 +129,12 @@ export function tilePose(i: number, L: WallLayout, q: number, W: number, H: numb
 
 /**
  * Fill `count` tiles: shared creations first (newest), then the seed, repeating the pool. With
- * `cols`, each row starts three pieces further on, so a repeat never sits right below itself.
+ * `cols`, each row starts three pieces further on (one when the pool is a multiple of three), so
+ * a repeat never sits right below itself.
  */
 export function fillWall<T>(community: T[], seed: T[], count: number, cols = count): T[] {
   const pool = [...community, ...seed]
   if (!pool.length) return []
-  return Array.from({ length: count }, (_, i) => pool[((i % cols) + Math.floor(i / cols) * 3) % pool.length])
+  const shift = pool.length % 3 === 0 ? 1 : 3
+  return Array.from({ length: count }, (_, i) => pool[((i % cols) + Math.floor(i / cols) * shift) % pool.length])
 }

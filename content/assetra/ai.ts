@@ -171,7 +171,7 @@ export const productScreens = {
       { video: '/produkty/qads-keyboard.mp4', poster: '/qads/community/video-keyboard.webp', label: 'Video 9:16' },
       { video: '/produkty/qads-wheel.mp4', poster: '/qads/community/video-wheel.webp', label: 'Video 9:16' },
     ],
-    photo: { src: '/qads/community/photo-lighter.webp', label: 'Fotka 1:1' },
+    photo: { src: '/qads/community/photo-keyboard.webp', label: 'Fotka' },
   },
 }
 
