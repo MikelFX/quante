@@ -4,7 +4,7 @@
 
 import { AGENCY_BATCH_SIZE, AGENCY_FAIR_USE, AGENCY_MONTHLY_USD, CREDIT_COSTS, HOSTING_ANNUAL_USD, HOSTING_MONTHLY_USD, QSCAN_DAILY_SCANS } from '@/lib/config'
 import { CREDIT_PACKS } from '@/lib/credit-packs'
-import { QADS_GENERATOR_CREDIT_COSTS as QADS } from '@/lib/qads/pricing'
+import { QADS_GENERATOR_CREDIT_COSTS as QADS, TIKTOKER_LAUNCH, characterCredits, computeTiktokerCost } from '@/lib/qads/pricing'
 import type { ModuleSlug } from './modules'
 
 /** 1 kredit · 2–4 kredity · 5+ kreditů */
@@ -22,6 +22,21 @@ export function usd(cents: number) {
 const free = 'zdarma'
 const credits = (n: number) => (n === 0 ? free : kredity(n))
 const videoExample = Math.ceil(QADS.videoPerSecond * 5)
+
+// Qads Tiktoker: launch price (at cost) until TIKTOKER_LAUNCH.endsAt, then the regular one. Both
+// are written out with fixed dates, so this copy (and Qgent's knowledge built from it) never
+// changes by itself — the app charges whichever applies on the day (lib/qads/pricing.ts).
+function tiktokerRows() {
+  const during = new Date(TIKTOKER_LAUNCH.startsAt)
+  const after = new Date(TIKTOKER_LAUNCH.endsAt)
+  const last = new Date(Date.parse(TIKTOKER_LAUNCH.endsAt) - 1)
+  const until = `${last.getUTCDate()}. ${last.getUTCMonth() + 1}. ${last.getUTCFullYear()}`
+  const video = (at: Date) => `${kredity(computeTiktokerCost(1, 15, at).totalCredits)} za 15 s, ${kredity(computeTiktokerCost(1, 10, at).totalCredits)} za 10 s`
+  return [
+    { label: 'AI postava pro Qads Character', value: kredity(characterCredits(during)) },
+    { label: 'Video s mluvící AI postavou', value: `do ${until} bez marže: ${video(during)}; potom ${video(after)}` },
+  ]
+}
 
 export const quantePricing = {
   packs: CREDIT_PACKS.map((p) => ({
@@ -43,6 +58,7 @@ export const quantePricing = {
     { label: 'Reklamní fotka v Qads', value: credits(QADS.imagePerVariant) },
     { label: 'Reklamní video v Qads', value: `${kredity(videoExample)} za 5 s` },
     { label: 'Příprava reklam v Qads', value: `${kredity(QADS.strategyPerGeneration)} za generování` },
+    ...tiktokerRows(),
     { label: 'Stažení kódu jako ZIP', value: `${credits(CREDIT_COSTS.export)} za obchod, další stažení zdarma` },
   ],
   hosting: { annualUsd: HOSTING_ANNUAL_USD, trialDays: 30 },
@@ -89,6 +105,7 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
         { label: 'Fotka', value: `${kredity(QADS.imagePerVariant)} za kus` },
         { label: 'Video', value: `${QADS.videoPerSecond.toString().replace('.', ',')} kreditu za sekundu, zaokrouhleno nahoru (5 s = ${kredity(videoExample)})` },
         { label: 'Příprava reklam a textů', value: `${kredity(QADS.strategyPerGeneration)} za generování` },
+        ...tiktokerRows(),
       ]
     default:
       return []

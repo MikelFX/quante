@@ -1,4 +1,4 @@
-// Grideet loader (CLAUDE.md §13g). Server-only. Reads everything the signed-in user owns from the
+// Grideet loader (CLAUDE.md §13h). Server-only. Reads everything the signed-in user owns from the
 // existing tables — every query filtered by user_id (or by project ids that already passed that
 // filter) because the service-role client bypasses RLS — and hands the rows to the pure model
 // (lib/grideet/model.ts). Nothing is written and nothing is computed that the tables don't say.

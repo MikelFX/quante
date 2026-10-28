@@ -21,6 +21,10 @@ export type MediaRequestStatus = 'queued' | 'in_progress' | 'completed' | 'faile
 
 export interface MediaGenerationInput {
   kind: 'image' | 'video'
+  // Which Qads feature this render belongs to; picks the model in the provider's mapper.
+  // 'ad' (default) = ad photo/video, 'character' = a Tiktoker character sheet (prompt is the
+  // JSON request from lib/qads/tiktoker.ts), 'tiktoker' = a talking video with generated speech.
+  mode?: 'ad' | 'character' | 'tiktoker'
   prompt: string
   // Qads' own small ad-format vocabulary (matches qads_creatives.format) — each
   // provider's mapper.ts translates this into that provider's own aspect-ratio enum.
@@ -28,10 +32,13 @@ export interface MediaGenerationInput {
   // Product-fidelity requirement (docs/qads-proposal.md §3.3) — mandatory, never
   // optional, for anything depicting a real product. This is the product's own photo,
   // not a mood-board reference.
+  // A character with no product carries none: '' (only the 'character' mode allows that).
   referenceImageUrl: string
   // Optional second reference (e.g. a model/person shot) for providers whose enhanced
   // mode accepts one — ignored by providers/modes that don't support it.
   modelImageUrl?: string
+  // 'tiktoker': the character sheet, sent ahead of the product photo.
+  characterImageUrl?: string
   // Video only: clip length the user paid for (see lib/qads/pricing.ts). Mappers must
   // render exactly this length — charging for N seconds and rendering fewer is a bug.
   durationSeconds?: number

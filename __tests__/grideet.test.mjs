@@ -1,4 +1,4 @@
-// Grideet (CLAUDE.md §13g): the pure model (lib/grideet/model.ts) — grouping by brand, the
+// Grideet (CLAUDE.md §13h): the pure model (lib/grideet/model.ts) — grouping by brand, the
 // Unassigned group, ordering, filters, paging — and the loader (lib/grideet/load.ts) against an
 // in-memory database: only the signed-in user's rows, private media only as short-lived signed
 // URLs (never the uploaded product photos), and a missing table / column never breaks the page.

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
-import { operator, socialLinks, footerNav } from '@/lib/site-config'
+import { operator, socialLinks, footerNav, isFilled } from '@/lib/site-config'
 
 // Light/glass footer for the public site. Only rendered on public pages
 // (never inside app/(app) — the Studio/dashboard has its own dark shell and
@@ -44,14 +44,8 @@ function NavLink({ href, label, badge }: { href: string; label: string; badge?: 
 }
 
 // `TODO(michal):` prefix on any operator field means "not yet filled in" —
-// the audit brief mandates a company block (QuanteCode s.r.o.) with the
-// legal fields deferred to a real fill-in pass. Any TODO field is
-// silently omitted from the rendered footer so a placeholder never leaks
-// to the public site. Also detects the older "[TO FILL IN]" convention
-// used in the previous config so an in-flight edit doesn't regress.
-function isFilled(v: string | undefined | null): v is string {
-  return !!v && !v.startsWith('TODO(michal)') && !v.includes('[TO')
-}
+// `isFilled()` (lib/site-config) silently omits it from the rendered footer
+// so a placeholder never leaks to the public site.
 
 export function SiteFooter() {
   const addressFilled = isFilled(operator.address)
@@ -76,6 +70,9 @@ export function SiteFooter() {
             </span>
             <p style={{ fontSize: 12, color: muted, lineHeight: 1.6, maxWidth: 180 }}>
               AI-native e-commerce builder. Describe your store. We build it.
+            </p>
+            <p style={{ fontSize: 12, color: muted, lineHeight: 1.6, maxWidth: 180, marginTop: 8 }}>
+              A product of {operator.companyName}
             </p>
           </div>
 

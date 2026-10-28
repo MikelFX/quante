@@ -1,4 +1,4 @@
-// Grideet — the account's workspace (CLAUDE.md §13g). Pure model: rows from the existing tables
+// Grideet — the account's workspace (CLAUDE.md §13h). Pure model: rows from the existing tables
 // (read by lib/grideet/load.ts) → one GridItem shape → grouped by brand (= project / store),
 // filtered and paged. No imports and no I/O on purpose: __tests__/grideet.test.mjs loads this
 // file through Node's type stripping, so keep it to erasable TS syntax.

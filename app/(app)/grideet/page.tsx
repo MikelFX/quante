@@ -1,4 +1,4 @@
-// Grideet — the account's workspace (CLAUDE.md §13g): everything the user made, grouped by brand
+// Grideet — the account's workspace (CLAUDE.md §13h): everything the user made, grouped by brand
 // (store), each card leading on into a module. Replaced /dashboard (2026-10-28; /dashboard now
 // redirects here). Everything the dashboard had stays: batch banner, project limit, Agency bulk
 // export, delete, archived notice, welcome-credit notice.
