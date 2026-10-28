@@ -355,6 +355,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - The generation system prompt (rule 6) allows image URLs only for a brief starting `QSCAN IMPORT`, and only on the `store-assets` path. Text read from the old site is quoted in the brief as source material, never instructions.
 - JS-only storefronts (no products in the HTML) scan with 0 products; the brief then builds from the copy. A headless-browser scan is a possible v2.
 
+## 13g. Qads Character (2026-10-28)
+
+- /qads has a mode switch **Ad | Character** (owner 2026-10-28: the product name is **Character**, never "Tiktoker" in anything users see; code keeps the working name `tiktoker`: `app/qads/QadsTiktoker.tsx`, style `tiktoker`, `/api/qads/tiktoker`). Link `/qads?mode=character[&c=<traits>]` (`mode=tiktoker` still accepted). Step 1 Character: curated traits (`lib/qads/tiktoker.ts` CHARACTER_TRAITS, allowlisted again on every parse) → Higgsfield **AI Influencer** sheet (`POST /api/qads/characters`, a `qads_generations` row with style `character` + one image item whose `prompt_used` is the JSON request). Step 2: product photo + character → `POST /api/qads/tiktoker`: one `MODELS.intake` call that sees the photo and writes the spoken script + video prompt (the prompt must carry the script verbatim, `withSpokenLine`) → **Wan 3.0 reference-to-video** with `generate_audio` (9:16, 720p, 10/15 s), style `tiktoker`, item `prompt_used` = `encodeTiktokerItem` (prompt + character id, for Regenerate). No migration: existing tables, webhook, sweep and refunds. Higgsfield's Marketing Studio UGC video is not in the public API.
+- Prices: `lib/qads/pricing.ts` TIKTOKER_*. **Launch offer** `TIKTOKER_LAUNCH` (30 days from 2026-10-29, owner): at cost, i.e. Higgsfield's current price divided by the cheapest net credit (`USD_PER_CREDIT_FLOOR`), no margin; afterwards ~2× list. Website copy prints both with fixed dates (Qgent knowledge stays stable).
+- Website launch strip `app/(site)/_components/qads-launch/QadsLaunchPanel.tsx` (+ `.ql-*` in site.css, owner 2026-10-28: "menší pásek, žádný obrázek"): one slim glass line at the bottom-left (bottom, above the Qgent fab, on phones) that glides up 1.8 s after arrival, only during the launch, Quante green (`.ad-q`): blinking pixel, "Qads × Higgsfield", one sentence, "Vyzkoušet" → `/qads?mode=character`. Closing hides it for good (localStorage). No image, no illustration, never a modal.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

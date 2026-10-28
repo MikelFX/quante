@@ -159,6 +159,7 @@ export const modules: QuanteModule[] = [
       { title: 'Formáty pro sítě', text: '9:16, 4:5, 1:1 a 16:9, až čtyři varianty od každého formátu.' },
       { title: 'Pět stylů', text: 'Packshot, lifestyle, UGC, filmový a minimalistický.' },
       { title: 'Videa 4 až 10 sekund', text: 'Krátká videa pro reklamy i příběhy.' },
+      { title: 'Character', text: 'Vytvoříte si AI postavu a ta o produktu namluví svislé video na 10 nebo 15 sekund, s hlasem a pohybem rtů. Scénář napíše AI podle fotky produktu.' },
       { title: 'Reklamní texty', text: 'Háček, text, titulek, výzva k akci, scénář a titulky. Česky, slovensky, anglicky nebo německy.' },
       { title: 'Ke stažení', text: 'Každý soubor zvlášť nebo vše jako ZIP. Qads nic nepublikuje, kam reklamy dáte, je na vás.' },
     ],

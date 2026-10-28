@@ -369,6 +369,7 @@
           "Formáty pro sítě: 9:16, 4:5, 1:1 a 16:9, až čtyři varianty od každého formátu.",
           "Pět stylů: Packshot, lifestyle, UGC, filmový a minimalistický.",
           "Videa 4 až 10 sekund: Krátká videa pro reklamy i příběhy.",
+          "Character: Vytvoříte si AI postavu a ta o produktu namluví svislé video na 10 nebo 15 sekund, s hlasem a pohybem rtů. Scénář napíše AI podle fotky produktu.",
           "Reklamní texty: Háček, text, titulek, výzva k akci, scénář a titulky. Česky, slovensky, anglicky nebo německy.",
           "Ke stažení: Každý soubor zvlášť nebo vše jako ZIP. Qads nic nepublikuje, kam reklamy dáte, je na vás."
         ],
@@ -380,7 +381,9 @@
         "costs": [
           "Fotka: 1 kredit za kus",
           "Video: 1,2 kreditu za sekundu, zaokrouhleno nahoru (5 s = 6 kreditů)",
-          "Příprava reklam a textů: 3 kredity za generování"
+          "Příprava reklam a textů: 3 kredity za generování",
+          "AI postava pro Qads Character: 1 kredit",
+          "Video s mluvící AI postavou: do 27. 11. 2026 bez marže: 6 kreditů za 15 s, 4 kredity za 10 s; potom 23 kreditů za 15 s, 16 kreditů za 10 s"
         ],
         "page": "/quante/qads"
       }
@@ -432,6 +435,8 @@
         "Reklamní fotka v Qads: 1 kredit",
         "Reklamní video v Qads: 6 kreditů za 5 s",
         "Příprava reklam v Qads: 3 kredity za generování",
+        "AI postava pro Qads Character: 1 kredit",
+        "Video s mluvící AI postavou: do 27. 11. 2026 bez marže: 6 kreditů za 15 s, 4 kredity za 10 s; potom 23 kreditů za 15 s, 16 kreditů za 10 s",
         "Stažení kódu jako ZIP: 5 kreditů za obchod, další stažení zdarma"
       ],
       "hosting": "99 USD ročně, první měsíc zdarma",

@@ -191,3 +191,51 @@ export async function uploadFileToHiggsfield(target: HiggsfieldUploadTarget, fil
   if (!res.ok) throw new Error(`Higgsfield file upload failed: ${res.status} ${res.statusText}`)
   return target.public_url
 }
+
+// Higgsfield AI Influencer — one character sheet (the Tiktoker "Character"). Endpoint
+// 'higgsfield/ai-influencer' per console.higgsfield.ai/models/higgsfield/ai-influencer
+// (API reference + input schema, fetched 2026-10-28). `selection` maps a trait category
+// (gender, age, hair, aesthetic, …) to option ids from the model's own option list;
+// item_image_urls (≤ 3) are things the character carries, e.g. the product.
+export interface AiInfluencerRequest {
+  tier?: 'normal'
+  brief?: string // ≤ 4000 chars
+  selection?: Record<string, string[]>
+  item_image_urls?: string[]
+  seed?: number // 1-1 000 000
+}
+
+export async function submitAiInfluencer(
+  creds: HiggsfieldCredentials,
+  body: AiInfluencerRequest,
+  webhookUrl?: string,
+): Promise<HiggsfieldSubmitResponse> {
+  const url = webhookUrl
+    ? `${BASE_URL}/higgsfield/ai-influencer?hf_webhook=${encodeURIComponent(webhookUrl)}`
+    : `${BASE_URL}/higgsfield/ai-influencer`
+  return higgsfieldFetch<HiggsfieldSubmitResponse>(url, creds, { method: 'POST', body })
+}
+
+// Wan 3.0 Reference to Video — the Tiktoker clip: the character sheet + product photo as
+// references, native audio on, so the character says the script with lip sync. Endpoint ID
+// 'alibaba/wan-3.0/reference-to-video' per docs.higgsfield.ai/docs/models/wan-3/reference-to-video.
+export interface WanReferenceToVideoRequest {
+  prompt: string
+  duration?: number // 2-30 seconds
+  image_urls?: string[] // ≤ 10
+  resolution?: '480p' | '720p' | '1080p'
+  aspect_ratio?: '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | 'adaptive'
+  generate_audio?: boolean
+  seed?: number
+}
+
+export async function submitWanReferenceToVideo(
+  creds: HiggsfieldCredentials,
+  body: WanReferenceToVideoRequest,
+  webhookUrl?: string,
+): Promise<HiggsfieldSubmitResponse> {
+  const url = webhookUrl
+    ? `${BASE_URL}/alibaba/wan-3.0/reference-to-video?hf_webhook=${encodeURIComponent(webhookUrl)}`
+    : `${BASE_URL}/alibaba/wan-3.0/reference-to-video`
+  return higgsfieldFetch<HiggsfieldSubmitResponse>(url, creds, { method: 'POST', body })
+}
