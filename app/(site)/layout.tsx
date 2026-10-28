@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import '@ad/ui/styles/assetra.css'
 import './site.css'
+import './module-visuals.css'
 import { Grain, ParticleMode, PointerFx } from '@ad/ui'
 import { SITE_ORIGIN } from '@/lib/domains'
 import { QgentWidget } from './_components/qgent/QgentWidget'
