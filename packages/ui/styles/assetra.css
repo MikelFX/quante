@@ -52,7 +52,7 @@
 .ad .nav{position:sticky;top:12px;z-index:50;display:flex;align-items:center;gap:8px;width:min(1180px,calc(100% - 24px));margin:12px auto 0;padding:7px 7px 7px 18px;border-radius:999px}
 .ad .prog{position:absolute;left:24px;right:24px;bottom:-1px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--acc),var(--acc2));transform-origin:left;transform:scaleX(0)}
 .ad .logo{display:flex;align-items:center;gap:11px;min-width:44px;min-height:44px;margin-right:auto}
-.ad .mark{width:36px;height:27px;flex:none;color:var(--fg);overflow:visible}
+.ad .mark{width:28px;height:28px;flex:none;color:var(--fg);overflow:visible}
 .ad .mark .px{fill:var(--acc);animation:ad-blink 2.6s steps(1) infinite}
 .ad .wm{font:700 11px/1.2 var(--mono);letter-spacing:.16em;text-transform:uppercase}
 .ad .links{display:flex;gap:2px}

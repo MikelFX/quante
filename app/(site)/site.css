@@ -60,7 +60,7 @@
 .ad .qg-fab:hover{transform:translateY(-2px)}
 .ad .qg-fab:focus-visible,.ad .qg-panel :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .ad .qg-fab[hidden]{display:none}
-.ad .qg-fab .qg-mark{width:28px;height:21px}
+.ad .qg-fab .qg-mark{width:22px;height:22px}
 .ad:has([data-menu="open"]) .qg-fab{display:none}
 .ad .qg-panel{position:fixed;right:calc(20px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));z-index:70;display:flex;flex-direction:column;width:min(410px,calc(100vw - 40px));height:min(660px,calc(100dvh - 40px));border-radius:28px;overflow:hidden;background:linear-gradient(180deg,var(--gl1),var(--gl2)),color-mix(in srgb,var(--bg) 78%,transparent);animation:ad-qg-in .45s var(--ease) both}
 .ad .qg-head{position:relative;flex:none;border-bottom:1px solid var(--line)}
