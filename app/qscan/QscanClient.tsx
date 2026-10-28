@@ -169,14 +169,14 @@ export function QscanClient() {
       }
       const startedAt = Date.now()
       try { sessionStorage.setItem(RUN_KEY, JSON.stringify({ scan, jobId: data.jobId, startedAt })) } catch {}
-      await poll(data.jobId as string, startedAt)
+      await poll(data.jobId as string, startedAt, scan)
     } catch {
       setError('Could not reach the server. Check your connection and try again.')
       setStage('scanned')
     }
   }
 
-  async function poll(jobId: string, startedAt: number) {
+  async function poll(jobId: string, startedAt: number, scanFor: Scan) {
     setStage('building')
     toResult()
     const done = () => { try { sessionStorage.removeItem(RUN_KEY) } catch {} }
@@ -194,6 +194,12 @@ export function QscanClient() {
       const decision = decidePollAction(payload)
       if (decision.action === 'navigate') {
         done()
+        // Grideet shows the scan under the store it built (qscan_scans.project_id, migration-grideet.sql).
+        void fetch(`/api/qscan/${scanFor.scanId}/project`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: decision.projectId }),
+        }).catch(() => {})
         setBuilt({
           projectId: decision.projectId,
           studioUrl: buildProjectUrl(decision.projectId, decision.deploymentId, decision.codeVersionId, payload.previewUrl, decision.deployError),
@@ -279,6 +285,10 @@ export function QscanClient() {
         if (draft) {
           setUrl(draft)
           sessionStorage.removeItem(DRAFT_KEY)
+        } else {
+          // "Scan again" from Grideet: /qscan?url=<address> fills the field (the scan still waits for the checkbox).
+          const asked = new URLSearchParams(window.location.search).get('url')
+          if (asked) setUrl(asked.slice(0, 2048))
         }
         const run = sessionStorage.getItem(RUN_KEY)
         if (run) {
@@ -286,7 +296,7 @@ export function QscanClient() {
           if (saved?.jobId && saved.scan) {
             setScan(saved.scan)
             setUrl(saved.scan.summary.url)
-            void poll(saved.jobId, saved.startedAt)
+            void poll(saved.jobId, saved.startedAt, saved.scan)
           }
         }
       } catch {}

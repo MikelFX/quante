@@ -1,22 +1,29 @@
+// The dashboard = Grideet, the account's workspace (CLAUDE.md §13h): everything the user made,
+// grouped by brand (store), each card leading on into a module. Shown to users as "Dashboard"
+// (owner 2026-10-28). Everything the old project list had stays: batch banner, project limit, Agency bulk
+// export, delete, archived notice, welcome-credit notice.
 import { auth } from '@clerk/nextjs/server'
-import { createClient } from '@/lib/supabase/server'
-import { getUserRecord, hasAgencyPlan } from '@/lib/tier'
-import { CREDIT_COSTS } from '@/lib/config'
 import Link from 'next/link'
-import { DashboardGrid } from './DashboardGrid'
-import { DashboardHeader } from './DashboardHeader'
-import { BatchBanner } from './BatchBanner'
-import { DashboardEmptyState } from './DashboardEmptyState'
-// Shared one-time welcome grant (atomic RPC, verified accounts only). The old inline
-// read-then-insert here raced with /api/credits/balance and could grant twice.
+import { getUserRecord, hasAgencyPlan } from '@/lib/tier'
+import { AGENCY_BATCH_SIZE, CREDIT_COSTS } from '@/lib/config'
+import { createClient } from '@/lib/supabase/server'
+import { loadGrideet } from '@/lib/grideet/load'
+import { parseFilters } from '@/lib/grideet/model'
+// Shared one-time welcome grant (atomic RPC, verified accounts only).
 import { ensureWelcomeGrant } from '@/app/api/credits/welcome-grant'
-import { getBalance } from '@/lib/credits'
+import { BatchBanner } from './BatchBanner'
+import { GrideetEmpty } from './GrideetEmpty'
+import { GrideetClient } from './GrideetClient'
+import './grideet.css'
 
-export default async function DashboardPage() {
+export const metadata = { title: 'Dashboard · Quante' }
+
+interface Props { searchParams: Promise<Record<string, string | string[] | undefined>> }
+
+export default async function GrideetPage({ searchParams }: Props) {
   const { userId } = await auth()
   if (!userId) return null
 
-  const supabase = await createClient()
   const record = await getUserRecord(userId)
   const isAgency = hasAgencyPlan(record)
 
@@ -27,56 +34,74 @@ export default async function DashboardPage() {
     verificationRequired = grant.status === 'verification_required'
   }
 
-  const [projectsResult, archivedResult, creditBalance] = await Promise.all([
-    supabase.from('projects').select('*').eq('user_id', userId)
-      .neq('status', 'archived').order('updated_at', { ascending: false }),
-    supabase.from('projects').select('id, name').eq('user_id', userId).eq('status', 'archived'),
-    getBalance(userId), // latest ledger row by seq, not created_at
+  const filters = parseFilters(await searchParams)
+  const supabase = await createClient()
+  const [data, archivedResult] = await Promise.all([
+    loadGrideet(userId, filters),
+    supabase.from('projects').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'archived'),
   ])
+  const archived = archivedResult.count ?? 0
 
-  const projects = projectsResult.data ?? []
-  const archived = archivedResult.data ?? []
-  const activeCount = projects.length
+  const activeCount = data.storeCount
   // Agency has no project limit (lib/tier.ts).
   const atLimit = !isAgency && activeCount >= record.project_limit
-  const limitLabel = isAgency ? `${activeCount} active · no limit` : `${activeCount} / ${record.project_limit} active`
+  const limitLabel = isAgency ? `${activeCount} stores · no limit` : `${activeCount} / ${record.project_limit} stores`
+  const empty = data.brandCount === 0
 
   return (
-    <div className="q-page-wrap">
-
-      <DashboardHeader atLimit={atLimit} limitLabel={limitLabel} batch={isAgency} />
+    <div className="q-page-wrap gd-wrap">
+      <header className="gd-head">
+        <div>
+          <p className="ad-app-label" style={{ padding: '0 0 12px' }}>workspace</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <h1 className="q-h1">Dashboard</h1>
+            <span className={`gd-limit${atLimit ? ' gd-limit-warn' : ''}`}>{limitLabel}</span>
+          </div>
+          <p className="gd-sub">Your stores and everything made for them, in one place.</p>
+        </div>
+        {!empty && (
+          <div className="gd-head-actions">
+            {isAgency && <Link href="/new/batch" className="q-btn q-btn-gl">Batch · up to {AGENCY_BATCH_SIZE}</Link>}
+            <Link href="/qads" className="q-btn q-btn-gl">Make an ad</Link>
+            <Link href="/qscan" className="q-btn q-btn-gl">Import a store</Link>
+            {!atLimit && <Link href="/new" className="q-btn">+ New store</Link>}
+          </div>
+        )}
+      </header>
 
       {isAgency && <BatchBanner />}
 
       {verificationRequired && (
-        <div role="status" style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', fontSize: 13, color: 'var(--q-warn-text)' }}>
+        <div role="status" className="gd-note gd-note-warn">
           Verify your email to receive your {CREDIT_COSTS.welcome_grant} free credits — then reload this page.
         </div>
       )}
 
-      {/* At-limit warning */}
       {atLimit && (
-        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-warn-rgb) / .2)', background: 'rgb(var(--q-warn-rgb) / .05)', fontSize: 13, color: 'var(--q-warn-text)' }}>
-          <Link href="/billing#agency" style={{ color: 'var(--q-warn-text)' }}>Upgrade to Agency</Link> for unlimited stores.
+        <div className="gd-note gd-note-warn">
+          You have reached your store limit. <Link href="/billing#agency">Upgrade to Agency</Link> for unlimited stores.
         </div>
       )}
 
-      {/* Archived notice (shown after downgrade) */}
-      {archived.length > 0 && (
-        <div style={{ marginBottom: 20, padding: '10px 14px', borderRadius: 8, border: '1px solid rgb(var(--q-ink-rgb) / .07)', background: 'rgb(var(--q-ink-rgb) / .03)', fontSize: 13, color: 'var(--q-fg3)' }}>
-          {archived.length} project{archived.length > 1 ? 's' : ''} archived due to plan downgrade.{' '}
-          <Link href="/billing" style={{ color: 'var(--q-acc-text)' }}>Reactivate your Agency plan</Link> to restore them.
+      {archived > 0 && (
+        <div className="gd-note">
+          {archived} store{archived > 1 ? 's' : ''} archived due to plan downgrade.{' '}
+          <Link href="/billing">Reactivate your Agency plan</Link> to restore them.
         </div>
       )}
 
-      {projects.length === 0 ? (
-        <DashboardEmptyState />
+      {empty ? (
+        <GrideetEmpty />
       ) : (
-        <DashboardGrid
-          projects={projects}
+        <GrideetClient
+          groups={data.groups}
+          page={data.page}
+          pages={data.pages}
+          total={data.total}
+          filters={filters}
           isAgency={isAgency}
-          exportCostPerProject={CREDIT_COSTS.export}
-          creditBalance={creditBalance}
+          capped={data.capped}
+          skipped={data.skipped}
         />
       )}
     </div>

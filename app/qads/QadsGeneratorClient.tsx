@@ -216,6 +216,19 @@ export function QadsGeneratorClient() {
     }
   }, [])
 
+  // Grideet's "Open in Qads history": /qads?g=<generationId> opens that generation in the results
+  // (the detail API answers only the owner's generations).
+  useEffect(() => {
+    if (!isSignedIn) return
+    const g = new URLSearchParams(window.location.search).get('g')
+    if (!g || !/^[0-9a-f-]{36}$/i.test(g)) return
+    const t = setTimeout(() => {
+      setActiveGenerationId(g)
+      requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }, 0)
+    return () => clearTimeout(t)
+  }, [isSignedIn])
+
   // /qads?mode=character[&c=<traits>] — from the website's launch strip or a sign-in round trip
   // (mode=tiktoker, the working name, still works).
   useEffect(() => {
