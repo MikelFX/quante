@@ -21,6 +21,7 @@ export function QadsCommunityWall() {
   const sectionRef = useRef<HTMLElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
   const planeRef = useRef<HTMLDivElement | null>(null)
+  const headRef = useRef<HTMLElement | null>(null)
   const tileRefs = useRef<(HTMLElement | null)[]>([])
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([])
   const glowRefs = useRef<(HTMLElement | null)[]>([])
@@ -107,7 +108,8 @@ export function QadsCommunityWall() {
       last = now
       const q = shown
 
-      const g = groupPose(q, layout, H)
+      const head = headRef.current
+      const g = groupPose(q, layout, H, head ? head.offsetTop + head.offsetHeight : undefined)
       put(plane, 'transform', `translate3d(0, ${g.y.toFixed(1)}px, 0) rotateX(${g.tilt.toFixed(2)}deg) scale(${g.scale.toFixed(4)})`)
 
       // The grain band rides the bottom edge of the screen, then slides away once the wall opens.
@@ -187,7 +189,7 @@ export function QadsCommunityWall() {
   return (
     <section ref={sectionRef} className={'qz-wall' + (still ? ' still' : '')} aria-labelledby="qz-wall-h" style={style}>
       <div ref={stageRef} className="qz-wall-stage">
-        <header className="qz-wall-head">
+        <header ref={headRef} className="qz-wall-head">
           <p className="qz-wall-kicker">Community library</p>
           <h2 id="qz-wall-h">Made with Qads</h2>
           <p className="qz-wall-sub">Ads people made from a single product photo{shared.length ? ` — ${shared.length} shared so far` : ''}.</p>

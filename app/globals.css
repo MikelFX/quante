@@ -961,3 +961,17 @@
 }
 .qnt-public p a, .qnt-public li a { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) { .ann-new, .ann-long { display: none; } }
+
+/* Public footer (components/SiteFooter.tsx): brand + Product / Company / Legal side by side on
+   desktop; on phones the brand gets its own row and the link columns sit two per row, so
+   labels like "Terms of Service" never wrap word by word. Links stay left-aligned even when
+   .q-tap gives them a 44px touch box (its centring indented short labels like "Qads"). */
+.footer-grid { display: grid; grid-template-columns: auto repeat(3, 1fr); gap: clamp(28px,4vw,56px); align-items: start; margin-bottom: 40px; }
+.footer-links { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.footer-links .q-tap { justify-content: flex-start; }
+@media (pointer: coarse) { .footer-links { gap: 0; } }
+@media (max-width: 720px) {
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
+  .footer-brand { grid-column: 1 / -1; }
+  .footer-brand p { max-width: none !important; }
+}

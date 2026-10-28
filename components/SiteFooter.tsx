@@ -16,7 +16,7 @@ function Col({ title, children }: { title: string; children: React.ReactNode }) 
       <p style={{ fontFamily: mono, fontSize: 10.5, letterSpacing: '.10em', textTransform: 'uppercase', color: muted, marginBottom: 14 }}>
         {title}
       </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="footer-links">
         {children}
       </div>
     </div>
@@ -68,15 +68,9 @@ export function SiteFooter() {
       <div style={{ maxWidth: 1080, margin: '0 auto' }}>
 
         {/* ── Brand + columns ── */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'auto repeat(3, 1fr)',
-          gap: 'clamp(28px,4vw,56px)',
-          alignItems: 'start',
-          marginBottom: 40,
-        }} className="footer-grid">
+        <div className="footer-grid">
           {/* Brand */}
-          <div>
+          <div className="footer-brand">
             <span style={{ display: 'block', marginBottom: 10 }}>
               <QuanteBrand />
             </span>
