@@ -68,7 +68,7 @@ export const modules: QuanteModule[] = [
       { title: 'Sestaví a opraví se sám', text: 'Obchod se zkušebně sestaví na Vercelu. Když build selže, Quante přečte chybu, opraví kód a zkusí to znovu, až pětkrát.' },
       { title: 'Úpravy větou', text: 'Změnu popíšete v chatu a Quante ji zapracuje.' },
       { title: 'Vlastní administrace', text: 'Objednávky, produkty a zákazníci. Platby přes Comgate, GoPay nebo PayPal, štítky Zásilkovny, GLS a DHL.' },
-      { title: 'Kód je váš', text: 'Celý projekt si kdykoli stáhnete jako ZIP, zdarma.' },
+      { title: 'Kód je váš', text: 'Celý projekt si stáhnete jako ZIP. Platíte jednou za obchod, každé další stažení je zdarma.' },
     ],
     note: 'Když se obchod nepodaří sestavit ani po pěti opravách, kredity za generování se vrátí. Opravy samotné jsou zdarma.',
     links: [

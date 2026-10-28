@@ -308,7 +308,7 @@ export default async function BillingPage({ searchParams }: Props) {
             ['Iteration / patch', `${CREDIT_COSTS.iterate} cr`],
             ['Regenerate section', `${CREDIT_COSTS.section} cr`],
             ['Custom component',  `${CREDIT_COSTS.custom_component} cr`],
-            ['Export ZIP',        CREDIT_COSTS.export === 0 ? 'free' : `${CREDIT_COSTS.export} cr`],
+            ['Export ZIP',        `${CREDIT_COSTS.export} cr · once per store`],
             ['Welcome grant',     `+${CREDIT_COSTS.welcome_grant} cr free`],
           ].map(([action, cost], i, arr) => (
             <div key={action} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: i < arr.length - 1 ? '1px solid rgb(var(--q-ink-rgb) / .05)' : 'none' }}>

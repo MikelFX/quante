@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
+import { CREDIT_COSTS, MAX_AUTO_FIX_ATTEMPTS } from '@/lib/config'
 import { formatHostingBoth } from '@/lib/pricing'
 import type { ShopManifest, Section } from '@/types/manifest'
 import type { StoreProduct } from '@/types/store-code'
@@ -4895,7 +4895,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               onMouseEnter={e => { if (hasGeneratedOnce && !isExporting) (e.currentTarget as HTMLButtonElement).style.background = 'rgb(var(--q-ink-rgb) / .06)' }}
               onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
             >
-              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: 'var(--q-fg4)', marginLeft: 4, fontFamily: 'var(--q-mono)' }}>free</span>
+              {isExporting ? '…' : '↓ ZIP'} <span style={{ fontSize: 10, color: 'var(--q-fg4)', marginLeft: 4, fontFamily: 'var(--q-mono)' }}>{CREDIT_COSTS.export} cr · once</span>
             </button>
             <button
               onClick={() => handleExport(true)}

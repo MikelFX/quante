@@ -486,7 +486,7 @@ export function QscanClient() {
                 <section className="qs-choice">
                   <Code2 aria-hidden="true" />
                   <h3>Take the code</h3>
-                  <p>The whole store as a Next.js project. Yours to run anywhere.</p>
+                  <p>The whole store as a Next.js project, yours to run anywhere. {CREDIT_COSTS.export} credits, once per store.</p>
                   <div className="qs-row">
                     <button type="button" className="qz-b" disabled={!!busy} onClick={() => void takeCode()}>
                       {busy === 'code' ? <Loader2 className="qs-spin" /> : <Download aria-hidden="true" />}Download ZIP
