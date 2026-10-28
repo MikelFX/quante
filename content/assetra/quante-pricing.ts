@@ -33,7 +33,7 @@ function tiktokerRows() {
   const until = `${last.getUTCDate()}. ${last.getUTCMonth() + 1}. ${last.getUTCFullYear()}`
   const video = (at: Date) => `${kredity(computeTiktokerCost(1, 15, at).totalCredits)} za 15 s, ${kredity(computeTiktokerCost(1, 10, at).totalCredits)} za 10 s`
   return [
-    { label: 'AI postava pro Qads tiktoker', value: kredity(characterCredits(during)) },
+    { label: 'AI postava pro Qads Character', value: kredity(characterCredits(during)) },
     { label: 'Video s mluvící AI postavou', value: `do ${until} bez marže: ${video(during)}; potom ${video(after)}` },
   ]
 }

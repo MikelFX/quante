@@ -1,11 +1,11 @@
 'use client'
 
-// /qads → "Tiktoker": an AI character talks about the product to camera (lib/qads/tiktoker.ts).
+// /qads → "Character": an AI character talks about the product to camera (lib/qads/tiktoker.ts).
 // Two calm steps in the same glass box as the ad composer:
 //   1. Character — pick one of yours or build a new one from a few chips (Higgsfield AI Influencer).
 //   2. Product — a photo + its name; Generate writes the script and renders a 9:16 talking clip.
 // Results go to the shared results grid of the page (onStarted). Arriving from the website's
-// launch panel (/qads?mode=tiktoker&c=<traits>) opens the builder with those traits picked.
+// launch panel (/qads?mode=character&c=<traits>) opens the builder with those traits picked.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, Check, ImagePlus, Plus, Sparkles, X } from 'lucide-react'
@@ -107,7 +107,7 @@ export function QadsTiktoker({
     return () => clearInterval(t)
   }, [pending, loadCharacters])
 
-  const returnTo = () => `/qads?mode=tiktoker&c=${traitsToParam(traits)}`
+  const returnTo = () => `/qads?mode=character&c=${traitsToParam(traits)}`
   const requireSignIn = () => {
     try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ note, productName, productDescription })) } catch {}
     onSignIn(returnTo())
@@ -195,7 +195,7 @@ export function QadsTiktoker({
   }
 
   return (
-    <section className="qz-box qt" aria-label="Tiktoker video">
+    <section className="qz-box qt" aria-label="Character video">
       <div className="qt-collab" aria-hidden="true">
         <span className="qt-collab-q">Qads</span>
         <span className="qt-collab-x">×</span>

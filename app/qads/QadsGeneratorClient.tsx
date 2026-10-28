@@ -12,8 +12,8 @@
 // the visitor clicks once more. Qgent in the Studio hands over a partial draft the same way
 // (product, description, store, language).
 //
-// A switch above the box picks the mode: "Ad" (this composer) or "Tiktoker" (QadsTiktoker.tsx —
-// an AI character talks about the product). /qads?mode=tiktoker[&c=<traits>] opens the latter;
+// A switch above the box picks the mode: "Ad" (this composer) or "Character" (QadsTiktoker.tsx —
+// an AI character talks about the product). /qads?mode=character[&c=<traits>] opens the latter;
 // the website's launch panel links there.
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
@@ -216,10 +216,11 @@ export function QadsGeneratorClient() {
     }
   }, [])
 
-  // /qads?mode=tiktoker[&c=<traits>] — from the website's launch panel or a sign-in round trip.
+  // /qads?mode=character[&c=<traits>] — from the website's launch strip or a sign-in round trip
+  // (mode=tiktoker, the working name, still works).
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
-    if (q.get('mode') !== 'tiktoker') return
+    if (q.get('mode') !== 'character' && q.get('mode') !== 'tiktoker') return
     setMode('tiktoker')
     if (q.get('c')) setInitialTraits(traitsFromParam(q.get('c')))
   }, [])
@@ -227,7 +228,7 @@ export function QadsGeneratorClient() {
   const switchMode = (next: Mode) => {
     setMode(next)
     const url = new URL(window.location.href)
-    if (next === 'tiktoker') url.searchParams.set('mode', 'tiktoker')
+    if (next === 'tiktoker') url.searchParams.set('mode', 'character')
     else { url.searchParams.delete('mode'); url.searchParams.delete('c') }
     window.history.replaceState(null, '', url.pathname + url.search)
   }
@@ -497,7 +498,7 @@ export function QadsGeneratorClient() {
           <span className="qt-switch-glide" data-mode={mode} aria-hidden="true" />
           <button type="button" role="tab" aria-selected={mode === 'ads'} onClick={() => switchMode('ads')}>Ad</button>
           <button type="button" role="tab" aria-selected={mode === 'tiktoker'} onClick={() => switchMode('tiktoker')}>
-            Tiktoker <span className="qt-new-badge">New</span>
+            Character <span className="qt-new-badge">New</span>
           </button>
         </div>
 
