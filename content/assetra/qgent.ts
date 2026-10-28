@@ -35,7 +35,7 @@ export const QGENT_PAGES = {
   'web-eshop': { path: '/web-eshop', title: 'Web & Eshop: weby a e-shopy na míru' },
   quante: { path: '/quante', title: 'Quante: přehled modulů' },
   ...Object.fromEntries(modules.map((m) => [`quante/${m.slug}`, { path: `/quante/${m.slug}`, title: `${m.name}${m.status === 'dev' ? ' (ve vývoji)' : ''}` }])),
-  ...Object.fromEntries(legalPages.map((p) => [p.slug, { path: '/' + p.slug, title: `${p.title} (text zatím není hotový)` }])),
+  ...Object.fromEntries(legalPages.map((p) => [p.slug, { path: '/' + p.slug, title: p.title }])),
 } as Record<string, { path: string; title: string }>
 
 /** Same choices as the lead form („Co potřebujete“). */

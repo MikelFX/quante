@@ -558,17 +558,17 @@
       {
         "key": "obchodni-podminky",
         "path": "/obchodni-podminky",
-        "title": "Obchodní podmínky (text zatím není hotový)"
+        "title": "Obchodní podmínky"
       },
       {
         "key": "ochrana-osobnich-udaju",
         "path": "/ochrana-osobnich-udaju",
-        "title": "Ochrana osobních údajů (text zatím není hotový)"
+        "title": "Ochrana osobních údajů"
       },
       {
         "key": "vzorova-smlouva",
         "path": "/vzorova-smlouva",
-        "title": "Vzorová smlouva (text zatím není hotový)"
+        "title": "Vzorová smlouva"
       }
     ]
   },
