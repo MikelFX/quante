@@ -80,3 +80,13 @@ test('smooth on phones: waiting tiles rest full size, no video starts mid-flight
   assert.equal(q, 2)
   assert.equal(followQ(1.5, 1.5, 16), 1.5)
 })
+
+test('a small pool (three seed pieces) still never repeats a piece right below itself', () => {
+  for (const n of [2, 3, 4, 5, 6, 9]) {
+    const pool = Array.from({ length: n }, (_, i) => 'p' + i)
+    for (const cols of [3, 4, 5, 7, 8]) {
+      const wall = fillWall([], pool, cols * ROWS, cols)
+      for (let i = 0; i + cols < wall.length; i++) assert.notEqual(wall[i], wall[i + cols], `n=${n} cols=${cols} i=${i}`)
+    }
+  }
+})

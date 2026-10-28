@@ -131,10 +131,12 @@ export function followQ(shown: number, target: number, dtMs: number, tauMs = 90)
 
 /**
  * Fill `count` tiles: shared creations first (newest), then the seed, repeating the pool. With
- * `cols`, each row starts three pieces further on, so a repeat never sits right below itself.
+ * `cols`, each row starts three pieces further on (one when the pool is a multiple of three), so
+ * a repeat never sits right below itself.
  */
 export function fillWall<T>(community: T[], seed: T[], count: number, cols = count): T[] {
   const pool = [...community, ...seed]
   if (!pool.length) return []
-  return Array.from({ length: count }, (_, i) => pool[((i % cols) + Math.floor(i / cols) * 3) % pool.length])
+  const shift = pool.length % 3 === 0 ? 1 : 3
+  return Array.from({ length: count }, (_, i) => pool[((i % cols) + Math.floor(i / cols) * shift) % pool.length])
 }
