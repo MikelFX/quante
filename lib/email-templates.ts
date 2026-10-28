@@ -510,7 +510,7 @@ export function hostingReminderEmail(d: HostingReminderEmailData): { subject: st
         </p>
       </div>
       ${projectHref ? `<a href="${projectHref}" style="display:inline-block;padding:10px 20px;background:#6f78e6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Subscribe now →</a>` : ''}
-      <p style="margin:24px 0 0;font-size:12px;color:#999">Sent by Quante · quantecode.com</p>
+      <p style="margin:24px 0 0;font-size:12px;color:#999">Sent by Quante, a product of AssetraDigital s.r.o. · quantecode.com</p>
     </div>
   `
   return {
@@ -544,7 +544,7 @@ export function hostingSuspendedEmail(d: HostingSuspendedEmailData): { subject: 
         </p>
       </div>
       ${projectHref ? `<a href="${projectHref}" style="display:inline-block;padding:10px 20px;background:#6f78e6;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Restore my store →</a>` : ''}
-      <p style="margin:24px 0 0;font-size:12px;color:#999">Sent by Quante · quantecode.com</p>
+      <p style="margin:24px 0 0;font-size:12px;color:#999">Sent by Quante, a product of AssetraDigital s.r.o. · quantecode.com</p>
     </div>
   `
   return {

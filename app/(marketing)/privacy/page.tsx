@@ -1,7 +1,7 @@
 // DRAFT — must be reviewed by a qualified lawyer before relying on this in
 // production, especially given cross-border Stripe Connect payments and GDPR obligations.
 
-import { operator } from '@/lib/site-config'
+import { operator, isFilled } from '@/lib/site-config'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
@@ -22,7 +22,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function PrivacyPage() {
-  const email = operator.contactEmail && !operator.contactEmail.includes('[TO') ? operator.contactEmail : null
+  const email = isFilled(operator.contactEmail) ? operator.contactEmail : null
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
@@ -33,14 +33,14 @@ export default function PrivacyPage() {
         Privacy Policy
       </h1>
       <p style={{ fontSize: 13.5, color: 'var(--qp-mut)', marginBottom: 48 }}>
-        Effective {EFFECTIVE} · {operator.name}
+        Effective {EFFECTIVE} · {operator.productOf}
       </p>
 
       <Section title="1. Who we are and how to reach us">
-        <p>The data controller for the Quante platform is:</p>
+        <p>Quante is a product of {operator.name}. The data controller for the Quante platform is:</p>
         <p style={{ marginTop: 8, padding: '12px 16px', background: 'var(--qp-line-soft)', borderRadius: 8, border: '1px solid var(--qp-line-soft)' }}>
-          {operator.name} · {operator.role}<br />
-          {operator.address}
+          {operator.name} · {operator.role}
+          {isFilled(operator.address) && <><br />{operator.address}</>}
           {email && <><br /><a href={`mailto:${email}`} style={{ color: 'var(--qp-accent-deep)' }}>{email}</a></>}
         </p>
         <p style={{ marginTop: 10 }}>For questions about this policy or to exercise your rights, contact us at the address above. We will respond within 30 days.</p>

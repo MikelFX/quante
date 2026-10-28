@@ -99,7 +99,7 @@ Ukládání klíčů teď funguje (viz výše), ale i tak to není "hotové" v p
 
 - **Vercel plán — "Hobby".** Ve Vercelu visí trvalé upozornění "The billing address on your payment method is missing or incomplete" — bez doplnění fakturační adresy nejde ani upgradovat plán, kdybys chtěl. Hobby plán navíc limituje frekvenci cronů (viz byrd výše) a nemá static outbound IP bez příplatku. Pokud plánuješ reálný provoz s platícími zákazníky, doporučuju: (1) doplnit fakturační adresu, (2) zvážit upgrade na Pro — kvůli cronům, případně kvůli static IP pro Namecheap.
 - **Auto-shipping do byrd po platbě** — ano/ne? (viz výše, dnes je to manuální krok).
-- **Chybějící firemní údaje v `lib/site-config.ts`** — `ico`, `dic`, `contactEmail` operátora (tebe jako provozovatele Quante) jsou prázdné řetězce s komentářem `[TO FILL IN]`. Bez nich se na `/terms`, `/privacy` a `/contact` nezobrazí kompletní právní údaje provozovatele platformy samotné (netýká se to generovaných obchodů — tam se firemní údaje vyplňují zvlášť v Adminu). Stačí doplnit přímo v souboru a pushnout.
+- **Chybějící firemní údaje v `lib/site-config.ts`** — `ico`, `dic`, `contactEmail` provozovatele Quante (AssetraDigital s.r.o. — IČO a sídlo se berou z `content/assetra/site.ts`, `company`) jsou prázdné řetězce s komentářem `[TO FILL IN]`. Bez nich se na `/terms`, `/privacy` a `/contact` nezobrazí kompletní právní údaje provozovatele platformy samotné (netýká se to generovaných obchodů — tam se firemní údaje vyplňují zvlášť v Adminu). Stačí doplnit přímo v souboru a pushnout.
 
 ---
 

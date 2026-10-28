@@ -1,7 +1,7 @@
 // DRAFT — must be reviewed by a qualified lawyer before relying on this in
 // production, especially given cross-border Stripe Connect payments and GDPR obligations.
 
-import { operator } from '@/lib/site-config'
+import { operator, operatorIdentity, isFilled } from '@/lib/site-config'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
@@ -53,7 +53,7 @@ const COOKIES = [
 ]
 
 export default function CookiesPage() {
-  const email = operator.contactEmail && !operator.contactEmail.includes('[TO') ? operator.contactEmail : null
+  const email = isFilled(operator.contactEmail) ? operator.contactEmail : null
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
@@ -64,7 +64,7 @@ export default function CookiesPage() {
         Cookie Policy
       </h1>
       <p style={{ fontSize: 13.5, color: 'var(--qp-mut)', marginBottom: 48 }}>
-        Effective {EFFECTIVE} · {operator.name}
+        Effective {EFFECTIVE} · {operator.productOf}
       </p>
 
       <Section title="1. What are cookies?">
@@ -116,7 +116,7 @@ export default function CookiesPage() {
 
       <Section title="6. Contact">
         <p>
-          {operator.name} · {operator.address}
+          {operatorIdentity()}
           {email && <> · <a href={`mailto:${email}`} style={{ color: 'var(--qp-accent-deep)' }}>{email}</a></>}
         </p>
       </Section>

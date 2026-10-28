@@ -6,7 +6,7 @@
 // Also confirm whether the "hosted-store" hosting subscription is refundable,
 // and update Section 3 accordingly.
 
-import { operator } from '@/lib/site-config'
+import { operator, isFilled } from '@/lib/site-config'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
@@ -29,7 +29,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function RefundPage() {
-  const email = operator.contactEmail && !operator.contactEmail.includes('[TO') ? operator.contactEmail : null
+  const email = isFilled(operator.contactEmail) ? operator.contactEmail : null
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: 'clamp(4rem,8vw,7rem) 1.5rem' }}>
@@ -40,7 +40,7 @@ export default function RefundPage() {
         Refund Policy
       </h1>
       <p style={{ fontSize: 13.5, color: 'var(--qp-mut)', marginBottom: 48 }}>
-        Effective {EFFECTIVE} · {operator.name}
+        Effective {EFFECTIVE} · {operator.productOf}
       </p>
 
       <Section title="1. Credits">

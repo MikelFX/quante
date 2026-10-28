@@ -1187,8 +1187,8 @@ export const operator: {
   name: string; role: string; address: string;
   ico: string; dic: string; contactEmail: string;
 } = {
-  name: 'Michal Svoboda',
-  role: 'Founder & Developer of Quante',
+  name: 'AssetraDigital s.r.o.',   // Quante is a product of AssetraDigital s.r.o. (2026-10-28)
+  role: 'Founder: Michal Svoboda',
   address: 'Švermova 441/12, 273 43 Buštěhrad, Czech Republic',
   ico: '',          // [TO FILL IN] — Czech IČO
   dic: '',          // [TO FILL IN IF VAT REGISTERED]
