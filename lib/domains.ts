@@ -29,6 +29,7 @@ export const SITE_PATHS = [
 /** App paths: on the website host they redirect to APP_ORIGIN, so Clerk only ever runs on one host. */
 export const APP_PATHS = [
   '/dashboard/:path*',
+  '/grideet/:path*',
   '/new/:path*',
   '/project/:path*',
   '/billing/:path*',

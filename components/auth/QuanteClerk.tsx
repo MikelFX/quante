@@ -12,8 +12,8 @@ export function QuanteClerk({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       signInUrl="/login"
       signUpUrl="/signup"
-      signInFallbackRedirectUrl="/dashboard"
-      signUpFallbackRedirectUrl="/dashboard"
+      signInFallbackRedirectUrl="/grideet"
+      signUpFallbackRedirectUrl="/grideet"
       afterSignOutUrl="/login"
       // AssetraDigital look through the --q-* tokens, so sign-in follows the theme too.
       appearance={{

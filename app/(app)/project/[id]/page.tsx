@@ -37,7 +37,7 @@ export default async function StudioPage({ params }: Props) {
     isDraftPublishReady(),
   ])
 
-  if (projectResult.error || !projectResult.data) redirect('/dashboard')
+  if (projectResult.error || !projectResult.data) redirect('/grideet')
 
   const project = projectResult.data
 

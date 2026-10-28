@@ -2,7 +2,9 @@
 // builder (select / insert / update / delete, eq / neq / lt / gte / is / not-is-null / in, order, limit,
 // maybeSingle, count+head) for code that only reads and writes rows. Each statement runs
 // atomically when awaited, like a single SQL statement. Tables: __db.tables[name] = rows[].
-export const __db = { tables: {}, reset() { this.tables = {} } }
+// __db.missing: tables that "don't exist yet" (a migration that hasn't run); __db.missingColumns:
+// { table: [column] } — a select naming one answers the PostgREST unknown-column error.
+export const __db = { tables: {}, signed: [], missing: new Set(), missingColumns: {}, reset() { this.tables = {}; this.signed = []; this.missing = new Set(); this.missingColumns = {} } }
 
 function matches(row, filters) {
   return filters.every(([op, col, val]) => {
@@ -20,7 +22,22 @@ function matches(row, filters) {
   })
 }
 
-const pick = (row, cols) => (!cols || cols === '*' ? { ...row } : Object.fromEntries(cols.split(',').map((c) => c.trim()).map((c) => [c, row[c] ?? null])))
+// A column spec: `col`, `alias:col`, JSON paths `alias:col->a->>"b/c.ts"`; embedded resources
+// (`table!inner(cols)`) are left out of the result.
+function column(row, spec) {
+  const m = spec.match(/^(?:(\w+):)?(\w+)((?:->>?(?:"[^"]+"|\w+))*)$/)
+  if (!m) return null
+  const [, alias, col, path] = m
+  let v = row[col]
+  for (const [, op, key] of path.matchAll(/(->>?)(?:"([^"]+)"|(\w+))/g).map((x) => [x[0], x[1], x[2] ?? x[3]])) {
+    v = v == null ? null : v[key] ?? null
+    if (op === '->>' && v != null && typeof v !== 'string') v = JSON.stringify(v)
+  }
+  return [alias ?? col, v ?? null]
+}
+const pick = (row, cols) => (!cols || cols === '*'
+  ? { ...row }
+  : Object.fromEntries(cols.split(/,(?![^(]*\))/).map((c) => c.trim()).filter((c) => !c.includes('(')).map((c) => column(row, c)).filter(Boolean)))
 
 class Query {
   constructor(table) {
@@ -52,6 +69,9 @@ class Query {
   limit(n) { this.max = n; return this }
   maybeSingle() { this.single = true; return this }
   run() {
+    if (__db.missing.has(this.table)) return { data: null, error: { code: '42P01', message: `relation "${this.table}" does not exist` } }
+    const gone = (__db.missingColumns[this.table] ?? []).find((c) => new RegExp(`\\b${c}\\b`).test(this.cols ?? '') || Object.keys(this.patch ?? {}).includes(c))
+    if (gone) return { data: null, error: { code: '42703', message: `column ${this.table}.${gone} does not exist` } }
     const rows = (__db.tables[this.table] ??= [])
     if (this.kind === 'insert') {
       const now = new Date().toISOString()
@@ -77,4 +97,14 @@ class Query {
   then(resolve, reject) { try { resolve(this.run()) } catch (e) { reject(e) } }
 }
 
-export const supabaseAdmin = { from: (t) => new Query(t) }
+// Storage: signed URLs are recorded in __db.signed so tests can see what was signed.
+const storage = {
+  from: (bucket) => ({
+    createSignedUrls: async (paths, ttl, opts) => {
+      ;(__db.signed ??= []).push({ bucket, paths, ttl, download: !!opts?.download })
+      return { data: paths.map((p) => ({ path: p, signedUrl: `https://signed.test/${bucket}/${p}?ttl=${ttl}${opts?.download ? '&download=' : ''}` })), error: null }
+    },
+  }),
+}
+
+export const supabaseAdmin = { from: (t) => new Query(t), storage }

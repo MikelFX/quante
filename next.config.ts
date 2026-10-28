@@ -45,6 +45,9 @@ const nextConfig: NextConfig = {
       // deep links from old emails / OG previews permanently forward.
       { source: '/project/:id/ads', destination: '/qads', permanent: true },
       { source: '/project/:id/ads/:path*', destination: '/qads', permanent: true },
+      // Grideet replaced the project dashboard (2026-10-28). Temporary (307) while the owner may
+      // still decide to run both; old links, e-mails and bookmarks keep landing in the workspace.
+      { source: '/dashboard', destination: '/grideet', permanent: false },
       // The old English Quante marketing pages are replaced by the Czech AssetraDigital site
       // (app/(site)). Exact paths only — never a wildcard that could catch /api/* routes.
       { source: '/pricing', destination: '/quante#cenik', permanent: true },

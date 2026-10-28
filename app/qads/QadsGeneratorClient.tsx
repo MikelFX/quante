@@ -205,6 +205,19 @@ export function QadsGeneratorClient() {
     }
   }, [])
 
+  // Grideet's "Open in Qads history": /qads?g=<generationId> opens that generation in the results
+  // (the detail API answers only the owner's generations).
+  useEffect(() => {
+    if (!isSignedIn) return
+    const g = new URLSearchParams(window.location.search).get('g')
+    if (!g || !/^[0-9a-f-]{36}$/i.test(g)) return
+    const t = setTimeout(() => {
+      setActiveGenerationId(g)
+      requestAnimationFrame(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }, 0)
+    return () => clearTimeout(t)
+  }, [isSignedIn])
+
   // Load history, products and the credit balance once signed in
   useEffect(() => {
     if (!isSignedIn) return
@@ -921,7 +934,7 @@ function HistoryPanel({ history, activeGenerationId, onSelect, onShared }: { his
         })}
       </div>
       <p style={{ fontSize: 11, color: 'var(--qp-mut)', margin: '12px 0 0' }}>
-        Older campaigns from the Studio (before the new generator) live in the <Link href="/dashboard" style={{ color: 'var(--qp-accent-deep)' }}>Dashboard</Link>.
+        Older campaigns from the Studio (before the new generator) live in the <Link href="/grideet" style={{ color: 'var(--qp-accent-deep)' }}>Grideet</Link>.
       </p>
     </div>
   )

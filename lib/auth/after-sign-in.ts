@@ -7,7 +7,7 @@
 // the dashboard (no open redirect, no loop). Pure — tested in __tests__/after-sign-in.test.mjs.
 
 const AUTH_PAGE = /^\/(login|signup)(\/|$)/
-const FALLBACK = '/dashboard'
+const FALLBACK = '/grideet'
 // Clerk carries the target as redirect_url, or under these names when it moves between the
 // sign-in and sign-up forms.
 const PARAMS = ['redirect_url', 'sign_in_force_redirect_url', 'sign_up_force_redirect_url', 'sign_in_fallback_redirect_url', 'sign_up_fallback_redirect_url']
