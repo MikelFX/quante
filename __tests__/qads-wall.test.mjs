@@ -102,3 +102,19 @@ test('a small pool (three seed pieces) still never repeats a piece right below i
     }
   }
 })
+
+test('the grain band starts solid (no seam) and thins out to nothing', async () => {
+  const { grainCells } = await import('../app/qads/wall-math.ts')
+  const cols = 140
+  const rows = 65
+  const g = grainCells(cols, rows)
+  const density = (r) => g.slice(r * cols, (r + 1) * cols).reduce((a, b) => a + b, 0) / cols
+  for (let r = 0; r < 4; r++) assert.equal(density(r), 1)
+  assert.ok(density(5) > 0.9, `row 5: ${density(5)}`)
+  assert.ok(density(rows - 1) < 0.05)
+  const top = density(10) + density(11) + density(12)
+  const mid = density(32) + density(33) + density(34)
+  const low = density(54) + density(55) + density(56)
+  assert.ok(top > mid && mid > low, `${top} ${mid} ${low}`)
+  assert.deepEqual(grainCells(cols, rows), g)
+})

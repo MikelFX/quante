@@ -134,33 +134,38 @@
 @media (prefers-reduced-motion: reduce) { .qz *, .qz *::before, .qz *::after { transition: none !important; } }
 
 /* ── community wall (QadsCommunityWall.tsx, choreography in wall-math.ts) ── */
-/* A tall section with a pinned 3D stage. The stage is masked: solid down to --qz-reveal, then a
-   dithered band of --qz-grain px (an SVG gradient thresholded against noise), so the wall never
-   ends in a hard cut — it dissolves into grain. */
+/* A tall section with a pinned 3D stage. The scene sits in a masked layer: solid, then a band of
+   --qz-grain px of crisp 1 px grain (drawn once by the script, --qz-grain-img), so the wall never
+   ends in a hard cut — it dissolves into grain. The mask never changes size; the script moves the
+   layer (and the scene back inside it), so the mask is rasterised once, not on every frame. */
 .qz-wall { position: relative; height: 300vh; margin-top: 8px; }
 .qz-wall.still { height: auto; }
-.qz-wall-stage {
-  --qz-reveal: 100vh;
-  --qz-dither: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='560' height='200' viewBox='0 0 560 200' preserveAspectRatio='none'><defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='white' stop-opacity='1'/><stop offset='1' stop-color='white' stop-opacity='0'/></linearGradient><filter id='d' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='2' seed='11' stitchTiles='stitch' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -1.67 0 0 0 1.33' result='t'/><feComposite in='SourceGraphic' in2='t' operator='arithmetic' k1='0' k2='1' k3='1' k4='-0.5'/><feComponentTransfer><feFuncR type='linear' slope='0' intercept='1'/><feFuncG type='linear' slope='0' intercept='1'/><feFuncB type='linear' slope='0' intercept='1'/><feFuncA type='discrete' tableValues='0 1'/></feComponentTransfer></filter></defs><rect width='560' height='200' fill='url(%23g)' filter='url(%23d)'/></svg>");
-  position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden;
-  perspective: 1300px; perspective-origin: 50% 36%;
-  -webkit-mask-image: linear-gradient(black, black), var(--qz-dither);
-          mask-image: linear-gradient(black, black), var(--qz-dither);
-  -webkit-mask-size: 100% max(0px, var(--qz-reveal)), 560px var(--qz-grain, 130px);
-          mask-size: 100% max(0px, var(--qz-reveal)), 560px var(--qz-grain, 130px);
-  -webkit-mask-position: 0 0, 0 var(--qz-reveal);
-          mask-position: 0 0, 0 var(--qz-reveal);
+.qz-wall-stage { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+.qz-wall-mask {
+  position: absolute; left: 0; right: 0; top: 0; height: calc(100% + 2 * var(--qz-grain, 130px));
+  will-change: transform;
+  /* the solid part overlaps the band's solid top rows by 2 px: no hairline where they meet */
+  -webkit-mask-image: linear-gradient(black, black), var(--qz-grain-img, linear-gradient(black, transparent));
+          mask-image: linear-gradient(black, black), var(--qz-grain-img, linear-gradient(black, transparent));
+  -webkit-mask-size: 100% calc(100% - var(--qz-grain, 130px) + 2px), var(--qz-grain-w, 280px) var(--qz-grain, 130px);
+          mask-size: 100% calc(100% - var(--qz-grain, 130px) + 2px), var(--qz-grain-w, 280px) var(--qz-grain, 130px);
+  -webkit-mask-position: 0 0, 0 100%;
+          mask-position: 0 0, 0 100%;
   -webkit-mask-repeat: no-repeat, repeat-x;
           mask-repeat: no-repeat, repeat-x;
 }
-.qz-wall.still .qz-wall-stage, .qz-wall-stage.open { -webkit-mask: none; mask: none; }
+.qz-wall-view {
+  position: absolute; left: 0; right: 0; top: 0; height: calc(100% - 2 * var(--qz-grain, 130px));
+  perspective: 1300px; perspective-origin: 50% 36%; will-change: transform;
+}
+.qz-wall.still .qz-wall-mask, .qz-wall-stage.open .qz-wall-mask { -webkit-mask: none; mask: none; }
 .qz-wall.still .qz-wall-stage { position: relative; }
 
 .qz-wall-head {
   /* below the sticky banner + site nav (~100 px) */
   position: absolute; z-index: 2; left: 16px; right: 16px; top: calc(100px + 1.2vh);
   text-align: center; pointer-events: none;
-  opacity: var(--qz-head, 0); transform: translateY(calc((1 - var(--qz-head, 0)) * 14px));
+  opacity: 0; will-change: opacity, transform;
 }
 .qz-wall.still .qz-wall-head { opacity: 1; transform: none; }
 .qz-wall-kicker { margin: 0 0 6px; font: 600 11px/1 var(--q-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--q-acc-text); }
