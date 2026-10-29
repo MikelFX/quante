@@ -14,6 +14,8 @@ import { parseConfigFile } from '@/lib/store-config'
 import { readTheme } from '@/lib/store-theme'
 import { parseProductsFile } from '@/lib/store-products'
 import { THEME_COLOR_RE } from '@/lib/store-theme-shared'
+import { EMPTY_KIT } from '@/lib/brand-kit/model'
+import { getBrandKits } from '@/lib/brand-kit/store'
 import {
   applyFilters, exportItems, groupByBrand, jobItems, paginate, productItems, qadsItems, qgentItems, qscanItems, storeState,
   type BrandGroup, type BrandMeta, type BrandRow, type BrandTheme, type ExportRow, type GrideetFilters, type GridItem, type JobRow,
@@ -53,6 +55,10 @@ export interface GrideetData {
   capped: string[]
   /** Sources that could not be read (missing table / column, lookup error). */
   skipped: string[]
+  /** Every active store (id + name): where Unassigned work can be assigned. */
+  stores: Array<{ id: string; name: string }>
+  /** brand_kits exists (supabase/migration-brand-kit.sql has run). */
+  brandKitReady: boolean
 }
 
 type Rows<T> = { rows: T[]; ok: boolean; capped: boolean }
@@ -178,7 +184,11 @@ export async function loadGrideet(userId: string, filters: GrideetFilters & { pa
   const firstFilters: GrideetFilters = filters.kind === 'product' ? { ...filters, kind: 'store' } : filters
   const allGroups = groupByBrand(brands, items, meta)
   const firstPass = paginate(applyFilters(allGroups, firstFilters), filters.page ?? 1)
-  const previews = await loadPreviews(pageBrandIds(firstPass.items), latestVersion, skipped)
+  const [previews, kitRead] = await Promise.all([
+    loadPreviews(pageBrandIds(firstPass.items), latestVersion, skipped),
+    getBrandKits(pageBrandIds(firstPass.items), userId),
+  ])
+  if (kitRead.ready) for (const id of pageBrandIds(firstPass.items)) meta.set(id, { ...meta.get(id), kit: kitRead.kits.get(id) ?? EMPTY_KIT })
   const pageProducts: GridItem[] = []
   for (const [id, pv] of previews) {
     meta.set(id, { ...meta.get(id), theme: pv.theme })
@@ -203,6 +213,8 @@ export async function loadGrideet(userId: string, filters: GrideetFilters & { pa
     itemCount: items.length,
     capped,
     skipped,
+    stores: projects.rows.map((p) => ({ id: p.id, name: p.name || 'Untitled store' })),
+    brandKitReady: kitRead.ready,
   }
 }
 

@@ -7,7 +7,10 @@
 
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
-const INPUT_BUCKET = 'qads-inputs'
+export const INPUT_BUCKET = 'qads-inputs'
+// 1–4 photos per generation; a busy day of ad work stays well under this. Shared by
+// /api/qads/upload and /api/qads/upload/brand (same bucket, same daily budget).
+export const INPUT_DAILY_QUOTA = { maxFiles: 60, maxBytes: 300 * 1024 * 1024 }
 const SIGNED_URL_TTL_S = 60 * 60 * 2 // long enough for Higgsfield's initial fetch
 
 function escapeRegex(s: string): string {

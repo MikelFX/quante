@@ -101,13 +101,15 @@ export interface BuildUserMessageInput {
   wantVideos: boolean
   videoDurationSeconds: number
   language: 'cs' | 'en' | 'sk' | 'de'
+  /** The store's brand kit texts (lib/brand-kit kitPromptBlock) when the ad is for a store. */
+  brandNotes?: string
 }
 
 export function buildGeneratorUserMessage(input: BuildUserMessageInput): string {
   const {
     productName, productDescription, productPhotoUrls,
     style, formats, variantsPerFormat, wantImages, wantVideos,
-    videoDurationSeconds, language,
+    videoDurationSeconds, language, brandNotes,
   } = input
 
   const slots: string[] = []
@@ -134,7 +136,7 @@ Name: <<<${productName}>>>
 Description: <<<${productDescription || '(none provided — infer from photos)'}>>>
 Photos:
 ${photoLines}
-
+${brandNotes ? `\n${brandNotes}\n` : ''}
 STYLE DIRECTIVE
 Style: ${style.label} (id: ${style.id})
 Image directive: ${style.imageDirective}

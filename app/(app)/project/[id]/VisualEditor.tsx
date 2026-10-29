@@ -67,6 +67,7 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
   const [frameKey, setFrameKey] = useState(0)
   const [blocks, setBlocks] = useState<SavedBlock[]>([])
   const [blocksAvailable, setBlocksAvailable] = useState(false)
+  const [brandPhotos, setBrandPhotos] = useState<string[]>([])
   const [device, setDevice] = useState<Device>('desktop')
   const [tab, setTab] = useState<Tab>('design')
   const [styles, setStyles] = useState<Styles | null>(null)
@@ -104,6 +105,16 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
+
+  // Photos from the store's brand kit (Dashboard): inserted as plain <img> snippets.
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/projects/${projectId}/brand`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled && Array.isArray(d?.kit?.photos)) setBrandPhotos(d.kit.photos.filter((u: unknown) => typeof u === 'string')) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [projectId])
 
   // Preview area size (for the device frame).
   useEffect(() => {
@@ -541,6 +552,7 @@ export function VisualEditor({ projectId, canPublish = false, onExit, onSaved }:
                     onImage={(file, position) => void insertImage(file, position)}
                     blocks={blocksAvailable ? blocks : null}
                     onRemoveBlock={(id) => void removeBlock(id)}
+                    brandPhotos={brandPhotos}
                   />
 
                   <AiBlock key={`ai|${node.oid}`} node={node} busy={busy} onRun={(mode, instruction) => run({ action: 'ai', mode, instruction })} />
@@ -725,7 +737,7 @@ function PositionToggle({ node, value, onChange }: { node: EditorNode; value: 'a
 }
 
 /** "Add element": ready-made blocks and an image upload, after / inside the selection. */
-function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
+function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock, brandPhotos }: {
   node: EditorNode
   busy: boolean
   onInsert: (position: 'after' | 'inside', snippet: string) => void
@@ -733,6 +745,8 @@ function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
   /** The merchant's saved elements; null = feature not set up (migration pending). */
   blocks: SavedBlock[] | null
   onRemoveBlock: (id: string) => void
+  /** Photos from the store's brand kit (public store-assets URLs of this owner). */
+  brandPhotos: string[]
 }) {
   const [position, setPosition] = useState<'after' | 'inside'>(node.canDelete ? 'after' : 'inside')
   const fileRef = useRef<HTMLInputElement | null>(null)
@@ -755,6 +769,26 @@ function AddBlock({ node, busy, onInsert, onImage, blocks, onRemoveBlock }: {
               <ImagePlus size={11} /> Image
             </button>
           </div>
+          {brandPhotos.length > 0 && (
+            <>
+              <p style={{ ...label, margin: '12px 0 6px' }}>Brand photos</p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                {brandPhotos.map((url) => (
+                  <button
+                    key={url}
+                    disabled={busy}
+                    onClick={() => onInsert(position, `<img src="${url}" alt="" className="w-full h-auto rounded-store" />`)}
+                    title="Insert this photo"
+                    aria-label="Insert this photo from the brand kit"
+                    style={{ width: 44, height: 44, padding: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--q-line2)', background: 'var(--q-s2)', cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           {blocks && (
             <>
               <p style={{ ...label, margin: '12px 0 6px' }}>My elements</p>

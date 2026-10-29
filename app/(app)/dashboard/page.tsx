@@ -102,6 +102,8 @@ export default async function GrideetPage({ searchParams }: Props) {
           isAgency={isAgency}
           capped={data.capped}
           skipped={data.skipped}
+          stores={data.stores}
+          brandKitReady={data.brandKitReady}
         />
       )}
     </div>

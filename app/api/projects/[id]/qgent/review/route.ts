@@ -13,6 +13,8 @@ import { rateLimit } from '@/lib/rate-limit'
 import { debitCredits, refundDebit } from '@/lib/credits'
 import { isAgencyUser } from '@/lib/tier'
 import { CREDIT_COSTS } from '@/lib/config'
+import { kitPromptBlock } from '@/lib/brand-kit/model'
+import { getBrandKit } from '@/lib/brand-kit/store'
 import { checkFinding, isMissingTable, loadLatestVersion, runReview, workingFiles } from '@/lib/qgent/shop'
 
 export const maxDuration = 300
@@ -76,7 +78,8 @@ export async function POST(_request: Request, { params }: Params) {
   }
 
   const files = workingFiles(latest.files)
-  const run = await runReview(files, project.name ?? '')
+  const brand = await getBrandKit(id, userId)
+  const run = await runReview(files, project.name ?? '', kitPromptBlock(brand.kit))
   if (!run.ok) return fail(run.error, 502, !agency)
 
   // Earlier proposals are replaced by this review (the log keeps them as 'stale').

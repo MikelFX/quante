@@ -6,12 +6,14 @@
 // Code-generated stores (the current kind): data/products.ts of the latest
 // code version, parsed as a literal (lib/store-products.ts) or, when the file
 // uses constants, read leniently for names + descriptions only. Older
-// manifest stores: the latest manifest_versions catalog. Read-only.
+// manifest stores: the latest manifest_versions catalog. Read-only. Each store also lists its
+// brand kit photos (brandPhotos) for the composer.
 
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { PRODUCTS_FILE, parseProductsFile } from '@/lib/store-products'
+import { getBrandKits } from '@/lib/brand-kit/store'
 
 interface ManifestProduct {
   id: string
@@ -112,6 +114,10 @@ export async function GET() {
     if (list.length) codeProducts.set(pid, list)
   }))
 
+  // Brand kit photos (lib/brand-kit): offered as product photos; copied into qads-inputs only
+  // when picked (POST /api/qads/upload/brand).
+  const { kits } = await getBrandKits(projectIds, userId)
+
   const out = projects
     .map(p => {
       const manifest = latestByProject.get(p.id as string)
@@ -126,9 +132,10 @@ export async function GET() {
         projectId: p.id,
         projectName: (p.name as string) || (manifest?.brand?.name ?? 'Untitled project'),
         products,
+        brandPhotos: kits.get(p.id as string)?.photos.slice(0, 12) ?? [],
       }
     })
-    .filter(p => p.products.length > 0)
+    .filter(p => p.products.length > 0 || p.brandPhotos.length > 0)
 
   return NextResponse.json({ projects: out })
 }

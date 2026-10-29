@@ -6,6 +6,8 @@
 // Truth from data: nothing here invents a number. A count is the number of rows we read; when a
 // source hit its read cap the count is marked `capped` and the UI shows "50+".
 
+import type { BrandKit } from '@/lib/brand-kit/model'
+
 export type ModuleId = 'store' | 'qads' | 'qscan' | 'qgent'
 export type KindId = 'product' | 'video' | 'photo' | 'scan' | 'edit' | 'export' | 'build'
 /** working = still running, open = waits for the owner, done, failed. */
@@ -17,9 +19,10 @@ export interface GridAction {
   label: string
   /** link = a plain link into an existing flow; download = a signed file URL; the rest are client
    *  helpers that call an existing API or hand-off (qadsDraft = the Qads `qads:draft:v1` draft). */
-  type: 'link' | 'download' | 'qadsDraft' | 'qadsShare' | 'qgentRevert'
+  type: 'link' | 'download' | 'qadsDraft' | 'qadsShare' | 'qgentRevert' | 'assign'
   href?: string
-  /** qadsDraft: the draft handed to /qads. qadsShare: { generationId, share }. qgentRevert: { projectId, actionId }. */
+  /** qadsDraft: the draft handed to /qads. qadsShare: { generationId, share }. qgentRevert: { projectId, actionId }.
+   *  assign (Unassigned work → a store, phase 2): { source: 'qads' | 'qscan', id, title, note }. */
   payload?: Record<string, unknown>
   /** Changes something: the UI asks first. */
   confirm?: string
@@ -59,6 +62,8 @@ export interface BrandMeta {
   domain?: string | null
   hosting?: boolean
   theme?: BrandTheme | null
+  /** The brand kit (lib/brand-kit), read for the current page only; undefined = not set up. */
+  kit?: BrandKit
 }
 
 export interface BrandGroup {
@@ -155,6 +160,7 @@ export function qadsItems(gens: QadsGenerationRow[], rows: QadsItemRow[], urls: 
         ? { label: 'Stop sharing in the community', type: 'qadsShare', payload: { generationId: g.id, share: false } }
         : { label: 'Share in the community', type: 'qadsShare', payload: { generationId: g.id, share: true }, confirm: 'Share the finished photos and videos of this generation on the community wall? Your uploaded product photos are never shown. You can take them down anytime.' })
     }
+    if (!g.project_id) actions.push(assignAction('qads', g.id, g.product_name || 'Ad', 'Every photo and video of this generation moves with it.'))
     out.push({
       id: `qads:${r.id}`,
       brandId: g.project_id ?? null,
@@ -200,9 +206,14 @@ export function qscanItems(rows: QscanRow[]): GridItem[] {
       updatedAt: r.created_at,
       href: primary.href!,
       primaryAction: primary,
-      actions: primary === again ? [] : [again],
+      // project_id is undefined (not null) while migration-grideet.sql hasn't run: nothing to assign to then.
+      actions: [...(primary === again ? [] : [again]), ...(r.project_id === null ? [assignAction('qscan', r.id, r.summary?.brand?.name || host, 'The scan stays as it is; only where it is listed changes.')] : [])],
     }
   })
+}
+
+function assignAction(source: 'qads' | 'qscan', id: string, title: string, note: string): GridAction {
+  return { label: 'Assign to a store…', type: 'assign', payload: { source, id, title, note } }
 }
 
 const QGENT_STATUS: Record<string, { status: ItemStatus; label: string }> = {

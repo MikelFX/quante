@@ -928,10 +928,10 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       .catch(() => {})
   }, [])
 
-  // Grideet links straight to a panel: /project/<id>?tab=qgent | publish.
+  // Grideet links straight to a panel: /project/<id>?tab=qgent | publish | theme.
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab !== 'qgent' && tab !== 'publish') return
+    if (tab !== 'qgent' && tab !== 'publish' && tab !== 'theme') return
     const t = setTimeout(() => { setDesktopTab(tab); setActiveTab(tab) }, 0)
     return () => clearTimeout(t)
   }, [searchParams])

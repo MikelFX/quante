@@ -60,7 +60,7 @@ interface FormState {
 }
 
 interface StoreProduct { id: string; name: string; description: string; images: string[] }
-interface StoreProject { projectId: string; projectName: string; products: StoreProduct[] }
+interface StoreProject { projectId: string; projectName: string; products: StoreProduct[]; brandPhotos?: string[] }
 
 interface GenerationSummary {
   id: string
@@ -372,6 +372,27 @@ export function QadsGeneratorClient() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  // A photo from the picked store's brand kit: the server copies it into qads-inputs.
+  const addBrandPhoto = async (url: string) => {
+    if (!form.projectId || form.photos.length >= 4) return
+    setUploadError(null)
+    setUploading(true)
+    try {
+      const res = await fetch('/api/qads/upload/brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: form.projectId, url }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setUploadError(String(data.error ?? 'Upload failed')); return }
+      setForm(prev => ({ ...prev, photos: [...prev.photos, data as UploadedPhoto].slice(0, 4) }))
+    } catch {
+      setUploadError('Upload failed — check your connection.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const addPhoto = () => {
     if (isLoaded && !isSignedIn) {
       persistDraftAndSignIn(form)
@@ -556,6 +577,19 @@ export function QadsGeneratorClient() {
                   {uploading && <span className="vh">Uploading…</span>}
                 </button>
               )}
+            </div>
+          )}
+          {pickedProject && (pickedProject.brandPhotos?.length ?? 0) > 0 && form.photos.length < 4 && (
+            <div className="qz-kit">
+              <span className="qz-kit-h">From the {pickedProject.projectName} brand kit</span>
+              <div className="qz-kit-row">
+                {pickedProject.brandPhotos!.map(url => (
+                  <button key={url} type="button" className="qz-kit-ph" disabled={uploading} onClick={() => void addBrandPhoto(url)} aria-label="Use this photo from the brand kit">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} alt="" loading="lazy" />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           <input
@@ -744,10 +778,10 @@ function ProductMenu({ projects, signedIn, onPick, onSignIn }: { projects: Store
           <br />
           <button type="button" className="qz-b" onClick={onSignIn}>Sign in</button>
         </div>
-      ) : projects.length === 0 ? (
+      ) : !projects.some(p => p.products.length > 0) ? (
         <div className="qz-pop-note">No products in your stores yet. Name the product in the text instead.</div>
       ) : (
-        projects.map(proj => (
+        projects.filter(proj => proj.products.length > 0).map(proj => (
           <div key={proj.projectId}>
             <p className="qz-pop-h">{proj.projectName}</p>
             {proj.products.map(prod => (
