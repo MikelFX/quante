@@ -4,7 +4,9 @@
 // filters and pages, lib/grideet/load.ts), items of a brand on expand. Every action leads into an
 // existing flow; the few that change something here (share, undo, delete) ask first and call the
 // API that module already has. Phase 2: each store's brand kit (BrandKitPanel) and "Assign to a
-// store…" for Unassigned Qads generations and scans. Nothing here spends credits.
+// store…" for Unassigned Qads generations and scans. Phases 3 + 4: each store's live numbers
+// (paid orders and revenue in 30 days, orders to ship, a failed build) and rule-based next steps
+// (lib/grideet/live.ts). Nothing here spends credits.
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -14,6 +16,7 @@ import {
   type BrandGroup, type GridAction, type GridItem, type GrideetFilters, type KindId, type StoreState,
 } from '@/lib/grideet/model'
 import type { BrandKit } from '@/lib/brand-kit/model'
+import { LIVE_DAYS, type MoneySum } from '@/lib/grideet/live'
 import { GridImage, GridVideo } from './GrideetMedia'
 import { BrandKitPanel } from './BrandKitPanel'
 
@@ -55,6 +58,16 @@ function timeAgo(iso: string): string {
   const d = Math.floor(h / 24)
   return d < 60 ? `${d}d ago` : new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+function money(m: MoneySum): string {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: m.currency, maximumFractionDigits: m.cents % 100 ? 2 : 0 }).format(m.cents / 100)
+  } catch {
+    return `${(m.cents / 100).toFixed(2)} ${m.currency}`
+  }
+}
+
+const MAX_TIPS = 3
 
 function countsLine(g: BrandGroup, capped: string[]): string[] {
   const out: string[] = []
@@ -460,6 +473,9 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
             {store && state && <span className={`gd-badge gd-st-${state}`}>{STATE_LABEL[state]}</span>}
             {!store && <span className="gd-badge">Not linked to a store</span>}
             {g.meta.hosting && <span className="gd-badge gd-st-host">Hosting</span>}
+            {store && g.meta.live && g.meta.live.toShip > 0 && <span className="gd-badge gd-st-ship">{g.meta.live.toShip} to ship</span>}
+            {store && g.meta.live?.build === 'failed' && <span className="gd-badge gd-st-fail">Build failed</span>}
+            {store && g.meta.live?.build === 'running' && <span className="gd-badge">Building…</span>}
             {g.lastActivity && <span className="gd-mono">{timeAgo(g.lastActivity)}</span>}
           </div>
           {g.meta.domain && (
@@ -467,6 +483,13 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
           )}
           {counts.length > 0 && <p className="gd-counts">{counts.join(' · ')}</p>}
           {store && counts.length === 0 && <p className="gd-counts gd-quiet">No products, ads or imports yet</p>}
+          {store && g.meta.live && (g.meta.live.paidOrders > 0 || state === 'live' || state === 'changes') && (
+            <p className="gd-counts gd-live">
+              {g.meta.live.paidOrders > 0
+                ? <>{g.meta.live.paidOrders} paid order{g.meta.live.paidOrders === 1 ? '' : 's'} · <strong>{g.meta.live.revenue.map(money).join(' + ')}</strong> in {LIVE_DAYS} days</>
+                : <span className="gd-quiet-inline">No paid orders in {LIVE_DAYS} days</span>}
+            </p>
+          )}
           {store && kit && (kitCount > 0 || kitTexts > 0 || kit.logoUrl) && (
             <p className="gd-counts">Brand kit · {[kit.logoUrl ? 'logo' : null, kitCount ? `${kitCount} photo${kitCount === 1 ? '' : 's'}` : null, kitTexts ? `${kitTexts} text${kitTexts === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ')}</p>
           )}
@@ -490,6 +513,18 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
         )}
         {store && <button type="button" className="gd-link gd-del" onClick={onDelete}>Delete</button>}
       </div>
+
+      {store && g.meta.tips && g.meta.tips.length > 0 && (
+        <ul className="gd-tips" aria-label={`Next steps for ${g.name}`}>
+          {g.meta.tips.slice(0, MAX_TIPS).map((tip) => (
+            <li key={tip.id} className={`gd-tip gd-tip-${tip.level}`}>
+              <span className="gd-tip-dot" aria-hidden="true" />
+              <span className="gd-tip-text">{tip.text}</span>
+              <ActionButton a={tip.action} onAction={onAction} />
+            </li>
+          ))}
+        </ul>
+      )}
 
       {kitOpen && store && (
         <div id={kitId}>

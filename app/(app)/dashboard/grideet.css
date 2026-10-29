@@ -91,6 +91,8 @@
 }
 .ad-app .gd-st-live { background: rgb(var(--q-ok-rgb) / .14); color: var(--q-ok-text); }
 .ad-app .gd-st-changes { background: rgb(var(--q-warn-rgb) / .14); color: var(--q-warn-text); }
+.ad-app .gd-st-ship { background: rgb(var(--q-acc-rgb) / .14); color: var(--q-acc-text); }
+.ad-app .gd-st-fail { background: rgb(var(--q-danger-rgb) / .12); color: var(--q-danger-text); }
 .ad-app .gd-st-draft { background: rgb(var(--q-acc2-rgb) / .14); color: var(--q-acc2-text); }
 .ad-app .gd-st-generating { background: rgb(var(--q-warn-rgb) / .14); color: var(--q-warn-text); }
 .ad-app .gd-st-host { background: rgb(var(--q-ink-rgb) / .06); color: var(--q-fg2); }
@@ -171,6 +173,16 @@
 .ad-app .gd-danger { background: var(--q-danger); color: var(--q-on-danger); box-shadow: none; }
 .ad-app .gd-danger:hover { background: var(--q-danger); filter: brightness(1.06); }
 
+/* live numbers + next steps (phases 3 + 4) */
+.ad-app .gd-live strong { font-weight: 600; color: var(--q-fg); }
+.ad-app .gd-quiet-inline { color: var(--q-fg3); }
+.ad-app .gd-tips { list-style: none; margin: 12px 0 0; padding: 10px 0 0; border-top: 1px solid var(--q-line); display: grid; gap: 4px; }
+.ad-app .gd-tip { display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: center; min-height: 36px; font-size: 13px; line-height: 1.4; color: var(--q-fg); }
+.ad-app .gd-tip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--q-fg4); }
+.ad-app .gd-tip-act .gd-tip-dot { background: var(--q-warn); }
+.ad-app .gd-tip-idea .gd-tip-dot { background: var(--q-acc); }
+.ad-app .gd-tip .gd-link { white-space: nowrap; }
+
 /* brand kit (phase 2) */
 .ad-app .gd-kit { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--q-line); display: grid; gap: 16px; }
 .ad-app .gd-kit-lead { margin: 0; font-size: 13px; line-height: 1.5; color: var(--q-fg2); }
@@ -219,6 +231,8 @@
   .ad-app .gd-select select { padding: 0 22px 0 10px; font-size: 12px; text-overflow: ellipsis; }
   .ad-app .gd-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ad-app .gd-kit-ph, .ad-app .gd-kit-add { width: 64px; height: 64px; }
+  .ad-app .gd-tip { grid-template-columns: 8px 1fr; }
+  .ad-app .gd-tip .gd-link { grid-column: 2; justify-self: start; padding: 0; }
 }
 /* touch screens: 44 px targets */
 @media (pointer: coarse) {

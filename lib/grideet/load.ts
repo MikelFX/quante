@@ -16,6 +16,7 @@ import { parseProductsFile } from '@/lib/store-products'
 import { THEME_COLOR_RE } from '@/lib/store-theme-shared'
 import { EMPTY_KIT } from '@/lib/brand-kit/model'
 import { getBrandKits } from '@/lib/brand-kit/store'
+import { LIVE_DAYS, brandTips, liveStats, type BuildRow, type OrderRow } from '@/lib/grideet/live'
 import {
   applyFilters, exportItems, groupByBrand, jobItems, paginate, productItems, qadsItems, qgentItems, qscanItems, storeState,
   type BrandGroup, type BrandMeta, type BrandRow, type BrandTheme, type ExportRow, type GrideetFilters, type GridItem, type JobRow,
@@ -189,6 +190,9 @@ export async function loadGrideet(userId: string, filters: GrideetFilters & { pa
     getBrandKits(pageBrandIds(firstPass.items), userId),
   ])
   if (kitRead.ready) for (const id of pageBrandIds(firstPass.items)) meta.set(id, { ...meta.get(id), kit: kitRead.kits.get(id) ?? EMPTY_KIT })
+  // Live numbers for the page's stores (phase 3): orders + money, the newest build.
+  const live = await loadLive(pageBrandIds(firstPass.items), userId, skipped)
+  for (const id of pageBrandIds(firstPass.items)) meta.set(id, { ...meta.get(id), live: liveStats(id, live.orders, live.builds) })
   const pageProducts: GridItem[] = []
   for (const [id, pv] of previews) {
     meta.set(id, { ...meta.get(id), theme: pv.theme })
@@ -202,7 +206,12 @@ export async function loadGrideet(userId: string, filters: GrideetFilters & { pa
 
   // The page's brands again, now with their products and media. Paging stays as decided above.
   const pageIds = new Set(firstPass.items.map((g) => g.id))
+  const adNames = new Map<string, string[]>()
+  for (const g of gens.rows) if (g.project_id) adNames.set(g.project_id, [...(adNames.get(g.project_id) ?? []), g.product_name])
+  // Recommendations (phase 4) see the brand's full item list, before the filters narrow it.
+  const tipsBy = new Map(groupByBrand(brands, finalItems, meta).filter((g) => g.id && pageIds.has(g.id)).map((g) => [g.id as string, brandTips(g, adNames.get(g.id as string) ?? [])]))
   const groups = applyFilters(groupByBrand(brands, finalItems, meta), filters).filter((g) => pageIds.has(g.id))
+    .map((g) => (g.id && tipsBy.has(g.id) ? { ...g, meta: { ...g.meta, tips: tipsBy.get(g.id) } } : g))
   return {
     groups,
     page: firstPass.page,
@@ -212,10 +221,32 @@ export async function loadGrideet(userId: string, filters: GrideetFilters & { pa
     storeCount: projects.rows.length,
     itemCount: items.length,
     capped,
-    skipped,
+    skipped: [...new Set(skipped)],
     stores: projects.rows.map((p) => ({ id: p.id, name: p.name || 'Untitled store' })),
     brandKitReady: kitRead.ready,
   }
+}
+
+const ORDER_CAP = 5000
+
+/** Orders of the last LIVE_DAYS days plus every order still waiting to ship, and recent builds —
+ *  for owned projects only (the ids come from the user's own projects query). */
+async function loadLive(ids: string[], userId: string, skipped: string[]): Promise<{ orders: OrderRow[]; builds: BuildRow[] }> {
+  if (ids.length === 0) return { orders: [], builds: [] }
+  const since = new Date(Date.now() - LIVE_DAYS * 86_400_000).toISOString()
+  const cols = 'id, project_id, status, payment_status, payment_method, total_cents, currency, created_at'
+  const [recent, open, builds] = await Promise.all([
+    read<OrderRow & { id: string }>('store_orders', ORDER_CAP,
+      supabaseAdmin.from('store_orders').select(cols).in('project_id', ids).gte('created_at', since).limit(ORDER_CAP), skipped),
+    read<OrderRow & { id: string }>('store_orders', ORDER_CAP,
+      supabaseAdmin.from('store_orders').select(cols).in('project_id', ids).in('status', ['paid', 'pending']).limit(ORDER_CAP), skipped),
+    read<BuildRow>('deployments', ids.length * 10,
+      supabaseAdmin.from('deployments').select('project_id, status, created_at').eq('user_id', userId).in('project_id', ids)
+        .order('created_at', { ascending: false }).limit(ids.length * 10), skipped),
+  ])
+  const byId = new Map<string, OrderRow>()
+  for (const o of [...recent.rows, ...open.rows]) byId.set(o.id, o)
+  return { orders: [...byId.values()], builds: builds.rows }
 }
 
 interface Preview { theme: BrandTheme | null; products: ProductRow[]; language: string | null }

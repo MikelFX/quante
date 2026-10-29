@@ -928,12 +928,18 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
       .catch(() => {})
   }, [])
 
-  // Grideet links straight to a panel: /project/<id>?tab=qgent | publish | theme.
+  // Grideet links straight to a panel: /project/<id>?tab=qgent | publish | theme | orders.
   useEffect(() => {
     const tab = searchParams.get('tab')
+    if (tab === 'orders') {
+      const t = setTimeout(() => { setAdminMode(true); setAdminTab('orders'); void handleLoadOrders() }, 0)
+      return () => clearTimeout(t)
+    }
     if (tab !== 'qgent' && tab !== 'publish' && tab !== 'theme') return
     const t = setTimeout(() => { setDesktopTab(tab); setActiveTab(tab) }, 0)
     return () => clearTimeout(t)
+    // handleLoadOrders is a plain function re-created every render; the deep link reacts to the URL only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
   useEffect(() => {
