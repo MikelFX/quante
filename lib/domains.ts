@@ -17,7 +17,6 @@ export const APP_HOST_PATTERN = '(?:www\\.)?quantecode\\.com'
 export const SITE_PATHS = [
   '/',
   '/web-eshop',
-  '/zz-shot', // TEMP
   '/quante',
   '/quante/:path*',
   '/obchodni-podminky',
