@@ -7,6 +7,7 @@
 // source hit its read cap the count is marked `capped` and the UI shows "50+".
 
 import type { BrandKit } from '@/lib/brand-kit/model'
+import type { LiveStats, Tip } from '@/lib/grideet/live'
 
 export type ModuleId = 'store' | 'qads' | 'qscan' | 'qgent'
 export type KindId = 'product' | 'video' | 'photo' | 'scan' | 'edit' | 'export' | 'build'
@@ -64,6 +65,10 @@ export interface BrandMeta {
   theme?: BrandTheme | null
   /** The brand kit (lib/brand-kit), read for the current page only; undefined = not set up. */
   kit?: BrandKit
+  /** Live numbers (phase 3, lib/grideet/live.ts), current page only. */
+  live?: LiveStats
+  /** Recommendations (phase 4, brandTips), current page only. */
+  tips?: Tip[]
 }
 
 export interface BrandGroup {
