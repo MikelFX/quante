@@ -375,6 +375,13 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - **Next steps (phase 4):** `brandTips()` — rules in code, never a model: failed build, orders to ship (`/project/<id>?tab=orders` opens Studio admin → Orders), unpublished changes, Qgent findings waiting, products with no Qads generation of the same name (case/accents ignored; action = the product's "Make an ad" draft). At most 3 on a card, computed from the brand's full item list (before filters). Every action is a link or the Qads draft — nothing calls an API or spends credits.
 - Not built yet: ad performance (needs a `qads_metrics` writer), moving work between stores in bulk.
 
+## 13i. Qads Plan (2026-10-29)
+
+- Owner: the Fastlane-style growth loop is **part of Qads, not a new module**. /qads mode switch **Ad | Character | Plan** (`app/qads/QadsPlan.tsx`, `/qads?mode=plan[&project=<id>]`; Dashboard store cards link there as "Plan ads"). Phase A = no external approvals: Plan only suggests; publishing to Meta/TikTok + metrics (`qads_ad_accounts`, `qads_metrics`) is phase B.
+- `POST /api/qads/plan` (owner-checked, `CREDIT_COSTS.qads_plan`, Agency included, refunded on failure; free checks (table, running plan, hourly cap) before the charge): brand kit texts + store products (`lib/qads/store-catalog.ts`, shared with `/api/qads/products`) + competitor ads → one `MODELS.iteration` structured-output call (`lib/qads/plan/run.ts`) → `normalizePlan` (pure, `lib/qads/plan/model.ts`: exact ad count, allowlisted kinds/formats/styles/traits, persona + competitor ids re-checked, calendar inside days/channels, max 3 posts a day). Stored in `qads_plans` (`supabase/migration-qads-plans.sql`, service role; without it the panel says not set up and nothing is charged).
+- Competitor research = Meta's official Ad Library API only (`lib/qads/plan/ad-library.ts`, `META_AD_LIBRARY_TOKEN`, EU markets, active ads, text + page + start date; never snapshots, whose URL carries our token; links go to the public Ad Library page). No token → plan without competitors, said honestly. Never scrape Amazon/Reddit/reviews, never copy competitor creatives: adapt hooks/formats only.
+- Each concept is a draft for the normal composers (`adDraft` → `qads:draft:v1`, `characterDraft` → `qads:tiktoker:v1` + persona traits); the store's own product photo is attached through `/api/qads/upload/brand` (also accepts that store's product images in the owner's store-assets). Calendar downloads as CSV (formula-safe) / .ics (`lib/qads/plan/calendar.ts`). No fake accounts, no "warming": the owner posts from their own accounts, AI creators labelled as AI. Tested in `__tests__/qads-plan.test.mjs`.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

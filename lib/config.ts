@@ -76,6 +76,7 @@ export const CREDIT_COSTS = {
   vision:            1,
   qgent_review:      2,  // Qgent goes through the whole store (Studio → Qgent)
   qgent_apply:       1,  // one confirmed Qgent change; undo is free
+  qads_plan:         3,  // Qads Plan: personas, competitor research, ad concepts, calendar
   welcome_grant:    12,
 } as const
 

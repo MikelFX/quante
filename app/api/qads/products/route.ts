@@ -12,66 +12,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { PRODUCTS_FILE, parseProductsFile } from '@/lib/store-products'
+import { productsFromCode, productsFromManifest, type ManifestSlice, type PickerProduct } from '@/lib/qads/store-catalog'
 import { getBrandKits } from '@/lib/brand-kit/store'
-
-interface ManifestProduct {
-  id: string
-  name: string
-  description?: string
-  images?: string[]
-  price?: number
-  slug?: string
-}
-
-interface ManifestSlice {
-  brand?: { name?: string }
-  catalog?: { products?: ManifestProduct[] }
-}
-
-interface PickerProduct { id: string; name: string; description: string; images: string[] }
-
-/** The value of `key: "…"` (any quote style) in a piece of source, or null. */
-function stringField(body: string, key: string): string | null {
-  const m = body.match(new RegExp(`\\b${key}\\s*:\\s*(['"\`])((?:\\\\.|(?!\\1)[^\\\\])*?)\\1`))
-  // Unescape \" \' \\ and friends: the text as a shopper sees it.
-  return m ? m[2].replace(/\\(.)/g, '$1') : null
-}
-
-/** Names and descriptions from a data/products.ts that isn't a plain literal. */
-function readProductsLeniently(src: string): PickerProduct[] {
-  const out: PickerProduct[] = []
-  // Every "{" opens a chunk; products carry a slug, their variants don't.
-  for (const chunk of src.split('{').slice(1)) {
-    const body = chunk.split('}')[0]
-    if (!/\bslug\s*:/.test(body)) continue
-    const name = stringField(body, 'name')
-    if (!name) continue
-    out.push({
-      id: stringField(body, 'id') ?? String(out.length + 1),
-      name: name.slice(0, 120),
-      description: (stringField(body, 'description') ?? '').slice(0, 600),
-      images: [],
-    })
-    if (out.length >= 60) break
-  }
-  return out
-}
-
-function productsFromCode(files: Record<string, string> | null | undefined): PickerProduct[] {
-  const src = files?.[PRODUCTS_FILE]
-  if (typeof src !== 'string') return []
-  const parsed = parseProductsFile(src)
-  if (parsed) {
-    return parsed.slice(0, 60).map((p) => ({
-      id: String(p.id),
-      name: p.name,
-      description: p.description ?? '',
-      images: (p.images ?? []).slice(0, 4),
-    }))
-  }
-  return readProductsLeniently(src)
-}
 
 export async function GET() {
   const { userId } = await auth()
@@ -121,13 +63,7 @@ export async function GET() {
   const out = projects
     .map(p => {
       const manifest = latestByProject.get(p.id as string)
-      const catalog = manifest?.catalog?.products ?? []
-      const products: PickerProduct[] = codeProducts.get(p.id as string) ?? catalog.slice(0, 60).map(prod => ({
-        id: prod.id,
-        name: prod.name,
-        description: prod.description ?? '',
-        images: (prod.images ?? []).slice(0, 4),
-      }))
+      const products: PickerProduct[] = codeProducts.get(p.id as string) ?? productsFromManifest(manifest)
       return {
         projectId: p.id,
         projectName: (p.name as string) || (manifest?.brand?.name ?? 'Untitled project'),

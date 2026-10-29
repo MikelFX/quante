@@ -500,6 +500,7 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
         {store && <Link href={`/project/${g.id}`} className="q-btn">Open in Studio</Link>}
         {store && state === 'changes' && <Link href={`/project/${g.id}?tab=publish`} className="q-btn q-btn-gl">Publish…</Link>}
         {store && <Link href={`/project/${g.id}?tab=qgent`} className="q-btn q-btn-gl">Qgent check</Link>}
+        {store && <Link href={`/qads?mode=plan&project=${g.id}`} className="q-btn q-btn-gl">Plan ads</Link>}
         {store && (
           <button type="button" className="q-btn q-btn-gl" aria-expanded={kitOpen} aria-controls={kitId} onClick={() => setKitOpen((v) => !v)}>
             {kitOpen ? 'Close brand kit' : 'Brand kit'}
