@@ -12,9 +12,11 @@
 // the visitor clicks once more. Qgent in the Studio hands over a partial draft the same way
 // (product, description, store, language).
 //
-// A switch above the box picks the mode: "Ad" (this composer) or "Character" (QadsTiktoker.tsx —
-// an AI character talks about the product). /qads?mode=character[&c=<traits>] opens the latter;
-// the website's launch panel links there.
+// A switch above the box picks the mode: "Ad" (this composer), "Character" (QadsTiktoker.tsx —
+// an AI character talks about the product) or "Plan" (QadsPlan.tsx — a growth plan for one store:
+// personas, competitor research, ad concepts, posting calendar; each concept opens Ad or Character
+// prefilled). /qads?mode=character[&c=<traits>] opens Character (the website's launch panel links
+// there), /qads?mode=plan[&project=<id>] opens Plan (the Dashboard's store cards link there).
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import Link from 'next/link'
@@ -28,7 +30,9 @@ import { AGENCY_FAIR_USE, CREDIT_COSTS } from '@/lib/config'
 import { ParticleMode } from '@ad/ui/particles'
 import { QadsCommunityWall } from './QadsCommunityWall'
 import { QadsTiktoker } from './QadsTiktoker'
-import { traitsFromParam, type CharacterTraits } from '@/lib/qads/tiktoker'
+import { QadsPlan } from './QadsPlan'
+import { traitsFromParam, traitsToParam, type CharacterTraits } from '@/lib/qads/tiktoker'
+import { adDraft, characterDraft, type PlanAd, type PlanInput } from '@/lib/qads/plan/model'
 import './qads.css'
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -168,7 +172,9 @@ function nameFromBrief(brief: string): string {
 }
 
 type MenuId = 'product'
-type Mode = 'ads' | 'tiktoker'
+type Mode = 'ads' | 'tiktoker' | 'plan'
+
+const TIKTOKER_DRAFT_KEY = 'qads:tiktoker:v1'
 
 // ─── Component ──────────────────────────────────────────────────────
 
@@ -195,6 +201,9 @@ export function QadsGeneratorClient() {
   const [dragOver, setDragOver] = useState(false)
   const [mode, setMode] = useState<Mode>('ads')
   const [initialTraits, setInitialTraits] = useState<CharacterTraits | null>(null)
+  // Bumped when Plan hands a draft to Character, so that composer re-mounts and reads it.
+  const [tiktokerNonce, setTiktokerNonce] = useState(0)
+  const [planProjectId, setPlanProjectId] = useState<string | null>(null)
   // Tiktoker asks the same share question; its answer resolves this promise.
   const [shareAsk, setShareAsk] = useState<((share: boolean | null) => void) | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -231,8 +240,15 @@ export function QadsGeneratorClient() {
 
   // /qads?mode=character[&c=<traits>] — from the website's launch strip or a sign-in round trip
   // (mode=tiktoker, the working name, still works).
+  // /qads?mode=plan[&project=<id>] — from the Dashboard's store cards.
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
+    if (q.get('mode') === 'plan') {
+      setMode('plan')
+      const project = q.get('project')
+      if (project && /^[0-9a-f-]{36}$/i.test(project)) setPlanProjectId(project)
+      return
+    }
     if (q.get('mode') !== 'character' && q.get('mode') !== 'tiktoker') return
     setMode('tiktoker')
     if (q.get('c')) setInitialTraits(traitsFromParam(q.get('c')))
@@ -241,9 +257,58 @@ export function QadsGeneratorClient() {
   const switchMode = (next: Mode) => {
     setMode(next)
     const url = new URL(window.location.href)
+    url.searchParams.delete('c')
+    url.searchParams.delete('project')
     if (next === 'tiktoker') url.searchParams.set('mode', 'character')
-    else { url.searchParams.delete('mode'); url.searchParams.delete('c') }
+    else if (next === 'plan') url.searchParams.set('mode', 'plan')
+    else url.searchParams.delete('mode')
     window.history.replaceState(null, '', url.pathname + url.search)
+  }
+
+  // ─── Plan → composers ──
+  const planProduct = (projectId: string, name: string) =>
+    projects.find(p => p.projectId === projectId)?.products.find(x => x.name.trim().toLowerCase() === name.trim().toLowerCase()) ?? null
+
+  // "Make this ad": the Ad composer, prefilled; the store's own product photo is attached when it
+  // has one in Quante storage (anything else — e.g. a stock photo URL — is left for the owner).
+  const makeAdFromPlan = (ad: PlanAd, projectId: string, language: PlanInput['language']) => {
+    const product = planProduct(projectId, ad.product)
+    setForm({ ...DEFAULT_FORM, ...adDraft(ad, projectId, language, product?.description ?? '') } as FormState)
+    setSubmitError(null)
+    switchMode('ads')
+    requestAnimationFrame(() => boxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }))
+    const image = product?.images[0]
+    if (!image) return
+    setUploading(true)
+    void fetch('/api/qads/upload/brand', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId, url: image }),
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then((photo: UploadedPhoto | null) => {
+        if (photo?.storagePath) setForm(prev => (prev.projectId === projectId && prev.photos.length === 0 ? { ...prev, photos: [photo] } : prev))
+      })
+      .catch(() => {})
+      .finally(() => setUploading(false))
+  }
+
+  // "Create a creator" / "Make with a creator": Character with the persona's traits; a concept
+  // also hands over the product and the line to say.
+  const makeCharacterFromPlan = (traits: CharacterTraits, ad: PlanAd | null, projectId: string) => {
+    try {
+      if (ad) sessionStorage.setItem(TIKTOKER_DRAFT_KEY, JSON.stringify(characterDraft(ad, planProduct(projectId, ad.product)?.description ?? '')))
+    } catch {}
+    setInitialTraits(Object.keys(traits).length ? traits : null)
+    setTiktokerNonce(n => n + 1)
+    setMode('tiktoker')
+    const url = new URL(window.location.href)
+    url.searchParams.delete('project')
+    url.searchParams.set('mode', 'character')
+    if (Object.keys(traits).length) url.searchParams.set('c', traitsToParam(traits))
+    else url.searchParams.delete('c')
+    window.history.replaceState(null, '', url.pathname + url.search)
+    requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
   }
 
   const askTiktokerShare = () => new Promise<boolean | null>(resolve => {
@@ -525,20 +590,36 @@ export function QadsGeneratorClient() {
         <header className="qz-hero">
           {mode === 'ads'
             ? <h1 className="qz-h1">An ad from <em>one photo.</em></h1>
-            : <h1 className="qz-h1">Your product, <em>told by a creator.</em></h1>}
+            : mode === 'plan'
+              ? <h1 className="qz-h1">Your next ads, <em>planned.</em></h1>
+              : <h1 className="qz-h1">Your product, <em>told by a creator.</em></h1>}
         </header>
 
-        <div className="qt-switch" role="tablist" aria-label="What to make">
+        <div className="qt-switch three" role="tablist" aria-label="What to make">
           <span className="qt-switch-glide" data-mode={mode} aria-hidden="true" />
           <button type="button" role="tab" aria-selected={mode === 'ads'} onClick={() => switchMode('ads')}>Ad</button>
           <button type="button" role="tab" aria-selected={mode === 'tiktoker'} onClick={() => switchMode('tiktoker')}>
-            Character <span className="qt-new-badge">New</span>
+            Character
+          </button>
+          <button type="button" role="tab" aria-selected={mode === 'plan'} onClick={() => switchMode('plan')}>
+            Plan <span className="qt-new-badge">New</span>
           </button>
         </div>
 
-        {mode === 'tiktoker' ? (
+        {mode === 'plan' ? (
+          <QadsPlan
+            signedIn={!!isSignedIn}
+            agency={agency}
+            stores={projects.map(p => ({ projectId: p.projectId, projectName: p.projectName }))}
+            initialProjectId={planProjectId}
+            onSignIn={(returnTo) => { window.location.href = `/login?redirect_url=${encodeURIComponent(returnTo)}` }}
+            onMakeAd={makeAdFromPlan}
+            onMakeCharacter={makeCharacterFromPlan}
+            onCharged={(credits) => setBalance(b => (b === null ? b : Math.max(0, b - credits)))}
+          />
+        ) : mode === 'tiktoker' ? (
           <QadsTiktoker
-            key={initialTraits ? 'from-link' : 'plain'}
+            key={`${initialTraits ? 'from-link' : 'plain'}-${tiktokerNonce}`}
             signedIn={!!isSignedIn}
             agency={agency}
             initialTraits={initialTraits}

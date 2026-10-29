@@ -1,5 +1,6 @@
-// POST /api/qads/upload/brand { projectId, url } — uses a photo from the store's brand kit as a Qads
-// product photo. The photo must be in that store's kit (and so in the owner's own store-assets
+// POST /api/qads/upload/brand { projectId, url } — uses a photo from the store's brand kit (or one
+// of the store's own product photos, for Qads Plan's "Make this ad") as a Qads product photo. The
+// photo must be in that store's kit or product list (and in the owner's own store-assets
 // folder, lib/brand-kit/model.ts ownAssetPath); it is read from storage by its path — never fetched
 // from a URL — copied into the private qads-inputs bucket and answered exactly like
 // /api/qads/upload (storagePath + short-lived signed URL), so the generate route treats it like any
@@ -14,6 +15,7 @@ import { reserveUpload } from '@/app/api/upload/_lib/quota'
 import { INPUT_BUCKET, INPUT_DAILY_QUOTA } from '@/lib/qads/inputs'
 import { ownAssetPath } from '@/lib/brand-kit/model'
 import { assetsBase, getBrandKit } from '@/lib/brand-kit/store'
+import { loadStoreProducts } from '@/lib/qads/store-catalog'
 
 export const maxDuration = 30
 
@@ -33,7 +35,8 @@ export async function POST(request: Request) {
   const { kit } = await getBrandKit(project.id, userId)
   const url = typeof body?.url === 'string' ? body.url : ''
   const inKit = kit.photos.includes(url) || kit.logoUrl === url
-  const path = inKit ? ownAssetPath(url, userId, assetsBase()) : null
+  const inStore = !inKit && !!url && (await loadStoreProducts(project.id)).some((p) => p.images.includes(url))
+  const path = inKit || inStore ? ownAssetPath(url, userId, assetsBase()) : null
   if (!path) return NextResponse.json({ error: 'That photo is not in this brand kit.' }, { status: 404 })
 
   const { data: blob, error: readError } = await supabaseAdmin.storage.from('store-assets').download(path)
