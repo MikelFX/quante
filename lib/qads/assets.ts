@@ -13,7 +13,7 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 const OUTPUT_BUCKET = 'qads-outputs'
-const MAX_ASSET_BYTES = 200 * 1024 * 1024 // a 10s 720p mp4 is ~10-30 MB; 200 MB is a hard ceiling
+const MAX_ASSET_BYTES = 200 * 1024 * 1024 // a 30s 1080p mp4 is ~30-90 MB; 200 MB is a hard ceiling
 const MAX_REDIRECTS = 3
 const FETCH_TIMEOUT_MS = 60_000
 

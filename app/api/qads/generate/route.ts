@@ -77,7 +77,7 @@ const REQUEST_SCHEMA = z.object({
   variantsPerFormat: z.number().int().min(1).max(4),
   // Same bounds as the /qads form's stepper; the full duration is rendered
   // (see buildSeedanceVideoRequest) and charged per second.
-  videoDurationSeconds: z.number().int().min(4).max(10).nullable().optional(),
+  videoDurationSeconds: z.number().int().min(4).max(30).nullable().optional(),
   language: z.enum(['cs', 'en', 'sk', 'de']),
   // Asked on every Generate: may the finished outputs appear on the public community wall?
   shareCommunity: z.boolean().optional().default(false),

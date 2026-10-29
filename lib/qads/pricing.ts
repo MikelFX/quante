@@ -30,11 +30,13 @@ export const HIGGSFIELD_MODELS = {
     // already wired against; both accept the same product-photo -> short
     // ad video shape.
     slug: 'higgsfield/seedance-2.5-reference-to-video',
-    // USD $0.09/second — placeholder pending an explicit confirmation from
-    // Higgsfield's billing dashboard. Same order of magnitude as Lightricks
-    // LTX 2.5 Fast (docs list $0.09/s+); update this once the first real
-    // invoice lands.
-    usdPerUnit: 0.09,
+    // Rendered at 1080p, 4–30 s (owner 2026-10-29: "1080p up to 30 s, expensive is fine,
+    // keep a small margin"). USD ~$1.05/second at 1080p, silent: the console showed
+    // $0.32–0.46/s at 720p (checked 2026-10-28) and Higgsfield prices 1080p at 128 vs 56
+    // credits per 8 s clip (higgsfield.ai/blog/seedance-2-5-pricing-2026) = 2.29× 720p, so
+    // 0.46 × 2.29 ≈ $1.05. Re-check against the first real invoice. The old $0.09/s was a
+    // placeholder and made every video a loss.
+    usdPerUnit: 1.05,
     unit: 'video_second' as const,
   },
 } as const
@@ -50,11 +52,12 @@ export const QADS_GENERATOR_CREDIT_COSTS = {
   // this operation includes a per-variant Claude prompt-crafting call too
   // (the Claude call is priced in via `strategy_per_generation` below).
   imagePerVariant: 1,
-  // Video price scales with the requested duration — $0.09/s at 4-10s a
-  // reasonable ad length gives $0.36–$0.90 in raw compute; charging 6
-  // credits per 5s (i.e. ~1.2 credits/s) puts effective markup at ~2×, which
-  // matches Studio's per-second generation charge from CREDIT_COSTS.
-  videoPerSecond: 1.2,
+  // Video price scales with the requested duration. Seedance 1080p costs ~$1.05/s;
+  // 9 credits/s = $1.215/s at the cheapest net credit (USD_PER_CREDIT_FLOOR, +16 %)
+  // and $1.35/s at the blended $0.15/credit (+29 %) — a small margin by the owner's
+  // choice, never below cost (__tests__/qads-pricing.test.mjs). Was 1.2 credits/s
+  // on the $0.09 placeholder at 720p.
+  videoPerSecond: 9,
   // Fixed per-generation charge for the Claude-driven prompt + ad-copy build
   // (one bulk call for all formats/variants in one submit). Same shape as
   // QADS_CREDIT_COSTS.strategy_generation in the old lib/qads/credits.ts.

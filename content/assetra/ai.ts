@@ -136,7 +136,7 @@ export const aiBuilt = {
       text: 'Reklamní videa a fotky produktů, které vytvoří AI.',
       kicker: 'Reklama z jedné fotky',
       lead: 'Nahrajete fotku produktu a Qads z ní udělá reklamní fotky a krátká videa pro sítě. Hotové soubory si stáhnete a použijete, kde chcete.',
-      features: ['9:16, 4:5, 1:1 i 16:9', 'Pět stylů od packshotu po film', 'Videa 4 až 10 sekund', 'Reklamní texty ve čtyřech jazycích', 'Stažení jako ZIP'],
+      features: ['9:16, 4:5, 1:1 i 16:9', 'Pět stylů od packshotu po film', 'Videa v 1080p, 4 až 30 sekund', 'Reklamní texty ve čtyřech jazycích', 'Stažení jako ZIP'],
       href: '/quante/qads',
       cta: 'Detail Qads',
     },

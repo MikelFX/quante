@@ -74,7 +74,7 @@ export function buildSeedanceVideoRequest(input: MediaGenerationInput) {
   return {
     prompt: input.prompt,
     image_urls: [input.referenceImageUrl, ...(input.modelImageUrl ? [input.modelImageUrl] : [])],
-    resolution: '720p' as const,
+    resolution: '1080p' as const, // priced at 1080p in lib/qads/pricing.ts
     generate_audio: false, // ad creative audio is a separate, later decision (music/VO licensing) — silent by default
     // Render the duration the user was charged for (pricing is per second). Clamped to
     // Seedance's documented 4-30s range; 5s only when no duration was supplied.

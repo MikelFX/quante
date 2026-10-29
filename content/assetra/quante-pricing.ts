@@ -22,6 +22,7 @@ export function usd(cents: number) {
 const free = 'zdarma'
 const credits = (n: number) => (n === 0 ? free : kredity(n))
 const videoExample = Math.ceil(QADS.videoPerSecond * 5)
+const videoLongest = Math.ceil(QADS.videoPerSecond * 30)
 
 // Qads Tiktoker: launch price (at cost) until TIKTOKER_LAUNCH.endsAt, then the regular one. Both
 // are written out with fixed dates, so this copy (and Qgent's knowledge built from it) never
@@ -103,7 +104,9 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
     case 'qads':
       return [
         { label: 'Fotka', value: `${kredity(QADS.imagePerVariant)} za kus` },
-        { label: 'Video', value: `${QADS.videoPerSecond.toString().replace('.', ',')} kreditu za sekundu, zaokrouhleno nahoru (5 s = ${kredity(videoExample)})` },
+        { label: 'Video (1080p, 4–30 s)', value: Number.isInteger(QADS.videoPerSecond)
+          ? `${kredity(QADS.videoPerSecond)} za sekundu (5 s = ${kredity(videoExample)}, 30 s = ${kredity(videoLongest)})`
+          : `${QADS.videoPerSecond.toString().replace('.', ',')} kreditu za sekundu, zaokrouhleno nahoru (5 s = ${kredity(videoExample)}, 30 s = ${kredity(videoLongest)})` },
         { label: 'Příprava reklam a textů', value: `${kredity(QADS.strategyPerGeneration)} za generování` },
         ...tiktokerRows(),
       ]

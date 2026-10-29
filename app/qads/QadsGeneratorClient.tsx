@@ -145,7 +145,7 @@ const LANGS: Array<{ id: Language; label: string }> = [
   { id: 'sk', label: 'Slovak' },
   { id: 'de', label: 'German' },
 ]
-const DURATIONS = [4, 5, 6, 7, 8, 9, 10]
+const DURATIONS = [5, 8, 10, 15, 20, 30] // Seedance 2.5 renders 4–30 s at 1080p
 const VARIANTS = [1, 2, 3, 4]
 
 /** Small swatch per style on the Style button — the design palette, not product imagery. */

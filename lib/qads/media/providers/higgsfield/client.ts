@@ -142,7 +142,7 @@ export async function cancelRequest(creds: HiggsfieldCredentials, cancelUrl: str
 // MarketingStudioImageRequest.
 export interface SeedanceReferenceToVideoRequest {
   prompt?: string
-  resolution?: '480p' | '720p'
+  resolution?: '480p' | '720p' | '1080p'
   generate_audio?: boolean
   duration?: number // 4-30 seconds
   aspect_ratio: '16:9' | '4:3' | '1:1' | '3:4' | '9:16' | '21:9' // explicit value required for reference-to-video — no 'auto'/-1 per docs
