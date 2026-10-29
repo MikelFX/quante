@@ -28,6 +28,8 @@ import { auth } from '@clerk/nextjs/server'
 import { z } from 'zod'
 import { anthropic, MODELS } from '@/lib/claude'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { kitPromptBlock } from '@/lib/brand-kit/model'
+import { getBrandKit } from '@/lib/brand-kit/store'
 import { getHiggsfieldCredentialsFromEnv, createHiggsfieldProvider } from '@/lib/qads/media/providers/higgsfield'
 import { HIGGSFIELD_MODELS, computeGeneratorCost, creditsPerItem, type HiggsfieldOutputKind } from '@/lib/qads/pricing'
 import {
@@ -248,6 +250,7 @@ export async function POST(request: Request) {
       wantVideos,
       videoDurationSeconds: videoDurationSeconds ?? 0,
       language: parsed.language,
+      brandNotes: parsed.projectId ? kitPromptBlock((await getBrandKit(parsed.projectId, userId)).kit) : '',
     })
     const response = await anthropic.messages.create(
       {

@@ -21,15 +21,15 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { rateLimit } from '@/lib/rate-limit'
 import { detectImage } from '@/app/api/upload/_lib/detect-image'
 import { reserveUpload } from '@/app/api/upload/_lib/quota'
+import { INPUT_BUCKET, INPUT_DAILY_QUOTA } from '@/lib/qads/inputs'
 
 export const maxDuration = 30
 
 const MAX_BYTES = 12 * 1024 * 1024 // 12 MB — well above a phone camera photo, well below Vercel's 15 MB body cap
 // Formats Higgsfield accepts as reference images (checked against the DETECTED type).
 const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-const BUCKET = 'qads-inputs'
-// 1–4 photos per generation; a busy day of ad work stays well under this.
-const DAILY_QUOTA = { maxFiles: 60, maxBytes: 300 * 1024 * 1024 }
+const BUCKET = INPUT_BUCKET
+const DAILY_QUOTA = INPUT_DAILY_QUOTA
 
 export async function POST(request: Request) {
   const { userId } = await auth()

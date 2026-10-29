@@ -3,7 +3,8 @@
 // Grideet's grid: brand cards (one per store, plus "Unassigned"), filters in the URL (the server
 // filters and pages, lib/grideet/load.ts), items of a brand on expand. Every action leads into an
 // existing flow; the few that change something here (share, undo, delete) ask first and call the
-// API that module already has. Nothing here spends credits.
+// API that module already has. Phase 2: each store's brand kit (BrandKitPanel) and "Assign to a
+// store…" for Unassigned Qads generations and scans. Nothing here spends credits.
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -12,7 +13,9 @@ import {
   KINDS, MODULES, STATUSES,
   type BrandGroup, type GridAction, type GridItem, type GrideetFilters, type KindId, type StoreState,
 } from '@/lib/grideet/model'
+import type { BrandKit } from '@/lib/brand-kit/model'
 import { GridImage, GridVideo } from './GrideetMedia'
+import { BrandKitPanel } from './BrandKitPanel'
 
 interface Props {
   groups: BrandGroup[]
@@ -23,7 +26,11 @@ interface Props {
   isAgency: boolean
   capped: string[]
   skipped: string[]
+  stores: Array<{ id: string; name: string }>
+  brandKitReady: boolean
 }
+
+interface Assign { source: 'qads' | 'qscan'; id: string; note: string; title: string }
 
 const QADS_DRAFT_KEY = 'qads:draft:v1'
 const ITEMS_STEP = 24
@@ -95,9 +102,60 @@ function ConfirmDialog({ ask, onClose }: { ask: Ask; onClose: () => void }) {
   )
 }
 
+function AssignDialog({ assign, stores, onClose, onDone }: {
+  assign: Assign
+  stores: Array<{ id: string; name: string }>
+  onClose: () => void
+  onDone: (ok: boolean, text: string) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [projectId, setProjectId] = useState(stores[0]?.id ?? '')
+  const selRef = useRef<HTMLSelectElement>(null)
+  useEffect(() => {
+    selRef.current?.focus()
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose() }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [busy, onClose])
+  async function run() {
+    setBusy(true)
+    const url = assign.source === 'qads' ? `/api/qads/generations/${assign.id}/project` : `/api/qscan/${assign.id}/project`
+    const res = await fetch(url, {
+      method: assign.source === 'qads' ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId }),
+    }).catch(() => null)
+    const d = res ? await res.json().catch(() => ({})) : {}
+    const store = stores.find((x) => x.id === projectId)?.name ?? 'the store'
+    setBusy(false)
+    onDone(!!res?.ok, res?.ok ? `“${assign.title}” is now under ${store}.` : (d.error ?? 'Could not assign it.'))
+  }
+  return (
+    <div className="gd-modal" role="presentation" onClick={() => { if (!busy) onClose() }}>
+      <div className="gd-dialog q-card" role="dialog" aria-modal="true" aria-label="Assign to a store" onClick={(e) => e.stopPropagation()}>
+        {stores.length === 0 ? (
+          <p>You have no store to assign it to yet.</p>
+        ) : (
+          <>
+            <p>Assign “{assign.title}” to which store? {assign.note}</p>
+            <label className="gd-select gd-assign">
+              <span className="sr-only">Store</span>
+              <select ref={selRef} value={projectId} onChange={(e) => setProjectId(e.target.value)} aria-label="Store">
+                {stores.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              </select>
+            </label>
+          </>
+        )}
+        <div className="gd-dialog-actions">
+          <button type="button" className="q-btn q-btn-gl" onClick={onClose} disabled={busy}>Cancel</button>
+          {stores.length > 0 && <button type="button" className="q-btn" disabled={busy || !projectId} onClick={() => void run()}>{busy ? 'Working…' : 'Assign'}</button>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────────────────────
 
-export function GrideetClient({ groups, page, pages, total, filters, isAgency, capped, skipped }: Props) {
+export function GrideetClient({ groups, page, pages, total, filters, isAgency, capped, skipped, stores: storeList, brandKitReady }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [pending, startTransition] = useTransition()
@@ -108,6 +166,7 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [deleted, setDeleted] = useState<Set<string>>(new Set())
+  const [assign, setAssign] = useState<Assign | null>(null)
 
   const itemFilterOn = (filters.module && filters.module !== 'all')
     || (filters.kind && filters.kind !== 'all' && filters.kind !== 'store')
@@ -142,6 +201,10 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
     if (a.type === 'qadsDraft') {
       try { sessionStorage.setItem(QADS_DRAFT_KEY, JSON.stringify(a.payload ?? {})) } catch {}
       window.location.assign(a.href ?? '/qads')
+      return
+    }
+    if (a.type === 'assign') {
+      setAssign(a.payload as unknown as Assign)
       return
     }
     const go = async () => {
@@ -297,6 +360,7 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
               onSelect={() => g.id && toggleSelect(g.id)}
               onDelete={() => askDelete(g)}
               onAction={runAction}
+              brandKitReady={brandKitReady}
             />
           ))}
         </div>
@@ -311,6 +375,14 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
       )}
 
       {ask && <ConfirmDialog ask={ask} onClose={() => setAsk(null)} />}
+      {assign && (
+        <AssignDialog
+          assign={assign}
+          stores={storeList}
+          onClose={() => setAssign(null)}
+          onDone={(ok, text) => { setAssign(null); setNotice({ kind: ok ? 'ok' : 'error', text }); if (ok) refresh() }}
+        />
+      )}
     </>
   )
 }
@@ -338,10 +410,19 @@ interface CardProps {
   onSelect: () => void
   onDelete: () => void
   onAction: (a: GridAction) => void
+  brandKitReady: boolean
 }
 
-function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, onDelete, onAction }: CardProps) {
+// Product photos that are already Quante files (store-assets) — the kit only takes those.
+const ASSETS_PREFIX = `${(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '')}/storage/v1/object/public/store-assets/`
+
+function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, onDelete, onAction, brandKitReady }: CardProps) {
   const [shown, setShown] = useState(ITEMS_STEP)
+  const [kitOpen, setKitOpen] = useState(false)
+  const [kit, setKit] = useState<BrandKit | undefined>(g.meta.kit)
+  const kitId = `gd-kit-${g.id ?? 'unassigned'}`
+  const kitCount = kit ? kit.photos.length : 0
+  const kitTexts = kit ? Object.values(kit.texts).filter(Boolean).length : 0
   const store = !!g.id
   const state = g.meta.state
   const counts = countsLine(g, capped)
@@ -386,6 +467,9 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
           )}
           {counts.length > 0 && <p className="gd-counts">{counts.join(' · ')}</p>}
           {store && counts.length === 0 && <p className="gd-counts gd-quiet">No products, ads or imports yet</p>}
+          {store && kit && (kitCount > 0 || kitTexts > 0 || kit.logoUrl) && (
+            <p className="gd-counts">Brand kit · {[kit.logoUrl ? 'logo' : null, kitCount ? `${kitCount} photo${kitCount === 1 ? '' : 's'}` : null, kitTexts ? `${kitTexts} text${kitTexts === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ')}</p>
+          )}
         </div>
       </div>
 
@@ -393,6 +477,11 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
         {store && <Link href={`/project/${g.id}`} className="q-btn">Open in Studio</Link>}
         {store && state === 'changes' && <Link href={`/project/${g.id}?tab=publish`} className="q-btn q-btn-gl">Publish…</Link>}
         {store && <Link href={`/project/${g.id}?tab=qgent`} className="q-btn q-btn-gl">Qgent check</Link>}
+        {store && (
+          <button type="button" className="q-btn q-btn-gl" aria-expanded={kitOpen} aria-controls={kitId} onClick={() => setKitOpen((v) => !v)}>
+            {kitOpen ? 'Close brand kit' : 'Brand kit'}
+          </button>
+        )}
         {store && <Link href={`/project/${g.id}?tab=publish`} className="q-btn q-btn-gl">{state === 'draft' ? 'Go live / hosting' : 'Export & hosting'}</Link>}
         {g.items.length > 0 && (
           <button type="button" className="q-btn q-btn-gl" aria-expanded={open} aria-controls={itemsId} onClick={onToggle}>
@@ -401,6 +490,23 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
         )}
         {store && <button type="button" className="gd-link gd-del" onClick={onDelete}>Delete</button>}
       </div>
+
+      {kitOpen && store && (
+        <div id={kitId}>
+          {brandKitReady && kit ? (
+            <BrandKitPanel
+              projectId={g.id!}
+              name={g.name}
+              kit={kit}
+              theme={t}
+              suggestions={g.items.filter((i) => i.kind === 'product' && i.thumb?.src.startsWith(ASSETS_PREFIX)).map((i) => i.thumb!.src)}
+              onSaved={setKit}
+            />
+          ) : (
+            <p className="gd-kit gd-quiet">The brand kit is not set up yet — it appears here once the database update has run.</p>
+          )}
+        </div>
+      )}
 
       {open && g.items.length > 0 && (
         <div id={itemsId} className="gd-items">

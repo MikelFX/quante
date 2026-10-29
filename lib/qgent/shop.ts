@@ -142,7 +142,8 @@ export interface ReviewRun {
 
 const REVIEW_TIMEOUT_MS = 240_000
 
-export async function runReview(files: Record<string, string>, storeName: string): Promise<ReviewRun | { ok: false; error: string }> {
+/** `brandNotes`: the store's brand kit texts (lib/brand-kit kitPromptBlock), quoted as data. */
+export async function runReview(files: Record<string, string>, storeName: string, brandNotes = ''): Promise<ReviewRun | { ok: false; error: string }> {
   const order = (p: string) => (p === 'data/config.ts' ? 0 : p === 'app/page.tsx' ? 1 : p.startsWith('data/') ? 2 : p.startsWith('app/') ? 3 : 4)
   const paths = Object.keys(files)
     .filter((p) => canEditPath(p, files) && /^(app|components|data)\//.test(p))
@@ -161,6 +162,7 @@ export async function runReview(files: Record<string, string>, storeName: string
     `STORE: ${storeName || 'unnamed store'}`,
     `LANGUAGE: ${language}`,
     `EXISTING ROUTES: ${storeRoutes(files).join(', ')} (plus /products/<slug> and /collections/<slug> when those page files exist)`,
+    ...(brandNotes ? ['', brandNotes] : []),
     '',
     'STORE FILES:',
     parts.join('\n\n'),

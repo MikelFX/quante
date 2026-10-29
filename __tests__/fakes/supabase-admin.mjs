@@ -4,7 +4,7 @@
 // atomically when awaited, like a single SQL statement. Tables: __db.tables[name] = rows[].
 // __db.missing: tables that "don't exist yet" (a migration that hasn't run); __db.missingColumns:
 // { table: [column] } — a select naming one answers the PostgREST unknown-column error.
-export const __db = { tables: {}, signed: [], missing: new Set(), missingColumns: {}, reset() { this.tables = {}; this.signed = []; this.missing = new Set(); this.missingColumns = {} } }
+export const __db = { tables: {}, signed: [], objects: {}, missing: new Set(), missingColumns: {}, reset() { this.tables = {}; this.signed = []; this.objects = {}; this.missing = new Set(); this.missingColumns = {} } }
 
 function matches(row, filters) {
   return filters.every(([op, col, val]) => {
@@ -57,6 +57,7 @@ class Query {
   }
   insert(rows) { this.kind = 'insert'; this.rows = Array.isArray(rows) ? rows : [rows]; return this }
   update(patch) { this.kind = 'update'; this.patch = patch; return this }
+  upsert(row, { onConflict = 'id' } = {}) { this.kind = 'upsert'; this.rows = Array.isArray(row) ? row : [row]; this.conflict = onConflict; return this }
   delete() { this.kind = 'delete'; return this }
   eq(c, v) { this.filters.push(['eq', c, v]); return this }
   neq(c, v) { this.filters.push(['neq', c, v]); return this }
@@ -73,6 +74,14 @@ class Query {
     const gone = (__db.missingColumns[this.table] ?? []).find((c) => new RegExp(`\\b${c}\\b`).test(this.cols ?? '') || Object.keys(this.patch ?? {}).includes(c))
     if (gone) return { data: null, error: { code: '42703', message: `column ${this.table}.${gone} does not exist` } }
     const rows = (__db.tables[this.table] ??= [])
+    if (this.kind === 'upsert') {
+      for (const r of this.rows) {
+        const hit = rows.find((x) => x[this.conflict] === r[this.conflict])
+        if (hit) Object.assign(hit, r)
+        else rows.push({ created_at: new Date().toISOString(), ...r })
+      }
+      return { data: null, error: null }
+    }
     if (this.kind === 'insert') {
       const now = new Date().toISOString()
       for (const r of this.rows) rows.push({ created_at: now, ...r })
@@ -97,9 +106,19 @@ class Query {
   then(resolve, reject) { try { resolve(this.run()) } catch (e) { reject(e) } }
 }
 
-// Storage: signed URLs are recorded in __db.signed so tests can see what was signed.
+// Storage: signed URLs are recorded in __db.signed so tests can see what was signed. Objects live
+// in __db.objects[`${bucket}/${path}`] = Buffer (download / upload / createSignedUrl).
 const storage = {
   from: (bucket) => ({
+    download: async (path) => {
+      const buf = (__db.objects ??= {})[`${bucket}/${path}`]
+      return buf ? { data: new Blob([buf]), error: null } : { data: null, error: { message: 'Object not found' } }
+    },
+    upload: async (path, buf) => { (__db.objects ??= {})[`${bucket}/${path}`] = buf; return { data: { path }, error: null } },
+    createSignedUrl: async (path, ttl) => {
+      ;(__db.signed ??= []).push({ bucket, paths: [path], ttl, download: false })
+      return { data: { signedUrl: `https://signed.test/${bucket}/${path}?ttl=${ttl}` }, error: null }
+    },
     createSignedUrls: async (paths, ttl, opts) => {
       ;(__db.signed ??= []).push({ bucket, paths, ttl, download: !!opts?.download })
       return { data: paths.map((p) => ({ path: p, signedUrl: `https://signed.test/${bucket}/${p}?ttl=${ttl}${opts?.download ? '&download=' : ''}` })), error: null }
