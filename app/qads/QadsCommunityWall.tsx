@@ -12,14 +12,34 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { COMMUNITY_SEED, type WallMedia } from '@/content/qads/community-seed'
-import { fillWall, followQ, groupPose, inFlight, landedAt, tilePose, wallLayout, ROWS, type WallLayout } from './wall-math'
+import { fillWall, followQ, grainCells, groupPose, inFlight, landedAt, tilePose, wallLayout, ROWS, type WallLayout } from './wall-math'
 
 const GRAIN = 130 // height of the dissolving band, px
+const GRAIN_TILE = 280 // width of one band tile (it repeats across), px
+const GRAIN_CELL = 1 // one grain pixel, px
 const MAX_PLAYING = 6
+
+// The band's grain as a picture, drawn once: crisp cells at 3× so it stays sharp on phones.
+function grainImage(): Promise<string | null> {
+  const cols = GRAIN_TILE / GRAIN_CELL
+  const rows = Math.round(GRAIN / GRAIN_CELL)
+  const k = GRAIN_CELL * 3
+  const canvas = document.createElement('canvas')
+  canvas.width = cols * k
+  canvas.height = rows * k
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return Promise.resolve(null)
+  const cells = grainCells(cols, rows)
+  ctx.fillStyle = '#000'
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (cells[r * cols + c]) ctx.fillRect(c * k, r * k, k, k)
+  return new Promise((done) => canvas.toBlob((b) => done(b ? URL.createObjectURL(b) : null)))
+}
 
 export function QadsCommunityWall() {
   const sectionRef = useRef<HTMLElement | null>(null)
   const stageRef = useRef<HTMLDivElement | null>(null)
+  const maskRef = useRef<HTMLDivElement | null>(null)
+  const viewRef = useRef<HTMLDivElement | null>(null)
   const planeRef = useRef<HTMLDivElement | null>(null)
   const headRef = useRef<HTMLElement | null>(null)
   const tileRefs = useRef<(HTMLElement | null)[]>([])
@@ -29,6 +49,15 @@ export function QadsCommunityWall() {
   const [layout, setLayout] = useState<WallLayout | null>(null)
   const [still, setStill] = useState(false)
   const [near, setNear] = useState(false)
+  const [grain, setGrain] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (still) return
+    let off = false
+    let url: string | null = null
+    grainImage().then((u) => { url = u; if (off) { if (u) URL.revokeObjectURL(u) } else setGrain(u) }).catch(() => {})
+    return () => { off = true; if (url) URL.revokeObjectURL(url) }
+  }, [still])
 
   useEffect(() => {
     let off = false
@@ -74,8 +103,10 @@ export function QadsCommunityWall() {
   useEffect(() => {
     const section = sectionRef.current
     const stage = stageRef.current
+    const mask = maskRef.current
+    const view = viewRef.current
     const plane = planeRef.current
-    if (!section || !stage || !plane || !layout || !tiles.length) return
+    if (!section || !stage || !mask || !view || !plane || !layout || !tiles.length) return
     let raf = 0
     let active = false
     let shown = -1
@@ -113,14 +144,23 @@ export function QadsCommunityWall() {
       put(plane, 'transform', `translate3d(0, ${g.y.toFixed(1)}px, 0) rotateX(${g.tilt.toFixed(2)}deg) scale(${g.scale.toFixed(4)})`)
 
       // The grain band rides the bottom edge of the screen, then slides away once the wall opens.
-      // Fully open, the mask is dropped: a masked 3D scene is re-composited through an offscreen
-      // surface on every frame, which is what made the fly-in stutter on phones.
+      // The mask itself never changes (changing its size re-rasterised it on every frame): the
+      // masked layer moves instead and the scene inside moves back by the same amount, both plain
+      // transforms. Fully open, the mask is dropped: a masked 3D scene is re-composited through
+      // an offscreen surface on every frame.
+      const stageH = stage.clientHeight
       const visible = H - Math.max(0, rect.top)
-      const reveal = still ? H + GRAIN : visible - GRAIN + Math.max(0, q - 1.05) * H * 2.2
-      const open = reveal >= H + GRAIN
+      const reveal = still ? stageH + GRAIN : visible - GRAIN + Math.max(0, q - 1.05) * H * 2.2
+      const open = reveal >= stageH + GRAIN
       stage.classList.toggle('open', open)
-      put(stage, '--qz-reveal', `${Math.min(H + GRAIN, reveal).toFixed(1)}px`)
-      put(stage, '--qz-head', Math.min(1, Math.max(0, (q - 1.55) / 0.3)).toFixed(3))
+      const shift = open ? 0 : reveal - stageH - GRAIN
+      put(mask, 'transform', `translate3d(0, ${shift.toFixed(1)}px, 0)`)
+      put(view, 'transform', `translate3d(0, ${(-shift).toFixed(1)}px, 0)`)
+      if (head && !still) {
+        const h = Math.min(1, Math.max(0, (q - 1.55) / 0.3))
+        put(head, 'opacity', h.toFixed(3))
+        put(head, 'transform', `translate3d(0, ${((1 - h) * 14).toFixed(1)}px, 0)`)
+      }
 
       const want: number[] = []
       for (let i = 0; i < tiles.length; i++) {
@@ -183,7 +223,13 @@ export function QadsCommunityWall() {
   }, [layout, tiles, still])
 
   const style = layout
-    ? ({ '--qz-tw': `${layout.tileW}px`, '--qz-th': `${layout.tileH}px`, '--qz-grain': `${GRAIN}px` } as React.CSSProperties)
+    ? ({
+        '--qz-tw': `${layout.tileW}px`,
+        '--qz-th': `${layout.tileH}px`,
+        '--qz-grain': `${GRAIN}px`,
+        '--qz-grain-w': `${GRAIN_TILE}px`,
+        ...(grain ? { '--qz-grain-img': `url("${grain}")` } : {}),
+      } as React.CSSProperties)
     : undefined
 
   return (
@@ -194,31 +240,35 @@ export function QadsCommunityWall() {
           <h2 id="qz-wall-h">Made with Qads</h2>
           <p className="qz-wall-sub">Ads people made from a single product photo{shared.length ? ` — ${shared.length} shared so far` : ''}.</p>
         </header>
-        <div ref={planeRef} className="qz-wall-plane">
-          {tiles.map((m, i) => (
-            <figure key={i} ref={(el) => { tileRefs.current[i] = el }} className="qz-wt" data-kind={m.kind}>
-              {layout && i >= layout.cols && <span ref={(el) => { glowRefs.current[i] = el }} className="qz-wt-glow" aria-hidden="true" />}
-              <div className="qz-wt-in">
-                {m.kind === 'video' ? (
-                  <video
-                    ref={(el) => { videoRefs.current[i] = el }}
-                    src={m.src}
-                    poster={m.poster}
-                    muted
-                    loop
-                    playsInline
-                    preload={m.poster ? 'none' : 'metadata'}
-                    aria-label={m.label}
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element -- remote signed URLs and seed WebPs, sized by the tile
-                  <img src={m.src} alt={m.label} loading={near ? 'eager' : 'lazy'} decoding="async" />
-                )}
-                <span className="qz-wt-idx" aria-hidden="true">#{String(i + 1).padStart(2, '0')}</span>
-                <figcaption>{m.label}</figcaption>
-              </div>
-            </figure>
-          ))}
+        <div ref={maskRef} className="qz-wall-mask">
+          <div ref={viewRef} className="qz-wall-view">
+            <div ref={planeRef} className="qz-wall-plane">
+              {tiles.map((m, i) => (
+                <figure key={i} ref={(el) => { tileRefs.current[i] = el }} className="qz-wt" data-kind={m.kind}>
+                  {layout && i >= layout.cols && <span ref={(el) => { glowRefs.current[i] = el }} className="qz-wt-glow" aria-hidden="true" />}
+                  <div className="qz-wt-in">
+                    {m.kind === 'video' ? (
+                      <video
+                        ref={(el) => { videoRefs.current[i] = el }}
+                        src={m.src}
+                        poster={m.poster}
+                        muted
+                        loop
+                        playsInline
+                        preload={m.poster ? 'none' : 'metadata'}
+                        aria-label={m.label}
+                      />
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element -- remote signed URLs and seed WebPs, sized by the tile
+                      <img src={m.src} alt={m.label} loading={near ? 'eager' : 'lazy'} decoding="async" />
+                    )}
+                    <span className="qz-wt-idx" aria-hidden="true">#{String(i + 1).padStart(2, '0')}</span>
+                    <figcaption>{m.label}</figcaption>
+                  </div>
+                </figure>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

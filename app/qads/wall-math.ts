@@ -135,6 +135,21 @@ export function inFlight(q: number): boolean {
 }
 
 /**
+ * The grain band that ends the wall, as a grid of cells (row-major, cols × rows, 1 = shown): the
+ * first `solid` rows are fully opaque — so the band joins the solid part of the mask with no visible
+ * line — then the density falls off smoothly, thresholded against deterministic noise.
+ */
+export function grainCells(cols: number, rows: number, solid = 4): Uint8Array {
+  const out = new Uint8Array(cols * rows)
+  for (let r = 0; r < rows; r++) {
+    const t = clamp01((r - solid + 0.5) / Math.max(1, rows - solid))
+    const a = r < solid ? 1 : 1 - t * t * (3 - 2 * t)
+    for (let c = 0; c < cols; c++) out[r * cols + c] = rand(c + 0.37, r + 53) < a ? 1 : 0
+  }
+  return out
+}
+
+/**
  * The scene follows the scroll position with a short time constant (ms), so coarse or uneven
  * scroll events on phones still give an even motion. Frame-rate independent.
  */
