@@ -4,11 +4,15 @@
 // export, delete, archived notice, welcome-credit notice.
 import { auth } from '@clerk/nextjs/server'
 import Link from 'next/link'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { getUserRecord, hasAgencyPlan } from '@/lib/tier'
 import { AGENCY_BATCH_SIZE, CREDIT_COSTS } from '@/lib/config'
 import { createClient } from '@/lib/supabase/server'
 import { loadGrideet } from '@/lib/grideet/load'
 import { parseFilters } from '@/lib/grideet/model'
+import { DONE_COOKIE, shouldOnboard } from '@/lib/onboarding/model'
+import { readSaved } from '@/lib/onboarding/server'
 // Shared one-time welcome grant (atomic RPC, verified accounts only).
 import { ensureWelcomeGrant } from '@/app/api/credits/welcome-grant'
 import { BatchBanner } from './BatchBanner'
@@ -48,6 +52,13 @@ export default async function GrideetPage({ searchParams }: Props) {
   const limitLabel = isAgency ? `${activeCount} stores · no limit` : `${activeCount} / ${record.project_limit} stores`
   const empty = data.brandCount === 0
 
+  // First visit of a new, empty account: the onboarding wizard (/start) first — once. Answered or
+  // skipped is saved on the profile; an account that already made something is never sent there.
+  if (empty && archived === 0) {
+    const done = (await cookies()).has(DONE_COOKIE)
+    if (!done && shouldOnboard(await readSaved(), done, false)) redirect('/start')
+  }
+
   return (
     <div className="q-page-wrap gd-wrap">
       <header className="gd-head">
@@ -62,6 +73,7 @@ export default async function GrideetPage({ searchParams }: Props) {
         {!empty && (
           <div className="gd-head-actions">
             {isAgency && <Link href="/new/batch" className="q-btn q-btn-gl">Batch · up to {AGENCY_BATCH_SIZE}</Link>}
+            <Link href="/start" className="q-btn q-btn-gl">Guide me</Link>
             <Link href="/qads" className="q-btn q-btn-gl">Make an ad</Link>
             <Link href="/qscan" className="q-btn q-btn-gl">Import a store</Link>
             {!atLimit && <Link href="/new" className="q-btn">+ New store</Link>}

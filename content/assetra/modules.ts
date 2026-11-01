@@ -50,6 +50,19 @@ export const quanteApp = {
   qads: appHref('/qads'),
   qscan: appHref('/qscan'),
   agency: appHref('/billing#agency'),
+  /** The onboarding wizard (app/start): who you are → what first → straight into the module. */
+  start: appHref('/start'),
+} as const
+
+/** /quante "Kde začít": three goals, each opens the app's onboarding with the goal already picked. */
+export const quanteStart = {
+  title: 'Co chcete udělat jako první?',
+  sub: 'Vyberte cíl, odpovězte na dvě krátké otázky a Quante vás zavede rovnou do správného modulu s vyplněným zadáním.',
+  goals: [
+    { goal: 'ads', module: 'Qads', title: 'Reklamy na produkt', text: 'Reklamní videa a fotky, AI tvůrce, který produkt představí, nebo plán na 30 dní.', href: appHref('/start?goal=ads') },
+    { goal: 'scan', module: 'Qscan', title: 'Převést můj e-shop', text: 'Zadáte adresu a Qscan z produktů, fotek a textů postaví nový obchod.', href: appHref('/start?goal=scan') },
+    { goal: 'new', module: 'Generate', title: 'Nový e-shop', text: 'Popíšete, co prodáváte, a Quante postaví celý obchod i s pokladnou.', href: appHref('/start?goal=new') },
+  ],
 } as const
 
 // Order of the cards on the homepage and /quante (as in the design).

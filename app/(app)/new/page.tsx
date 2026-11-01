@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { buildProjectUrl, decidePollAction, phaseToStatusText, isJobStuck, type JobStatusPayload } from '@/lib/generation-poll'
 import { AGENCY_BATCH_SIZE, CREDIT_COSTS } from '@/lib/config'
+import { NEW_DRAFT_KEY } from '@/lib/onboarding/model'
 
 type Stage = 'chat' | 'ready' | 'generating'
 
@@ -346,6 +347,27 @@ export default function NewProjectPage() {
       })
     }
   }, [input, thinking, stage, messages])
+
+  // Onboarding (/start) hands over the visitor's store description: it becomes the first message,
+  // sent on arrival, so the intake chat is already answering when the page shows.
+  const autoSendRef = useRef<string | null>(null)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const draft = sessionStorage.getItem(NEW_DRAFT_KEY)
+        if (!draft) return
+        sessionStorage.removeItem(NEW_DRAFT_KEY)
+        autoSendRef.current = draft
+        setInput(draft)
+      } catch {}
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+  useEffect(() => {
+    if (!autoSendRef.current || input !== autoSendRef.current) return
+    autoSendRef.current = null
+    void handleSend()
+  }, [input, handleSend])
 
   // Level 3 — POST starts the job and returns a jobId almost immediately (generation itself
   // runs server-side via Next.js after(), decoupled from this fetch entirely — see
