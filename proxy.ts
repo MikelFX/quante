@@ -1,6 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server'
-import { APP_ORIGIN, SITE_ORIGIN, isSitePath } from '@/lib/domains'
+import { APP_ORIGIN, SITE_ORIGIN, hostKind, isSitePath } from '@/lib/domains'
 import { afterSignInPath, redirectParam } from '@/lib/auth/after-sign-in'
 
 const isProtectedRoute = createRouteMatcher([
@@ -72,6 +72,12 @@ const withClerk = clerkMiddleware(async (auth, req) => {
   }
 
   const { userId } = await auth()
+  // quantecode.com/ (the app host's root): signed out → the onboarding wizard, signed in → the
+  // dashboard. Temporary redirects: the answer depends on the visitor (next.config.ts leaves "/"
+  // on the app host alone for this).
+  if (isAppRoot(req)) {
+    return NextResponse.redirect(new URL(userId ? '/dashboard' : '/start', req.url))
+  }
   // Signed-in users hitting the login/signup pages are sent on — to the redirect_url they came
   // with (e.g. back to /qads after "Generate"), else the dashboard. Clerk refreshes the sign-in
   // page right after a sign-in, and this redirect must not swallow its redirect_url
@@ -87,10 +93,15 @@ const withClerk = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) await auth.protect()
 })
 
+/** The root of the app host (quantecode.com/), which is not the website's homepage. */
+function isAppRoot(req: NextRequest): boolean {
+  return req.nextUrl.pathname === '/' && hostKind(req.headers.get('x-forwarded-host') ?? req.headers.get('host')) === 'app'
+}
+
 export function proxy(req: NextRequest, ev: NextFetchEvent) {
   // The AssetraDigital website pages never use Clerk (lib/domains.ts, components/auth/QuanteClerk.tsx):
   // skip it there — no session lookup, no handshake redirect. /api/* always goes through Clerk.
-  if (isSitePath(req.nextUrl.pathname)) return NextResponse.next()
+  if (isSitePath(req.nextUrl.pathname) && !isAppRoot(req)) return NextResponse.next()
   return withClerk(req, ev)
 }
 
