@@ -37,7 +37,9 @@ const nextConfig: NextConfig = {
       // Domain split (lib/domains.ts): the website lives on assetradigital.agency, the app on
       // quantecode.com. Each host sends the other surface's paths across; /api/* never moves.
       // Previews and localhost match neither host and keep serving both surfaces.
-      ...hostRedirects(SITE_PATHS, APP_HOST_PATTERN, SITE_ORIGIN),
+      // Except "/": quantecode.com/ is the app's front door — proxy.ts sends a signed-out visitor
+      // to the onboarding wizard (/start) and a signed-in one to the dashboard (owner 2026-11-01).
+      ...hostRedirects(SITE_PATHS.filter((p) => p !== '/'), APP_HOST_PATTERN, SITE_ORIGIN),
       ...hostRedirects(APP_PATHS, SITE_HOST_PATTERN, APP_ORIGIN),
       // Qads moved out of the Studio (was /project/:id/ads/...) and into a
       // standalone generator at /qads that doesn't tie to a specific project.

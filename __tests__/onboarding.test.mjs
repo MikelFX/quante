@@ -108,3 +108,13 @@ test('the wizard and its API never spend credits', () => {
     assert.doesNotMatch(src(f), /debit|CREDIT_COSTS\.(generate|export|qads)/, f)
   }
 })
+
+test('quantecode.com/ opens the wizard for signed-out visitors (the website keeps its homepage)', () => {
+  const cfg = src('next.config.ts')
+  assert.match(cfg, /hostRedirects\(SITE_PATHS\.filter\(\(p\) => p !== '\/'\), APP_HOST_PATTERN, SITE_ORIGIN\)/)
+  assert.match(cfg, /hostRedirects\(APP_PATHS, SITE_HOST_PATTERN, APP_ORIGIN\)/)
+  const proxy = src('proxy.ts')
+  assert.match(proxy, /userId \? '\/dashboard' : '\/start'/)
+  assert.match(proxy, /=== 'app'/)
+  assert.match(proxy, /isSitePath\(req\.nextUrl\.pathname\) && !isAppRoot\(req\)/)
+})
