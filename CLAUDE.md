@@ -388,6 +388,11 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - Signed out: answers wait in localStorage (`quante:onboarding:pending:v1`, 24 h), sign-up returns to `/start?resume=1`, which saves and goes on without another click. The website links in with the goal picked (`/start?goal=ads|scan|new`, /quante „Co chcete udělat jako první?“, copy `quanteStart` in `content/assetra/modules.ts`).
 - Saved by `POST /api/onboarding` on the Clerk profile (`publicMetadata.onboarding`, always works) + best-effort table `user_onboarding` (`supabase/migration-onboarding.sql`, service role) + cookie `q_onb`. The dashboard sends an account to /start only when it never answered or skipped AND has made nothing (`shouldOnboard`); "Guide me" on the dashboard opens it again.
 
+## 13k. Cursor edit intro on /quante/qdit + /quante/qgent (2026-11-01)
+
+- Owner: on arrival a visitor's mouse cursor (tag „Vy“, not a mascot — owner swapped the Quante character for a plain cursor) edits the hero. Qdit: double-click fixes the swapped last two letters of the headline, then drags over „přímo na stránce“ and colours it from a toolbar (the phrase stays accent-coloured). Qgent: scan → finding → proposal card → the cursor clicks „Použít“ → the rest of the lead types in.
+- `CursorEdit.tsx` + pure `cursor-edit-script.ts` (drafts derived from `content/assetra/modules.ts`; if the copy changes so a draft can't be made, the plain hero renders) + `cursor-edit.css` (`.ad .ce-*`, keyframes `ad-ce-`). The real copy is always in the DOM (`.ce-f`); the animated letters come from `::before { content: attr(data-t) }`, so drafts are never page text. Space for typed text is reserved (no layout shift); Web Animations on transform/opacity only, nothing runs after it ends; no JS / reduced motion / animations off = the real copy. Tested in `__tests__/cursor-edit.test.mjs`.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.
