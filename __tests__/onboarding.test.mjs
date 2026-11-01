@@ -82,10 +82,11 @@ test('saved record and when the dashboard sends an account to /start', () => {
   assert.deepEqual(M.parseSaved(saved), saved)
   assert.equal(M.toSaved({ persona: null, goal: 'ads' }, true).goal, null)
   assert.equal(M.parseSaved({ v: 2 }), null)
-  assert.equal(M.shouldOnboard(null, false, false), true)
-  assert.equal(M.shouldOnboard(saved, false, false), false)
-  assert.equal(M.shouldOnboard(null, true, false), false)
-  assert.equal(M.shouldOnboard(null, false, true), false)
+  // Every account that never answered sees it once — also one that already has stores.
+  assert.equal(M.shouldOnboard(null, false), true)
+  assert.equal(M.shouldOnboard(saved, false), false)
+  assert.equal(M.shouldOnboard(M.toSaved({ persona: null, goal: null }, true), false), false)
+  assert.equal(M.shouldOnboard(null, true), false)
   assert.equal(M.startStep({ persona: null, goal: 'ads' }), 0)
   assert.equal(M.startStep({ persona: 'agency', goal: null }), 1)
   assert.equal(M.startStep({ persona: 'agency', goal: 'scan' }), 2)
@@ -99,7 +100,10 @@ test('the modules read the hand-offs the wizard writes', () => {
   const studio = src('app/(app)/project/[id]/StudioClient.tsx')
   assert.match(studio, /tab === 'edit'/)
   assert.match(studio, /tab !== 'qgent'/)
-  assert.match(src('app/(app)/dashboard/page.tsx'), /redirect\('\/start'\)/)
+  const dash = src('app/(app)/dashboard/page.tsx')
+  assert.match(dash, /redirect\('\/start'\)/)
+  // The check does not depend on the account being empty (it used to skip accounts with stores).
+  assert.ok(dash.indexOf("redirect('/start')") < dash.indexOf('loadGrideet('), 'checked before the grid loads')
   assert.match(src('lib/domains.ts'), /'\/start\/:path\*'/)
 })
 
