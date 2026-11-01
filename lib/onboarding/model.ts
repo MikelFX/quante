@@ -228,12 +228,11 @@ export function startStep(a: Pick<Answers, 'persona' | 'goal'>): number {
 }
 
 /**
- * Send this account to /start from the dashboard? Once, for every account that has never answered
- * nor skipped the wizard — new or existing, with or without stores (owner 2026-11-01: accounts
- * with work never saw it). Finishing or skipping saves it, so it is never shown twice.
+ * Send this account to /start from the dashboard? Only the first time: it never answered (nor
+ * skipped), and it has made nothing yet — an account with work is never interrupted.
  */
-export function shouldOnboard(saved: SavedOnboarding | null, doneCookie: boolean): boolean {
-  return !saved && !doneCookie
+export function shouldOnboard(saved: SavedOnboarding | null, doneCookie: boolean, hasWork: boolean): boolean {
+  return !saved && !doneCookie && !hasWork
 }
 
 /** The record to save. */

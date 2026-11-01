@@ -38,12 +38,6 @@ export default async function GrideetPage({ searchParams }: Props) {
     verificationRequired = grant.status === 'verification_required'
   }
 
-  // The onboarding wizard (/start) first — once per account, whatever it already made. Finished
-  // or skipped is saved on the profile (+ cookie), so the dashboard never sends it there again;
-  // "Guide me" reopens it. Checked before loading the grid: nothing to load when redirecting.
-  const done = (await cookies()).has(DONE_COOKIE)
-  if (!done && shouldOnboard(await readSaved(), done)) redirect('/start')
-
   const filters = parseFilters(await searchParams)
   const supabase = await createClient()
   const [data, archivedResult] = await Promise.all([
@@ -57,6 +51,13 @@ export default async function GrideetPage({ searchParams }: Props) {
   const atLimit = !isAgency && activeCount >= record.project_limit
   const limitLabel = isAgency ? `${activeCount} stores · no limit` : `${activeCount} / ${record.project_limit} stores`
   const empty = data.brandCount === 0
+
+  // First visit of a new, empty account: the onboarding wizard (/start) first — once. Answered or
+  // skipped is saved on the profile; an account that already made something is never sent there.
+  if (empty && archived === 0) {
+    const done = (await cookies()).has(DONE_COOKIE)
+    if (!done && shouldOnboard(await readSaved(), done, false)) redirect('/start')
+  }
 
   return (
     <div className="q-page-wrap gd-wrap">
