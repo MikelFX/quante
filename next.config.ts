@@ -27,6 +27,12 @@ function hostRedirects(paths: readonly string[], host: string, origin: string) {
 }
 
 const nextConfig: NextConfig = {
+  // The Qads community wall's light previews are made with the static ffmpeg binary
+  // (lib/qads/community-preview.ts): loaded from node_modules at runtime and shipped with that route.
+  serverExternalPackages: ['ffmpeg-static'],
+  outputFileTracingIncludes: {
+    '/api/qads/community': ['./node_modules/ffmpeg-static/ffmpeg'],
+  },
   async headers() {
     return [
       { source: '/((?!api/preview/component).*)', headers: securityHeaders },
