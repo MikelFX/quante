@@ -366,3 +366,16 @@
 @media (prefers-reduced-motion:reduce){.ad .ql,.ad .ql>*{transition:opacity .2s linear;transform:none}.ad .ql[data-open="true"] .ql-px{animation:none}}
 [data-motion="off"] .ad .ql,[data-motion="off"] .ad .ql>*{transition:none;transform:none}
 [data-motion="off"] .ad .ql[data-open="true"] .ql-px{animation:none}
+
+/* /quante "Kde začít" (QuanteStart.tsx): three goals → the app's onboarding (/start). */
+.ad .qst .card{grid-column:auto}
+.ad .qst{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:16px;margin-top:clamp(24px,3vw,40px)}
+.ad .qst-card{display:flex;flex-direction:column;gap:10px;min-height:220px;text-decoration:none;color:var(--fg);transition:transform .35s var(--ease,ease),border-color .25s}
+.ad .qst-card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--acc) 45%,transparent)}
+.ad .qst-card:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.ad .qst-mod{align-self:flex-start;padding:5px 10px;border-radius:999px;border:1px solid var(--line2,var(--line));font:600 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accText)}
+.ad .qst-card h3{margin:6px 0 0;font-family:var(--disp);font-stretch:70%;font-weight:850;font-size:clamp(28px,2.6vw,38px);line-height:.95;text-transform:uppercase}
+.ad .qst-card p{margin:0;color:var(--fg2);max-width:30em}
+.ad .qst-go{margin-top:auto;display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600;color:var(--accText)}
+.ad .qst-ar{display:inline-block;transition:transform .3s}
+.ad .qst-card:hover .qst-ar{transform:translateX(4px)}

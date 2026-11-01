@@ -468,6 +468,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [isPublishing, setIsPublishing] = useState(false)
   // Visual editor v1 (sandboxed live preview with click-to-edit, VisualEditor.tsx)
   const [visualEdit, setVisualEdit] = useState(false)
+  // ?tab=edit: open the editor as soon as the desktop layout and a built store are known.
+  const [wantVisualEdit, setWantVisualEdit] = useState(false)
+  useEffect(() => {
+    if (!wantVisualEdit || !isDesktop || !hasGeneratedOnce) return
+    const t = setTimeout(() => { setWantVisualEdit(false); setVisualEdit(true) }, 0)
+    return () => clearTimeout(t)
+  }, [wantVisualEdit, isDesktop, hasGeneratedOnce])
   const previewFrameRef = useRef<HTMLIFrameElement | null>(null)
   // Last theme sent to the preview — re-sent when the store page (re)loads, dropped when
   // a new build replaces the preview (that build already contains the saved theme).
@@ -933,6 +940,11 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
     const tab = searchParams.get('tab')
     if (tab === 'orders') {
       const t = setTimeout(() => { setAdminMode(true); setAdminTab('orders'); void handleLoadOrders() }, 0)
+      return () => clearTimeout(t)
+    }
+    // Onboarding's "Change how my store looks" (Qdit): open the visual editor once the Studio knows it can.
+    if (tab === 'edit') {
+      const t = setTimeout(() => setWantVisualEdit(true), 0)
       return () => clearTimeout(t)
     }
     if (tab !== 'qgent' && tab !== 'publish' && tab !== 'theme') return

@@ -5,6 +5,7 @@ import { moduleBySlug, modules, modulesStatusLine, quanteApp, quanteFlow, quante
 import { quantePricing } from '@/content/assetra/quante-pricing'
 import { ModuleCard } from '../../_components/quante/ModuleCard'
 import { QuantePricing } from '../../_components/quante/QuantePricing'
+import { QuanteStart } from '../../_components/quante/QuanteStart'
 import { siteShare } from '../../_components/seo'
 
 export const metadata: Metadata = {
@@ -39,6 +40,12 @@ export default function QuantePage() {
             />
           </div>
           <ParticleZone className="orb rv" style={delay(0.2)} shapes={['Q', '@cube']} />
+        </div>
+      </InView>
+
+      <InView className="sec" id="zacit">
+        <div className="w">
+          <QuanteStart />
         </div>
       </InView>
 
@@ -84,7 +91,7 @@ export default function QuantePage() {
             <span className="lbl">Udělejte si to sami</span>
             <h2>Začněte v Quante</h2>
             <p>Po registraci máte {quantePricing.welcomeCredits} kreditů zdarma. Na první e-shop stačí.</p>
-            <Button href={quanteApp.signup} variant="pri" arrow>Založit účet</Button>
+            <Button href={quanteApp.start} variant="pri" arrow>Začít v Quante</Button>
           </div>
           <div className="card glass spot path rv" style={delay(0.2)}>
             <span className="lbl">Uděláme to za vás</span>

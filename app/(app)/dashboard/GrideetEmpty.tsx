@@ -17,6 +17,9 @@ export function GrideetEmpty() {
       <ParticleZone shapes={['@logo', 'Q']} />
       <p id="gd-empty-title" className="gd-empty-title">Nothing here yet</p>
       <p className="gd-empty-text">Everything you make — stores, products, ads, imports — will live here, grouped by brand.</p>
+      <p className="gd-empty-text">
+        Not sure where to start? <Link href="/start">Answer three quick questions</Link> and we’ll take you there.
+      </p>
       <div className="gd-starts">
         {STARTS.map((s) => (
           <Link key={s.href} href={s.href} className={`gd-start${'primary' in s ? ' gd-start-primary' : ''}`}>
