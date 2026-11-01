@@ -1,0 +1,82 @@
+/* The cursor that edits the hero of /quante/qdit and /quante/qgent (_components/quante/CursorEdit.tsx).
+   Everything under .ad .ce-*, colours only from the design's variables. The real copy (.ce-f) shows
+   unless JS is there to run the script; the animated copy (.ce-a) draws its letters from data-t. */
+
+.ad .ce{position:relative}
+.ad .ce .ce-a{display:none}
+[data-js] .ad .ce[data-run] .ce-a{display:inline}
+[data-js] .ad .ce[data-run] .ce-f{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.ad .ce .ce-a [data-t]::before{content:attr(data-t)}
+
+/* what the edit leaves behind (also in the real copy) */
+.ad .ce .ce-mark{color:var(--accText);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--acc) 55%,transparent);text-decoration-thickness:.11em;text-underline-offset:.24em;text-decoration-skip-ink:none}
+
+/* selections, caret, typed text */
+.ad .ce .ce-slot.is-sel{background:color-mix(in srgb,var(--acc) 34%,transparent);border-radius:.06em}
+.ad .ce .ce-ph{background-image:linear-gradient(color-mix(in srgb,var(--acc) 30%,transparent),color-mix(in srgb,var(--acc) 30%,transparent));background-repeat:no-repeat;background-size:0% 100%;transition:color .6s ease,text-decoration-color .6s ease,background-size .22s ease}
+.ad .ce .ce-ph.is-sel{background-size:100% 100%;transition:background-size .56s linear}
+.ad .ce .ce-caret{position:relative;font-style:normal}
+.ad .ce .ce-caret::after{content:"";position:absolute;left:.04em;bottom:.08em;width:max(2px,.035em);height:.92em;background:var(--acc);border-radius:1px;animation:ad-ce-blink 1s steps(1) infinite}
+.ad .ce .ce-caret.is-off::after{display:none}
+.ad .ce .ce-new{border-radius:.2em;transition:background-color 1.4s ease}
+.ad .ce .ce-new.is-fresh{background-color:color-mix(in srgb,var(--acc) 20%,transparent);transition:none}
+.ad .ce .ce-ghost{color:transparent}
+@keyframes ad-ce-blink{0%{opacity:1}50%{opacity:0}}
+
+/* overlay: every piece is placed inside the stage's width by the script (no sideways overflow) */
+.ad .ce-layer{position:absolute;inset:0;z-index:4;pointer-events:none;user-select:none}
+.ad .ce-layer > *{position:absolute;left:0;top:0;opacity:0}
+
+/* the pointer: tip at the element's origin */
+.ad .ce-cur{will-change:transform,opacity}
+.ad .ce-ptr{position:relative;width:22px;height:22px;margin:-2px 0 0 -4px;transform-origin:4px 2px}
+.ad .ce-ptr svg{position:absolute;inset:0;width:22px;height:22px;overflow:visible;transition:opacity .14s ease}
+.ad .ce-arrow{fill:var(--fg);stroke:var(--bg);stroke-width:1.5;stroke-linejoin:round;filter:drop-shadow(0 3px 5px var(--shadow))}
+.ad .ce-beam{opacity:0;fill:none;stroke:var(--fg);stroke-width:1.7;stroke-linecap:round;transform:translate(-8px,-9px)}
+.ad .ce-cur.is-text .ce-arrow{opacity:0}
+.ad .ce-cur.is-text .ce-beam{opacity:1}
+.ad .ce-ring{position:absolute;left:-15px;top:-15px;width:30px;height:30px;border-radius:50%;border:2px solid var(--acc);opacity:0}
+.ad .ce-you{position:absolute;left:15px;top:19px;padding:3px 7px 3px;border-radius:6px 6px 6px 2px;background:var(--acc);color:var(--accInk);font:600 10px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;box-shadow:0 6px 14px -6px var(--shadow)}
+
+/* Qdit: the editor's selection frame and the colour toolbar */
+.ad .ce-frame{border:1.5px dashed color-mix(in srgb,var(--acc) 75%,transparent);border-radius:10px;background:color-mix(in srgb,var(--acc) 5%,transparent);transition:border-color .3s ease}
+.ad .ce-frame.is-ok{border-style:solid;border-color:var(--acc)}
+.ad .ce-tag{position:absolute;left:calc(100% + 8px);top:-1.5px;display:inline-flex;gap:6px;align-items:center;padding:4px 8px;border-radius:6px;background:var(--acc);color:var(--accInk);font:500 10.5px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+.ad .ce-tag b{font-weight:700}
+.ad .ce-tag em{display:none;font-style:normal;font-weight:700}
+.ad .ce-frame.is-ok .ce-t1{display:none}
+.ad .ce-frame.is-ok .ce-tag em{display:inline}
+.ad .ce-tool{display:flex;align-items:center;gap:9px;padding:7px 10px 7px 12px;border-radius:12px;white-space:nowrap}
+.ad .ce-tl{font:500 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--fg3);margin-right:2px}
+.ad .ce-sw{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px var(--line2);transition:box-shadow .2s ease}
+.ad .ce-sw.is-on{box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--acc)}
+
+/* Qgent: scan, the finding, the proposal card, the done chip */
+.ad .ce-scan{height:2px;background:linear-gradient(90deg,transparent,var(--acc) 18%,var(--acc2) 82%,transparent);box-shadow:0 0 14px 1px color-mix(in srgb,var(--acc) 50%,transparent)}
+.ad .ce-scan::before{content:"";position:absolute;left:0;right:0;bottom:2px;height:56px;background:linear-gradient(to top,color-mix(in srgb,var(--acc) 12%,transparent),transparent)}
+.ad .ce-pin{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--acc);color:var(--accInk);font:700 11px/1 var(--mono);box-shadow:0 0 0 5px color-mix(in srgb,var(--acc) 20%,transparent)}
+.ad .ce-card{padding:14px 16px 14px;border-radius:14px;text-align:left}
+.ad .ce-ch{display:flex;align-items:center;gap:8px;font:500 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--fg3)}
+.ad .ce-ch i{width:7px;height:7px;border-radius:2px;background:var(--acc);box-shadow:0 0 10px var(--acc)}
+.ad .ce-ct{margin:10px 0 0;font-size:14px;line-height:1.4;color:var(--fg2)}
+.ad .ce-ins{margin:8px 0 0;padding:7px 10px;border-left:2px solid var(--acc);border-radius:0 8px 8px 0;background:color-mix(in srgb,var(--acc) 12%,transparent);font-size:14.5px;line-height:1.4;color:var(--fg)}
+.ad .ce-ins::before{content:"+ ";font-family:var(--mono);color:var(--accText)}
+.ad .ce-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.ad .ce-btn{display:inline-flex;align-items:center;padding:7px 13px;border-radius:999px;border:1px solid var(--line2);font-size:12.5px;font-weight:600;line-height:1;color:var(--fg2);transition:box-shadow .2s ease,transform .12s ease}
+.ad .ce-btn.pri{border-color:transparent;background:var(--acc);color:var(--accInk)}
+.ad .ce-btn.is-hover{box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 28%,transparent)}
+.ad .ce-btn.is-down{transform:scale(.95)}
+.ad .ce-chip{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;font:500 11px/1 var(--mono);letter-spacing:.06em;color:var(--fg);white-space:nowrap}
+.ad .ce-chip i{font-style:normal;color:var(--accText)}
+
+/* animations off / reduced motion: the real copy, no overlay */
+@media (prefers-reduced-motion:reduce){
+  .ad .ce .ce-a,.ad .ce-layer{display:none!important}
+  .ad .ce .ce-f{position:static!important;width:auto!important;height:auto!important;margin:0!important;overflow:visible!important;clip:auto!important;white-space:normal!important}
+}
+[data-motion="off"] .ad .ce .ce-a,[data-motion="off"] .ad .ce-layer{display:none!important}
+[data-motion="off"] .ad .ce .ce-f{position:static!important;width:auto!important;height:auto!important;margin:0!important;overflow:visible!important;clip:auto!important;white-space:normal!important}
+
+/* the popovers sit on top of text and buttons: glass over a nearly solid page colour, so nothing
+   underneath reads through (phones often skip the backdrop blur) */
+.ad .ce-layer .ce-tool,.ad .ce-layer .ce-card,.ad .ce-layer .ce-chip{background:linear-gradient(180deg,var(--gl1),var(--gl2)),var(--bg)}

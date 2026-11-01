@@ -3,6 +3,8 @@ import { Button, Card, InView, ParticleZone, Pill, SectionLabel, SectionTitle, S
 import { moduleBySlug, moduleHref, type QuanteModule } from '@/content/assetra/modules'
 import { moduleCosts } from '@/content/assetra/quante-pricing'
 import { ModuleVisual } from '../ModuleVisual'
+import { CursorEdit } from './CursorEdit'
+import { cursorEditScript } from './cursor-edit-script'
 
 /**
  * /quante/<slug>: what the module does, how it connects to the others, the animated mini-UI and —
@@ -12,6 +14,8 @@ import { ModuleVisual } from '../ModuleVisual'
 export function ModulePage({ m }: { m: QuanteModule }) {
   const live = m.status === 'live'
   const costs = moduleCosts(m.slug)
+  // Qdit and Qgent open with a cursor editing their own headline and lead (CursorEdit.tsx)
+  const edit = cursorEditScript(m.slug, m.name, m.lead)
   return (
     <>
       <InView className="sec mod-top" initial>
@@ -20,8 +24,14 @@ export function ModulePage({ m }: { m: QuanteModule }) {
           <div className="sh2">
             <div>
               <Pill badge={live ? 'K dispozici' : 'Ve vývoji'}>{m.tag}</Pill>
-              <SectionTitle as="h1">{m.name}</SectionTitle>
-              <Sub>{m.lead}</Sub>
+              {edit ? (
+                <CursorEdit name={m.name} script={edit} />
+              ) : (
+                <>
+                  <SectionTitle as="h1">{m.name}</SectionTitle>
+                  <Sub>{m.lead}</Sub>
+                </>
+              )}
               <div className="ctas rv" style={delay(0.2)}>
                 {m.app ? (
                   <Button href={m.app.href} variant="pri" beam arrow>{m.app.label}</Button>
