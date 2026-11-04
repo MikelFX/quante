@@ -24,6 +24,7 @@ const isCrossSiteApi = createRouteMatcher([
   '/api/payments/(.*)',
   '/api/cron/(.*)',
   '/api/qads/cron/(.*)',
+  '/api/qbox/v1/(.*)', // Qbox API: authenticated by API key, never by the session cookie
 ])
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
