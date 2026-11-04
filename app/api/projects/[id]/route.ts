@@ -5,6 +5,7 @@ import { getOwnedProject } from '@/lib/auth/project'
 import { removeProject, HOSTING_ROOT_DOMAIN } from '@/lib/hosting/vercel'
 import { getPayoutBalances } from '@/lib/payments/earnings'
 import { stripe, isStripeConfigured } from '@/lib/stripe'
+import { deleteNameMatches } from '@/lib/projects/delete-confirm'
 
 // Mirrors MIN_PAYOUT_CENTS in /api/payout/request — a balance the owner can still
 // withdraw must not be stranded by deleting the project.
@@ -33,8 +34,10 @@ const ROW_PAGE = 1000
 //      soft-deleted (tombstoned) so orders, earnings, payouts and hosting
 //      subscriptions survive for audit and the store slug stays reserved; others are
 //      hard-deleted as before.
+// The body must carry { confirmName } = the store's name, typed again by the owner
+// (lib/projects/delete-confirm.ts); without it nothing happens.
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { userId } = await auth()
@@ -47,8 +50,17 @@ export async function DELETE(
     vercel_project_id: string | null
     custom_domain: string | null
     hosting_trial_ends_at: string | null
-  }>(id, userId, 'id, vercel_project_id, custom_domain, hosting_trial_ends_at')
+    name: string
+  }>(id, userId, 'id, name, vercel_project_id, custom_domain, hosting_trial_ends_at')
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+
+  const body = (await req.json().catch(() => null)) as { confirmName?: unknown } | null
+  if (!deleteNameMatches(body?.confirmName, project.name)) {
+    return NextResponse.json(
+      { error: 'Type the store’s name exactly as it is shown to confirm the delete.', code: 'confirm_name' },
+      { status: 400 },
+    )
+  }
 
   const serverError = () =>
     NextResponse.json({ error: 'Could not delete project right now. Please try again.' }, { status: 500 })
@@ -237,7 +249,9 @@ export async function DELETE(
     // Unlink domains but keep the registration record (user still owns the domain)
     supabaseAdmin.from('user_domains').update({ project_id: null }).eq('project_id', id),
   ])
-  const childErr = childDeletes.find((r) => r.error)?.error
+  // A table from a migration that was never run (inventory, custom components …) holds
+  // nothing for this store — that must not block the delete.
+  const childErr = childDeletes.find((r) => r.error && !isMissingRelation(r.error))?.error
   if (childErr) {
     console.error('[projects/delete] child cleanup failed:', childErr)
     return NextResponse.json({ error: 'Failed to delete project data. Please try again.' }, { status: 500 })
@@ -249,17 +263,20 @@ export async function DELETE(
     // every `.eq('user_id', userId)` query (dashboard, Studio, APIs) while the owner
     // stays recoverable from the tombstone for audit. store_slug is deliberately kept
     // so the subdomain stays reserved (getOrClaimStoreSlug skips held slugs).
-    const { error: softErr } = await supabaseAdmin
-      .from('projects')
-      .update({
-        user_id: `deleted:${userId}`,
-        status: 'deleted',
-        vercel_project_id: null,
-        custom_domain: null,
-        hosting_suspended_at: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .eq('user_id', userId)
+    const tombstone = {
+      user_id: `deleted:${userId}`,
+      status: 'deleted',
+      vercel_project_id: null,
+      custom_domain: null,
+      hosting_suspended_at: new Date().toISOString(),
+    }
+    let { error: softErr } = await supabaseAdmin.from('projects').update(tombstone).eq('id', id).eq('user_id', userId)
+    // hosting_suspended_at comes from migration-hosting-v2.sql — without it, tombstone anyway.
+    if (softErr && isMissingRelation(softErr)) {
+      const { hosting_suspended_at: _unused, ...rest } = tombstone
+      void _unused
+      ;({ error: softErr } = await supabaseAdmin.from('projects').update(rest).eq('id', id).eq('user_id', userId))
+    }
     if (softErr) {
       console.error('[projects/delete] soft delete failed:', softErr)
       return NextResponse.json({ error: 'Failed to delete project.' }, { status: 500 })
@@ -271,7 +288,7 @@ export async function DELETE(
     supabaseAdmin.from('store_payout_accounts').delete().eq('project_id', id),
     supabaseAdmin.from('hosting_subscriptions').delete().eq('project_id', id),
   ])
-  const remErr = remaining.find((r) => r.error)?.error
+  const remErr = remaining.find((r) => r.error && !isMissingRelation(r.error))?.error
   if (remErr) {
     console.error('[projects/delete] cleanup failed:', remErr)
     return NextResponse.json({ error: 'Failed to delete project data. Please try again.' }, { status: 500 })
@@ -287,6 +304,11 @@ export async function DELETE(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Postgres / PostgREST "no such table / column" (a migration that was never run).
+function isMissingRelation(err: { code?: string; message?: string }): boolean {
+  return ['42P01', '42703', 'PGRST204', 'PGRST205'].includes(err.code ?? '')
+}
 
 function normalizeHost(value: unknown): string | null {
   if (typeof value !== 'string') return null

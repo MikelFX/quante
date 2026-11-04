@@ -19,6 +19,7 @@ import type { BrandKit } from '@/lib/brand-kit/model'
 import { LIVE_DAYS, type MoneySum } from '@/lib/grideet/live'
 import { GridImage, GridVideo } from './GrideetMedia'
 import { BrandKitPanel } from './BrandKitPanel'
+import { deleteNameMatches } from '@/lib/projects/delete-confirm'
 
 interface Props {
   groups: BrandGroup[]
@@ -115,6 +116,62 @@ function ConfirmDialog({ ask, onClose }: { ask: Ask; onClose: () => void }) {
   )
 }
 
+// Deleting a store: the owner types its name again (owner 2026-11-04, lib/projects/delete-confirm.ts).
+// The dialog stays open on a refusal and shows why (payout pending, hosting, …) right there.
+function DeleteStoreDialog({ store, onClose, onDeleted }: {
+  store: { id: string; name: string }
+  onClose: () => void
+  onDeleted: (id: string) => void
+}) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const ok = deleteNameMatches(typed, store.name)
+  useEffect(() => {
+    inputRef.current?.focus()
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && !busy) onClose() }
+    window.addEventListener('keydown', key)
+    return () => window.removeEventListener('keydown', key)
+  }, [busy, onClose])
+  async function run() {
+    if (!ok || busy) return
+    setBusy(true)
+    setError(null)
+    const res = await fetch(`/api/projects/${store.id}`, {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirmName: typed }),
+    }).catch(() => null)
+    if (res?.ok) { onDeleted(store.id); return }
+    const d = res ? await res.json().catch(() => ({})) : {}
+    setBusy(false)
+    setError(d.error ?? (res ? 'Could not delete the store. Please try again.' : 'No connection. Please try again.'))
+  }
+  return (
+    <div className="gd-modal" role="presentation" onClick={() => { if (!busy) onClose() }}>
+      <form
+        className="gd-dialog q-card" role="dialog" aria-modal="true" aria-labelledby="gd-del-title"
+        onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); void run() }}
+      >
+        <h2 id="gd-del-title" className="gd-dialog-h">Delete “{store.name}”?</h2>
+        <p>The store goes offline and its code, versions and settings are removed. This cannot be undone. Export the code first if you want to keep it.</p>
+        <label className="gd-confirm">
+          <span>Type <b>{store.name}</b> to confirm</span>
+          <input
+            ref={inputRef} type="text" value={typed} onChange={(e) => { setTyped(e.target.value); setError(null) }}
+            autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} disabled={busy}
+            aria-invalid={typed.length > 0 && !ok}
+          />
+        </label>
+        {error && <p className="gd-dialog-err" role="alert">{error}</p>}
+        <div className="gd-dialog-actions">
+          <button type="button" className="q-btn q-btn-gl" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="submit" className="q-btn gd-danger" disabled={!ok || busy}>{busy ? 'Deleting…' : 'Delete store'}</button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 function AssignDialog({ assign, stores, onClose, onDone }: {
   assign: Assign
   stores: Array<{ id: string; name: string }>
@@ -179,6 +236,7 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [deleted, setDeleted] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState<{ id: string; name: string } | null>(null)
   const [assign, setAssign] = useState<Assign | null>(null)
 
   const itemFilterOn = (filters.module && filters.module !== 'all')
@@ -244,24 +302,16 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
   }
 
   function askDelete(g: BrandGroup) {
-    if (!g.id) return
-    const id = g.id
-    setAsk({
-      text: `Delete “${g.name}”? This cannot be undone. Export the code first if you want to keep it.`,
-      ok: 'Delete',
-      danger: true,
-      run: async () => {
-        const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' }).catch(() => null)
-        if (!res?.ok) {
-          const d = res ? await res.json().catch(() => ({})) : {}
-          setNotice({ kind: 'error', text: d.error ?? 'Failed to delete the store.' })
-          return
-        }
-        setDeleted((s) => new Set([...s, id]))
-        setSelected((s) => { const n = new Set(s); n.delete(id); return n })
-        refresh()
-      },
-    })
+    if (g.id) setDeleting({ id: g.id, name: g.name })
+  }
+
+  function onDeleted(id: string) {
+    const name = deleting?.name ?? 'The store'
+    setDeleting(null)
+    setDeleted((s) => new Set([...s, id]))
+    setSelected((s) => { const n = new Set(s); n.delete(id); return n })
+    setNotice({ kind: 'ok', text: `“${name}” was deleted.` })
+    refresh()
   }
 
   // ── Agency bulk export (up to AGENCY_BATCH_SIZE per ZIP, /api/export/bulk) ──
@@ -388,6 +438,7 @@ export function GrideetClient({ groups, page, pages, total, filters, isAgency, c
       )}
 
       {ask && <ConfirmDialog ask={ask} onClose={() => setAsk(null)} />}
+      {deleting && <DeleteStoreDialog store={deleting} onClose={() => setDeleting(null)} onDeleted={onDeleted} />}
       {assign && (
         <AssignDialog
           assign={assign}
@@ -512,7 +563,7 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
             {open ? 'Hide items' : `Show ${g.items.length} item${g.items.length === 1 ? '' : 's'}`}
           </button>
         )}
-        {store && <button type="button" className="gd-link gd-del" onClick={onDelete}>Delete</button>}
+        {store && <button type="button" className="gd-link gd-del" onClick={onDelete}>Delete store…</button>}
       </div>
 
       {store && g.meta.tips && g.meta.tips.length > 0 && (
