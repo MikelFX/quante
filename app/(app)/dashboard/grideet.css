@@ -244,3 +244,16 @@
 }
 html[data-motion="off"] .ad-app .gd-start { transition: none; }
 html[data-motion="off"] .ad-app .gd-start:hover { transform: none; }
+
+/* delete a store: type its name to confirm */
+.ad-app .gd-dialog-h { margin: 0 0 8px; font: 600 16px/1.3 var(--q-sans); color: var(--q-fg); overflow-wrap: anywhere; }
+.ad-app .gd-confirm { display: grid; gap: 6px; margin: 0 0 16px; font-size: 13px; color: var(--q-fg2); }
+.ad-app .gd-confirm b { color: var(--q-fg); font-weight: 600; overflow-wrap: anywhere; }
+.ad-app .gd-confirm input {
+  width: 100%; min-height: 44px; padding: 0 14px; border-radius: 12px;
+  border: 1px solid var(--q-glass-border); background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2));
+  color: var(--q-fg); font: 500 14px/1 var(--q-sans);
+}
+.ad-app .gd-confirm input:focus-visible { outline: 2px solid rgb(var(--q-danger-rgb) / .55); outline-offset: 1px; }
+.ad-app .gd-dialog .gd-dialog-err { margin: -6px 0 14px; color: var(--q-danger-text); font-size: 13px; }
+.ad-app .gd-danger:disabled { opacity: .45; filter: none; cursor: not-allowed; }
