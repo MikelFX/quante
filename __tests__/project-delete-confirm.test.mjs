@@ -22,3 +22,13 @@ test('the delete route and the dashboard both use the check', () => {
   assert.match(ui, /deleteNameMatches\(/)
   assert.match(ui, /confirmName/)
 })
+
+test('rows pointing at a version are cleared before the versions are deleted', () => {
+  const route = readFileSync(new URL('../app/api/projects/[id]/route.ts', import.meta.url), 'utf8')
+  const at = (s) => { const i = route.indexOf(s); assert.ok(i > 0, s); return i }
+  const versions = at("from('code_versions').delete()")
+  for (const s of ["from('generation_jobs').update({ code_version_id: null })", "from('deployments').delete()", "from('exports').delete()"]) {
+    assert.ok(at(s) < versions, s)
+  }
+  assert.ok(at("const step2 = step1 ?? await runCleanup") < versions)
+})
