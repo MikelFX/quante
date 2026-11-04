@@ -101,7 +101,7 @@ test('in production the Quante links point at quantecode.com, its overview at th
 })
 
 // Clerk only in the Quante app: these layouts wrap their tree in <QuanteClerk>.
-const CLERK_ROOTS = ['app/(app)', 'app/(marketing)', 'app/login', 'app/signup', 'app/qads', 'app/qscan', 'app/qgent']
+const CLERK_ROOTS = ['app/(app)', 'app/(marketing)', 'app/login', 'app/signup', 'app/qads', 'app/qscan', 'app/qgent', 'app/qbox']
 // Shared components that use Clerk on the client, and where they may be used.
 const CLERK_COMPONENTS = { 'components/public/PublicNav.tsx': 'PublicNav' }
 

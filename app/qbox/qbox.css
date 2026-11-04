@@ -1,0 +1,44 @@
+/* Qbox (/qbox): the /qads look (qads.css) plus the beta card, usage tiles, keys and quickstart.
+   Tokens only, Quante green, everything scoped under .qb (global CSS is never unloaded). */
+
+.qb .qb-sub { margin-top: 18px; }
+.qb .qb-eyebrow { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgb(var(--q-acc-rgb) / .4); color: var(--q-acc-text); font: 600 12px/1 var(--q-mono); letter-spacing: .12em; text-transform: uppercase; }
+.qb .qb-dot { width: 7px; height: 7px; background: var(--q-acc); box-shadow: 0 0 10px rgb(var(--q-acc-rgb) / .8); }
+.qb .qb-wrap { max-width: 860px; margin: clamp(28px, 5vw, 48px) auto 0; display: grid; gap: 18px; }
+.qb .qb-card { padding: clamp(18px, 3vw, 28px); border-radius: 24px; border: 1px solid var(--q-glass-border); background: linear-gradient(180deg, var(--q-glass1), var(--q-glass2)), var(--q-s1); box-shadow: inset 0 1px 0 var(--q-glass-hi), 0 30px 80px -40px var(--q-shadow); display: grid; gap: 14px; }
+.qb .qb-card form { display: grid; gap: 12px; }
+.qb .qb-card h2 { display: flex; align-items: center; gap: 10px; margin: 0; font: 650 20px/1.2 var(--q-sans); color: var(--q-fg); }
+.qb .qb-card h2 svg { width: 20px; height: 20px; color: var(--q-acc-text); }
+.qb .qb-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.qb .qb-muted { margin: 0; font: 400 14px/1.5 var(--q-sans); color: var(--q-fg3); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qb .qb-label { font: 500 14px/1.4 var(--q-sans); color: var(--q-fg2); }
+.qb .qb-area { min-height: 90px; resize: vertical; }
+.qb .qb-ok { color: var(--q-acc-text); }
+.qb .qb-spin { width: 16px; height: 16px; animation: qb-spin 1s linear infinite; }
+@keyframes qb-spin { to { transform: rotate(360deg); } }
+.qb code { font: 500 13px/1.4 var(--q-mono); color: var(--q-fg2); overflow-wrap: anywhere; }
+
+.qb .qb-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.qb .qb-stats > div { padding: 16px 18px; border-radius: 18px; border: 1px solid var(--q-line2); background: var(--q-s1); display: grid; gap: 4px; }
+.qb .qb-stats b { font: 650 24px/1.1 var(--q-sans); color: var(--q-fg); }
+.qb .qb-stats span { font: 400 13px/1.35 var(--q-sans); color: var(--q-fg3); }
+
+.qb .qb-new { padding: 14px; border-radius: 16px; border: 1px solid rgb(var(--q-acc-rgb) / .45); background: rgb(var(--q-acc-rgb) / .08); display: grid; gap: 8px; }
+.qb .qb-new p { margin: 0; font: 500 14px/1.4 var(--q-sans); color: var(--q-fg); }
+.qb .qb-keyrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.qb .qb-keyrow code { flex: 1; min-width: 0; color: var(--q-fg); }
+.qb .qb-keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.qb .qb-keys li { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--q-line); }
+.qb .qb-keys li b { font: 600 14px/1.3 var(--q-sans); color: var(--q-fg); }
+.qb .qb-keyform { display: flex !important; gap: 10px; align-items: center; flex-wrap: wrap; }
+.qb .qb-keyform .qt-input { flex: 1; min-width: 200px; }
+.qb .qb-copy, .qb .qb-icon { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px; border-radius: 12px; border: 1px solid var(--q-line2); background: transparent; color: var(--q-fg2); font: 500 13px/1 var(--q-sans); cursor: pointer; }
+.qb .qb-copy:hover, .qb .qb-icon:hover { color: var(--q-fg); border-color: rgb(var(--q-acc-rgb) / .4); }
+.qb .qb-copy svg, .qb .qb-icon svg { width: 15px; height: 15px; }
+.qb .qb-icon { min-width: 40px; justify-content: center; padding: 0; }
+.qb .qb-code { margin: 0; padding: 16px; border-radius: 16px; background: var(--q-s2); border: 1px solid var(--q-line); color: var(--q-fg2); font: 500 12.5px/1.6 var(--q-mono); overflow-x: auto; white-space: pre; }
+.qb .qb-fine { margin: 4px 0 40px; text-align: center; font: 400 12px/1.5 var(--q-sans); color: var(--q-fg3); }
+
+@media (max-width: 640px) {
+  .qb .qb-stats { grid-template-columns: 1fr; }
+}

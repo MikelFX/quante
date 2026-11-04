@@ -408,6 +408,13 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - „Produkty“ menu (`app/(site)/_components/ProductsMenu.tsx`, `.pm-*` in site.css) on both headers: every module from `productLinks()` (`content/assetra/modules.ts`, `badge` = highlight, Qgent „20 agentů“). App side: `PublicNav` lists All products / Qads / Qscan / Qgent / Generate / Pricing (scrolling row on phones); the app sidebar has a products section, the phone bar a „Products“ item.
 - Qgent's module copy describes the 20-agent `/qgent` first, the Studio panel second; app entry „Poslat 20 agentů“ → /qgent.
 
+## 13n. Qbox — sandboxes for AI agents, closed beta (2026-11-04)
+
+- Owner: our own sandbox service under our brand (working name **Qbox**, plan `/mnt/project-files/sandbox/sandbox-pro-agenty.md`). Phase 0 = our API + keys + limits on an exchangeable engine: the routes talk only to `SandboxEngine` (`lib/qbox/provider.ts`); today `lib/qbox/vercel.ts` (Vercel Sandbox, same credentials as the visual editor, region `QBOX_SANDBOX_REGION`, default Vercel's iad1). Never import `@vercel/sandbox` in a route (test).
+- `/qbox` (app host): signed out → sign in; not invited → request access (`qbox_waitlist`); invited (`qbox_beta` row, added by the operator in SQL) → usage, API keys (sha256 hash + prefix stored, shown once), quickstart. API `app/api/qbox/v1/sandboxes[/id[/exec|/files]]`, `Authorization: Bearer qbx_…`, exempt from the cookie CSRF check in `proxy.ts`.
+- The beta is free, so the caps protect the operator's Vercel bill (`QBOX_BETA` in `lib/qbox/model.ts`, pure, `__tests__/qbox.test.mjs`): 2 running per member, 600 sandbox-minutes a month (the whole timeout is reserved at start), 30 min max lifetime, 20 running across the beta, `QBOX_DISABLED=1` pauses everything. The `qbox_sandboxes` row is written before the engine starts anything. Without `supabase/migration-qbox-beta.sql` it fails closed. No platform secret ever goes into a sandbox.
+- Not built yet: SDK packages, MCP server, billing (credits) after the beta, our own Firecracker nodes (plan phase 1).
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.
