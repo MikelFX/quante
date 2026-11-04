@@ -144,8 +144,8 @@ export function PublicNav() {
       {/* Phones and tablets: the same links in a row that scrolls sideways */}
       <nav
         aria-label="Quante products"
-        className="lg:hidden"
-        style={{ display: 'flex', gap: 18, overflowX: 'auto', padding: '0 1.5rem 10px', scrollbarWidth: 'none', whiteSpace: 'nowrap' }}
+        className="flex lg:hidden"
+        style={{ gap: 18, overflowX: 'auto', padding: '0 1.5rem 10px', scrollbarWidth: 'none', whiteSpace: 'nowrap' }}
       >
         {LINKS.map(l => <NavItem key={l.href} l={l} current={current(l.href)} />)}
       </nav>
