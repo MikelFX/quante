@@ -379,3 +379,39 @@
 .ad .qst-go{margin-top:auto;display:inline-flex;align-items:center;gap:8px;min-height:44px;font-weight:600;color:var(--accText)}
 .ad .qst-ar{display:inline-block;transition:transform .3s}
 .ad .qst-card:hover .qst-ar{transform:translateX(4px)}
+
+/* „Produkty“ in the floating nav (ProductsMenu.tsx, owner 2026-11-04: the products must be easy to
+   find on both hosts). Desktop: a panel under the nav pill; phone: chips at the top of the menu. */
+.ad .pm{display:flex}
+.ad .pm-b{appearance:none;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 15px;border:0;border-radius:999px;background:none;font:500 14px/1 var(--sans);color:var(--fg2);cursor:pointer;transition:background .3s,color .3s}
+.ad .pm-b:hover,.ad .pm[data-open] .pm-b{background:var(--line);color:var(--fg)}
+.ad .pm-b svg{width:12px;height:12px;transition:transform .3s var(--ease)}
+.ad .pm[data-open] .pm-b svg{transform:rotate(180deg)}
+.ad .pm-p{position:absolute;top:calc(100% + 10px);right:0;z-index:60;width:min(800px,calc(100vw - 24px));padding:18px;border-radius:24px;background:color-mix(in srgb,var(--bg) 97%,transparent);animation:ad-rise .35s var(--ease) backwards}
+.ad .pm-p[hidden]{display:none}
+.ad .pm-k{margin:0 4px 10px;font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--fg3)}
+.ad .pm-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0;padding:0;list-style:none}
+.ad .pm-p .pm-i{display:flex;flex-direction:column;align-items:flex-start;gap:6px;height:100%;min-height:0;padding:12px 14px;border-radius:16px;color:var(--fg)}
+.ad .pm-n{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font:650 15px/1.2 var(--sans)}
+.ad .pm-s{font:400 13px/1.4 var(--sans);color:var(--fg2)}
+.ad .pm-t{display:inline-flex;align-items:center;padding:3px 7px;border-radius:99px;border:1px solid var(--line2,var(--line));font:600 10px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--accText);white-space:nowrap}
+.ad .pm-hot{border-color:transparent;background:var(--acc);color:var(--accInk)}
+.ad .pm-dev .pm-n,.ad .pm-m .pm-dev b{color:var(--fg2)}
+.ad .pm-f{display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.ad .pm-p .pm-f a{min-height:44px;padding:0 14px;font:600 13.5px/1 var(--sans);color:var(--accText)}
+.ad #ad-menu:has(.pm-m){justify-content:flex-start;overflow-y:auto}
+.ad .pm-m{margin-bottom:auto;padding-bottom:18px;animation:ad-rise .7s var(--ease) backwards}
+.ad .pm-m ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.ad .pm-m a{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:48px;padding:0 12px 0 14px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--fg) 3%,transparent);color:var(--fg)}
+.ad .pm-m b{font:650 15px/1.1 var(--sans);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1180px){.ad .pm-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* module cards: a highlight (not „in development“) and the direct way into the app */
+.ad span.mc-new{color:var(--accText)}
+.ad a.mc-go{border-color:transparent;background:var(--acc);color:var(--accInk)}
+.ad a.mc-go:hover{border-color:transparent;color:var(--accInk);filter:brightness(1.06)}
+/* /quante hero: the newest product, one click away */
+.ad .q-new{display:flex;width:fit-content;align-items:center;gap:10px;min-height:44px;margin:14px 0 4px;padding:5px 16px 5px 5px;border:1px solid var(--line2,var(--line));border-radius:999px;font:500 14px/1.2 var(--sans);color:var(--fg);transition:border-color .3s}
+.ad .q-new:hover{border-color:var(--acc)}
+.ad .q-new b{padding:7px 11px;border-radius:999px;background:var(--acc);color:var(--accInk);font:700 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.ad .q-new span{color:var(--accText);transition:transform .3s}
+.ad .q-new:hover span{transform:translateX(3px)}

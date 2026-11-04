@@ -3,11 +3,12 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserButton } from '@clerk/nextjs'
-import { LayoutGrid, Plus, CreditCard, Settings, Store } from 'lucide-react'
+import { LayoutGrid, Plus, CreditCard, Settings, Store, Megaphone, ScanSearch, Bot, Boxes } from 'lucide-react'
 import { CreditPill } from '@/components/shell/CreditPill'
 import { AdMark, MotionToggle, ParticleMode, ThemeToggle } from '@ad/ui'
 import '@ad/ui/styles/assetra.css'
 import './app.css'
+import { quanteHref } from '@/lib/domains'
 
 const NAV = [
   { href: '/dashboard',    icon: LayoutGrid, label: 'Projects'    },
@@ -16,6 +17,15 @@ const NAV = [
   { href: '/billing',      icon: CreditCard, label: 'Billing'     },
   { href: '/settings',     icon: Settings,   label: 'Settings'    },
 ]
+
+// The Quante products that have their own page in the app (owner 2026-11-04: every product must be
+// easy to find). "All products" is the Quante overview (quantecode.com/).
+const PRODUCTS = [
+  { href: '/qads',  icon: Megaphone,  label: 'Qads'  },
+  { href: '/qscan', icon: ScanSearch, label: 'Qscan' },
+  { href: '/qgent', icon: Bot,        label: 'Qgent', badge: '20 agents' },
+]
+const ALL_PRODUCTS = quanteHref('/quante')
 
 /** The app chrome (header, sidebar, Studio frame). Client side; the layout wraps it in Clerk. */
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -72,6 +82,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <SidebarLink key={href} href={href} icon={Icon} label={label} active={active} />
                   )
                 })}
+                <p className="ad-app-label" style={{ marginTop: 14 }}>products</p>
+                {PRODUCTS.map(({ href, icon: Icon, label, badge }) => (
+                  <SidebarLink key={href} href={href} icon={Icon} label={label} badge={badge} active={pathname.startsWith(href)} />
+                ))}
+                <SidebarLink href={ALL_PRODUCTS} icon={Boxes} label="All products" active={false} />
               </nav>
 
               {/* Bottom: credits + user */}
@@ -119,6 +134,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <BottomNavItem key={href} href={href} icon={Icon} label={label} active={active} />
               )
             })}
+            <BottomNavItem href={ALL_PRODUCTS} icon={Boxes} label="Products" active={false} />
           </nav>
         </>
       )}
@@ -129,12 +145,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function SidebarLink({
-  href, icon: Icon, label, active,
+  href, icon: Icon, label, active, badge,
 }: {
   href: string
   icon: React.ElementType
   label: string
   active: boolean
+  badge?: string
 }) {
   return (
     <Link
@@ -172,6 +189,15 @@ function SidebarLink({
       )}
       <Icon size={15} strokeWidth={active ? 2.2 : 1.7} />
       {label}
+      {badge && (
+        <span style={{
+          marginLeft: 'auto', padding: '2px 6px', borderRadius: 99,
+          fontSize: 9.5, fontWeight: 650, letterSpacing: '.04em', textTransform: 'uppercase',
+          fontFamily: 'var(--q-mono)', color: 'var(--q-acc-text)', border: '1px solid rgb(var(--q-acc-rgb) / .35)',
+        }}>
+          {badge}
+        </span>
+      )}
     </Link>
   )
 }

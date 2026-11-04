@@ -15,7 +15,19 @@ export interface NavLink {
  * Floating glass navigation pill with a scroll-progress line (CSS scroll timeline), theme
  * switch, and a full-screen menu below 1080 px. Escape closes the menu and returns focus.
  */
-export function FloatingNav({ links, cta, homeHref = '/', actions }: { links: NavLink[]; cta: { href: string; label: string }; homeHref?: string; actions?: ReactNode }) {
+export function FloatingNav({ links, cta, homeHref = '/', actions, logo, extra, menuLead, label = 'Hlavní menu' }: {
+  links: NavLink[]
+  cta: { href: string; label: string }
+  homeHref?: string
+  actions?: ReactNode
+  /** Replaces the AssetraDigital logo (e.g. the Quante pages). */
+  logo?: ReactNode
+  /** Rendered after the desktop links (e.g. a products menu). */
+  extra?: ReactNode
+  /** Rendered first in the full-screen mobile menu; gets a close callback. */
+  menuLead?: (close: () => void) => ReactNode
+  label?: string
+}) {
   const [open, setOpen] = useState(false)
   const burger = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -38,9 +50,10 @@ export function FloatingNav({ links, cta, homeHref = '/', actions }: { links: Na
   return (
     <div data-menu={open ? 'open' : 'closed'} style={{ display: 'contents' }}>
       <header className="nav glass">
-        <Logo href={homeHref} />
-        <nav className="links" aria-label="Hlavní menu">
+        {logo ?? <Logo href={homeHref} />}
+        <nav className="links" aria-label={label}>
           {links.map((l) => <SmartLink key={l.href} href={l.href}>{l.label}</SmartLink>)}
+          {extra}
         </nav>
         <Button href={cta.href} variant="pri" beam>{cta.label}</Button>
         {actions}
@@ -51,6 +64,7 @@ export function FloatingNav({ links, cta, homeHref = '/', actions }: { links: Na
         <i className="prog" aria-hidden="true" />
       </header>
       <div className="menu" id="ad-menu" ref={menu} hidden={!open}>
+        {menuLead?.(close)}
         {links.map((l, i) => (
           <SmartLink key={l.href} className="mi" href={l.href} onClick={close} style={i ? { animationDelay: i * 0.05 + 's' } : undefined}>
             {l.label}

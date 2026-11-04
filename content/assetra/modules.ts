@@ -6,15 +6,16 @@
 //  - generate: /new → /api/quante/generate, build check + automatic fixes (MAX_AUTO_FIX_ATTEMPTS)
 //  - qdit:     the Studio visual editor (lib/editor/*), desktop only
 //  - qads:     /qads — ad photos and videos from uploaded product photos, download only
-//  - qgent:    Studio → Qgent (app/api/projects/[id]/qgent, lib/qgent/shop.ts) + the website
-//              assistant (app/api/qgent/public)
+//  - qgent:    /qgent — 20 agents review a store by its address (/api/qgent/swarm) or build a new
+//              store from it (Qscan + /api/quante/generate), verified 2026-11-04; Studio → Qgent
+//              (app/api/projects/[id]/qgent, lib/qgent/shop.ts) + the website assistant (app/api/qgent/public)
 //  - qscan:    /qscan → /api/qscan (lib/qscan/*): reads a store by its address (platform APIs,
 //              JSON-LD, pages), copies its photos and short videos, then builds a new store via
 //              /api/quante/generate (verified 2026-10-28)
 //  - qails: no product code yet → 'dev': labelled „Ve vývoji“, no way into the app,
 //    no dates promised.
 
-import { appHref } from '@/lib/domains'
+import { appHref, quanteHref } from '@/lib/domains'
 
 export type ModuleStatus = 'live' | 'dev'
 export type ModuleSlug = 'generate' | 'qscan' | 'qgent' | 'qdit' | 'qads' | 'qails'
@@ -26,6 +27,8 @@ export interface QuanteModule {
   short: string
   /** small mono tag on the card */
   tag: string
+  /** short highlight in the products menu and footer (modules in development get „Ve vývoji“) */
+  badge?: string
   status: ModuleStatus
   /** particle shapes of the module page zone */
   shapes: string[]
@@ -49,6 +52,7 @@ export const quanteApp = {
   newStore: appHref('/new'),
   qads: appHref('/qads'),
   qscan: appHref('/qscan'),
+  qgent: appHref('/qgent'),
   agency: appHref('/billing#agency'),
   /** The onboarding wizard (app/start): who you are → what first → straight into the module. */
   start: appHref('/start'),
@@ -57,11 +61,12 @@ export const quanteApp = {
 /** /quante "Kde začít": three goals, each opens the app's onboarding with the goal already picked. */
 export const quanteStart = {
   title: 'Co chcete udělat jako první?',
-  sub: 'Vyberte cíl, odpovězte na dvě krátké otázky a Quante vás zavede rovnou do správného modulu s vyplněným zadáním.',
+  sub: 'Vyberte cíl a Quante vás zavede rovnou do správného produktu s vyplněným zadáním.',
   goals: [
     { goal: 'ads', module: 'Qads', title: 'Reklamy na produkt', text: 'Reklamní videa a fotky, AI tvůrce, který produkt představí, nebo plán na 30 dní.', href: appHref('/start?goal=ads') },
     { goal: 'scan', module: 'Qscan', title: 'Převést můj e-shop', text: 'Zadáte adresu a Qscan z produktů, fotek a textů postaví nový obchod.', href: appHref('/start?goal=scan') },
     { goal: 'new', module: 'Generate', title: 'Nový e-shop', text: 'Popíšete, co prodáváte, a Quante postaví celý obchod i s pokladnou.', href: appHref('/start?goal=new') },
+    { goal: 'qgent', module: 'Qgent', title: 'Zkontrolovat můj e-shop', text: 'Zadáte adresu a 20 agentů ho projde vrstvu po vrstvě. Návrhy přijmete, nebo odmítnete.', href: appHref('/qgent') },
   ],
 } as const
 
@@ -96,6 +101,7 @@ export const modules: QuanteModule[] = [
     name: 'Qscan',
     short: 'Stávající e-shop podle adresy převede do nového, lepšího obchodu v Quante.',
     tag: 'sken',
+    badge: 'Nové',
     status: 'live',
     shapes: ['SCAN'],
     lead: 'Zadáte adresu e-shopu nebo webu. Qscan z něj vezme produkty, ceny, fotky, videa a texty a Quante z nich postaví nový, graficky mnohem lepší obchod.',
@@ -110,31 +116,35 @@ export const modules: QuanteModule[] = [
     links: [
       { to: 'generate', text: 'Naskenovaný obchod postaví Quante Generate.' },
       { to: 'qdit', text: 'Úpravy po převodu uděláte v Qdit.' },
-      { to: 'qgent', text: 'Qgent nový obchod projde a navrhne, co ještě zlepšit.' },
+      { to: 'qgent', text: '20 agentů Qgent projde starý e-shop a jejich přijaté návrhy dostane i ten nový.' },
     ],
     app: { label: 'Naskenovat e-shop', href: quanteApp.qscan },
   },
   {
     slug: 'qgent',
     name: 'Qgent',
-    short: 'Agent, který s vámi projde celý e-shop a po vašem potvrzení ho upraví.',
-    tag: 'agent',
+    short: '20 agentů najednou projde váš e-shop, navrhne úpravy, nebo z něj postaví nový.',
+    tag: '20 agentů',
+    badge: '20 agentů',
     status: 'live',
     shapes: ['AGENT'],
-    lead: 'Agent, který s vámi projde celý e-shop, navrhne úpravy a provede je, až je potvrdíte.',
+    lead: 'Dvacet agentů najednou projde váš e-shop vrstvu po vrstvě, navrhne úpravy a vy si vyberete, které chcete.',
     features: [
-      { title: 'Projde e-shop s vámi', text: 'Stránku po stránce upozorní, co chybí nebo nefunguje.' },
-      { title: 'Nejdřív náhled', text: 'Každou změnu ukáže předem a provede ji až po vašem potvrzení.' },
-      { title: 'Všechno jde vrátit', text: 'Každá změna se zapíše a jde vrátit zpátky.' },
-      { title: 'Peníze a doprava zvlášť', text: 'Platby, dopravu ani ceny nezmění bez samostatného potvrzení.' },
-      { title: 'Podklady pro reklamy', text: 'Sbírá informace o e-shopu, ze kterých Qads připraví reklamy.' },
+      { title: 'Stačí adresa', text: 'Zadáte adresu e-shopu a agenti si přečtou úvodní stránku a jednu stránku produktu. Nic neinstalujete.' },
+      { title: '20 specialistů naráz', text: 'Každý agent hlídá něco jiného: nadpisy, texty, tlačítka, produkty, ceny, dopravu, důvěru, SEO, přístupnost, mobil, rychlost i právní minimum.' },
+      { title: 'Živě po vrstvách', text: 'Díváte se, jak agenti procházejí stránku vrstvu po vrstvě, a návrhy přibývají hned, jak je najdou.' },
+      { title: 'Chcete, nebo nechcete', text: 'Každý návrh přijmete, nebo odmítnete. Na vašem webu se nic nemění a nic neukládáme.' },
+      { title: 'Nový e-shop podle starého', text: 'Agenti z adresy postaví nový obchod v Quante i s návrhy, které jste přijali. Na stavbu se díváte část po části.' },
+      { title: 'Ve Studiu u vašeho obchodu', text: 'U obchodu z Quante projde Qgent i kód. Každou změnu ukáže předem, provede ji až po potvrzení a jde vrátit. Platby, dopravu a ceny nezmění bez samostatného potvrzení.' },
     ],
-    note: 'Qgent najdete ve Studiu u každého obchodu v režimu „Qgent“. Kontrolu spustíte tlačítkem a nic se nezmění bez vašeho potvrzení. Na webu AssetraDigital odpovídá i na otázky návštěvníků.',
+    note: 'Agenty pošlete jen na e-shop, který je váš nebo jehož obsah smíte použít. Kontrolu kódu obchodu z Quante najdete ve Studiu v režimu „Qgent“. Na webu AssetraDigital Qgent odpovídá i na otázky návštěvníků.',
     links: [
+      { to: 'qscan', text: 'Nový obchod podle starého staví agenti nad skenem z Qscan.' },
+      { to: 'generate', text: 'Nový obchod postaví Quante Generate i s přijatými návrhy.' },
       { to: 'qdit', text: 'Co navrhne, můžete místo potvrzení upravit ručně v Qdit.' },
       { to: 'qads', text: 'Informace o e-shopu předá Qads pro reklamy.' },
     ],
-    app: { label: 'Otevřít Quante', href: quanteApp.dashboard },
+    app: { label: 'Poslat 20 agentů', href: quanteApp.qgent },
   },
   {
     slug: 'qdit',
@@ -164,6 +174,7 @@ export const modules: QuanteModule[] = [
     name: 'Qads',
     short: 'Reklamní videa a fotky pro váš e-shop, připravené ke stažení.',
     tag: 'reklamy',
+    badge: 'Nové',
     status: 'live',
     shapes: ['ADS'],
     lead: 'Reklamní fotky a videa z fotek vašeho produktu. Hotové soubory si stáhnete a použijete, kde chcete.',
@@ -215,12 +226,28 @@ export const quanteFlow: { slug: ModuleSlug; title: string; text: string }[] = [
   { slug: 'qscan', title: 'Převod', text: 'Qscan přenese stávající e-shop podle adresy.' },
   { slug: 'generate', title: 'Stavba', text: 'Quante Generate postaví e-shop ze zadání a ohlídá, aby se sestavil.' },
   { slug: 'qdit', title: 'Doladění', text: 'V Qdit upravíte texty, vzhled a rozložení přímo na stránce.' },
-  { slug: 'qgent', title: 'Kontrola', text: 'Qgent projde celý e-shop a navrhne úpravy, které po potvrzení provede.' },
+  { slug: 'qgent', title: 'Kontrola', text: 'Dvacet agentů Qgent projde e-shop vrstvu po vrstvě a vy přijmete návrhy, které chcete.' },
   { slug: 'qads', title: 'Propagace', text: 'Qads připraví reklamní fotky a videa ke stažení.' },
   { slug: 'qails', title: 'Komunikace', text: 'Qails sjednotí e-maily všech obchodů na jednom místě.' },
 ]
 
-export const moduleHref = (m: Pick<QuanteModule, 'slug'>) => '/quante/' + m.slug
+/** The module page — on quantecode.com in production (lib/domains.ts quanteHref). */
+export const moduleHref = (m: Pick<QuanteModule, 'slug'>) => quanteHref('/quante/' + m.slug)
+/** The Quante overview (quantecode.com/ in production), optionally at one of its sections. */
+export const quanteHome = (hash = '') => quanteHref('/quante' + hash)
+
+/** The products menu and footer list: every module with its page, short line and highlight. */
+export function productLinks() {
+  return modules.map((m) => ({
+    slug: m.slug,
+    name: m.name,
+    short: m.short,
+    href: moduleHref(m),
+    app: m.app,
+    badge: m.status === 'dev' ? 'Ve vývoji' : m.badge,
+    dev: m.status === 'dev',
+  }))
+}
 export const moduleBySlug = (slug: string) => modules.find((m) => m.slug === slug)
 
 const CS_LIVE = ['Žádný modul zatím nefunguje', 'Jeden modul funguje', 'Dva moduly fungují', 'Tři moduly fungují', 'Čtyři moduly fungují', 'Pět modulů funguje', 'Šest modulů funguje']

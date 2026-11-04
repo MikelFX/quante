@@ -109,12 +109,13 @@ test('the wizard and its API never spend credits', () => {
   }
 })
 
-test('quantecode.com/ opens the wizard for signed-out visitors (the website keeps its homepage)', () => {
+test('quantecode.com/ is the Quante overview, the wizard is linked from it (owner 2026-11-04)', () => {
   const cfg = src('next.config.ts')
   assert.match(cfg, /hostRedirects\(SITE_PATHS\.filter\(\(p\) => p !== '\/'\), APP_HOST_PATTERN, SITE_ORIGIN\)/)
   assert.match(cfg, /hostRedirects\(APP_PATHS, SITE_HOST_PATTERN, APP_ORIGIN\)/)
+  assert.match(cfg, /destination: '\/quante' \}/)
   const proxy = src('proxy.ts')
-  assert.match(proxy, /userId \? '\/dashboard' : '\/start'/)
-  assert.match(proxy, /=== 'app'/)
-  assert.match(proxy, /isSitePath\(req\.nextUrl\.pathname\) && !isAppRoot\(req\)/)
+  assert.doesNotMatch(proxy, /isAppRoot/)
+  // the overview links into the wizard
+  assert.match(src('app/(site)/(quante)/quante/page.tsx'), /quanteApp\.start/)
 })

@@ -10,7 +10,7 @@
 // contact fields stay as TODO(michal) placeholders until the company data
 // is known — `isFilled()` drops any field that still has one, so an
 // unfilled block never leaks a placeholder to the public site.
-import { siteHref } from '@/lib/domains'
+import { quanteHref, siteHref } from '@/lib/domains'
 import { company } from '@/content/assetra/site'
 
 const companyName  = company.name
@@ -63,11 +63,12 @@ export const socialLinks: Array<{ label: string; href: string }> = []
 /** Website links are absolute in production — the website lives on its own host (lib/domains.ts). */
 export const footerNav = {
   product: [
-    { label: 'Quante',     href: siteHref('/quante') },
-    { label: 'Pricing',    href: siteHref('/quante#cenik') },
+    { label: 'Quante',     href: quanteHref('/quante') },
+    { label: 'Pricing',    href: quanteHref('/quante#cenik') },
     { label: 'Changelog',  href: '/changelog' },
     { label: 'Qads',       href: '/qads', badge: 'New' as const },
     { label: 'Qscan',      href: '/qscan', badge: 'New' as const },
+    { label: 'Qgent',      href: '/qgent', badge: 'New' as const },
   ],
   company: [
     { label: 'AssetraDigital', href: siteHref('/') },

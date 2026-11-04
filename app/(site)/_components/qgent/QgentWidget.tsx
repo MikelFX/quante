@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 import { AdMark, ParticleZone, useMotionAllowed } from '@ad/ui'
 import { QGENT_QUICK_PROMPTS } from '@/content/assetra/qgent'
 import type { QgentAction } from '@ad/qgent/public'
+import { isQuantePath, quanteHref } from '@/lib/domains'
 import { offerPrefill } from './prefill'
 
 // Qgent on the AssetraDigital website: floating button bottom-right, glass panel with a particle
@@ -118,6 +119,11 @@ export function QgentWidget() {
     if (path.current === page) {
       if (anchor) document.getElementById(anchor)?.scrollIntoView({ behavior: motion ? 'smooth' : 'auto', block: 'start' })
       else window.scrollTo({ top: 0, behavior: motion ? 'smooth' : 'auto' })
+    } else if (isQuantePath(page)) {
+      // the Quante pages live on quantecode.com in production (lib/domains.ts)
+      const to = quanteHref(anchor ? `${page}#${anchor}` : page)
+      if (/^https?:/.test(to)) window.location.assign(to)
+      else router.push(to)
     } else {
       router.push(anchor ? `${page}#${anchor}` : page)
     }

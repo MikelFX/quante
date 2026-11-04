@@ -1,19 +1,21 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useUser, useClerk } from '@clerk/nextjs'
 import { LiquidGlassDefs } from './LiquidGlassDefs'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
-import { siteHref } from '@/lib/domains'
+import { quanteHref } from '@/lib/domains'
 
-// The marketing pages moved to the Czech AssetraDigital site (app/(site)); this nav is left
-// on the remaining Quante pages (Qads, Qscan, changelog, legal) until they get the new design.
+// The nav of the Quante tool pages (Qads, Qscan, Qgent) and the legal pages. Every product is one
+// click away (owner 2026-11-04): on phones the links sit in a scrolling row under the bar.
 const LINKS = [
-  { href: siteHref('/quante'), label: 'Quante' },
-  { href: siteHref('/quante#cenik'), label: 'Pricing' },
+  { href: quanteHref('/quante'), label: 'All products' },
   { href: '/qads', label: 'Qads' },
   { href: '/qscan', label: 'Qscan' },
-  { href: siteHref('/'), label: 'Assetra Digital' },
+  { href: '/qgent', label: 'Qgent', badge: '20 agents' },
+  { href: '/new', label: 'Generate' },
+  { href: quanteHref('/quante#cenik'), label: 'Pricing' },
 ]
 
 // Shared sticky glass nav for every public/marketing page. Deliberately the
@@ -28,6 +30,8 @@ const LINKS = [
 export function PublicNav() {
   const { isSignedIn, isLoaded } = useUser()
   const { signOut } = useClerk()
+  const path = usePathname()
+  const current = (href: string) => (href.startsWith('/') && (path === href || path.startsWith(href + '/')) ? 'page' : undefined)
 
   return (
     <>
@@ -68,20 +72,13 @@ export function PublicNav() {
           justifyContent: 'space-between',
         }}
       >
-        <Link href={siteHref('/quante')} aria-label="Quante" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
+        <Link href={quanteHref('/quante')} aria-label="Quante, all products" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
           <QuanteBrand />
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
-          {LINKS.map(l => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="hidden sm:block"
-              style={{ fontSize: 13.5, color: 'var(--qp-sub)', textDecoration: 'none' }}
-            >
-              {l.label}
-            </Link>
-          ))}
+          <nav aria-label="Quante products" className="hidden lg:flex" style={{ alignItems: 'center', gap: 22 }}>
+            {LINKS.map(l => <NavItem key={l.href} l={l} current={current(l.href)} />)}
+          </nav>
           {/* Auth cluster: layout is stable across states (an anonymous
               visitor sees Log in + Try free; a signed-in visitor sees
               Sign out + Dashboard) so the nav's total width doesn't shift
@@ -144,7 +141,40 @@ export function PublicNav() {
           )}
         </div>
       </div>
+      {/* Phones and tablets: the same links in a row that scrolls sideways */}
+      <nav
+        aria-label="Quante products"
+        className="lg:hidden"
+        style={{ display: 'flex', gap: 18, overflowX: 'auto', padding: '0 1.5rem 10px', scrollbarWidth: 'none', whiteSpace: 'nowrap' }}
+      >
+        {LINKS.map(l => <NavItem key={l.href} l={l} current={current(l.href)} />)}
+      </nav>
     </header>
     </>
+  )
+}
+
+function NavItem({ l, current }: { l: (typeof LINKS)[number]; current?: 'page' }) {
+  return (
+    <Link
+      href={l.href}
+      aria-current={current}
+      className="q-tap"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+        fontSize: 13.5, textDecoration: 'none',
+        color: current ? 'var(--q-fg)' : 'var(--qp-sub)', fontWeight: current ? 600 : 400,
+      }}
+    >
+      {l.label}
+      {'badge' in l && l.badge && (
+        <span style={{
+          fontSize: 10, fontWeight: 700, letterSpacing: '.04em', textTransform: 'uppercase',
+          padding: '3px 6px', borderRadius: 99, background: 'var(--qp-accent)', color: 'var(--q-acc-ink)',
+        }}>
+          {l.badge}
+        </span>
+      )}
+    </Link>
   )
 }

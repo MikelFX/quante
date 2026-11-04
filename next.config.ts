@@ -38,15 +38,26 @@ const nextConfig: NextConfig = {
       { source: '/((?!api/preview/component).*)', headers: securityHeaders },
     ]
   },
+  async rewrites() {
+    return {
+      // quantecode.com/ shows the Quante overview (app/(site)/(quante)/quante); the URL stays "/".
+      beforeFiles: [{ source: '/', has: [{ type: 'host', value: APP_HOST_PATTERN }], destination: '/quante' }],
+      afterFiles: [],
+      fallback: [],
+    }
+  },
   async redirects() {
     return [
       // Domain split (lib/domains.ts): the website lives on assetradigital.agency, the app on
       // quantecode.com. Each host sends the other surface's paths across; /api/* never moves.
       // Previews and localhost match neither host and keep serving both surfaces.
-      // Except "/": quantecode.com/ is the app's front door — proxy.ts sends a signed-out visitor
-      // to the onboarding wizard (/start) and a signed-in one to the dashboard (owner 2026-11-01).
+      // Except "/": quantecode.com/ is the Quante overview (rewrites below, owner 2026-11-04).
       ...hostRedirects(SITE_PATHS.filter((p) => p !== '/'), APP_HOST_PATTERN, SITE_ORIGIN),
       ...hostRedirects(APP_PATHS, SITE_HOST_PATTERN, APP_ORIGIN),
+      // The Quante product pages (QUANTE_PATHS) live on quantecode.com, its overview at the root.
+      { source: '/quante', has: [{ type: 'host', value: SITE_HOST_PATTERN }], destination: APP_ORIGIN + '/', permanent: true },
+      { source: '/quante/:path+', has: [{ type: 'host', value: SITE_HOST_PATTERN }], destination: APP_ORIGIN + '/quante/:path+', permanent: true },
+      { source: '/quante', has: [{ type: 'host', value: APP_HOST_PATTERN }], destination: '/', permanent: true },
       // Qads moved out of the Studio (was /project/:id/ads/...) and into a
       // standalone generator at /qads that doesn't tie to a specific project.
       // 308 (permanent, preserves method) rather than 307 so search engines +

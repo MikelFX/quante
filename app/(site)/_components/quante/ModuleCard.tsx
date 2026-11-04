@@ -14,7 +14,9 @@ export function ModuleCard({ m, i }: { m: QuanteModule; i: number }) {
         <div className="lk">
           <span>{m.tag}</span>
           {m.status === 'dev' && <span className="wip">Ve vývoji</span>}
+          {m.badge && m.badge !== m.tag && <span className="mc-new">{m.badge}</span>}
           <Link href={moduleHref(m)} aria-label={`${m.name}: detail modulu`}>Detail modulu ↗</Link>
+          {m.app && <a className="mc-go" href={m.app.href} aria-label={`${m.name}: ${m.app.label}`}>{m.app.label} →</a>}
         </div>
       </div>
     </article>

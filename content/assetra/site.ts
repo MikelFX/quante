@@ -4,6 +4,8 @@
 // from it. Anything we do not know yet is `null` and renders as a visible [placeholder] —
 // never invent company data, prices, contacts or promises.
 
+import { quanteHref } from '@/lib/domains'
+
 export const company = {
   name: 'AssetraDigital s.r.o.',
   ico: null as string | null, // [IČO] — the company is being founded
@@ -22,7 +24,6 @@ export const nav: { id?: string; href?: string; label: string; num: string }[] =
   { id: 'sluzby', label: 'Služby', num: '01' },
   { id: 'pro-koho', label: 'Pro koho', num: '02' },
   { href: '/web-eshop', label: 'Web & Eshop', num: '05' },
-  { href: '/quante', label: 'Quante', num: '06' },
 ]
 
 export const cta = { label: 'Domluvit konzultaci', target: 'kontakt' } as const
@@ -54,7 +55,7 @@ export const paths = [
     kicker: 'Udělejte si to sami',
     title: 'Quante',
     text: 'Celý e-shop na jednom místě: vygenerovat, upravit, propagovat a spravovat.',
-    cta: { label: 'Prohlédnout Quante', href: '/quante' },
+    cta: { label: 'Prohlédnout Quante', href: quanteHref('/quante') },
   },
 ] as const
 

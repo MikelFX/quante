@@ -9,7 +9,7 @@ import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url))
-const { SITE_PATHS, APP_PATHS, hostKind, isSitePath, siteHref, appHref } = await import('../lib/domains.ts')
+const { SITE_PATHS, APP_PATHS, QUANTE_PATHS, hostKind, isSitePath, isQuantePath, isClerkFreePage, siteHref, appHref, quanteHref } = await import('../lib/domains.ts')
 
 /** First URL segment a Next path pattern covers ('' for '/'). */
 const first = (p) => p.split('/')[1].replace(/:.*$/, '')
@@ -39,11 +39,25 @@ function routes() {
 test('every route belongs to exactly one host', () => {
   const site = new Set(SITE_PATHS.map(first))
   const app = new Set(APP_PATHS.map(first))
-  for (const s of site) assert.ok(!app.has(s), `/${s} is on both lists`)
+  const quante = new Set(QUANTE_PATHS.map(first))
+  for (const s of site) assert.ok(!app.has(s) && !quante.has(s), `/${s} is on two lists`)
+  for (const q of quante) assert.ok(!app.has(q), `/${q} is on two lists`)
   for (const r of routes()) {
-    if (r.site) assert.ok(site.has(r.seg), `${r.file}: /${r.seg} is a website page — add it to SITE_PATHS`)
+    if (r.site) assert.ok(site.has(r.seg) || quante.has(r.seg), `${r.file}: /${r.seg} is a website page — add it to SITE_PATHS (or QUANTE_PATHS)`)
     else assert.ok(app.has(r.seg), `${r.file}: /${r.seg} is an app page — add it to APP_PATHS`)
   }
+  // the Quante product pages are rendered by app/(site)/(quante)
+  for (const r of routes().filter((r) => quante.has(r.seg))) assert.match(r.file, /app[\\/]\(site\)[\\/]\(quante\)/, r.file)
+})
+
+test('quantecode.com is the Quante products: its root is the overview, assetradigital.agency sends them across', async () => {
+  const cfg = readFileSync(join(ROOT, 'next.config.ts'), 'utf8')
+  assert.match(cfg, /beforeFiles: \[\{ source: '\/', has: \[\{ type: 'host', value: APP_HOST_PATTERN \}\], destination: '\/quante' \}\]/)
+  assert.match(cfg, /source: '\/quante', has: \[\{ type: 'host', value: SITE_HOST_PATTERN \}\], destination: APP_ORIGIN \+ '\/'/)
+  assert.match(cfg, /source: '\/quante\/:path\+', has: \[\{ type: 'host', value: SITE_HOST_PATTERN \}\], destination: APP_ORIGIN \+ '\/quante\/:path\+'/)
+  assert.match(cfg, /source: '\/quante', has: \[\{ type: 'host', value: APP_HOST_PATTERN \}\], destination: '\/'/)
+  // the app host's root is no longer sent to the wizard / dashboard
+  assert.doesNotMatch(readFileSync(join(ROOT, 'proxy.ts'), 'utf8'), /isAppRoot|'\/start'/)
 })
 
 test('hosts are told apart, previews and localhost serve both', () => {
@@ -57,14 +71,33 @@ test('hosts are told apart, previews and localhost serve both', () => {
   assert.equal(hostKind('assetradigital.agency.evil.com'), 'shared')
 })
 
-test('website pages skip Clerk in the proxy, nothing else does', () => {
-  for (const p of ['/', '/quante', '/quante/', '/quante/qads', '/obchodni-podminky', '/design', '/og']) assert.ok(isSitePath(p), p)
-  for (const p of ['/quantex', '/qads', '/login', '/dashboard', '/api/leads', '/api/qgent/public', '/terms', '/preview/x']) assert.ok(!isSitePath(p), p)
+test('website and Quante pages skip Clerk in the proxy, nothing else does', () => {
+  for (const p of ['/', '/obchodni-podminky', '/design', '/og']) assert.ok(isSitePath(p) && isClerkFreePage(p), p)
+  for (const p of ['/quante', '/quante/', '/quante/qads', '/quante/qgent']) assert.ok(isQuantePath(p) && !isSitePath(p) && isClerkFreePage(p), p)
+  for (const p of ['/quantex', '/qads', '/qgent', '/login', '/dashboard', '/api/leads', '/api/qgent/public', '/terms', '/preview/x']) assert.ok(!isClerkFreePage(p), p)
+  assert.match(readFileSync(join(ROOT, 'proxy.ts'), 'utf8'), /if \(isClerkFreePage\(req\.nextUrl\.pathname\)\) return NextResponse\.next\(\)/)
 })
 
 test('outside production builds the cross-host links stay relative', () => {
   assert.equal(siteHref('/quante#cenik'), '/quante#cenik')
   assert.equal(appHref('/dashboard'), '/dashboard')
+  assert.equal(quanteHref('/quante#cenik'), '/quante#cenik')
+  assert.equal(quanteHref('/quante/qgent'), '/quante/qgent')
+})
+
+test('in production the Quante links point at quantecode.com, its overview at the root', async () => {
+  const prev = process.env.NEXT_PUBLIC_VERCEL_ENV
+  process.env.NEXT_PUBLIC_VERCEL_ENV = 'production'
+  try {
+    const d = await import('../lib/domains.ts?prod')
+    assert.equal(d.quanteHref('/quante'), 'https://quantecode.com/')
+    assert.equal(d.quanteHref('/quante#cenik'), 'https://quantecode.com/#cenik')
+    assert.equal(d.quanteHref('/quante/qgent'), 'https://quantecode.com/quante/qgent')
+    assert.equal(d.quanteHref('/quantex'), 'https://quantecode.com/quantex')
+  } finally {
+    if (prev === undefined) delete process.env.NEXT_PUBLIC_VERCEL_ENV
+    else process.env.NEXT_PUBLIC_VERCEL_ENV = prev
+  }
 })
 
 // Clerk only in the Quante app: these layouts wrap their tree in <QuanteClerk>.

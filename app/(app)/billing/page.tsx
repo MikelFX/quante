@@ -7,7 +7,7 @@ import { AGENCY_MONTHLY_USD, CREDIT_COSTS } from '@/lib/config'
 import { PurchaseButtons } from './PurchaseButtons'
 import { AgencyPortalButton } from './AgencyPortalButton'
 import { AgencyUpgradeButton } from './AgencyUpgradeButton'
-import { siteHref } from '@/lib/domains'
+import { quanteHref } from '@/lib/domains'
 import { ensureWelcomeGrant } from '@/app/api/credits/welcome-grant'
 import { getBalance } from '@/lib/credits'
 
@@ -281,7 +281,7 @@ export default async function BillingPage({ searchParams }: Props) {
           <p style={{ fontSize: 12, color: 'var(--q-fg3)', margin: 0 }}>{AGENCY_SUMMARY}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <a href={siteHref('/quante#cenik')} style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: 'var(--q-ok-text)', whiteSpace: 'nowrap' }}>
+          <a href={quanteHref('/quante#cenik')} style={{ fontSize: 12, fontWeight: 600, textDecoration: 'none', color: 'var(--q-ok-text)', whiteSpace: 'nowrap' }}>
             What&apos;s included →
           </a>
           <AgencyUpgradeButton stripeReady={stripeReady} />

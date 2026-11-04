@@ -14,7 +14,7 @@ import {
 import { ParticleMode } from '@ad/ui/particles'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
 import { CREDIT_COSTS } from '@/lib/config'
-import { siteHref } from '@/lib/domains'
+import { quanteHref } from '@/lib/domains'
 import {
   EMPTY, LIMITS, PENDING_KEY, PENDING_MAX_AGE_MS, STEPS,
   adKindsFor, destination, detailReady, examplesFor, goalsFor, normalizeUrl, parseAnswers, startStep,
@@ -156,7 +156,7 @@ export function StartClient({ signedIn, stores, initialPersona, initialGoal, fro
 
   async function skip() {
     if (!signedIn) {
-      window.location.assign(siteHref('/quante'))
+      window.location.assign(quanteHref('/quante'))
       return
     }
     setGoing('Dashboard')
@@ -194,7 +194,7 @@ export function StartClient({ signedIn, stores, initialPersona, initialGoal, fro
             <li key={s} data-state={i < step ? 'done' : i === step ? 'now' : 'next'}><span /></li>
           ))}
         </ol>
-        <Link href={signedIn ? '/dashboard' : siteHref('/quante')} className="qo-brand" aria-label="Quante">
+        <Link href={signedIn ? '/dashboard' : quanteHref('/quante')} className="qo-brand" aria-label="Quante">
           <QuanteBrand />
         </Link>
       </header>
