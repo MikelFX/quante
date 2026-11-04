@@ -19,6 +19,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { isUuid } from '@/lib/auth/project'
 import type { JobStatusPayload } from '@/lib/generation-poll'
 import { normalizeDroppedFiles, type DroppedFile } from '@/lib/generation-checkpoint'
+import { fileProgress } from '@/lib/qgent/swarm/build'
 
 const RAW_OUTPUT_TAIL_CHARS = 3000
 
@@ -108,10 +109,15 @@ export async function GET(request: Request) {
         ),
       )
     : []
-  const response: JobStatusPayload & { droppedFiles: string[]; droppedFileDetails: DroppedFile[] } = {
+  // Additive: which files are complete and which one is being written (paths only, capped) —
+  // the /qgent build stage shows the agents assembling the store from these.
+  const progress = job.status === 'running' ? fileProgress(job.raw_output ?? '') : { done: [], writing: null }
+  const response: JobStatusPayload & { droppedFiles: string[]; droppedFileDetails: DroppedFile[]; filesDone: string[]; writing: string | null } = {
     ...payload,
     droppedFiles: dropped.map((d) => d.path),
     droppedFileDetails: dropped,
+    filesDone: progress.done,
+    writing: progress.writing,
   }
 
   return NextResponse.json(response)

@@ -39,6 +39,7 @@ export const APP_PATHS = [
   '/signup/:path*',
   '/qads/:path*',
   '/qscan/:path*',
+  '/qgent/:path*',
   '/start/:path*',
   '/changelog/:path*',
   '/terms',
