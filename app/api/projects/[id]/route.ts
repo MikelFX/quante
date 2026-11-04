@@ -236,25 +236,28 @@ export async function DELETE(
     if (reserveErr) console.warn('[projects/delete] could not reserve legacy store slug:', reserveErr.message)
   }
 
-  // Non-financial data is removed either way. project_secrets goes first so the
-  // store's QUANTE_API_KEY stops working immediately.
-  const childDeletes = await Promise.all([
-    supabaseAdmin.from('project_secrets').delete().eq('project_id', id),
-    supabaseAdmin.from('deployments').delete().eq('project_id', id),
-    supabaseAdmin.from('code_versions').delete().eq('project_id', id),
-    supabaseAdmin.from('manifest_versions').delete().eq('project_id', id),
-    supabaseAdmin.from('store_inventory').delete().eq('project_id', id),
-    supabaseAdmin.from('custom_components').delete().eq('project_id', id),
-    supabaseAdmin.from('exports').delete().eq('project_id', id),
+  // Non-financial data is removed either way, in two steps: rows that point at a version
+  // (deployments, exports, generation_jobs.code_version_id — FKs without ON DELETE) go first,
+  // the versions after. Deleting them in one parallel batch failed whenever a generation job
+  // still referenced the store's code version — i.e. for every generated store.
+  // project_secrets goes first so the store's QUANTE_API_KEY stops working immediately.
+  const step1 = await runCleanup([
+    ['project_secrets', supabaseAdmin.from('project_secrets').delete().eq('project_id', id)],
+    ['deployments', supabaseAdmin.from('deployments').delete().eq('project_id', id)],
+    ['exports', supabaseAdmin.from('exports').delete().eq('project_id', id)],
+    ['generation_jobs', supabaseAdmin.from('generation_jobs').update({ code_version_id: null }).eq('project_id', id)],
+    ['store_inventory', supabaseAdmin.from('store_inventory').delete().eq('project_id', id)],
+    ['custom_components', supabaseAdmin.from('custom_components').delete().eq('project_id', id)],
     // Unlink domains but keep the registration record (user still owns the domain)
-    supabaseAdmin.from('user_domains').update({ project_id: null }).eq('project_id', id),
+    ['user_domains', supabaseAdmin.from('user_domains').update({ project_id: null }).eq('project_id', id)],
   ])
-  // A table from a migration that was never run (inventory, custom components …) holds
-  // nothing for this store — that must not block the delete.
-  const childErr = childDeletes.find((r) => r.error && !isMissingRelation(r.error))?.error
-  if (childErr) {
-    console.error('[projects/delete] child cleanup failed:', childErr)
-    return NextResponse.json({ error: 'Failed to delete project data. Please try again.' }, { status: 500 })
+  const step2 = step1 ?? await runCleanup([
+    ['code_versions', supabaseAdmin.from('code_versions').delete().eq('project_id', id)],
+    ['manifest_versions', supabaseAdmin.from('manifest_versions').delete().eq('project_id', id)],
+  ])
+  if (step2) {
+    console.error('[projects/delete] child cleanup failed:', step2)
+    return NextResponse.json({ error: `Failed to delete project data (${step2.table}). Please try again.` }, { status: 500 })
   }
 
   if (keepTombstone) {
@@ -284,14 +287,13 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   }
 
-  const remaining = await Promise.all([
-    supabaseAdmin.from('store_payout_accounts').delete().eq('project_id', id),
-    supabaseAdmin.from('hosting_subscriptions').delete().eq('project_id', id),
+  const remErr = await runCleanup([
+    ['store_payout_accounts', supabaseAdmin.from('store_payout_accounts').delete().eq('project_id', id)],
+    ['hosting_subscriptions', supabaseAdmin.from('hosting_subscriptions').delete().eq('project_id', id)],
   ])
-  const remErr = remaining.find((r) => r.error && !isMissingRelation(r.error))?.error
   if (remErr) {
     console.error('[projects/delete] cleanup failed:', remErr)
-    return NextResponse.json({ error: 'Failed to delete project data. Please try again.' }, { status: 500 })
+    return NextResponse.json({ error: `Failed to delete project data (${remErr.table}). Please try again.` }, { status: 500 })
   }
 
   const { error: delErr } = await supabaseAdmin.from('projects').delete().eq('id', id).eq('user_id', userId)
@@ -304,6 +306,21 @@ export async function DELETE(
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+type CleanupError = { table: string; code?: string; message?: string }
+
+// Runs one batch of cleanup queries; the first real failure (a missing table or column — a
+// migration that was never run — holds nothing for this store and is skipped) or null.
+async function runCleanup(
+  steps: Array<[string, PromiseLike<{ error: { code?: string; message?: string } | null }>]>,
+): Promise<CleanupError | null> {
+  const results = await Promise.all(steps.map(([, q]) => q))
+  for (let i = 0; i < results.length; i++) {
+    const err = results[i].error
+    if (err && !isMissingRelation(err)) return { table: steps[i][0], code: err.code, message: err.message }
+  }
+  return null
+}
 
 // Postgres / PostgREST "no such table / column" (a migration that was never run).
 function isMissingRelation(err: { code?: string; message?: string }): boolean {
