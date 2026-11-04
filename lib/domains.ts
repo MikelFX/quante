@@ -17,14 +17,20 @@ export const APP_HOST_PATTERN = '(?:www\\.)?quantecode\\.com'
 export const SITE_PATHS = [
   '/',
   '/web-eshop',
-  '/quante',
-  '/quante/:path*',
   '/obchodni-podminky',
   '/ochrana-osobnich-udaju',
   '/vzorova-smlouva',
   '/design',
   '/og',
 ] as const
+
+/**
+ * Quante's product pages (app/(site)/(quante), Czech, no Clerk) live on the app host: quantecode.com/
+ * is the Quante overview (next.config.ts rewrites it to /quante, and /quante there 308s to /), the
+ * module pages are quantecode.com/quante/<modul>. assetradigital.agency sends them across
+ * (owner 2026-11-04: quantecode.com is the domain of the Quante products only).
+ */
+export const QUANTE_PATHS = ['/quante', '/quante/:path*'] as const
 
 /** App paths: on the website host they redirect to APP_ORIGIN, so Clerk only ever runs on one host. */
 export const APP_PATHS = [
@@ -50,11 +56,24 @@ export const APP_PATHS = [
   '/preview/:path*',
 ] as const
 
-/** True for a website page (SITE_PATHS). proxy.ts skips Clerk on these: no session lookup, no handshake. */
+const matches = (paths: readonly string[], pathname: string) =>
+  paths.some((p) => (p.endsWith('/:path*') ? pathname.startsWith(p.slice(0, -'/:path*'.length) + '/') : pathname === p))
+
+/** True for a website page (SITE_PATHS). */
 export function isSitePath(pathname: string): boolean {
-  return SITE_PATHS.some((p) =>
-    p.endsWith('/:path*') ? pathname.startsWith(p.slice(0, -'/:path*'.length) + '/') : pathname === p,
-  )
+  return matches(SITE_PATHS, pathname)
+}
+
+/** True for a Quante product page (QUANTE_PATHS). */
+export function isQuantePath(pathname: string): boolean {
+  return matches(QUANTE_PATHS, pathname)
+}
+
+/** Pages rendered by app/(site) — the website and the Quante product pages. proxy.ts skips Clerk on
+ *  these: no session lookup, no handshake. ('/' is the website's home, or on quantecode.com the
+ *  Quante overview: both are app/(site) pages.) */
+export function isClerkFreePage(pathname: string): boolean {
+  return isSitePath(pathname) || isQuantePath(pathname)
 }
 
 /**
@@ -64,7 +83,7 @@ export function isSitePath(pathname: string): boolean {
  */
 const crossHost = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production'
 
-/** A link from an app page to the website, e.g. siteHref('/quante#cenik'). */
+/** A link from an app page to the website, e.g. siteHref('/web-eshop#kontakt'). */
 export function siteHref(path: string): string {
   return crossHost ? SITE_ORIGIN + path : path
 }
@@ -72,6 +91,16 @@ export function siteHref(path: string): string {
 /** A link from the website into the app, e.g. appHref('/dashboard'). */
 export function appHref(path: string): string {
   return crossHost ? APP_ORIGIN + path : path
+}
+
+/**
+ * A link to a Quante product page from anywhere, written as its path in this repo:
+ * quanteHref('/quante'), quanteHref('/quante#cenik'), quanteHref('/quante/qgent'). Production builds
+ * point at the app host, where /quante is the root; previews and localhost keep the path as it is
+ * (there '/' is the website's homepage).
+ */
+export function quanteHref(path: string): string {
+  return crossHost ? APP_ORIGIN + path.replace(/^\/quante(?=$|[#?])/, '/') : path
 }
 
 /** Which surface a request host belongs to: the website, the app, or neither (previews, localhost). */

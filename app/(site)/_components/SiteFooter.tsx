@@ -1,17 +1,13 @@
 import Link from 'next/link'
 import { BinaryStrip, GiantWordmark, InView, Logo, ParticleZone, Todo } from '@ad/ui'
 import { company, legalPages } from '@/content/assetra/site'
+import { productLinks, quanteHome } from '@/content/assetra/modules'
 
-// The same products as the Quante footer (components/SiteFooter.tsx), with its "New" badges;
-// Qails is still in development (content/assetra/modules.ts).
+// Every Quante product with its highlight (content/assetra/modules.ts); the pages are on quantecode.com.
 const products = [
-  { label: 'Quante', href: '/quante' },
-  { label: 'Qads', href: '/quante/qads', badge: 'New' },
-  { label: 'Qgent', href: '/quante/qgent' },
-  { label: 'Qscan', href: '/quante/qscan', badge: 'New' },
-  { label: 'Qdit', href: '/quante/qdit' },
-  { label: 'Qails', href: '/quante/qails', badge: 'Ve vývoji', dev: true },
-] as const
+  { label: 'Quante', href: quanteHome() } as { label: string; href: string; badge?: string; dev?: boolean },
+  ...productLinks().map((p) => ({ label: p.name, href: p.href, badge: p.badge, dev: p.dev })),
+]
 
 export function SiteFooter() {
   return (
@@ -32,7 +28,7 @@ export function SiteFooter() {
             {products.map((p) => (
               <Link key={p.href} href={p.href}>
                 {p.label}
-                {'badge' in p && <span className={'ftn' + ('dev' in p ? ' ftn-dev' : '')}>{p.badge}</span>}
+                {p.badge && <span className={'ftn' + (p.dev ? ' ftn-dev' : '')}>{p.badge}</span>}
               </Link>
             ))}
           </nav>

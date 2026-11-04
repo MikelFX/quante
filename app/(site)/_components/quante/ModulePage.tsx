@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Button, Card, InView, ParticleZone, Pill, SectionLabel, SectionTitle, Sub, delay } from '@ad/ui'
-import { moduleBySlug, moduleHref, type QuanteModule } from '@/content/assetra/modules'
+import { moduleBySlug, moduleHref, quanteHome, type QuanteModule } from '@/content/assetra/modules'
+import { siteHref } from '@/lib/domains'
 import { moduleCosts } from '@/content/assetra/quante-pricing'
 import { ModuleVisual } from '../ModuleVisual'
 import { CursorEdit } from './CursorEdit'
@@ -20,7 +21,7 @@ export function ModulePage({ m }: { m: QuanteModule }) {
     <>
       <InView className="sec mod-top" initial>
         <div className="w">
-          <Link className="mod-back rv" href="/quante">← Quante</Link>
+          <Link className="mod-back rv" href={quanteHome()}>← Všechny produkty Quante</Link>
           <div className="sh2">
             <div>
               <Pill badge={live ? 'K dispozici' : 'Ve vývoji'}>{m.tag}</Pill>
@@ -36,9 +37,9 @@ export function ModulePage({ m }: { m: QuanteModule }) {
                 {m.app ? (
                   <Button href={m.app.href} variant="pri" beam arrow>{m.app.label}</Button>
                 ) : (
-                  <Button href="/#kontakt" variant="pri" beam arrow>Domluvit konzultaci</Button>
+                  <Button href={siteHref('/#kontakt')} variant="pri" beam arrow>Domluvit konzultaci</Button>
                 )}
-                <Button href="/quante">Všechny moduly</Button>
+                <Button href={quanteHome('#moduly')}>Všechny produkty</Button>
               </div>
             </div>
             <ParticleZone shapes={m.shapes} />
@@ -92,7 +93,7 @@ export function ModulePage({ m }: { m: QuanteModule }) {
             <ul className="plist">
               {costs.map((c) => <li key={c.label}><span className="n">{c.label}</span><i /><b>{c.value}</b></li>)}
             </ul>
-            <p className="fine">Ceny kreditů a balíčky najdete v <Link href="/quante#cenik">ceníku Quante</Link>.</p>
+            <p className="fine">Ceny kreditů a balíčky najdete v <Link href={quanteHome('#cenik')}>ceníku Quante</Link>.</p>
           </div>
         </InView>
       )}
@@ -103,13 +104,13 @@ export function ModulePage({ m }: { m: QuanteModule }) {
             <span className="lbl">Uděláme to za vás</span>
             <h2>Raději s námi?</h2>
             <p>Web nebo e-shop navrhneme, postavíme a spravujeme. Bez vstupní investice, za měsíční paušál.</p>
-            <Button href="/#kontakt" variant={live ? 'gl' : 'pri'} arrow={!live}>Domluvit konzultaci</Button>
+            <Button href={siteHref('/#kontakt')} variant={live ? 'gl' : 'pri'} arrow={!live}>Domluvit konzultaci</Button>
           </Card>
           <Card reveal delaySec={0.2} className="path">
             <span className="lbl">Quante</span>
-            <h2>Další moduly</h2>
-            <p>Generate, Qdit, Qads, Qgent, Qscan a Qails tvoří jeden propojený celek.</p>
-            <Button href="/quante">Všechny moduly</Button>
+            <h2>Další produkty</h2>
+            <p>Generate, Qscan, Qgent s 20 agenty, Qdit, Qads a Qails tvoří jeden propojený celek.</p>
+            <Button href={quanteHome('#moduly')}>Všechny produkty</Button>
           </Card>
         </div>
       </InView>

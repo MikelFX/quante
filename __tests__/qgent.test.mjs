@@ -55,7 +55,7 @@ test('every section the assistant can scroll to exists on its page', () => {
   const pages = {
     '/': read('app/(site)/_components/ai/sections.tsx') + (read('app/(site)/(web)/page.tsx').includes('<Contact />') ? webShop.slice(webShop.indexOf('export function Contact')) : ''),
     '/web-eshop': webShop,
-    '/quante': read('app/(site)/(web)/quante/page.tsx'),
+    '/quante': read('app/(site)/(quante)/quante/page.tsx'),
   }
   for (const [key, s] of Object.entries(QGENT_SECTIONS)) {
     const src = pages[s.page] ?? ''

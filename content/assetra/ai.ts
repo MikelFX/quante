@@ -3,6 +3,8 @@
 // Data, not markup — the homepage renders it and the Qgent knowledge base is built from it.
 // Describes what we build, never invented facts: no prices, deadlines or client names here.
 
+import { quanteHref } from '@/lib/domains'
+
 /** Glossy 3D objects drawn by app/(site)/_components/ai/Object3D.tsx. */
 export type Object3DKind = 'core' | 'plug' | 'crm' | 'chat' | 'flow' | 'grid' | 'shop' | 'bars' | 'tiles' | 'spark' | 'person'
 
@@ -115,18 +117,18 @@ export const aiBuilt = {
       kicker: 'AI, která postaví celý e-shop',
       lead: 'Popíšete obchod a Quante ho postaví: napíše kód e-shopu, nasadí ho na Vercel a hlídá, aby se sestavil. Když build selže, přečte chybu a opraví se sám.',
       features: ['Zadání v chatu', 'Kód pro každý obchod zvlášť', 'Sestaví a opraví se sám', 'Úpravy větou', 'Vlastní administrace', 'Kód si stáhnete jako ZIP'],
-      href: '/quante',
+      href: quanteHref('/quante'),
       cta: 'Prohlédnout Quante',
     },
     {
       id: 'qgent',
       kind: 'chat',
       title: 'Qgent',
-      text: 'AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.',
-      kicker: 'AI agent pro váš e-shop',
-      lead: 'Projde s vámi celý e-shop stránku po stránce, upozorní, co chybí nebo nefunguje, a navrhne úpravu. Provede ji až po vašem potvrzení. Na tomhle webu odpovídá návštěvníkům.',
-      features: ['Nejdřív náhled, pak změna', 'Všechno jde vrátit', 'Peníze a doprava jen se zvláštním potvrzením', 'Podklady pro reklamy v Qads'],
-      href: '/quante/qgent',
+      text: '20 AI agentů najednou projde váš e-shop a navrhne úpravy, nebo z něj postaví nový. Na tomhle webu odpovídá na vaše dotazy.',
+      kicker: '20 AI agentů pro váš e-shop',
+      lead: 'Zadáte adresu e-shopu a dvacet agentů ho projde vrstvu po vrstvě: nadpisy, texty, ceny, dopravu, SEO, mobil i právní minimum. Návrhy přijmete, nebo odmítnete, a z přijatých vám agenti postaví nový obchod. Na tomhle webu odpovídá návštěvníkům.',
+      features: ['20 specialistů naráz, živě po vrstvách', 'Každý návrh přijmete, nebo odmítnete', 'Nový e-shop podle starého', 'Ve Studiu i úpravy kódu po potvrzení'],
+      href: quanteHref('/quante/qgent'),
       cta: 'Detail Qgent',
     },
     {
@@ -137,7 +139,7 @@ export const aiBuilt = {
       kicker: 'Reklama z jedné fotky',
       lead: 'Nahrajete fotku produktu a Qads z ní udělá reklamní fotky a krátká videa pro sítě. Hotové soubory si stáhnete a použijete, kde chcete.',
       features: ['9:16, 4:5, 1:1 i 16:9', 'Pět stylů od packshotu po film', 'Videa v 1080p, 4 až 30 sekund', 'Reklamní texty ve čtyřech jazycích', 'Stažení jako ZIP'],
-      href: '/quante/qads',
+      href: quanteHref('/quante/qads'),
       cta: 'Detail Qads',
     },
   ] satisfies {

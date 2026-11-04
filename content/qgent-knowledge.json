@@ -100,7 +100,7 @@
     ],
     "ownProducts": [
       "Quante: AI vytvoří celý e-shop podle zadání. Úpravy v chatu, kód si stáhnete.",
-      "Qgent: AI agent, který projde e-shop a po vašem potvrzení ho upraví. Na tomhle webu odpovídá na vaše dotazy.",
+      "Qgent: 20 AI agentů najednou projde váš e-shop a navrhne úpravy, nebo z něj postaví nový. Na tomhle webu odpovídá na vaše dotazy.",
       "Qads: Reklamní videa a fotky produktů, které vytvoří AI."
     ],
     "branka": {
@@ -301,7 +301,7 @@
         "connections": [
           "Naskenovaný obchod postaví Quante Generate.",
           "Úpravy po převodu uděláte v Qdit.",
-          "Qgent nový obchod projde a navrhne, co ještě zlepšit."
+          "20 agentů Qgent projde starý e-shop a jejich přijaté návrhy dostane i ten nový."
         ],
         "costs": [
           "Sken obchodu: zdarma, až 5 skenů denně",
@@ -315,21 +315,26 @@
         "slug": "qgent",
         "name": "Qgent",
         "status": "k dispozici",
-        "what": "Agent, který s vámi projde celý e-shop, navrhne úpravy a provede je, až je potvrdíte.",
+        "what": "Dvacet agentů najednou projde váš e-shop vrstvu po vrstvě, navrhne úpravy a vy si vyberete, které chcete.",
         "features": [
-          "Projde e-shop s vámi: Stránku po stránce upozorní, co chybí nebo nefunguje.",
-          "Nejdřív náhled: Každou změnu ukáže předem a provede ji až po vašem potvrzení.",
-          "Všechno jde vrátit: Každá změna se zapíše a jde vrátit zpátky.",
-          "Peníze a doprava zvlášť: Platby, dopravu ani ceny nezmění bez samostatného potvrzení.",
-          "Podklady pro reklamy: Sbírá informace o e-shopu, ze kterých Qads připraví reklamy."
+          "Stačí adresa: Zadáte adresu e-shopu a agenti si přečtou úvodní stránku a jednu stránku produktu. Nic neinstalujete.",
+          "20 specialistů naráz: Každý agent hlídá něco jiného: nadpisy, texty, tlačítka, produkty, ceny, dopravu, důvěru, SEO, přístupnost, mobil, rychlost i právní minimum.",
+          "Živě po vrstvách: Díváte se, jak agenti procházejí stránku vrstvu po vrstvě, a návrhy přibývají hned, jak je najdou.",
+          "Chcete, nebo nechcete: Každý návrh přijmete, nebo odmítnete. Na vašem webu se nic nemění a nic neukládáme.",
+          "Nový e-shop podle starého: Agenti z adresy postaví nový obchod v Quante i s návrhy, které jste přijali. Na stavbu se díváte část po části.",
+          "Ve Studiu u vašeho obchodu: U obchodu z Quante projde Qgent i kód. Každou změnu ukáže předem, provede ji až po potvrzení a jde vrátit. Platby, dopravu a ceny nezmění bez samostatného potvrzení."
         ],
-        "note": "Qgent najdete ve Studiu u každého obchodu v režimu „Qgent“. Kontrolu spustíte tlačítkem a nic se nezmění bez vašeho potvrzení. Na webu AssetraDigital odpovídá i na otázky návštěvníků.",
+        "note": "Agenty pošlete jen na e-shop, který je váš nebo jehož obsah smíte použít. Kontrolu kódu obchodu z Quante najdete ve Studiu v režimu „Qgent“. Na webu AssetraDigital Qgent odpovídá i na otázky návštěvníků.",
         "connections": [
+          "Nový obchod podle starého staví agenti nad skenem z Qscan.",
+          "Nový obchod postaví Quante Generate i s přijatými návrhy.",
           "Co navrhne, můžete místo potvrzení upravit ručně v Qdit.",
           "Informace o e-shopu předá Qads pro reklamy."
         ],
         "costs": [
-          "Kontrola celého obchodu: 2 kredity, při chybě se vrací",
+          "Kontrola e-shopu 20 agenty: 2 kredity, při chybě se vrací",
+          "Nový e-shop podle starého: 10 kreditů",
+          "Kontrola kódu obchodu ve Studiu: 2 kredity, při chybě se vrací",
           "Provedení potvrzené změny: 1 kredit, při chybě se vrací",
           "Zamítnutí a vrácení změny: zdarma"
         ],
@@ -412,7 +417,7 @@
       "Převod — Qscan přenese stávající e-shop podle adresy.",
       "Stavba — Quante Generate postaví e-shop ze zadání a ohlídá, aby se sestavil.",
       "Doladění — V Qdit upravíte texty, vzhled a rozložení přímo na stránce.",
-      "Kontrola — Qgent projde celý e-shop a navrhne úpravy, které po potvrzení provede.",
+      "Kontrola — Dvacet agentů Qgent projde e-shop vrstvu po vrstvě a vy přijmete návrhy, které chcete.",
       "Propagace — Qads připraví reklamní fotky a videa ke stažení.",
       "Komunikace — Qails sjednotí e-maily všech obchodů na jednom místě. (ve vývoji)"
     ],
@@ -430,7 +435,8 @@
         "Automatické opravy buildu: zdarma",
         "Ruční úpravy v Qdit: zdarma",
         "AI v Qdit: 1 kredit",
-        "Kontrola obchodu v Qgent: 2 kredity",
+        "Kontrola e-shopu 20 agenty v Qgent: 2 kredity",
+        "Kontrola obchodu v Qgent ve Studiu: 2 kredity",
         "Změna od Qgent: 1 kredit, vrácení zdarma",
         "Reklamní fotka v Qads: 1 kredit",
         "Reklamní video v Qads: 45 kreditů za 5 s",

@@ -5,7 +5,6 @@ import './module-visuals.css'
 import './cursor-edit.css'
 import { Grain, ParticleMode, PointerFx } from '@ad/ui'
 import { SITE_ORIGIN } from '@/lib/domains'
-import { QgentWidget } from './_components/qgent/QgentWidget'
 import { QadsLaunchPanel } from './_components/qads-launch/QadsLaunchPanel'
 import { OffscreenPause } from './_components/OffscreenPause'
 import { SectionSizes } from './_components/SectionSizes'
@@ -20,7 +19,7 @@ export const metadata: Metadata = {
   twitter: { card: 'summary_large_image', images: [siteOgImage.url] },
 }
 
-/** The AssetraDigital website surface: Czech, full particle background, grain, custom cursor, Qgent and the Qads launch panel. */
+/** The AssetraDigital website surface: Czech, full particle background, grain, custom cursor and the Qads launch panel (the Qgent assistant is on the website pages, (web)/layout.tsx). */
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="ad" id="top" lang="cs">
@@ -28,7 +27,6 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <Grain />
       <PointerFx />
       {children}
-      <QgentWidget />
       <QadsLaunchPanel />
       <SectionSizes />
       <OffscreenPause />
