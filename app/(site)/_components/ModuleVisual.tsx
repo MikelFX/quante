@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { QuanteModule } from '@/content/assetra/modules'
+import { LoopVideo } from './ai/LoopVideo'
 
 /*
  * Animated mini-UIs of the Quante modules: the product cards on the website and the demo under each
@@ -163,18 +164,46 @@ const OldShop = () => (
   </div>
 )
 
-/** Product bottle for Qads (scale it with font-size). */
-const Bottle = ({ className = '', style }: { className?: string; style?: Vars }) => (
-  <span className={`mv-btl ${className}`} style={style}><i className="cap" /><i className="lb">ROSA</i></span>
+/**
+ * Qads plays two real ads in turn (owner, 2026-11-05): Character videos for Branka that were shared
+ * on the public Qads wall — the woman with the door reader and the woman with the app. Files in
+ * public/qads/demo/: the wall's light 432 px loops + poster frames, the product photo cut from the
+ * video, the character's face from its sheet. Never point this at the private originals.
+ */
+const QD = '/qads/demo/'
+const qadsAds = [
+  {
+    file: 'branka-zamek',
+    name: 'Branka · vstup do fitka',
+    photo: QD + 'branka-zamek-foto.webp',
+    photoName: 'ctecka.jpg',
+    screen: false,
+    say: '„Klepnu a jsem ve fitku.“',
+    hook: 'Dveře fitka otevřete telefonem',
+    title: 'Bez čipů, karet a klíčů',
+    cta: 'Vyzkoušejte Branku',
+  },
+  {
+    file: 'branka-aplikace',
+    name: 'Branka · aplikace',
+    photo: '/branka/domu.webp',
+    photoName: 'aplikace.png',
+    screen: true,
+    say: '„Celé fitko mám v telefonu.“',
+    hook: 'Kurty a lekce v jedné aplikaci',
+    title: 'Rezervace kurtů, lekcí i trenérů',
+    cta: 'Stáhněte si Branku',
+  },
+]
+
+/** A real image in the stage (decorative: the whole visual is hidden from assistive tech). */
+const Img = ({ src, className }: { src: string; className?: string }) => (
+  // eslint-disable-next-line @next/next/no-img-element
+  <img className={className} src={src} alt="" loading="lazy" decoding="async" draggable={false} />
 )
 
-/** Qads frames: format, left edge and size in em (bottom aligned at 21.2 em). */
-const formats = [
-  { f: '9:16', x: 0, w: 6, h: 10.67, hook: 'Pleť jako po spánku' },
-  { f: '4:5', x: 6.4, w: 7.4, h: 9.25, hook: 'Rosa · 30 ml' },
-  { f: '1:1', x: 14.2, w: 7.6, h: 7.6, hook: 'Ranní rituál' },
-  { f: '16:9', x: 22.2, w: 8.8, h: 4.95, hook: 'Vyzkoušejte' },
-]
+/** Voice waveform heights (stage units). */
+const wave = [1.2, 2.2, 3.1, 1.8, 2.7, 3.4, 2.1, 1.4, 2.9, 3.2, 1.7, 2.4, 3.3, 2.0, 1.3, 2.6, 3.0, 1.9, 2.5, 1.5, 2.8, 3.1, 1.6, 2.2]
 
 const inbox = [
   { st: 'zrno.cz', c: 0, s: 'Objednávka #2042', t: '09:41' },
@@ -501,83 +530,94 @@ export function ModuleVisual({ slug }: { slug: QuanteModule['slug'] }) {
 
     case 'qads':
       return (
-        <Frame name="Qads" steps={['Fotka', 'Generuji', 'Videa']} t={15} cursor="ads">
-          {/* 1 — product photo + brief */}
-          <div className="mv-s" style={sc(0)}>
-            <div className="mv-drop" style={box(0, 0, 11.6, 21.4)}>
-              <span className="mv-hint" style={box(0, 0.8, 11.6, undefined, { textAlign: 'center' })}>1–4 fotky produktu</span>
-              <span className="mv-photo mv-i mv-dn" style={box(1.6, 3.2, 8.4, 12, at(0.3, { '--from': 'translateY(-4em) rotate(-6deg) scale(.9)' }))}>
-                <Bottle style={{ fontSize: '1.1em' }} />
-              </span>
-              <span className="mv-hint mv-i" style={box(0, 16.4, 11.6, undefined, at(0.9, { textAlign: 'center' }))}>rosa.jpg · nahráno ✓</span>
-            </div>
-            <span className="mv-lbl" style={box(12.6, 0)}>Název</span>
-            <div className="mv-inp" style={box(12.6, 0.9, 18.4, 2.2)}><span className="mv-ty" style={typed(16, 0.9)}>Sérum Rosa 30 ml</span><i className="mv-car" /></div>
-            <span className="mv-lbl" style={box(12.6, 3.7)}>Styl</span>
-            {['Packshot', 'Lifestyle', 'UGC', 'Filmový', 'Minimal'].map((s, k) => (
-              <span key={s} className="mv-opt" style={box(12.6 + k * 3.7, 4.6, 3.5, 1.7)}>{s}</span>
-            ))}
-            <span className="mv-opt mv-on mv-i mv-pop" style={box(16.3, 4.6, 3.5, 1.7, at(1.85))}>Lifestyle</span>
-            <span className="mv-lbl" style={box(12.6, 7)}>Formáty</span>
-            {formats.map((f, k) => (
-              <span key={f.f} className="mv-opt" style={box(12.6 + k * 4.65, 7.9, 4.45, 1.7)}>{f.f}</span>
-            ))}
-            {formats.map((f, k) => (
-              <span key={f.f} className="mv-opt mv-on mv-i mv-pop" style={box(12.6 + k * 4.65, 7.9, 4.45, 1.7, at(2.3 + k * 0.2))}>{f.f}</span>
-            ))}
-            <span className="mv-lbl" style={box(12.6, 10.3)}>Délka · jazyk textů</span>
-            {['4 s', '6 s', '8 s', '10 s'].map((s, k) => (
-              <span key={s} className="mv-opt" style={box(12.6 + k * 2.6, 11.2, 2.4, 1.7)}>{s}</span>
-            ))}
-            <span className="mv-opt mv-on mv-i mv-pop" style={box(17.8, 11.2, 2.4, 1.7, at(3.1))}>8 s</span>
-            <span className="mv-opt" style={box(23.2, 11.2, 7.8, 1.7)}>Čeština</span>
-            <span className="mv-btn" style={box(12.6, 16.6, 18.4, 2.6)}><span className="mv-pr" style={at(3.95)}>Generovat · 4 videa</span></span>
-            <span className="mv-hint" style={box(12.6, 19.8, 18.4)}>Co se nepovede, to se vrátí v kreditech.</span>
-            <Rip x={18.05} y={5.45} d={1.85} />
-            <Rip x={21.8} y={17.9} d={4} />
-          </div>
+        <Frame name="Qads" steps={['Fotka', 'Generuji', 'Video']} t={15} cursor="ads">
+          {qadsAds.map((ad, k) => {
+            const next = qadsAds[(k + 1) % qadsAds.length]
+            return (
+              <div key={ad.file} className={`mv-ab${k ? ' mv-b' : ''}`}>
+                {/* 1 — product photo, the character, the spoken line */}
+                <div className="mv-s" style={sc(0)}>
+                  <div className="mv-drop" style={box(0, 0, 11.6, 21.4)}>
+                    <span className="mv-hint" style={box(0, 0.8, 11.6, undefined, { textAlign: 'center' })}>Fotka produktu</span>
+                    <span className={`mv-photo mv-real${ad.screen ? ' mv-scr' : ''} mv-i mv-dn`} style={box(1.6, 2.8, 8.4, 11.6, at(0.3, { '--from': 'translateY(-4em) rotate(-6deg) scale(.9)' }))}>
+                      <Img src={ad.photo} />
+                    </span>
+                    <span className="mv-hint mv-i" style={box(0, 15.4, 11.6, undefined, at(0.9, { textAlign: 'center' }))}>{ad.photoName} · nahráno ✓</span>
+                  </div>
+                  <span className="mv-lbl" style={box(12.6, 0)}>Název</span>
+                  <div className="mv-inp" style={box(12.6, 0.9, 18.4, 2.2)}><span className="mv-ty" style={typed(ad.name.length, 0.9)}>{ad.name}</span><i className="mv-car" /></div>
+                  <span className="mv-lbl" style={box(12.6, 3.7)}>Postava · Character</span>
+                  <span className="mv-ava" style={box(12.6, 4.6, 2.6, 2.6)}><Img src={QD + 'postava.webp'} /></span>
+                  <span className="mv-ava" style={box(15.6, 4.6, 2.6, 2.6)}><Img src={QD + 'postava-2.webp'} /></span>
+                  <span className="mv-ava mv-add" style={box(18.6, 4.6, 2.6, 2.6)}>+</span>
+                  <span className="mv-ava-on mv-i mv-pop" style={box(12.6, 4.6, 2.6, 2.6, at(1.85))}><i className="mv-ok">✓</i></span>
+                  <span className="mv-hint mv-i" style={box(21.9, 5.3, 9.1, undefined, at(2.05))}>Stejná tvář v každém videu</span>
+                  <span className="mv-lbl" style={box(12.6, 7.9)}>Formát · délka · jazyk</span>
+                  <span className="mv-opt mv-on" style={box(12.6, 8.8, 3.6, 1.7)}>9:16</span>
+                  <span className="mv-opt" style={box(16.4, 8.8, 3, 1.7)}>10 s</span>
+                  <span className="mv-opt" style={box(19.6, 8.8, 3, 1.7)}>15 s</span>
+                  <span className="mv-opt mv-on mv-i mv-pop" style={box(16.4, 8.8, 3, 1.7, at(2.6))}>10 s</span>
+                  <span className="mv-opt" style={box(22.8, 8.8, 8.2, 1.7)}>Čeština</span>
+                  <span className="mv-lbl" style={box(12.6, 11.4)}>Mluvené slovo</span>
+                  <div className="mv-inp mv-say" style={box(12.6, 12.3, 18.4, 2.6)}><span className="mv-ty" style={typed(ad.say.length, 2.7)}>{ad.say}</span></div>
+                  <span className="mv-btn" style={box(12.6, 16.6, 18.4, 2.6)}><span className="mv-pr" style={at(3.95)}>Generovat video</span></span>
+                  <span className="mv-hint" style={box(12.6, 19.8, 18.4)}>Co se nepovede, to se vrátí v kreditech.</span>
+                  <Rip x={13.9} y={5.9} d={1.85} />
+                  <Rip x={21.8} y={17.9} d={4} />
+                </div>
 
-          {/* 2 — rendering every format */}
-          <div className="mv-s" style={sc(1)}>
-            <span className="mv-photo sm" style={box(0, 0.4, 5.4, 7)}><Bottle style={{ fontSize: '0.62em' }} /></span>
-            <ul className="mv-log" style={box(6.6, 0.4, 24.4)}>
-              <li className="mv-i" style={at(0.2)}><Tick done={0.9} />Scénář a háček</li>
-              <li className="mv-i" style={at(0.8)}><Tick done={1.6} />Titulky v češtině</li>
-              <li className="mv-i" style={at(1.4)}><Tick done={4.2} />Render 4 videí · Higgsfield</li>
-            </ul>
-            {formats.map((f, k) => (
-              <div key={f.f} className={`mv-frm mv-sk mv-p${k}`} style={box(f.x, 21.2 - f.h, f.w, f.h)}>
-                <Bottle className="ghost" />
-                <em>{f.f}</em>
-                <div className="mv-track in"><i className="mv-fl" style={at(1.4 + k * 0.35)} /></div>
-              </div>
-            ))}
-          </div>
+                {/* 2 — script, voice, render */}
+                <div className="mv-s" style={sc(1)}>
+                  <span className={`mv-photo mv-real sm${ad.screen ? ' mv-scr' : ''}`} style={box(0, 0.4, 5, 6.6)}><Img src={ad.photo} /></span>
+                  <span className="mv-join" style={box(5.3, 2.75)}>+</span>
+                  <span className="mv-ava" style={box(7.2, 1.5, 4.2, 4.2)}><Img src={QD + 'postava.webp'} /></span>
+                  <ul className="mv-log" style={box(0, 8.2, 17.8)}>
+                    <li className="mv-i" style={at(0.2)}><Tick done={0.9} />Scénář a háček</li>
+                    <li className="mv-i" style={at(0.7)}><Tick done={1.7} />Hlas · čeština</li>
+                    <li className="mv-i" style={at(1.2)}><Tick done={4.2} />Render 9:16 · Higgsfield</li>
+                  </ul>
+                  <div className="mv-wave mv-i" style={box(0, 16.9, 17.8, 3.6, at(0.9))}>
+                    {wave.map((h, i) => <i key={i} style={{ height: u(h), animationDelay: `${-i * 0.13}s` }} />)}
+                  </div>
+                  <div className="mv-frm mv-rnd" style={box(19.1, 0, 11.9, 21.2)}>
+                    <Img className="mv-blur" src={`${QD}${ad.file}.webp`} />
+                    <span className="mv-rev" style={at(0.5)}><Img src={`${QD}${ad.file}.webp`} /></span>
+                    <i className="mv-scan" style={at(0.5)} />
+                    <em>9:16</em>
+                    <div className="mv-track in"><i className="mv-fl" style={at(0.5)} /></div>
+                  </div>
+                </div>
 
-          {/* 3 — finished ads playing, ad copy, download */}
-          <div className="mv-s mv-last" style={sc(2)}>
-            <span className="mv-lbl acc" style={box(0, 0.8)}>4 videa hotová</span>
-            <span className="mv-btn" style={box(23.4, 0, 7.6, 2.4)}><span className="mv-pr" style={at(3.35)}>Stáhnout ZIP</span></span>
-            <div className="mv-copyx mv-i" style={box(6.6, 3.2, 24.4, 6.2, at(0.4))}>
-              <span><small>Háček</small>Pleť jako po dobrém spánku</span>
-              <span><small>Titulek</small>Sérum Rosa · 30 ml</span>
-              <span><small>Výzva</small>Vyzkoušejte ještě dnes</span>
-              <b>CS</b>
-            </div>
-            {formats.map((f, k) => (
-              <div key={f.f} className={`mv-frm mv-play mv-p${k}`} style={box(f.x, 21.2 - f.h, f.w, f.h)}>
-                <i className="bg" />
-                <Bottle className="mv-hb" />
-                <i className="mv-sh" />
-                <em>{f.f}</em>
-                <span className="cap mv-i" style={at(0.6 + k * 0.25)}>{f.hook}</span>
-                <span className="mv-ok mv-i mv-pop" style={at(0.3 + k * 0.2)}>✓</span>
-                <div className="mv-track in"><i className="run" /></div>
+                {/* 3 — the finished ad playing, its copy, download, the next one */}
+                <div className="mv-s mv-last" style={sc(2)}>
+                  <div className="mv-frm mv-rnd mv-vid" style={box(0, 0, 11.9, 21.2)}>
+                    <LoopVideo className="mv-v" src={`${QD}${ad.file}.mp4`} poster={`${QD}${ad.file}.webp`} label={ad.hook} />
+                    <em>9:16 · 10 s</em>
+                    <span className="cap mv-i" style={at(0.6)}>{ad.hook}</span>
+                    <span className="mv-ok mv-i mv-pop" style={at(0.3)}>✓</span>
+                    <div className="mv-track in"><i className="run" /></div>
+                  </div>
+                  <span className="mv-lbl acc" style={box(13, 0.8)}>Video hotové · {k + 1} / {qadsAds.length}</span>
+                  <span className="mv-btn" style={box(23.4, 0, 7.6, 2.4)}><span className="mv-pr" style={at(3.35)}>Stáhnout</span></span>
+                  <div className="mv-copyx mv-i" style={box(13, 3.2, 18, 7.6, at(0.4))}>
+                    <span><small>Háček</small>{ad.hook}</span>
+                    <span><small>Titulek</small>{ad.title}</span>
+                    <span><small>Výzva</small>{ad.cta}</span>
+                    <b>CS</b>
+                  </div>
+                  {['TikTok', 'Reels', 'Shorts'].map((t, i) => (
+                    <span key={t} className="mv-tab mv-i" style={box(13 + i * 4.6, 11.6, 4.2, 1.9, at(0.8 + i * 0.15))}>{t}</span>
+                  ))}
+                  <div className="mv-next mv-i mv-r" style={box(13, 14.6, 18, 6.6, at(1.3))}>
+                    <Img src={`${QD}${next.file}.webp`} />
+                    <span><small>Další reklama</small><b>{next.name}</b><em>Stejná postava, jiný produkt</em></span>
+                  </div>
+                  <span className="mv-toast mv-i mv-dn" style={{ right: 0, top: u(2.9), ...at(3.5) }}>{ad.file}.mp4 · stahuje se</span>
+                  <Rip x={27.2} y={1.2} d={3.4} />
+                </div>
               </div>
-            ))}
-            <span className="mv-toast mv-i mv-dn" style={{ right: 0, top: u(2.9), ...at(3.5) }}>qads-rosa.zip · stahuje se</span>
-            <Rip x={27.2} y={1.2} d={3.4} />
-          </div>
+            )
+          })}
         </Frame>
       )
 
