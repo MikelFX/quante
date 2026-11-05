@@ -6,7 +6,14 @@
 
 import { Sandbox } from '@vercel/sandbox'
 import { EngineUnavailableError, SandboxGoneError, type EngineCreate, type EngineExec, type EngineExecResult, type SandboxEngine } from './provider'
-import { SANDBOX_HOME } from './model'
+import { QBOX_REGISTRY_DOMAINS, SANDBOX_HOME, type QboxNetwork } from './model'
+
+/** Our network modes as a Vercel Sandbox firewall policy (domain rules match HTTPS by SNI). */
+export function vercelNetworkPolicy(network: QboxNetwork) {
+  if (network === 'open') return 'allow-all' as const
+  if (network === 'none') return 'deny-all' as const
+  return { allow: [...QBOX_REGISTRY_DOMAINS] }
+}
 
 function credentials() {
   const token = process.env.VERCEL_TOKEN
@@ -47,7 +54,7 @@ export const vercelEngine: SandboxEngine = {
       timeout: input.timeoutMs,
       ports: input.ports,
       resources: { vcpus: input.vcpus },
-      networkPolicy: input.internet ? 'allow-all' : 'deny-all',
+      networkPolicy: vercelNetworkPolicy(input.network),
       env: input.env,
       tags: { kind: 'qbox', ...input.tags },
       ...(region ? { region } : {}),

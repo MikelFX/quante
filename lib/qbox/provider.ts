@@ -4,7 +4,7 @@
 // (Vercel Sandbox today; later our own Firecracker nodes, plan phase 1) without changing anything
 // a customer sees. An engine never learns who the member is beyond an opaque tag.
 
-import type { QboxTemplate } from './model'
+import type { QboxNetwork, QboxTemplate } from './model'
 
 export interface EngineCreate {
   /** Our sandbox id; the engine uses it as its name, so `get` needs nothing else. */
@@ -12,7 +12,8 @@ export interface EngineCreate {
   template: QboxTemplate
   timeoutMs: number
   ports: number[]
-  internet: boolean
+  /** open = internet, registries = QBOX_REGISTRY_DOMAINS only, none = no network. */
+  network: QboxNetwork
   env: Record<string, string>
   vcpus: number
   tags: Record<string, string>
