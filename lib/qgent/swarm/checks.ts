@@ -8,7 +8,7 @@
 import type { Layer, PageFacts } from './layers.ts'
 import type { Severity, SwarmFinding } from './model.ts'
 
-type Lang = 'cs' | 'en'
+export type Lang = 'cs' | 'en'
 
 interface Rule {
   agent: string
@@ -89,9 +89,9 @@ function rules(f: PageFacts, layers: Layer[], productPage: PageFacts | null): Ru
   return out
 }
 
-/** The checks' findings for a page (and, if one was read, a product page). */
-export function runChecks(home: PageFacts, layers: Layer[], productPage: PageFacts | null = null): SwarmFinding[] {
-  const lang: Lang = /^(cs|sk)/.test(home.lang) || (!home.lang && /[ěščřžůň]/.test(home.hay.slice(0, 4000))) ? 'cs' : 'en'
+/** The checks' findings for a page (and, if one was read, a product page), in the page's language unless `forceLang`. */
+export function runChecks(home: PageFacts, layers: Layer[], productPage: PageFacts | null = null, forceLang?: Lang): SwarmFinding[] {
+  const lang: Lang = forceLang ?? (/^(cs|sk)/.test(home.lang) || (!home.lang && /[ěščřžůň]/.test(home.hay.slice(0, 4000))) ? 'cs' : 'en')
   return rules(home, layers, productPage).map((r, i) => ({
     id: `c-${i + 1}`,
     agent: r.agent,

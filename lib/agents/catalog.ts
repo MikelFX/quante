@@ -15,7 +15,7 @@ import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { QADS_GENERATOR_CREDIT_COSTS as QADS } from '@/lib/qads/pricing'
 import { APP_ORIGIN, SITE_ORIGIN } from '@/lib/domains'
 import { QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_TEMPLATES } from '@/lib/qbox/limits'
-import { AGENT_TOOL_CREDITS, agentToolUnits, agentToolUsd } from './paid-price'
+import { AGENT_TOOL_CREDITS, agentToolUnits, agentToolUsd, type AgentTool } from './paid-price'
 
 /** Where the agent layer lives. Absolute, canonical — agents keep these. */
 export const AGENT_LINKS = {
@@ -25,6 +25,9 @@ export const AGENT_LINKS = {
   review: `${APP_ORIGIN}/api/agent/v1/review`,
   scan: `${APP_ORIGIN}/api/agent/v1/scan`,
   product: `${APP_ORIGIN}/api/agent/v1/product`,
+  store: `${APP_ORIGIN}/api/agent/v1/store`,
+  company: `${APP_ORIGIN}/api/agent/v1/company`,
+  check: `${APP_ORIGIN}/api/agent/v1/check`,
   inquiry: `${APP_ORIGIN}/api/agent/v1/inquiry`,
   openapi: `${APP_ORIGIN}/api/agent/v1/openapi.json`,
   mcp: `${APP_ORIGIN}/api/mcp`,
@@ -53,6 +56,26 @@ export interface AgentRuntime {
 export const RUNTIME_OFF: AgentRuntime = { qboxOpen: false, x402: null }
 
 /** "2 490" → 2490; null stays null. */
+/** The cheap pay-per-call APIs (x402 with no account, or a Qbox balance), as listed everywhere. */
+export const PER_CALL_APIS = [
+  {
+    tool: 'product', mcpTool: 'lookup_product', product: 'Qscan', name: 'Product page to normalized product JSON (API)', method: 'GET', params: ['url'],
+    summary: 'GET ?url=<product page>: name, price, currency, availability, brand, SKU, GTIN, condition, images, rating and variants from the page\'s own structured data. For shopping, price-watch and comparison agents.',
+  },
+  {
+    tool: 'store', mcpTool: 'profile_store', product: 'Qscan', name: 'Store profile: contacts, company ids, payments, shipping, policies (API)', method: 'GET', params: ['url'],
+    summary: 'GET ?url=<store home page>: name, platform, language, currency, contact e-mails and phones, address, IČO / EU VAT ids, social profiles, payment and shipping methods, links to shipping / returns / terms / privacy pages. For lead-generation, supplier-vetting and shopping agents.',
+  },
+  {
+    tool: 'company', mcpTool: 'check_company', product: 'AssetraDigital', name: 'Company check in ARES + VIES (API)', method: 'GET', params: ['ico', 'vat'],
+    summary: 'GET ?ico=<Czech IČO>&vat=<EU VAT number>: the company in the official registers — ARES (name, address, legal form, VAT id, founded, dissolved, activities) and VIES (VAT number valid, registered name and address). For invoicing, onboarding and KYB agents.',
+  },
+  {
+    tool: 'check', mcpTool: 'check_store', product: 'Qgent', name: 'Quick store check by rules (API)', method: 'GET', params: ['url'],
+    summary: 'GET ?url=<store home page>: the Qgent rule checks over the home page and one product page — headline, buttons, alt texts, prices, trust, contact, policies, SEO basics — as findings with severity and why. No AI, answers in seconds.',
+  },
+] as const satisfies ReadonlyArray<{ tool: keyof typeof AGENT_LINKS & AgentTool; mcpTool: string; product: string; name: string; method: 'GET'; params: readonly string[]; summary: string }>
+
 export function czk(v: string | null): number | null {
   if (v === null) return null
   const n = Number(v.replace(/[\s ]/g, ''))
@@ -195,22 +218,22 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
         },
         interfaces: { openapi: AGENT_LINKS.openapi },
       })),
-      {
-        id: 'agent-product',
+      ...PER_CALL_APIS.map((a) => ({
+        id: `agent-${a.tool}`,
         kind: 'api' as const,
-        product: 'Qscan',
-        name: 'Product page to normalized product JSON (API)',
+        product: a.product,
+        name: a.name,
         status: rt.x402 ? 'available' : rt.qboxOpen ? 'available with a Qbox account' : 'waiting for agent payments',
-        summary: 'GET ?url=<product page>: name, price, currency, availability, brand, SKU, GTIN, condition, images, rating and variants from the page\'s own structured data. For shopping, price-watch and comparison agents.',
-        url: AGENT_LINKS.product,
+        summary: a.summary,
+        url: AGENT_LINKS[a.tool],
         markdown: null,
-        price: { model: 'per-call', currency: 'USD', perCall: agentToolUsd('product'), balanceUnits: agentToolUnits('product'), sameAsQuanteCredits: null, free: false, chargedOnlyWhenItWorks: true },
+        price: { model: 'per-call', currency: 'USD', perCall: agentToolUsd(a.tool), balanceUnits: agentToolUnits(a.tool), sameAsQuanteCredits: null, free: false, chargedOnlyWhenItWorks: true },
         howToBuy: {
           human: null,
-          agent: { payPerCall: rt.x402 ? `x402 USDC (${rt.x402.network}), no account: call, get 402, repeat with X-PAYMENT` : null, auth: 'or Authorization: Bearer qbx_… (Qbox balance)' },
+          agent: { payPerCall: rt.x402 ? `x402 USDC (${rt.x402.network}), no account: call, get 402, repeat with PAYMENT-SIGNATURE (v2) or X-PAYMENT (v1)` : null, auth: 'or Authorization: Bearer qbx_… (Qbox balance)' },
         },
-        interfaces: { openapi: AGENT_LINKS.openapi },
-      },
+        interfaces: { openapi: AGENT_LINKS.openapi, mcp: { server: AGENT_LINKS.mcp, tool: a.mcpTool } },
+      })),
     ],
     quantePricing: {
       currency: 'USD',
@@ -245,7 +268,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
       mcp: { url: AGENT_LINKS.mcp, transport: 'streamable-http', auth: 'none', writes: ['request_quote (inquiry for your person, consent required)'] },
       inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`,
       qboxMcp: { url: AGENT_LINKS.qbox.mcp, transport: 'streamable-http', auth: 'Bearer qbx_… API key' },
-      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, product: AGENT_LINKS.product, auth: 'Bearer qbx_… (Qbox account), or x402 per call with no account (product, scan)' } },
+      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, product: AGENT_LINKS.product, store: AGENT_LINKS.store, company: AGENT_LINKS.company, check: AGENT_LINKS.check, auth: 'Bearer qbx_… (Qbox account), or x402 per call with no account (product, store, company, check, scan)' } },
       markdown: 'Every public page answers `Accept: text/markdown` with Markdown, and also at the same path + ".md" (the home page as /index.md).',
       llms: [AGENT_LINKS.llmsSite, AGENT_LINKS.llmsApp, AGENT_LINKS.llmsFull],
       discovery: [AGENT_LINKS.apiCatalog, AGENT_LINKS.mcpCard],

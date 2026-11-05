@@ -18,6 +18,12 @@ export const AGENT_TOOL_CREDITS = {
 export const AGENT_TOOL_FIXED_USD = {
   /** One product page → normalized product JSON (price, currency, availability, GTIN …). */
   product: 0.01,
+  /** A store's home page → contacts, company ids, payments, shipping, policy links. */
+  store: 0.01,
+  /** A Czech IČO / EU VAT number checked in ARES + VIES. */
+  company: 0.01,
+  /** The Qgent rule checks over a store's home + one product page (no model). */
+  check: 0.02,
 } as const
 
 export type AgentTool = keyof typeof AGENT_TOOL_CREDITS | keyof typeof AGENT_TOOL_FIXED_USD
@@ -33,4 +39,4 @@ export const agentToolUnits = (tool: AgentTool) => isFixed(tool)
 export const agentToolUsd = (tool: AgentTool) => Math.round((agentToolUnits(tool) / QBOX_PRICING.vcpuMinutesPerUsd) * 100) / 100
 
 /** Tools an agent can pay per call over x402, without any account (review runs too long for that). */
-export const PAY_PER_CALL_TOOLS = ['product', 'scan'] as const satisfies readonly AgentTool[]
+export const PAY_PER_CALL_TOOLS = ['product', 'store', 'company', 'check', 'scan'] as const satisfies readonly AgentTool[]

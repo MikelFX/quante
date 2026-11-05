@@ -1,7 +1,7 @@
 // The site MCP server: POST /api/mcp (JSON-RPC 2.0, Streamable HTTP, stateless JSON responses).
-// No key; read tools + request_quote + the paid lookup_product (x402 in _meta, lib/agents/mcp.ts). GET answers 405 (no server-sent stream) with a pointer.
+// No key; read tools + request_quote + the paid reads (PAID_MCP_TOOLS, x402 in _meta, lib/agents/mcp.ts). GET answers 405 (no server-sent stream) with a pointer.
 import { NextResponse } from 'next/server'
-import { handleSiteRpc, type ChangelogEntry } from '@/lib/agents/mcp'
+import { handleSiteRpc, type ChangelogEntry, type PaidMcpTool } from '@/lib/agents/mcp'
 import { agentRuntime, qboxLlms } from '@/lib/agents/runtime'
 import { submitInquiry } from '@/lib/agents/inquiry'
 import { getClientIp } from '@/lib/rate-limit'
@@ -9,8 +9,10 @@ import { APP_ORIGIN } from '@/lib/domains'
 import { AGENT_LINKS } from '@/lib/agents/catalog'
 import { mcpPaidCall } from '@/lib/agents/pay-per-call'
 import { PRODUCT_MCP_TOOL, productUrl, readProduct } from '@/lib/agents/product-tool'
+import { CHECK_MCP_TOOL, COMPANY_MCP_TOOL, STORE_MCP_TOOL, checkCompany, quickCheck, readStoreProfile } from '@/lib/agents/agent-tools'
+import { CompanyInputError, parseCompanyQuery } from '@/lib/agents/company'
 
-export const maxDuration = 30
+export const maxDuration = 40
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -46,18 +48,33 @@ export async function POST(req: Request) {
   }
   const ip = getClientIp(req)
   const ua = req.headers.get('user-agent') ?? ''
-  const lookupProduct = async (a: Record<string, unknown>, meta: unknown) => {
-    const url = productUrl(a.url)
-    if (!url) return { isError: true, content: [{ type: 'text', text: 'url must be a public http(s) product page.' }] }
-    return mcpPaidCall(meta, ip, PRODUCT_MCP_TOOL, AGENT_LINKS.mcp, () => readProduct(url))
-  }
-  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua), lookupProduct }
+  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua), paidTool: (name: PaidMcpTool, a: Record<string, unknown>, meta: unknown) => paidTool(name, a, meta, ip) }
   if (Array.isArray(body)) {
     const out = (await Promise.all(body.slice(0, 20).map((m) => handleSiteRpc(m, deps)))).filter((x) => x !== null)
     return out.length ? NextResponse.json(out, { headers: CORS }) : new Response(null, { status: 202, headers: CORS })
   }
   const r = await handleSiteRpc(body as never, deps)
   return r === null ? new Response(null, { status: 202, headers: CORS }) : NextResponse.json(r, { headers: CORS })
+}
+
+const inputError = (text: string) => ({ isError: true, content: [{ type: 'text', text }] })
+
+/** A paid site tool: its input is checked first (a bad input costs nothing), then x402 over MCP. */
+async function paidTool(name: PaidMcpTool, a: Record<string, unknown>, meta: unknown, ip: string) {
+  if (name === 'check_company') {
+    let q
+    try {
+      q = parseCompanyQuery(a)
+    } catch (e) {
+      return inputError(e instanceof CompanyInputError ? e.message : 'Send ico and/or vat.')
+    }
+    return mcpPaidCall(meta, ip, COMPANY_MCP_TOOL, AGENT_LINKS.mcp, () => checkCompany(q))
+  }
+  const url = productUrl(a.url)
+  if (!url) return inputError('url must be a public http(s) address.')
+  if (name === 'profile_store') return mcpPaidCall(meta, ip, STORE_MCP_TOOL, AGENT_LINKS.mcp, () => readStoreProfile(url))
+  if (name === 'check_store') return mcpPaidCall(meta, ip, CHECK_MCP_TOOL, AGENT_LINKS.mcp, () => quickCheck(url))
+  return mcpPaidCall(meta, ip, PRODUCT_MCP_TOOL, AGENT_LINKS.mcp, () => readProduct(url))
 }
 
 export function GET() {
