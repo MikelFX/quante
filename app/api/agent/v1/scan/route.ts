@@ -1,7 +1,8 @@
 // POST /api/agent/v1/scan — Qscan reads a store into structured JSON for an AI agent: brand,
 // products with prices, colours, fonts, navigation, texts, images (their original URLs; nothing is
-// copied). Body { url, rights: true }. Auth + payment as /api/agent/v1/review. Sites that block bots
-// get an honest error — never worked around.
+// copied). Body { url, rights: true }. Pay per call over x402 with no account (lib/agents/pay-per-call.ts:
+// settled only after the scan succeeded), or Bearer qbx_… from a Qbox balance as /api/agent/v1/review.
+// Sites that block bots get an honest error — never worked around.
 import { NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rate-limit'
 import { normalizeScanUrl } from '@/lib/qscan/net'
@@ -9,6 +10,7 @@ import { ScanError, scanStore } from '@/lib/qscan/scan'
 import { PLATFORM_LABEL } from '@/lib/qscan/extract'
 import { CORS, charge, paidCaller, refund, reply } from '@/lib/agents/paid'
 import { agentToolUsd } from '@/lib/agents/paid-price'
+import { hasApiKey, payPerCall } from '@/lib/agents/pay-per-call'
 
 export const maxDuration = 120
 
@@ -17,6 +19,23 @@ export async function POST(req: Request) {
   const url = typeof body?.url === 'string' ? normalizeScanUrl(body.url) : null
   if (!url) return NextResponse.json({ error: 'Send { "url": "<public store address>", "rights": true }.' }, { status: 400, headers: CORS })
   if (body?.rights !== true) return NextResponse.json({ error: 'rights must be true: the store is your person\'s, or they may use its content.' }, { status: 400, headers: CORS })
+
+  if (!hasApiKey(req)) {
+    return payPerCall(req, {
+      tool: 'scan',
+      description: 'Store read into structured JSON: brand, products with prices, colours, fonts, navigation, texts, images',
+      input: { method: 'POST', bodyType: 'json', bodyFields: { url: { type: 'string', required: true }, rights: { type: 'boolean', required: true, description: 'true: the store is your person\'s, or they may use its content' } } },
+      output: { type: 'object', properties: { brand: { type: 'object' }, products: { type: 'array' }, platform: { type: 'string' } } },
+      perIpHour: 20,
+    }, async () => {
+      try {
+        const r = await scanStore(url.toString())
+        return { ok: true, body: { ...r, platformLabel: PLATFORM_LABEL[r.platform] } }
+      } catch (err) {
+        return { ok: false, status: 422, body: { error: err instanceof ScanError ? err.message : 'Could not read the site.' } }
+      }
+    })
+  }
 
   const c = await paidCaller(req)
   if (c instanceof NextResponse) return c

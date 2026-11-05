@@ -1,7 +1,9 @@
-// What the paid agent tools cost (pure, client-safe). An agent pays from its Qbox balance — the
-// same account, key and x402 top-up as Qbox sandboxes (one agent account for everything). The price
-// is what a person pays in Quante credits, converted at Qbox's credit rate, so agents and people
-// pay the same. Nothing an agent does here is free (owner 2026-11-05).
+// What the paid agent tools cost (pure, client-safe). An agent pays either per call over x402 (no
+// account, the market's default: lib/agents/pay-per-call.ts) or from its Qbox balance — the same
+// account, key and x402 top-up as Qbox sandboxes. Store review and scan cost what a person pays in
+// Quante credits, converted at Qbox's credit rate, so agents and people pay the same. The product
+// lookup has no Quante counterpart, so it has its own price, set at the x402 market's median per
+// call (~$0.01, 2026-10). Nothing an agent does here is free (owner 2026-11-05).
 import { CREDIT_COSTS } from '@/lib/config'
 import { QBOX_PRICING } from '@/lib/qbox/limits'
 
@@ -12,10 +14,23 @@ export const AGENT_TOOL_CREDITS = {
   scan: 1,
 } as const
 
-export type AgentTool = keyof typeof AGENT_TOOL_CREDITS
+/** Tools priced directly in USD (no Quante credit counterpart). */
+export const AGENT_TOOL_FIXED_USD = {
+  /** One product page → normalized product JSON (price, currency, availability, GTIN …). */
+  product: 0.01,
+} as const
+
+export type AgentTool = keyof typeof AGENT_TOOL_CREDITS | keyof typeof AGENT_TOOL_FIXED_USD
+
+const isFixed = (tool: AgentTool): tool is keyof typeof AGENT_TOOL_FIXED_USD => tool in AGENT_TOOL_FIXED_USD
 
 /** Balance units (vCPU-minutes) one call costs. */
-export const agentToolUnits = (tool: AgentTool) => AGENT_TOOL_CREDITS[tool] * QBOX_PRICING.vcpuMinutesPerCredit
+export const agentToolUnits = (tool: AgentTool) => isFixed(tool)
+  ? AGENT_TOOL_FIXED_USD[tool] * QBOX_PRICING.vcpuMinutesPerUsd
+  : AGENT_TOOL_CREDITS[tool] * QBOX_PRICING.vcpuMinutesPerCredit
 
 /** The same in USD. */
 export const agentToolUsd = (tool: AgentTool) => Math.round((agentToolUnits(tool) / QBOX_PRICING.vcpuMinutesPerUsd) * 100) / 100
+
+/** Tools an agent can pay per call over x402, without any account (review runs too long for that). */
+export const PAY_PER_CALL_TOOLS = ['product', 'scan'] as const satisfies readonly AgentTool[]

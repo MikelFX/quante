@@ -115,7 +115,7 @@ ${modulesList}`
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
 - [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
-- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): store review by 20 agents $${agentToolUsd('review').toFixed(2)}, store scan to JSON $${agentToolUsd('scan').toFixed(2)}; pay from a Qbox account
+- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (product, scan; charged only when it works) or from a Qbox account
 - [Qbox](${AGENT_LINKS.qbox.llms}): sandboxes for AI agents — ${rt.qboxOpen ? (rt.x402 ? 'pay by yourself over x402 (USDC), no sign-up' : 'paid, prepaid balance') : 'invite-only beta'}`
   const head = kind === 'app'
     ? `# Quante\n\n> AI e-commerce builder and tools for e-shops (generate, edit, ads, review by 20 agents), plus Qbox, sandboxes for AI agents. A product of AssetraDigital s.r.o. (Czech Republic). The product pages are Czech, the app and APIs English.`
@@ -243,6 +243,19 @@ export function agentOpenApi() {
           responses: { 200: { description: 'Result (JSON)' }, 401: { description: 'API key missing' }, 402: { description: 'Balance too low: x402 offer + other ways to pay' }, 403: { description: 'No paid access' }, 422: { description: 'Site could not be read (not charged)' }, 429: { description: 'Limit' } },
         },
       }])),
+      '/product': {
+        get: {
+          operationId: 'lookupProduct',
+          summary: `Product page → normalized product JSON ($${agentToolUsd('product').toFixed(2)} per call; not charged when the page has no product data)`,
+          description: 'Name, price, currency, availability, brand, SKU, GTIN, condition, images, rating and variants, read from the page\'s own JSON-LD / microdata / OpenGraph. Pay per call over x402 with no account (call, get 402, repeat with X-PAYMENT; settled only after it worked), or Bearer qbx_…. POST { url } works too.',
+          security: [{}, { bearer: [] }],
+          parameters: [
+            { name: 'url', in: 'query', required: true, schema: { type: 'string' }, description: 'Public product page URL' },
+            { name: 'X-PAYMENT', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 payment (repeat the 402-answered call with it)' },
+          ],
+          responses: { 200: { description: 'Product(s) as JSON' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 422: { description: 'Page unreadable or no product data (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Pay-per-call off: use a Qbox account' } },
+        },
+      },
       '/search': {
         get: {
           operationId: 'searchSite', summary: 'Keyword search over every page',

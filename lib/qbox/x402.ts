@@ -53,15 +53,17 @@ export interface PaymentRequirements {
   maxTimeoutSeconds: number
   asset: string
   extra: { name: string; version: string }
+  /** x402 v1 discovery hint (Bazaar): how to call the resource and what it answers. */
+  outputSchema?: Record<string, unknown>
 }
 
-/** What the agent must pay for `usd` dollars of Qbox time at `resource`. */
-export function requirements(cfg: X402Config, usd: number, resource: string, description: string): PaymentRequirements {
+/** What the agent must pay for `usd` dollars (cents allowed: pay-per-call tools) at `resource`. */
+export function requirements(cfg: X402Config, usd: number, resource: string, description: string, outputSchema?: Record<string, unknown>): PaymentRequirements {
   const token = USDC[cfg.network]
   return {
     scheme: 'exact',
     network: cfg.network,
-    maxAmountRequired: String(usd * 1_000_000), // USDC has 6 decimals
+    maxAmountRequired: String(Math.round(usd * 1_000_000)), // USDC has 6 decimals
     resource,
     description,
     mimeType: 'application/json',
@@ -69,6 +71,7 @@ export function requirements(cfg: X402Config, usd: number, resource: string, des
     maxTimeoutSeconds: 300,
     asset: token.asset,
     extra: { name: token.name, version: '2' },
+    ...(outputSchema ? { outputSchema } : {}),
   }
 }
 
@@ -92,19 +95,28 @@ export const encodeHeader = (obj: unknown) => Buffer.from(JSON.stringify(obj)).t
 
 export type Settled = { ok: true; transaction: string; payer: string | null; network: string; raw: unknown } | { ok: false; error: string }
 
-/** Verify, then settle, the agent's payment through the facilitator. Never throws. */
-export async function settle(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
+async function facilitatorCall(cfg: X402Config, path: 'verify' | 'settle', payment: Record<string, unknown>, reqs: PaymentRequirements) {
   const body = JSON.stringify({ x402Version: X402_VERSION, paymentPayload: payment, paymentRequirements: reqs })
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (cfg.auth) headers.Authorization = cfg.auth
-  const call = async (path: string) => {
-    const res = await fetch(`${cfg.facilitator}/${path}`, { method: 'POST', headers, body, signal: AbortSignal.timeout(30_000) })
-    return (await res.json().catch(() => null)) as Record<string, unknown> | null
-  }
+  const res = await fetch(`${cfg.facilitator}/${path}`, { method: 'POST', headers, body, signal: AbortSignal.timeout(30_000) })
+  return (await res.json().catch(() => null)) as Record<string, unknown> | null
+}
+
+/** Only checks the payment (nothing moves yet). Pay-per-call tools verify, work, then settle. Never throws. */
+export async function verifyPayment(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
-    const v = await call('verify')
-    if (!v?.isValid) return { ok: false, error: `Payment not valid: ${String(v?.invalidReason ?? 'rejected by the facilitator')}.` }
-    const s = await call('settle')
+    const v = await facilitatorCall(cfg, 'verify', payment, reqs)
+    return v?.isValid ? { ok: true } : { ok: false, error: `Payment not valid: ${String(v?.invalidReason ?? 'rejected by the facilitator')}.` }
+  } catch {
+    return { ok: false, error: 'The payment facilitator could not be reached. Nothing was charged; try again.' }
+  }
+}
+
+/** Settles an already verified payment. Never throws. */
+export async function settleVerified(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
+  try {
+    const s = await facilitatorCall(cfg, 'settle', payment, reqs)
     if (!s?.success || typeof s.transaction !== 'string' || !s.transaction) {
       return { ok: false, error: `Payment not settled: ${String(s?.errorReason ?? 'the facilitator did not confirm it')}.` }
     }
@@ -112,6 +124,21 @@ export async function settle(cfg: X402Config, payment: Record<string, unknown>, 
   } catch {
     return { ok: false, error: 'The payment facilitator could not be reached. Nothing was charged; try again.' }
   }
+}
+
+/** Verify, then settle, the agent's payment through the facilitator. Never throws. */
+export async function settle(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
+  const v = await verifyPayment(cfg, payment, reqs)
+  if (!v.ok) return v
+  return settleVerified(cfg, payment, reqs)
+}
+
+/** The USDC base units the agent signed (exact scheme), or null. */
+export function signedUnits(payment: Record<string, unknown>): string | null {
+  const value = (payment.payload as { authorization?: { value?: unknown } } | undefined)?.authorization?.value
+  if (typeof value !== 'string' && typeof value !== 'number') return null
+  const s = String(value)
+  return /^\d{1,15}$/.test(s) ? s : null
 }
 
 /**
