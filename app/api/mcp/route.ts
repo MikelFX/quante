@@ -1,8 +1,10 @@
 // The site MCP server: POST /api/mcp (JSON-RPC 2.0, Streamable HTTP, stateless JSON responses).
-// Read-only, no key (lib/agents/mcp.ts). GET answers 405 (no server-sent stream) with a pointer.
+// No key; read tools + request_quote (lib/agents/mcp.ts). GET answers 405 (no server-sent stream) with a pointer.
 import { NextResponse } from 'next/server'
 import { handleSiteRpc, type ChangelogEntry } from '@/lib/agents/mcp'
 import { agentRuntime, qboxLlms } from '@/lib/agents/runtime'
+import { submitInquiry } from '@/lib/agents/inquiry'
+import { getClientIp } from '@/lib/rate-limit'
 import { APP_ORIGIN } from '@/lib/domains'
 
 const CORS = {
@@ -36,7 +38,9 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, { status: 400, headers: CORS })
   }
-  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog }
+  const ip = getClientIp(req)
+  const ua = req.headers.get('user-agent') ?? ''
+  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua) }
   if (Array.isArray(body)) {
     const out = (await Promise.all(body.slice(0, 20).map((m) => handleSiteRpc(m, deps)))).filter((x) => x !== null)
     return out.length ? NextResponse.json(out, { headers: CORS }) : new Response(null, { status: 202, headers: CORS })

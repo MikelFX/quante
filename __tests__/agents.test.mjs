@@ -134,7 +134,7 @@ test('discovery files point at the real endpoints', () => {
   const card = D.mcpServerCard(M.SITE_MCP_TOOLS)
   assert.equal(card.transport.endpoint, C.AGENT_LINKS.mcp)
   assert.equal(card.tools.length, M.SITE_MCP_TOOLS.length)
-  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/page', '/pages', '/search'])
+  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/inquiry', '/page', '/pages', '/review', '/scan', '/search'])
   // the old Next robots route is gone, so the rewrite answers
   assert.throws(() => read('app/robots.ts'))
 })
@@ -164,13 +164,16 @@ test('search finds sections in Czech without diacritics and in page titles', () 
 })
 
 test('site MCP server: read-only tools, works without a key', async () => {
-  const deps = { rt: C.RUNTIME_OFF, qboxLlms: '# Qbox', changelog: async (n) => [{ date: '2026-11-05', title: 't', description: 'd', url: null }].slice(0, n) }
+  let asked = null
+  const deps = { rt: C.RUNTIME_OFF, qboxLlms: '# Qbox', inquiry: async (a) => { asked = a; return { ok: true, id: 'L1' } }, changelog: async (n) => [{ date: '2026-11-05', title: 't', description: 'd', url: null }].slice(0, n) }
   const init = await M.handleSiteRpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, deps)
   assert.equal(init.result.protocolVersion, '2025-06-18')
   assert.match(init.result.instructions, /Qbox/)
   const list = await M.handleSiteRpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, deps)
-  assert.deepEqual(list.result.tools.map((t) => t.name), ['get_catalog', 'list_pages', 'read_page', 'search_site', 'get_changelog', 'get_contact'])
-  assert.ok(list.result.tools.every((t) => t.annotations.readOnlyHint === true))
+  assert.deepEqual(list.result.tools.map((t) => t.name), ['get_catalog', 'list_pages', 'read_page', 'search_site', 'get_changelog', 'request_quote', 'get_contact'])
+  // only request_quote writes, and nothing destroys
+  assert.deepEqual(list.result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name), ['request_quote'])
+  assert.ok(list.result.tools.every((t) => !t.annotations.destructiveHint))
   const call = async (name, args) => (await M.handleSiteRpc({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name, arguments: args } }, deps)).result
   assert.ok((await call('get_catalog', {})).structuredContent.offerings.length > 3)
   assert.ok((await call('get_catalog', { section: 'qbox' })).structuredContent.id === 'qbox')
@@ -178,6 +181,8 @@ test('site MCP server: read-only tools, works without a key', async () => {
   assert.equal((await call('read_page', { page: '/nope' })).isError, true)
   assert.ok((await call('search_site', { query: 'reklamy' })).structuredContent.hits.length > 0)
   assert.equal((await call('get_changelog', { limit: 1 })).structuredContent.entries.length, 1)
+  assert.equal((await call('request_quote', { contact: 'a@b.cz', consent: true })).structuredContent.id, 'L1')
+  assert.equal(asked.contact, 'a@b.cz')
   const unknown = await M.handleSiteRpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'delete_everything' } }, deps)
   assert.equal(unknown.error.code, -32602)
   assert.equal(await M.handleSiteRpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, deps), null)
@@ -195,4 +200,39 @@ test('JSON-LD carries the real prices and nothing that closes the script tag', a
   assert.deepEqual(app.offers.map((o) => o.price), CREDIT_PACKS.map((p) => (p.priceCents / 100).toFixed(2)))
   assert.doesNotMatch(J.jsonLdString({ x: '</script>' }), /<\/script>/)
   assert.ok(J.siteJsonLd()['@graph'].some((n) => n['@type'] === 'Organization' && n.name === 'AssetraDigital s.r.o.'))
+})
+
+test('agent inquiry: consent required, the form validation, marked as from an agent', async () => {
+  const I = await import('../lib/agents/inquiry-check.ts')
+  assert.equal(I.checkInquiry({ contact: 'jana@firma.cz' }).ok, false)
+  assert.equal(I.checkInquiry({ contact: 'jana@firma.cz', consent: 'yes' }).ok, false)
+  assert.equal(I.checkInquiry({ contact: 'nope', consent: true }).ok, false)
+  const ok = I.checkInquiry({ contact: 'jana@firma.cz', consent: true, need: 'E-shop', message: 'Chceme e-shop', agent: 'Bot\nX' })
+  assert.equal(ok.ok, true)
+  assert.equal(ok.lead.potreba, 'E-shop')
+  assert.match(ok.lead.zprava, /sent by AI agent: Bot X$/)
+  assert.ok(I.AGENT_INQUIRY_LIMITS.perIpDay <= 3)
+  assert.match(read('lib/agents/inquiry.ts'), /source: 'agent'/)
+  assert.match(read('proxy.ts'), /'\/api\/agent\/\(\.\*\)'/)
+})
+
+test('paid agent tools: same price as people pay in credits, never free, refunded on failure', async () => {
+  const PP = await import('../lib/agents/paid-price.ts')
+  assert.equal(PP.AGENT_TOOL_CREDITS.review, CREDIT_COSTS.qgent_swarm)
+  assert.ok(PP.AGENT_TOOL_CREDITS.scan >= 1)
+  assert.equal(PP.agentToolUnits('review'), CREDIT_COSTS.qgent_swarm * QBOX_PRICING.vcpuMinutesPerCredit)
+  assert.ok(PP.agentToolUsd('scan') > 0)
+  const off = C.agentCatalog().offerings.find((o) => o.id === 'agent-review')
+  assert.equal(off.price.free, false)
+  assert.equal(off.status, 'waiting for Qbox paid access')
+  for (const f of ['app/api/agent/v1/review/route.ts', 'app/api/agent/v1/scan/route.ts']) {
+    const src = read(f)
+    assert.match(src, /paidCaller\(req\)/, f)
+    assert.match(src, /await refund\(c, '(review|scan)', booked\.ref\)/, f)
+    assert.match(src, /rights !== true/, f)
+  }
+  // the review is charged only after the page was read
+  const r = read('app/api/agent/v1/review/route.ts')
+  assert.ok(r.indexOf('readHome(') < r.indexOf("charge(c, 'review'"))
+  assert.match(read('lib/agents/paid.ts'), /tier !== 'paid'/)
 })

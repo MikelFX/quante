@@ -6,6 +6,8 @@
 import { APP_ORIGIN, SITE_ORIGIN, hostKind } from '@/lib/domains'
 import { AGENT_LINKS, agentCatalog, RUNTIME_OFF, type AgentRuntime } from './catalog'
 import { agentPages, type AgentPage } from './pages'
+import { INQUIRY_NEEDS } from './inquiry-check'
+import { agentToolUsd } from './paid-price'
 
 export { wantsMarkdown } from './negotiate'
 
@@ -68,7 +70,8 @@ export function robotsTxt(origin: string, kind: Kind): string {
 # every public page. You don't need to scrape:
 #   llms.txt        ${origin}/llms.txt   (full text: ${AGENT_LINKS.llmsFull})
 #   JSON catalog    ${AGENT_LINKS.catalog}   (every product and price, from the billing code)
-#   MCP server      ${AGENT_LINKS.mcp}   (Streamable HTTP, no key, read-only)
+#   MCP server      ${AGENT_LINKS.mcp}   (Streamable HTTP, no key)
+#   Ask for a quote POST ${APP_ORIGIN}/api/agent/v1/inquiry   (for your person, with their consent)
 #   Markdown        any page with "Accept: text/markdown", or the path + ".md"
 #   API catalog     ${AGENT_LINKS.apiCatalog}
 #   For agents      ${SITE_ORIGIN}/agents.md
@@ -110,8 +113,9 @@ ${modulesList}`
 
 - [Start here](${by('agents').md}): how to use this site as an agent
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
-- [MCP server](${AGENT_LINKS.mcp}): read-only tools get_catalog, list_pages, read_page, search_site, get_changelog, get_contact (no key)
+- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
+- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): store review by 20 agents $${agentToolUsd('review').toFixed(2)}, store scan to JSON $${agentToolUsd('scan').toFixed(2)}; pay from a Qbox account
 - [Qbox](${AGENT_LINKS.qbox.llms}): sandboxes for AI agents — ${rt.qboxOpen ? (rt.x402 ? 'pay by yourself over x402 (USDC), no sign-up' : 'paid, prepaid balance') : 'invite-only beta'}`
   const head = kind === 'app'
     ? `# Quante\n\n> AI e-commerce builder and tools for e-shops (generate, edit, ads, review by 20 agents), plus Qbox, sandboxes for AI agents. A product of AssetraDigital s.r.o. (Czech Republic). The product pages are Czech, the app and APIs English.`
@@ -176,7 +180,7 @@ export function mcpServerCard(tools: { name: string; description: string }[]) {
     version: '1.0',
     protocolVersion: '2025-06-18',
     serverInfo: { name: 'assetradigital', title: 'AssetraDigital + Quante — site knowledge', version: '1.0.0' },
-    description: 'Read-only MCP server for everything on assetradigital.agency and quantecode.com: products, prices, pages as Markdown, search, changelog, contact. No key.',
+    description: 'MCP server for everything on assetradigital.agency and quantecode.com: products, prices, pages as Markdown, search, changelog, contact, and request_quote (an inquiry for your person). No key.',
     documentationUrl: `${SITE_ORIGIN}/agents.md`,
     transport: { type: 'streamable-http', endpoint: AGENT_LINKS.mcp },
     authentication: { required: false },
@@ -205,9 +209,10 @@ export function agentOpenApi() {
     info: {
       title: 'AssetraDigital + Quante agent API',
       version: '1.0.0',
-      description: 'Read-only, no key, CORS open. The whole offer, every page as Markdown and search. For running code see Qbox.',
+      description: 'No key, CORS open. The whole offer, every page as Markdown, search, and an inquiry an agent sends for its person. For running code see Qbox.',
     },
     servers: [{ url: `${APP_ORIGIN}/api/agent/v1` }],
+    components: { securitySchemes: { bearer: { type: 'http', scheme: 'bearer', description: `Qbox API key qbx_… — open one by yourself: POST ${AGENT_LINKS.qbox.api}/accounts` } } },
     paths: {
       '/catalog': { get: { operationId: 'getCatalog', summary: 'Every product, price and status', responses: { 200: { description: 'Catalog', content: { 'application/json': { schema: { type: 'object' } } } } } } },
       '/page': {
@@ -218,6 +223,26 @@ export function agentOpenApi() {
         },
       },
       '/pages': { get: { operationId: 'listPages', summary: 'Every page with its URLs', responses: { 200: { description: 'Pages', content: { 'application/json': { schema: { type: 'array', items: { type: 'object' } } } } } } } },
+      '/inquiry': {
+        post: {
+          operationId: 'requestQuote', summary: 'Send AssetraDigital an inquiry for your person (consent required, a few per day)',
+          requestBody: { required: true, content: { 'application/json': { schema: {
+            type: 'object', required: ['contact', 'consent'],
+            properties: { contact: { type: 'string' }, name: { type: 'string' }, need: { type: 'string', enum: [...INQUIRY_NEEDS] }, message: { type: 'string' }, consent: { type: 'boolean', const: true }, agent: { type: 'string' } },
+          } } } },
+          responses: { 200: { description: 'Stored; AssetraDigital will contact the person' }, 400: { description: 'Invalid' }, 429: { description: 'Limit reached' } },
+        },
+      },
+      ...Object.fromEntries((['review', 'scan'] as const).map((tool) => [`/${tool}`, {
+        post: {
+          operationId: tool === 'review' ? 'reviewStore' : 'scanStore',
+          summary: tool === 'review' ? `20 Qgent agents review a store page ($${agentToolUsd(tool).toFixed(2)} per call, refunded when it fails)` : `A store read into structured JSON ($${agentToolUsd(tool).toFixed(2)} per call, refunded when it fails)`,
+          security: [{ bearer: [] }],
+          parameters: [{ name: 'X-PAYMENT', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 payment (repeat a 402-answered call with it)' }],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['url', 'rights'], properties: { url: { type: 'string' }, rights: { type: 'boolean', const: true, description: 'The store is your person’s, or they may use its content.' } } } } } },
+          responses: { 200: { description: 'Result (JSON)' }, 401: { description: 'API key missing' }, 402: { description: 'Balance too low: x402 offer + other ways to pay' }, 403: { description: 'No paid access' }, 422: { description: 'Site could not be read (not charged)' }, 429: { description: 'Limit' } },
+        },
+      }])),
       '/search': {
         get: {
           operationId: 'searchSite', summary: 'Keyword search over every page',

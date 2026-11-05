@@ -1,19 +1,21 @@
 // The site MCP server (Model Context Protocol, Streamable HTTP, stateless JSON): everything on
-// assetradigital.agency + quantecode.com for agents, read-only and without a key. Tools never
-// change, order or run anything — Qbox (its own MCP server, paid) is the place for that.
+// assetradigital.agency + quantecode.com for agents, without a key. Every tool reads, except
+// request_quote (an inquiry for the agent's person, consent required, tight limits). Tools never
+// change, order or run anything — Qbox (its own MCP server, paid) is the place for running code.
 // JSON-RPC handling is pure here; the route injects the changelog loader. Tested in
 // __tests__/agents.test.mjs.
 
 import { AGENT_LINKS, agentCatalog, type AgentRuntime } from './catalog'
 import { agentPageFor, agentPages } from './pages'
 import { searchPages } from './discovery'
+import { INQUIRY_NEEDS, type InquiryResult } from './inquiry-check'
 
 export const MCP_SERVER = { name: 'assetradigital', title: 'AssetraDigital + Quante — site knowledge', version: '1.0.0' }
 export const MCP_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
 
 export const MCP_INSTRUCTIONS =
   'AssetraDigital (Czech company: AI solutions, custom software, websites and e-shops) and its products Quante (AI e-shop builder, quantecode.com) '
-  + 'and Qbox (sandboxes for AI agents). Use get_catalog for products and exact prices, search_site or read_page for details, get_contact to reach people. '
+  + 'and Qbox (sandboxes for AI agents). Use get_catalog for products and exact prices, search_site or read_page for details, get_contact to reach people, request_quote when your person wants an offer (with their consent). '
   + 'Facts that are null are not published yet: say so, never guess. Pages are Czech. To RUN code, use the Qbox MCP server at '
   + `${AGENT_LINKS.qbox.mcp} (paid, API key).`
 
@@ -49,6 +51,25 @@ export const SITE_MCP_TOOLS = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   },
   {
+    name: 'request_quote',
+    description: 'Send AssetraDigital an inquiry for your person (AI solution, custom software, website, e-shop, management). Only when the person asked for it: consent must be true. '
+      + 'Needs a contact (e-mail or phone) where the person wants to be reached; AssetraDigital replies there. Limited to a few per day.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        contact: { type: 'string', description: "The person's e-mail or phone." },
+        name: { type: 'string', description: 'Name and company.' },
+        need: { type: 'string', enum: [...INQUIRY_NEEDS] },
+        message: { type: 'string', description: 'What they need, in a few sentences (Czech or English).' },
+        consent: { type: 'boolean', description: 'true = the person asked to be contacted.' },
+        agent: { type: 'string', description: 'Your name / product, for our records.' },
+      },
+      required: ['contact', 'consent'],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  },
+  {
     name: 'get_contact',
     description: 'How a person reaches AssetraDigital (form, phone, e-mail; null = not published yet) and where to start in Quante.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -62,6 +83,8 @@ export interface McpDeps {
   rt: AgentRuntime
   qboxLlms: string
   changelog: (limit: number) => Promise<ChangelogEntry[]>
+  /** Stores an agent inquiry (lib/agents/inquiry.ts submitInquiry, bound to the caller's IP). */
+  inquiry: (input: Record<string, unknown>) => Promise<InquiryResult>
 }
 
 type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> }
@@ -97,6 +120,10 @@ export async function callSiteTool(name: string, a: Record<string, unknown>, dep
     }
     case 'get_changelog':
       return json({ entries: await deps.changelog(int(a.limit, 10, 50)) })
+    case 'request_quote': {
+      const r = await deps.inquiry(a)
+      return r.ok ? json({ ok: true, id: r.id, next: 'AssetraDigital will contact the person. Nothing else is needed.' }) : toolError(r.error)
+    }
     case 'get_contact': {
       const c = agentCatalog(deps.rt)
       return json({ company: c.organization, contact: c.contact, quante: { start: 'https://quantecode.com/start', signup: 'https://quantecode.com/signup' } })

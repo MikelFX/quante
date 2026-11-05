@@ -15,12 +15,16 @@ import { CREDIT_PACKS } from '@/lib/credit-packs'
 import { QADS_GENERATOR_CREDIT_COSTS as QADS } from '@/lib/qads/pricing'
 import { APP_ORIGIN, SITE_ORIGIN } from '@/lib/domains'
 import { QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_TEMPLATES } from '@/lib/qbox/limits'
+import { AGENT_TOOL_CREDITS, agentToolUnits, agentToolUsd } from './paid-price'
 
 /** Where the agent layer lives. Absolute, canonical — agents keep these. */
 export const AGENT_LINKS = {
   catalog: `${APP_ORIGIN}/api/agent/v1/catalog`,
   search: `${APP_ORIGIN}/api/agent/v1/search`,
   page: `${APP_ORIGIN}/api/agent/v1/page`,
+  review: `${APP_ORIGIN}/api/agent/v1/review`,
+  scan: `${APP_ORIGIN}/api/agent/v1/scan`,
+  inquiry: `${APP_ORIGIN}/api/agent/v1/inquiry`,
   openapi: `${APP_ORIGIN}/api/agent/v1/openapi.json`,
   mcp: `${APP_ORIGIN}/api/mcp`,
   llmsSite: `${SITE_ORIGIN}/llms.txt`,
@@ -97,7 +101,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
         services: k.ai.services,
         process: k.ai.process,
         price: { model: 'quote', currency: null, note: k.ai.note },
-        howToBuy: { human: `${SITE_ORIGIN}/#kontakt`, agent: null },
+        howToBuy: { human: `${SITE_ORIGIN}/#kontakt`, agent: { inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`, mcpTool: 'request_quote', consentRequired: true } },
       },
       {
         id: 'web-eshop',
@@ -124,7 +128,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
           },
           note: k.agency.pricing.note,
         },
-        howToBuy: { human: `${SITE_ORIGIN}/web-eshop#kontakt`, agent: null },
+        howToBuy: { human: `${SITE_ORIGIN}/web-eshop#kontakt`, agent: { inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`, mcpTool: 'request_quote', consentRequired: true } },
       },
       ...modules.map((m) => ({
         id: `quante-${m.slug}`,
@@ -169,6 +173,24 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
         },
         interfaces: { openapi: AGENT_LINKS.qbox.openapi, mcp: AGENT_LINKS.qbox.mcp, llms: AGENT_LINKS.qbox.llms },
       },
+      ...(['review', 'scan'] as const).map((tool) => ({
+        id: `agent-${tool}`,
+        kind: 'api' as const,
+        product: tool === 'review' ? 'Qgent' : 'Qscan',
+        name: tool === 'review' ? 'Store review by 20 Qgent agents (API)' : 'Store scan into structured JSON (API)',
+        status: rt.qboxOpen ? 'available' : 'waiting for Qbox paid access',
+        summary: tool === 'review'
+          ? 'POST a public store URL; 20 agents (copy, SEO, accessibility, trust, conversion …) return findings with before/after text, the page as layers and a summary.'
+          : 'POST a public store URL; returns brand, products with prices and variants, colours, fonts, navigation, texts, images and socials as JSON.',
+        url: tool === 'review' ? AGENT_LINKS.review : AGENT_LINKS.scan,
+        markdown: null,
+        price: { model: 'per-call', currency: 'USD', perCall: agentToolUsd(tool), balanceUnits: agentToolUnits(tool), sameAsQuanteCredits: AGENT_TOOL_CREDITS[tool], free: false, refundedWhenItFails: true },
+        howToBuy: {
+          human: null,
+          agent: { auth: 'Authorization: Bearer qbx_… (one Qbox account for every paid agent tool)', openAccount: `POST ${AGENT_LINKS.qbox.api}/accounts?usd=5`, pay: rt.x402 ? 'x402 USDC: repeat a 402-answered call with X-PAYMENT' : 'Qbox balance' },
+        },
+        interfaces: { openapi: AGENT_LINKS.openapi },
+      })),
     ],
     quantePricing: {
       currency: 'USD',
@@ -200,9 +222,10 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
       textual: k.quante.pricing,
     },
     agentAccess: {
-      mcp: { url: AGENT_LINKS.mcp, transport: 'streamable-http', auth: 'none', readOnly: true },
+      mcp: { url: AGENT_LINKS.mcp, transport: 'streamable-http', auth: 'none', writes: ['request_quote (inquiry for your person, consent required)'] },
+      inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`,
       qboxMcp: { url: AGENT_LINKS.qbox.mcp, transport: 'streamable-http', auth: 'Bearer qbx_… API key' },
-      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi },
+      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, auth: 'Bearer qbx_… (Qbox account)' } },
       markdown: 'Every public page answers `Accept: text/markdown` with Markdown, and also at the same path + ".md" (the home page as /index.md).',
       llms: [AGENT_LINKS.llmsSite, AGENT_LINKS.llmsApp, AGENT_LINKS.llmsFull],
       discovery: [AGENT_LINKS.apiCatalog, AGENT_LINKS.mcpCard],

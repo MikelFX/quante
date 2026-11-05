@@ -8,6 +8,7 @@ import { buildQgentKnowledge } from '@/content/assetra/qgent'
 import { APP_ORIGIN, SITE_ORIGIN, hostKind } from '@/lib/domains'
 import { AGENT_MODULE_SLUGS as MODULE_SLUGS, agentPageId } from './page-ids'
 import { AGENT_LINKS, agentCatalog, moduleUrl, RUNTIME_OFF, type AgentRuntime } from './catalog'
+import { agentToolUsd } from './paid-price'
 
 export interface AgentPage {
   id: string
@@ -181,9 +182,13 @@ function agentsPage(rt: AgentRuntime): AgentPage {
 You are welcome here. Everything on assetradigital.agency and quantecode.com is available to you in machine-readable form, without scraping:
 
 - **Whole offer as JSON** (products, prices from the billing code, contact, what is not published yet): ${AGENT_LINKS.catalog}
-- **MCP server** (Streamable HTTP, no key, read-only): ${AGENT_LINKS.mcp} — tools get_catalog, list_pages, read_page, search_site, get_changelog, get_contact
+- **MCP server** (Streamable HTTP, no key): ${AGENT_LINKS.mcp} — tools get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote
+- **Ask for a quote for your person** (only when they asked; a few per day): POST ${APP_ORIGIN}/api/agent/v1/inquiry with { contact, name, need, message, consent: true, agent }
 - **Markdown of every page**: send \`Accept: text/markdown\`, or add ".md" to the path (home: /index.md)
 - **Search**: ${AGENT_LINKS.search}?q=e-shop
+- **Paid tools** (one Qbox account and key for everything; ${rt.x402 ? 'top up yourself over x402, USDC' : 'prepaid balance'}; charged only when the site could be read, returned when the work fails):
+  - Store review by 20 Qgent agents: POST ${AGENT_LINKS.review} { url, rights: true } — $${agentToolUsd('review').toFixed(2)}
+  - Store scan into structured JSON (products, prices, brand, colours): POST ${AGENT_LINKS.scan} { url, rights: true } — $${agentToolUsd('scan').toFixed(2)}
 - **OpenAPI**: ${AGENT_LINKS.openapi} · **API catalog** (RFC 9727): ${AGENT_LINKS.apiCatalog}
 - **llms.txt**: ${AGENT_LINKS.llmsSite}, ${AGENT_LINKS.llmsApp}, full text ${AGENT_LINKS.llmsFull}
 - **Qbox, sandboxes for agents**${rt.qboxOpen ? (rt.x402 ? ' (pay by yourself over x402, USDC)' : ' (paid)') : ' (invite-only beta)'}: ${AGENT_LINKS.qbox.llms}
