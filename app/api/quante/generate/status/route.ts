@@ -111,13 +111,14 @@ export async function GET(request: Request) {
     : []
   // Additive: which files are complete and which one is being written (paths only, capped) —
   // the /qgent build stage shows the agents assembling the store from these.
-  const progress = job.status === 'running' ? fileProgress(job.raw_output ?? '') : { done: [], writing: null }
-  const response: JobStatusPayload & { droppedFiles: string[]; droppedFileDetails: DroppedFile[]; filesDone: string[]; writing: string | null } = {
+  const progress = job.status === 'running' ? fileProgress(job.raw_output ?? '') : { done: [], writing: null, writingAll: [] as string[] }
+  const response: JobStatusPayload & { droppedFiles: string[]; droppedFileDetails: DroppedFile[]; filesDone: string[]; writing: string | null; writingAll: string[] } = {
     ...payload,
     droppedFiles: dropped.map((d) => d.path),
     droppedFileDetails: dropped,
     filesDone: progress.done,
     writing: progress.writing,
+    writingAll: progress.writingAll,
   }
 
   return NextResponse.json(response)

@@ -68,7 +68,9 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
-  const { brief: rawBrief, projectName: rawProjectName, projectId: rawProjectId } = body ?? {}
+  const { brief: rawBrief, projectName: rawProjectName, projectId: rawProjectId, parallel: rawParallel } = body ?? {}
+  // The 20-agent build on /qgent writes the pages side by side (lib/generation/parallel.ts).
+  const parallel = rawParallel === true
 
   const brief = typeof rawBrief === 'string' ? rawBrief.trim() : ''
   if (!brief) {
@@ -224,6 +226,7 @@ export async function POST(request: Request) {
     existingProjectId,
     agency,
     charged,
+    parallel,
   }))
 
   return NextResponse.json({ jobId, projectId: existingProjectId ?? null }, { status: 202 })

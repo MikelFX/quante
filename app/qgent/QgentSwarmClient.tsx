@@ -66,7 +66,7 @@ export function QgentSwarmClient() {
   // build
   const [info, setInfo] = useState<BuildInfo | null>(null)
   const [filesDone, setFilesDone] = useState<string[]>([])
-  const [writing, setWriting] = useState<string | null>(null)
+  const [writing, setWriting] = useState<string[]>([])
   const [statusText, setStatusText] = useState('')
   const [built, setBuilt] = useState<{ studioUrl: string; previewUrl: string | null } | null>(null)
 
@@ -179,7 +179,7 @@ export function QgentSwarmClient() {
   async function build(e?: FormEvent) {
     e?.preventDefault()
     if (!guard()) return
-    setBuilt(null); setInfo(null); setFilesDone([]); setWriting(null)
+    setBuilt(null); setInfo(null); setFilesDone([]); setWriting([])
     setPhase('reading')
     setStatusText('Reading your old store…')
     toStage()
@@ -203,7 +203,7 @@ export function QgentSwarmClient() {
       const extra = acceptedBrief(accepted, Math.max(0, Math.min(2_400, BRIEF_LIMIT - String(scan.brief).length)))
       const gen = await fetch('/api/quante/generate', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief: String(scan.brief) + (extra ? `\n${extra}` : ''), projectName: scan.projectName }),
+        body: JSON.stringify({ brief: String(scan.brief) + (extra ? `\n${extra}` : ''), projectName: scan.projectName, parallel: true }),
       })
       const g = await gen.json().catch(() => null)
       if (!gen.ok || !g?.jobId) {
@@ -224,7 +224,7 @@ export function QgentSwarmClient() {
     const startedAt = performance.now()
     while (true) {
       await new Promise((r) => setTimeout(r, 2500))
-      let payload: JobStatusPayload & { filesDone?: string[]; writing?: string | null }
+      let payload: JobStatusPayload & { filesDone?: string[]; writing?: string | null; writingAll?: string[] }
       try {
         const r = await fetch(`/api/quante/generate/status?jobId=${jobId}`)
         if (!r.ok) continue
@@ -233,12 +233,12 @@ export function QgentSwarmClient() {
         continue
       }
       if (Array.isArray(payload.filesDone)) setFilesDone((prev) => (payload.filesDone!.length >= prev.length ? payload.filesDone! : prev))
-      setWriting(payload.writing ?? null)
+      setWriting(Array.isArray(payload.writingAll) ? payload.writingAll : payload.writing ? [payload.writing] : [])
       setStatusText(phaseToStatusText(payload.phase))
       const decision = decidePollAction(payload)
       if (decision.action === 'navigate') {
         void fetch(`/api/qscan/${scanId}/project`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectId: decision.projectId }) }).catch(() => {})
-        setWriting(null)
+        setWriting([])
         setBuilt({ studioUrl: buildProjectUrl(decision.projectId, decision.deploymentId, decision.codeVersionId, payload.previewUrl, decision.deployError), previewUrl: payload.previewUrl })
         setPhase('built')
         requestAnimationFrame(() => builtRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
