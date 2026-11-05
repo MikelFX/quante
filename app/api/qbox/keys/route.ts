@@ -1,13 +1,14 @@
-// Qbox beta API keys for the signed-in member (/qbox page). Clerk session, not an API key.
-//   GET    → { member, limits, usage, keys }   (member: false when not invited)
+// Qbox API keys for the signed-in account (/qbox page). Clerk session, not an API key.
+//   GET    → { member, tier, limits, usage, balance, keys }   (member: false when not let in)
 //   POST   { name } → { key } shown once
 //   DELETE ?id=…   → revoke
 
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { QBOX_BETA, isLive, monthStartUtc, newApiKey, usedMinutes } from '@/lib/qbox/model'
-import { QboxNotSetUpError, betaMember, memberSandboxes } from '@/lib/qbox/store'
+import { QBOX_BETA, isLive, isOpenAccess, monthStartUtc, newApiKey, usedMinutes } from '@/lib/qbox/model'
+import { QboxNotSetUpError, betaMember, hasPaidPurchase, memberSandboxes, paidAccount } from '@/lib/qbox/store'
+import { x402Config } from '@/lib/qbox/x402'
 
 const err = (status: number, error: string) => NextResponse.json({ error }, { status })
 
@@ -37,10 +38,20 @@ export async function GET() {
     memberSandboxes(r.userId!, now).catch(() => []),
   ])
   const ms = monthStartUtc(now)
+  const paid = r.m.tier === 'paid'
+  const [account, purchased] = paid
+    ? await Promise.all([paidAccount(r.userId!, now).catch(() => null), hasPaidPurchase(r.userId!)])
+    : [null, false]
   return NextResponse.json({
     setUp: true,
     member: true,
-    limits: { maxConcurrent: r.m.maxConcurrent, monthlyMinutes: r.m.monthlyMinutes, maxTimeoutMinutes: QBOX_BETA.maxTimeoutMs / 60_000 },
+    tier: r.m.tier,
+    open: isOpenAccess(process.env),
+    agentPayments: !!x402Config(process.env),
+    balance: account ? account.balance : null,
+    paidSetUp: paid ? !!account : true,
+    canUseCredits: purchased,
+    limits: { maxConcurrent: r.m.maxConcurrent, monthlyMinutes: Number.isFinite(r.m.monthlyMinutes) ? r.m.monthlyMinutes : null, maxTimeoutMinutes: r.m.maxTimeoutMs / 60_000 },
     usage: {
       minutes: Math.round(rows.reduce((s, row) => s + usedMinutes(row, now, ms), 0)),
       running: rows.filter((row) => isLive(row, now)).length,
@@ -53,7 +64,7 @@ export async function GET() {
 export async function POST(request: Request) {
   const r = await member()
   if (r.res) return r.res
-  if (!r.m) return err(403, r.notSetUp ? 'The beta is not set up yet.' : 'This account is not in the Qbox beta yet.')
+  if (!r.m) return err(403, r.notSetUp ? 'Qbox is not set up yet.' : 'This account has no Qbox access yet.')
   const body = await request.json().catch(() => ({}))
   const name = typeof body?.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 60) : 'Default key'
   const { count } = await supabaseAdmin.from('qbox_api_keys').select('id', { count: 'exact', head: true })

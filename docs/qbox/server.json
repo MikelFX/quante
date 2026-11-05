@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.MikelFX/qbox",
+  "title": "Qbox",
+  "description": "Isolated Linux sandboxes for AI agents: run code, install packages, files, preview URLs. Pay per use; agents can pay by themselves (x402).",
+  "version": "1.0.0",
+  "websiteUrl": "https://quantecode.com/qbox",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://quantecode.com/api/qbox/v1/mcp",
+      "headers": [
+        { "name": "Authorization", "description": "Bearer qbx_… API key from https://quantecode.com/qbox or POST /api/qbox/v1/accounts (x402)", "isRequired": true, "isSecret": true }
+      ]
+    }
+  ]
+}

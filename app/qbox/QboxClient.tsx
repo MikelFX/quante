@@ -1,15 +1,16 @@
 'use client'
 
-// /qbox — Qbox closed beta (2026-11-04). Signed out: what it is + sign in. Signed in and not
-// invited: request access (qbox_waitlist). Invited (qbox_beta): usage this month, API keys
-// (a new key is shown once) and a copy-paste quickstart for the API (app/api/qbox/v1).
+// /qbox — Qbox, sandboxes for AI agents. Public: what it is, how an agent connects (MCP / REST /
+// x402 self-signup), the price (QboxDocs.tsx). Signed in: invite-only beta (QBOX_ACCESS unset:
+// request access → keys) or the open paid plan (QBOX_ACCESS=open: balance, credit top-up, keys).
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { Check, Copy, KeyRound, Loader2, Trash2 } from 'lucide-react'
+import { Check, KeyRound, Loader2, Trash2, Wallet } from 'lucide-react'
 import { PublicNav } from '@/components/public/PublicNav'
 import { SiteFooter } from '@/components/SiteFooter'
 import { ParticleMode } from '@ad/ui/particles'
+import { CodeTabs, CopyBtn, Pricing } from './QboxDocs'
 import '../qads/qads.css'
 import './qbox.css'
 
@@ -18,44 +19,17 @@ interface State {
   setUp: boolean
   member: boolean
   waitlisted?: boolean
-  limits?: { maxConcurrent: number; monthlyMinutes: number; maxTimeoutMinutes: number }
+  tier?: 'paid' | 'beta'
+  balance?: number | null
+  paidSetUp?: boolean
+  canUseCredits?: boolean
+  agentPayments?: boolean
+  limits?: { maxConcurrent: number; monthlyMinutes: number | null; maxTimeoutMinutes: number }
   usage?: { minutes: number; running: number; sandboxes: number }
   keys?: Key[]
 }
 
-function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
-  const [done, setDone] = useState(false)
-  return (
-    <button
-      type="button"
-      className="qb-copy"
-      onClick={() => { void navigator.clipboard?.writeText(text).then(() => { setDone(true); setTimeout(() => setDone(false), 1500) }) }}
-    >
-      {done ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />} {done ? 'Copied' : label}
-    </button>
-  )
-}
-
-function quickstart(base: string, key: string) {
-  const k = key || 'qbx_…'
-  return [
-    `# 1. Start a sandbox (Node 24, lives 5 minutes)`,
-    `curl -s -X POST ${base}/api/qbox/v1/sandboxes \\`,
-    `  -H "Authorization: Bearer ${k}" -H "Content-Type: application/json" \\`,
-    `  -d '{"template":"node24","timeoutMs":300000,"ports":[3000]}'`,
-    ``,
-    `# 2. Run a command in it`,
-    `curl -s -X POST ${base}/api/qbox/v1/sandboxes/$ID/exec \\`,
-    `  -H "Authorization: Bearer ${k}" -H "Content-Type: application/json" \\`,
-    `  -d '{"command":"node -v && echo hello > out.txt"}'`,
-    ``,
-    `# 3. Read a file, then stop the sandbox`,
-    `curl -s "${base}/api/qbox/v1/sandboxes/$ID/files?path=out.txt" -H "Authorization: Bearer ${k}"`,
-    `curl -s -X DELETE ${base}/api/qbox/v1/sandboxes/$ID -H "Authorization: Bearer ${k}"`,
-  ].join('\n')
-}
-
-export function QboxClient() {
+export function QboxClient({ open }: { open: boolean }) {
   const { isSignedIn, isLoaded } = useUser()
   const [state, setState] = useState<State | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +37,7 @@ export function QboxClient() {
   const [useCase, setUseCase] = useState('')
   const [keyName, setKeyName] = useState('')
   const [newKey, setNewKey] = useState<string | null>(null)
+  const [credits, setCredits] = useState('10')
   const [tick, setTick] = useState(0)
   const load = useCallback(() => setTick((t) => t + 1), [])
 
@@ -79,9 +54,6 @@ export function QboxClient() {
       .catch(() => { if (!off) setError('Could not reach the server.') })
     return () => { off = true }
   }, [isLoaded, isSignedIn, tick])
-
-  // Only rendered after the keys load on the client, so reading the origin here is safe.
-  const base = typeof window === 'undefined' ? 'https://quantecode.com' : window.location.origin
 
   async function requestAccess(e: FormEvent) {
     e.preventDefault()
@@ -104,6 +76,16 @@ export function QboxClient() {
     load()
   }
 
+  async function topUp(e: FormEvent) {
+    e.preventDefault()
+    setBusy(true); setError(null)
+    const res = await fetch('/api/qbox/topup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credits: Number(credits) }) })
+    const data = await res.json().catch(() => null)
+    setBusy(false)
+    if (!res.ok) { setError(data?.error ?? 'Could not top up.'); return }
+    load()
+  }
+
   async function revoke(id: string) {
     if (!window.confirm('Revoke this key? Agents using it stop working immediately.')) return
     const res = await fetch(`/api/qbox/keys?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
@@ -121,11 +103,11 @@ export function QboxClient() {
 
       <main style={{ flex: 1, padding: '0 1.25rem', width: '100%' }}>
         <header className="qz-hero">
-          <p className="qb-eyebrow"><span className="qb-dot" aria-hidden="true" />Closed beta</p>
+          <p className="qb-eyebrow"><span className="qb-dot" aria-hidden="true" />{open ? 'Open to every agent · pay per use' : 'Closed beta'}</p>
           <h1 className="qz-h1">A computer for your <em>AI agent.</em></h1>
           <p className="qz-sub qb-sub">
-            Qbox starts an isolated sandbox on one API call. Your agent runs code, installs packages, works with files
-            and opens a preview URL there, never on your own machine.
+            Qbox starts an isolated sandbox on one API call or MCP tool. Your agent runs code, installs packages, works
+            with files and opens a preview URL there, never on your own machine. {open ? 'An agent with a wallet opens its own account and pays by itself.' : ''}
           </p>
         </header>
 
@@ -134,9 +116,19 @@ export function QboxClient() {
 
           {isLoaded && !isSignedIn && (
             <div className="qb-card">
-              <h2>Join the beta</h2>
-              <p className="qb-muted">Sign in and tell us what your agent should do. We invite in small groups; the beta is free.</p>
-              <button type="button" className="qz-go" onClick={signIn}>Sign in to request access</button>
+              {open ? (
+                <>
+                  <h2>Get an API key</h2>
+                  <p className="qb-muted">Agents can open an account by paying (see “Agent pays itself” below). People sign in, top up with Quante credits and create keys here.</p>
+                  <button type="button" className="qz-go" onClick={signIn}>Sign in</button>
+                </>
+              ) : (
+                <>
+                  <h2>Join the beta</h2>
+                  <p className="qb-muted">Sign in and tell us what your agent should do. We invite in small groups.</p>
+                  <button type="button" className="qz-go" onClick={signIn}>Sign in to request access</button>
+                </>
+              )}
             </div>
           )}
 
@@ -166,8 +158,30 @@ export function QboxClient() {
 
           {state?.member && state.limits && state.usage && (
             <>
+              {state.tier === 'paid' && (
+                <div className="qb-card">
+                  <h2><Wallet aria-hidden="true" /> Balance</h2>
+                  {state.paidSetUp === false ? (
+                    <p className="qb-muted">Paid access is being set up. Come back soon.</p>
+                  ) : (
+                    <>
+                      <p className="qb-big"><b>{state.balance ?? 0}</b> vCPU-minutes left</p>
+                      {state.canUseCredits ? (
+                        <form className="qb-keyform" onSubmit={(e) => void topUp(e)}>
+                          <label className="vh" htmlFor="qb-credits">Credits to spend</label>
+                          <input id="qb-credits" className="qt-input" type="number" min={1} max={10000} step={1} value={credits} onChange={(e) => setCredits(e.currentTarget.value)} />
+                          <button type="submit" className="qz-go" disabled={busy}>Top up with credits</button>
+                        </form>
+                      ) : (
+                        <p className="qb-muted">Qbox is paid only: <a href="/billing">buy a credit pack</a> first, then top up here. Welcome credits can’t be used for Qbox.</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="qb-stats">
-                <div><b>{state.usage.minutes}</b><span>of {state.limits.monthlyMinutes} sandbox-minutes this month</span></div>
+                <div><b>{state.usage.minutes}</b><span>{state.limits.monthlyMinutes ? `of ${state.limits.monthlyMinutes} sandbox-minutes this month` : 'sandbox-minutes this month'}</span></div>
                 <div><b>{state.usage.running}</b><span>running now (max {state.limits.maxConcurrent})</span></div>
                 <div><b>{state.limits.maxTimeoutMinutes} min</b><span>longest sandbox</span></div>
               </div>
@@ -197,19 +211,18 @@ export function QboxClient() {
                 </form>
               </div>
 
-              <div className="qb-card">
-                <div className="qb-h"><h2>Quickstart</h2><CopyBtn text={quickstart(base, newKey ?? '')} /></div>
-                <pre className="qb-code">{quickstart(base, newKey ?? '')}</pre>
-                <p className="qb-muted">
-                  Templates: node24, node22, python3.13. Body of <code>exec</code>: <code>{'{"cmd":"npm","args":["test"]}'}</code> or <code>{'{"command":"…"}'}</code>.
-                  Files: <code>PUT …/files?path=…</code> with the raw bytes. Set <code>{'"internet": false'}</code> to cut the sandbox off the network.
-                </p>
-              </div>
             </>
           )}
 
           {error && <p className="qz-err" role="alert">{error}</p>}
-          <p className="qb-fine">Beta terms: no crypto mining, spam, attacks or illegal content; we may stop any sandbox. Quante is a product of AssetraDigital s.r.o.</p>
+
+          <CodeTabs apiKey={newKey ?? ''} />
+          {open && <Pricing />}
+
+          <p className="qb-fine" id="terms">
+            Terms: no crypto mining, spam, attacks, scanning other people’s systems or illegal content; we may stop any sandbox.
+            {open ? ' Paid time does not expire and is not refunded.' : ''} Qbox is a product of AssetraDigital s.r.o.
+          </p>
         </section>
       </main>
 
