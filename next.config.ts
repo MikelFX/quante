@@ -16,6 +16,15 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), usb=()' },
 ]
 
+// RFC 8288 Link header on every page: where an agent finds the machine-readable versions.
+const AGENT_LINK_HEADER = [
+  '</llms.txt>; rel="describedby"; type="text/plain"',
+  '</.well-known/api-catalog>; rel="api-catalog"',
+  '</api/agent/v1/openapi.json>; rel="service-desc"; type="application/openapi+json"',
+  '</api/agent/v1/catalog>; rel="service-meta"; type="application/json"',
+  '</api/mcp>; rel="mcp"',
+].join(', ')
+
 // "/x/:path*" as two rules: compiled into an absolute destination, an empty :path* leaves a
 // trailing slash ("https://host/x/"), which then costs a second redirect.
 function hostRedirects(paths: readonly string[], host: string, origin: string) {
@@ -36,13 +45,23 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/((?!api/preview/component).*)', headers: securityHeaders },
+      // Agents (lib/agents): every page points at the machine-readable layer (RFC 8288 Link).
+      { source: '/((?!api/|_next/).*)', headers: [{ key: 'Link', value: AGENT_LINK_HEADER }] },
     ]
   },
   async rewrites() {
     return {
       // quantecode.com/ shows the Quante overview (app/(site)/(quante)/quante); the URL stays "/".
       beforeFiles: [{ source: '/', has: [{ type: 'host', value: APP_HOST_PATTERN }], destination: '/quante' }],
-      afterFiles: [],
+      // The agent layer (lib/agents, owner 2026-11-05): same files on both hosts, served by /api/agent/*.
+      afterFiles: [
+        { source: '/robots.txt', destination: '/api/agent/robots' },
+        { source: '/llms.txt', destination: '/api/agent/llms' },
+        { source: '/llms-full.txt', destination: '/api/agent/llms-full' },
+        { source: '/.well-known/:file*', destination: '/api/agent/well-known/:file*' },
+        // IndexNow key file (lib/agents/indexnow.ts), only when INDEXNOW_KEY is set at build time.
+        ...(/^[A-Za-z0-9-]{8,128}$/.test(process.env.INDEXNOW_KEY?.trim() ?? '') ? [{ source: `/${process.env.INDEXNOW_KEY!.trim()}.txt`, destination: '/api/agent/indexnow-key' }] : []),
+      ],
       fallback: [],
     }
   },
