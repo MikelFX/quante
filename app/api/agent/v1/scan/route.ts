@@ -24,8 +24,12 @@ export async function POST(req: Request) {
     return payPerCall(req, {
       tool: 'scan',
       description: 'Store read into structured JSON: brand, products with prices, colours, fonts, navigation, texts, images',
-      input: { method: 'POST', bodyType: 'json', bodyFields: { url: { type: 'string', required: true }, rights: { type: 'boolean', required: true, description: 'true: the store is your person\'s, or they may use its content' } } },
-      output: { type: 'object', properties: { brand: { type: 'object' }, products: { type: 'array' }, platform: { type: 'string' } } },
+      call: { method: 'POST', body: {
+        url: { type: 'string', description: 'Public store address', example: 'https://www.allbirds.com' },
+        rights: { type: 'boolean', description: 'true: the store is your person\'s, or they may use its content', example: true },
+      } },
+      outputExample: { platform: 'shopify', brand: { name: 'Allbirds' }, currency: 'USD', products: [{ name: "Men's Tree Runner", price: 100, currency: 'USD' }] },
+      tags: ['ecommerce', 'scraping', 'store-data', 'brand'],
       perIpHour: 20,
     }, async () => {
       try {

@@ -9,7 +9,7 @@ import { authorize, type Caller } from '@/lib/qbox/actions'
 import { ensureBalance } from '@/lib/qbox/billing'
 import { agentToolUnits, type AgentTool } from './paid-price'
 
-export const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-PAYMENT', 'Access-Control-Expose-Headers': 'X-PAYMENT-RESPONSE' }
+export const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-PAYMENT, PAYMENT-SIGNATURE', 'Access-Control-Expose-Headers': 'X-PAYMENT-RESPONSE, PAYMENT-RESPONSE, PAYMENT-REQUIRED' }
 
 /** The caller, on the paid tier only (a free beta seat does not cover paid tools). */
 export async function paidCaller(req: Request): Promise<Caller | NextResponse> {
@@ -41,6 +41,6 @@ export async function refund(c: Caller, tool: AgentTool, ref: string) {
 
 export function reply(c: Caller, body: unknown, status = 200) {
   const headers: Record<string, string> = { ...CORS }
-  if (c.paymentResponse) headers['X-PAYMENT-RESPONSE'] = c.paymentResponse
+  if (c.paymentResponse) { headers['X-PAYMENT-RESPONSE'] = c.paymentResponse; headers['PAYMENT-RESPONSE'] = c.paymentResponse }
   return NextResponse.json(body, { status, headers })
 }

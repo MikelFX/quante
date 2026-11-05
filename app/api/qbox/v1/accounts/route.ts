@@ -14,7 +14,7 @@ import { rateLimit } from '@/lib/rate-limit'
 import { QBOX_PRICING, isOpenAccess, newApiKey } from '@/lib/qbox/model'
 import { bookX402, pricing } from '@/lib/qbox/billing'
 import { QBOX_LINKS } from '@/lib/qbox/openapi'
-import { decodePaymentHeader, encodeHeader, paidUsd, paymentRequiredBody, parseUsd, requirements, settle, x402Config } from '@/lib/qbox/x402'
+import { decodePaymentHeader, encodeHeader, paidUsd, paymentHeader, paymentRequiredBody, parseUsd, requirements, settle, x402Config } from '@/lib/qbox/x402'
 
 export const maxDuration = 60
 
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   if (!rateLimit(`qbox:accounts:${ip(request)}`, 20, 60 * 60_000).allowed) return err(429, 'Too many account requests from this address. Try again later.')
 
   const resource = request.url.split('?')[0]
-  const raw = request.headers.get('x-payment')
+  const raw = paymentHeader(request.headers)
   if (!raw) {
     const usd = parseUsd(new URL(request.url).searchParams.get('usd'))
     if (usd === null) return err(400, `usd must be a whole number from ${QBOX_PRICING.minUsd} to ${QBOX_PRICING.maxUsd}.`)
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   const payment = decodePaymentHeader(raw)
-  if (!payment) return err(400, 'X-PAYMENT is not valid base64 JSON.')
+  if (!payment) return err(400, 'The payment header is not valid base64 JSON.')
   const usd = paidUsd(payment)
   if (usd === null) return err(400, `Pay a whole number of US dollars from ${QBOX_PRICING.minUsd} to ${QBOX_PRICING.maxUsd} (USDC, 6 decimals).`)
   const s = await settle(cfg, payment, requirements(cfg, usd, resource, describe(usd)))
@@ -68,5 +68,5 @@ export async function POST(request: Request) {
     balanceVcpuMinutes: usd * QBOX_PRICING.vcpuMinutesPerUsd,
     paid: { usd, transaction: s.transaction, network: s.network },
     next: { docs: QBOX_LINKS.llms, openapi: QBOX_LINKS.openapi, mcp: QBOX_LINKS.mcp },
-  }, { status: 201, headers: { 'X-PAYMENT-RESPONSE': encodeHeader(s.raw) } })
+  }, { status: 201, headers: { 'X-PAYMENT-RESPONSE': encodeHeader(s.raw), 'PAYMENT-RESPONSE': encodeHeader(s.raw) } })
 }

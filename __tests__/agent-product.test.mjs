@@ -111,3 +111,78 @@ test('pay-per-call settles only after the work succeeded', () => {
   assert.match(src, /if \(!result\.ok\) return json\(\{ \.\.\.result\.body, charged: false \}/)
   assert.match(src, /signedUnits\(payment\) !== reqs\.maxAmountRequired/)
 })
+
+// ── Coinbase CDP facilitator + x402 v2 (Bazaar) ──────────────────────────────────────────────
+const { generateKeyPairSync, verify: cryptoVerify } = await import('node:crypto')
+const O = await import('../lib/agents/pay-per-call-offer.ts')
+const PAY_TO = '0x' + '2'.repeat(40)
+const parts = (jwt) => jwt.split('.').map((p, i) => (i < 2 ? JSON.parse(Buffer.from(p, 'base64url').toString()) : Buffer.from(p, 'base64url')))
+
+test('CDP keys switch the facilitator to Coinbase CDP; without them x402.org stays', () => {
+  const cdp = X.x402Config({ QBOX_X402_PAY_TO: PAY_TO, QBOX_X402_NETWORK: 'base', CDP_API_KEY_ID: 'kid-1', CDP_API_KEY_SECRET: 'c2VjcmV0' })
+  assert.equal(cdp.facilitator, X.CDP_FACILITATOR)
+  assert.deepEqual(cdp.cdp, { keyId: 'kid-1', secret: 'c2VjcmV0' })
+  assert.equal(X.x402Config({ QBOX_X402_PAY_TO: PAY_TO }).cdp, null)
+  assert.equal(X.x402Config({ QBOX_X402_PAY_TO: PAY_TO }).facilitator, 'https://x402.org/facilitator')
+  // an explicit facilitator wins
+  assert.equal(X.x402Config({ QBOX_X402_PAY_TO: PAY_TO, QBOX_X402_FACILITATOR: 'https://f.example/x402/', CDP_API_KEY_ID: 'k', CDP_API_KEY_SECRET: 's' }).facilitator, 'https://f.example/x402')
+})
+
+test('CDP JWT: Ed25519 key (base64 seed + public key) → EdDSA token CDP can verify', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ed25519')
+  const seed = privateKey.export({ format: 'der', type: 'pkcs8' }).subarray(-32)
+  const pub = publicKey.export({ format: 'der', type: 'spki' }).subarray(-32)
+  const secret = Buffer.concat([seed, pub]).toString('base64')
+  const jwt = X.cdpJwt('kid-1', secret, 'post', 'https://api.cdp.coinbase.com/platform/v2/x402/verify', 1_000)
+  const [h, c, sig] = parts(jwt)
+  assert.equal(h.alg, 'EdDSA'); assert.equal(h.kid, 'kid-1'); assert.equal(h.typ, 'JWT'); assert.match(h.nonce, /^[0-9a-f]{32}$/)
+  assert.deepEqual(c, { sub: 'kid-1', iss: 'cdp', aud: ['cdp_service'], nbf: 1_000, exp: 1_120, uri: 'POST api.cdp.coinbase.com/platform/v2/x402/verify' })
+  const input = jwt.split('.').slice(0, 2).join('.')
+  assert.equal(cryptoVerify(null, Buffer.from(input), publicKey, sig), true)
+  assert.throws(() => X.cdpJwt('k', Buffer.alloc(10).toString('base64'), 'POST', 'https://a.b/c'))
+})
+
+test('CDP JWT: PEM EC key → ES256 (raw r||s signature)', () => {
+  const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+  const pem = privateKey.export({ format: 'pem', type: 'sec1' }).toString()
+  const jwt = X.cdpJwt('kid-2', pem, 'POST', 'https://api.cdp.coinbase.com/platform/v2/x402/settle')
+  const [h, , sig] = parts(jwt)
+  assert.equal(h.alg, 'ES256')
+  assert.equal(sig.length, 64)
+  const input = jwt.split('.').slice(0, 2).join('.')
+  assert.equal(cryptoVerify('sha256', Buffer.from(input), { key: publicKey, dsaEncoding: 'ieee-p1363' }, sig), true)
+})
+
+test('x402 v2: CAIP-2 network, `amount`; the facilitator gets the version the agent paid with', () => {
+  const cfg = X.x402Config({ QBOX_X402_PAY_TO: PAY_TO, QBOX_X402_NETWORK: 'base' })
+  const r = X.requirements(cfg, 0.01, 'https://quantecode.com/api/agent/v1/product', 'd')
+  const v2 = X.requirementsV2(r)
+  assert.deepEqual(v2, { scheme: 'exact', network: 'eip155:8453', amount: '10000', asset: r.asset, payTo: PAY_TO, maxTimeoutSeconds: 300, extra: r.extra })
+  assert.equal(X.facilitatorBody({ x402Version: 2 }, r).paymentRequirements.network, 'eip155:8453')
+  assert.equal(X.facilitatorBody({ x402Version: 2 }, r).x402Version, 2)
+  assert.equal(X.facilitatorBody({ x402Version: 1 }, r).paymentRequirements.network, 'base')
+  assert.equal(X.facilitatorBody({}, r).x402Version, 1)
+  const h = new Headers({ 'x-payment': 'v1', 'payment-signature': 'v2' })
+  assert.equal(X.paymentHeader(h), 'v2')
+  assert.equal(X.paymentHeader(new Headers({ 'x-payment': 'v1' })), 'v1')
+})
+
+test('the 402 carries a v2 PaymentRequired with a valid bazaar extension (GET and POST)', () => {
+  const cfg = X.x402Config({ QBOX_X402_PAY_TO: PAY_TO, QBOX_X402_NETWORK: 'base' })
+  const tool = { tool: 'product', description: 'Product page to JSON', call: { method: 'GET', query: { url: { description: 'Product page', example: 'https://s.example/p' } } }, outputExample: { found: true }, tags: ['a', 'b', 'c', 'd', 'e', 'f'], perIpHour: 1 }
+  const { usd, reqs, v2 } = O.offerFor(cfg, tool, 'https://quantecode.com/api/agent/v1/product')
+  assert.equal(usd, 0.01)
+  assert.equal(reqs.maxAmountRequired, '10000')
+  const pr = v2('Payment required')
+  assert.equal(pr.x402Version, 2)
+  assert.equal(pr.accepts[0].amount, '10000')
+  assert.ok(pr.resource.serviceName.length <= 32)
+  assert.equal(pr.resource.tags.length, 5)
+  const b = pr.extensions.bazaar
+  assert.deepEqual(b.info.input, { type: 'http', method: 'GET', queryParams: { url: 'https://s.example/p' } })
+  assert.deepEqual(b.schema.properties.input.properties.queryParams.required, ['url'])
+  assert.equal(b.info.output.type, 'json')
+  const post = O.bazaarExtension({ method: 'POST', body: { url: { type: 'string', description: 'x', example: 'https://s.example' }, rights: { type: 'boolean', description: 'y', example: true } } }, {})
+  assert.deepEqual(post.info.input, { type: 'http', method: 'POST', bodyType: 'json', body: { url: 'https://s.example', rights: true } })
+  assert.deepEqual(post.schema.properties.input.required, ['type', 'method', 'bodyType', 'body'])
+})

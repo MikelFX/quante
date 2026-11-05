@@ -116,7 +116,7 @@ async function handle(msg: Rpc, request: Request, caller: { c?: Caller | NextRes
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, X-PAYMENT',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, X-PAYMENT, PAYMENT-SIGNATURE',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 }
 

@@ -7,21 +7,36 @@
 // transaction (qbox_topups.ref) and return `X-PAYMENT-RESPONSE`.
 //
 // Off until QBOX_X402_PAY_TO (our wallet) is set. QBOX_X402_NETWORK = base (real money) or
-// base-sepolia (test, the default); QBOX_X402_FACILITATOR = the facilitator URL (default the
-// public x402.org one, which settles base-sepolia); QBOX_X402_FACILITATOR_AUTH = optional
-// Authorization header value for a facilitator that needs one.
+// base-sepolia (test, the default); QBOX_X402_FACILITATOR = the facilitator URL (default: Coinbase
+// CDP when CDP_API_KEY_ID + CDP_API_KEY_SECRET are set — it settles Base mainnet and lists sellers in
+// its Bazaar catalogue — otherwise the public x402.org one, which settles base-sepolia only);
+// QBOX_X402_FACILITATOR_AUTH = optional static Authorization value for another facilitator.
+// CDP gets a fresh signed JWT on every call (`cdpJwt`, Ed25519 or ES256 key, 2 minutes).
+//
+// Both protocol versions are accepted: v1 (X-PAYMENT, network "base") and v2 (PAYMENT-SIGNATURE,
+// CAIP-2 network "eip155:8453"). The facilitator is called in the version the agent paid with.
 // Pure parts are tested in __tests__/qbox.test.mjs; `settle` is the only network call.
 
+import { createPrivateKey, randomBytes, sign as cryptoSign } from 'node:crypto'
 import { QBOX_PRICING } from './limits.ts'
 
 export const X402_VERSION = 1
 
-const USDC: Record<string, { asset: string; name: string }> = {
-  base: { asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', name: 'USD Coin' },
-  'base-sepolia': { asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', name: 'USDC' },
+const USDC: Record<string, { asset: string; name: string; caip2: string }> = {
+  base: { asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', name: 'USD Coin', caip2: 'eip155:8453' },
+  'base-sepolia': { asset: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', name: 'USDC', caip2: 'eip155:84532' },
 }
 
-export interface X402Config { payTo: string; network: string; facilitator: string; auth: string | null }
+export const CDP_FACILITATOR = 'https://api.cdp.coinbase.com/platform/v2/x402'
+
+export interface X402Config {
+  payTo: string
+  network: string
+  facilitator: string
+  auth: string | null
+  /** Coinbase CDP API key (secret API key: id + secret), signed into a JWT per call */
+  cdp: { keyId: string; secret: string } | null
+}
 
 /** The x402 settings, or null when agent payments are off (or misconfigured). */
 export function x402Config(env: Record<string, string | undefined>): X402Config | null {
@@ -29,9 +44,38 @@ export function x402Config(env: Record<string, string | undefined>): X402Config 
   if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) return null
   const network = env.QBOX_X402_NETWORK?.trim() || 'base-sepolia'
   if (!USDC[network]) return null
-  const facilitator = (env.QBOX_X402_FACILITATOR?.trim() || 'https://x402.org/facilitator').replace(/\/+$/, '')
+  const keyId = env.CDP_API_KEY_ID?.trim() ?? ''
+  const secret = env.CDP_API_KEY_SECRET?.trim().replace(/\\n/g, '\n') ?? ''
+  const cdp = keyId && secret ? { keyId, secret } : null
+  const facilitator = (env.QBOX_X402_FACILITATOR?.trim() || (cdp ? CDP_FACILITATOR : 'https://x402.org/facilitator')).replace(/\/+$/, '')
   if (!/^https:\/\//.test(facilitator)) return null
-  return { payTo, network, facilitator, auth: env.QBOX_X402_FACILITATOR_AUTH?.trim() || null }
+  return { payTo, network, facilitator, auth: env.QBOX_X402_FACILITATOR_AUTH?.trim() || null, cdp }
+}
+
+const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url')
+
+/**
+ * The Bearer JWT for one CDP API call (docs.cdp.coinbase.com/api-reference/v2/authentication):
+ * header { alg, kid, typ, nonce }, claims { sub, iss: 'cdp', aud: ['cdp_service'], nbf, exp (+120 s),
+ * uri: '<METHOD> <host><path>' }. The secret is either an Ed25519 key (base64, 64 bytes = seed +
+ * public key, or the 32-byte seed) → EdDSA, or a PEM EC key → ES256.
+ */
+export function cdpJwt(keyId: string, secret: string, method: string, url: string, now = Math.floor(Date.now() / 1000)): string {
+  const u = new URL(url)
+  const pem = secret.includes('BEGIN')
+  const header = { alg: pem ? 'ES256' : 'EdDSA', kid: keyId, typ: 'JWT', nonce: randomBytes(16).toString('hex') }
+  const claims = { sub: keyId, iss: 'cdp', aud: ['cdp_service'], nbf: now, exp: now + 120, uri: `${method.toUpperCase()} ${u.host}${u.pathname}` }
+  const input = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`
+  let signature: Buffer
+  if (pem) {
+    signature = cryptoSign('sha256', Buffer.from(input), { key: createPrivateKey(secret), dsaEncoding: 'ieee-p1363' })
+  } else {
+    const raw = Buffer.from(secret, 'base64')
+    if (raw.length !== 64 && raw.length !== 32) throw new Error('CDP_API_KEY_SECRET is not an Ed25519 key (base64, 64 bytes).')
+    const der = Buffer.concat([Buffer.from('302e020100300506032b657004220420', 'hex'), raw.subarray(0, 32)])
+    signature = cryptoSign(null, Buffer.from(input), createPrivateKey({ key: der, format: 'der', type: 'pkcs8' }))
+  }
+  return `${input}.${b64url(signature)}`
 }
 
 /** `?usd=` → whole dollars within the allowed range (default 5). */
@@ -80,6 +124,30 @@ export function paymentRequiredBody(reqs: PaymentRequirements, error: string, ex
   return { x402Version: X402_VERSION, error, accepts: [reqs], ...extra }
 }
 
+/** v2 PaymentRequirements (CAIP-2 network, `amount`) for the same offer. */
+export function requirementsV2(r: PaymentRequirements) {
+  const token = Object.values(USDC).find((t) => t.asset === r.asset)
+  return {
+    scheme: r.scheme,
+    network: USDC[r.network]?.caip2 ?? token?.caip2 ?? r.network,
+    amount: r.maxAmountRequired,
+    asset: r.asset,
+    payTo: r.payTo,
+    maxTimeoutSeconds: r.maxTimeoutSeconds,
+    extra: r.extra,
+  }
+}
+
+export interface ResourceInfo { url: string; description?: string; mimeType?: string; serviceName?: string; tags?: string[]; iconUrl?: string }
+
+/** The v2 PaymentRequired object (sent base64 in the PAYMENT-REQUIRED header). */
+export function paymentRequiredV2(r: PaymentRequirements, resource: ResourceInfo, error: string, extensions: Record<string, unknown> = {}) {
+  return { x402Version: 2, error, resource, accepts: [requirementsV2(r)], extensions }
+}
+
+/** The agent's payment header: v2 PAYMENT-SIGNATURE, else v1 X-PAYMENT. */
+export const paymentHeader = (headers: Headers) => headers.get('payment-signature') ?? headers.get('x-payment')
+
 /** The decoded `X-PAYMENT` header, or null when absent / not base64 JSON. */
 export function decodePaymentHeader(value: string | null): Record<string, unknown> | null {
   if (!value || value.length > 20_000) return null
@@ -95,11 +163,22 @@ export const encodeHeader = (obj: unknown) => Buffer.from(JSON.stringify(obj)).t
 
 export type Settled = { ok: true; transaction: string; payer: string | null; network: string; raw: unknown } | { ok: false; error: string }
 
+/** The x402 version the agent paid with (2 = PAYMENT-SIGNATURE / CAIP-2, else 1). */
+export const paymentVersion = (payment: Record<string, unknown>) => (payment.x402Version === 2 ? 2 : 1)
+
+/** The facilitator request body in the agent's protocol version. */
+export function facilitatorBody(payment: Record<string, unknown>, reqs: PaymentRequirements) {
+  const v = paymentVersion(payment)
+  return { x402Version: v, paymentPayload: payment, paymentRequirements: v === 2 ? requirementsV2(reqs) : reqs }
+}
+
 async function facilitatorCall(cfg: X402Config, path: 'verify' | 'settle', payment: Record<string, unknown>, reqs: PaymentRequirements) {
-  const body = JSON.stringify({ x402Version: X402_VERSION, paymentPayload: payment, paymentRequirements: reqs })
+  const url = `${cfg.facilitator}/${path}`
+  const body = JSON.stringify(facilitatorBody(payment, reqs))
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (cfg.auth) headers.Authorization = cfg.auth
-  const res = await fetch(`${cfg.facilitator}/${path}`, { method: 'POST', headers, body, signal: AbortSignal.timeout(30_000) })
+  if (cfg.cdp && new URL(url).host === new URL(CDP_FACILITATOR).host) headers.Authorization = `Bearer ${cdpJwt(cfg.cdp.keyId, cfg.cdp.secret, 'POST', url)}`
+  else if (cfg.auth) headers.Authorization = cfg.auth
+  const res = await fetch(url, { method: 'POST', headers, body, signal: AbortSignal.timeout(30_000) })
   return (await res.json().catch(() => null)) as Record<string, unknown> | null
 }
 

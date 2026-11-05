@@ -247,11 +247,12 @@ export function agentOpenApi() {
         get: {
           operationId: 'lookupProduct',
           summary: `Product page → normalized product JSON ($${agentToolUsd('product').toFixed(2)} per call; not charged when the page has no product data)`,
-          description: 'Name, price, currency, availability, brand, SKU, GTIN, condition, images, rating and variants, read from the page\'s own JSON-LD / microdata / OpenGraph. Pay per call over x402 with no account (call, get 402, repeat with X-PAYMENT; settled only after it worked), or Bearer qbx_…. POST { url } works too.',
+          description: 'Name, price, currency, availability, brand, SKU, GTIN, condition, images, rating and variants, read from the page\'s own JSON-LD / microdata / OpenGraph. Pay per call over x402 v1 or v2 with no account (call, get 402, repeat with the payment header; settled only after it worked), or Bearer qbx_…. POST { url } works too.',
           security: [{}, { bearer: [] }],
           parameters: [
             { name: 'url', in: 'query', required: true, schema: { type: 'string' }, description: 'Public product page URL' },
-            { name: 'X-PAYMENT', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 payment (repeat the 402-answered call with it)' },
+            { name: 'PAYMENT-SIGNATURE', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v2 payment (repeat the 402-answered call with it; the offer is in the PAYMENT-REQUIRED header)' },
+            { name: 'X-PAYMENT', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v1 payment (the offer is in the 402 body)' },
           ],
           responses: { 200: { description: 'Product(s) as JSON' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 422: { description: 'Page unreadable or no product data (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Pay-per-call off: use a Qbox account' } },
         },

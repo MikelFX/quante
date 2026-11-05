@@ -16,6 +16,11 @@ import { hasApiKey, payPerCall, type Work } from '@/lib/agents/pay-per-call'
 
 export const maxDuration = 30
 
+const PRODUCT_EXAMPLE = {
+  url: 'https://www.allbirds.com/products/mens-tree-runners', found: true, source: 'json-ld', platform: 'shopify',
+  products: [{ name: "Men's Tree Runner", brand: 'Allbirds', sku: 'MENS_TREE_RUNNERS', gtin: null, price: 100, currency: 'USD', availability: 'in_stock', condition: 'new' }],
+}
+
 const USAGE = 'Send ?url=<public product page> (GET) or { "url": "…" } (POST).'
 
 async function read(url: URL): Promise<Work> {
@@ -45,8 +50,9 @@ async function handle(req: Request, rawUrl: unknown): Promise<NextResponse> {
     return payPerCall(req, {
       tool: 'product',
       description: 'Product page → normalized product JSON (price, currency, availability, brand, SKU, GTIN, images, rating)',
-      input: { method: req.method, queryParams: { url: { type: 'string', description: 'Public product page URL', required: true } } },
-      output: { type: 'object', properties: { found: { type: 'boolean' }, source: { type: 'string' }, products: { type: 'array' } } },
+      call: { method: 'GET', query: { url: { description: 'Public product page URL', example: 'https://www.allbirds.com/products/mens-tree-runners' } } },
+      outputExample: PRODUCT_EXAMPLE,
+      tags: ['ecommerce', 'product-data', 'prices', 'shopping', 'scraping'],
       perIpHour: 600,
     }, () => read(url))
   }
