@@ -236,3 +236,17 @@ test('paid agent tools: same price as people pay in credits, never free, refunde
   assert.ok(r.indexOf('readHome(') < r.indexOf("charge(c, 'review'"))
   assert.match(read('lib/agents/paid.ts'), /tier !== 'paid'/)
 })
+
+test('IndexNow: off without a key, one submission per host with only that host’s URLs', async () => {
+  const X = await import('../lib/agents/indexnow.ts')
+  assert.equal(X.indexNowKey({}), null)
+  assert.equal(X.indexNowKey({ INDEXNOW_KEY: 'short' }), null)
+  assert.equal(X.indexNowKey({ INDEXNOW_KEY: 'abcd1234efgh' }), 'abcd1234efgh')
+  const ps = X.indexNowPayloads('abcd1234efgh')
+  assert.deepEqual(ps.map((p) => p.host).sort(), ['assetradigital.agency', 'quantecode.com'])
+  for (const p of ps) {
+    assert.equal(p.keyLocation, `https://${p.host}/abcd1234efgh.txt`)
+    assert.ok(p.urlList.length > 2 && p.urlList.every((u) => new URL(u).host === p.host))
+  }
+  assert.match(read('vercel.json'), /\/api\/cron\/indexnow/)
+})
