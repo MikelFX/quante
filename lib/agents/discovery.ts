@@ -115,7 +115,7 @@ ${modulesList}`
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
 - [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key); lookup_product, profile_store, check_company, check_store (paid per call, x402)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
-- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store profile (contacts, company ids, payments, shipping, policies) $${agentToolUsd('store').toFixed(2)} (GET ${AGENT_LINKS.store}?url=…), company check in ARES + VIES $${agentToolUsd('company').toFixed(2)} (GET ${AGENT_LINKS.company}?ico=…&vat=…), quick store check by rules $${agentToolUsd('check').toFixed(2)} (GET ${AGENT_LINKS.check}?url=…), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (all but review; charged only when it works) or from a Qbox account
+- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store profile (contacts, company ids, payments, shipping, policies) $${agentToolUsd('store').toFixed(2)} (GET ${AGENT_LINKS.store}?url=…), company check in ARES + VIES $${agentToolUsd('company').toFixed(2)} (GET ${AGENT_LINKS.company}?ico=…&vat=…), quick store check by rules $${agentToolUsd('check').toFixed(2)} (GET ${AGENT_LINKS.check}?url=…), run Python / JavaScript / shell once in a sandbox with no network $${agentToolUsd('run').toFixed(2)} (POST ${AGENT_LINKS.run}), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (all but review; charged only when it works) or from a Qbox account
 - [Qbox](${AGENT_LINKS.qbox.llms}): sandboxes for AI agents — ${rt.qboxOpen ? (rt.x402 ? 'pay by yourself over x402 (USDC), no sign-up' : 'paid, prepaid balance') : 'invite-only beta'}`
   const head = kind === 'app'
     ? `# Quante\n\n> AI e-commerce builder and tools for e-shops (generate, edit, ads, review by 20 agents), plus Qbox, sandboxes for AI agents. A product of AssetraDigital s.r.o. (Czech Republic). The product pages are Czech, the app and APIs English.`
@@ -257,7 +257,7 @@ export function agentOpenApi() {
           responses: { 200: { description: 'Product(s) as JSON' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 422: { description: 'Page unreadable or no product data (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Pay-per-call off: use a Qbox account' } },
         },
       },
-      ...Object.fromEntries(PER_CALL_APIS.filter((a) => a.tool !== 'product').map((a) => [`/${a.tool}`, {
+      ...Object.fromEntries(PER_CALL_APIS.filter((a) => a.tool !== 'product' && a.tool !== 'run').map((a) => [`/${a.tool}`, {
         get: {
           operationId: { store: 'profileStore', company: 'checkCompany', check: 'checkStore' }[a.tool],
           summary: `${a.name.replace(/ \(API\)$/, '')} ($${agentToolUsd(a.tool).toFixed(2)} per call; not charged when it fails)`,
@@ -276,6 +276,20 @@ export function agentOpenApi() {
           responses: { 200: { description: 'Result (JSON)' }, 400: { description: 'Bad input (not charged)' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 422: { description: 'Page unreadable (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Registers unreachable or pay-per-call off (not charged)' } },
         },
       }])),
+      '/run': {
+        post: {
+          operationId: 'runOnce',
+          summary: `Run one Python / JavaScript / shell snippet in a fresh sandbox with no network ($${agentToolUsd('run').toFixed(2)} per call; not charged when the sandbox can't start)`,
+          description: 'Up to 40 s on 1 vCPU, no network, then the sandbox is gone. A non-zero exit code is a result. Pay per call over x402 v1 or v2 with no account, or Bearer qbx_…. For longer work use the Qbox sandboxes API.',
+          security: [{}, { bearer: [] }],
+          parameters: [
+            { name: 'PAYMENT-SIGNATURE', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v2 payment (the offer is in the PAYMENT-REQUIRED header)' },
+            { name: 'X-PAYMENT', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v1 payment (the offer is in the 402 body)' },
+          ],
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['language', 'code'], properties: { language: { type: 'string', enum: ['python', 'javascript', 'shell'] }, code: { type: 'string', maxLength: 20000 }, stdin: { type: 'string', maxLength: 100000 } } } } } },
+          responses: { 200: { description: 'exitCode, stdout, stderr, timedOut, durationMs' }, 400: { description: 'Bad input (not charged)' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 429: { description: 'Limit' }, 502: { description: 'Sandbox failed (not charged)' }, 503: { description: 'Busy, paused or pay-per-call off (not charged)' } },
+        },
+      },
       '/search': {
         get: {
           operationId: 'searchSite', summary: 'Keyword search over every page',

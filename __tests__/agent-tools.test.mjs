@@ -24,6 +24,7 @@ const CO = await import('../lib/agents/company.ts')
 const PR = await import('../lib/agents/paid-price.ts')
 const CH = await import('../lib/qgent/swarm/checks.ts')
 const L = await import('../lib/qgent/swarm/layers.ts')
+const R = await import('../lib/agents/run-once.ts')
 
 const STORE = `<!doctype html><html lang="cs"><head><title>Kafe u Lípy – výběrová káva</title>
 <meta property="og:site_name" content="Kafe u Lípy"><meta name="description" content="Pražírna v Brně.">
@@ -135,11 +136,31 @@ test('prices: a cent or two per call, never free, all per call over x402', () =>
   }
 })
 
+test('run once: input checked, no network, no secrets, stopped either way', () => {
+  assert.deepEqual(R.parseRunOnce({ language: 'python', code: 'print(1)' }), { language: 'python', template: 'python3.13', cmd: 'python3', args: ['-c', 'print(1)'], stdin: null })
+  assert.equal(R.parseRunOnce({ language: 'js', code: '1' }).cmd, 'node')
+  assert.deepEqual(R.parseRunOnce({ language: 'bash', code: 'echo hi', stdin: 'x' }).args, ['-c', 'echo hi'])
+  for (const bad of [null, {}, { language: 'ruby', code: 'x' }, { language: 'python', code: '' }, { language: 'python', code: 'x'.repeat(20_001) }, { language: 'python', code: 'x', stdin: 5 }]) {
+    assert.throws(() => R.parseRunOnce(bad), R.RunInputError)
+  }
+  assert.equal(PR.agentToolUsd('run'), 0.02)
+  const tools = readFileSync(new URL('lib/agents/agent-tools.ts', ROOT), 'utf8')
+  const run = tools.slice(tools.indexOf('export async function runOnce'))
+  assert.match(run, /network: 'none', env: \{\}/)
+  assert.match(run, /QBOX_DISABLED/)
+  assert.match(run, /admitCreate\(/)
+  assert.ok(run.indexOf("from('qbox_sandboxes').insert") < run.indexOf('engine().create'), 'row before the engine')
+  assert.match(run, /finally \{\s*await engine\(\)\.kill\(id\)/)
+  // the site MCP server never runs code
+  const mcp = readFileSync(new URL('lib/agents/mcp.ts', ROOT), 'utf8')
+  assert.ok(!/runOnce|'run'/.test(mcp))
+})
+
 test('routes: x402 or Bearer through one helper; bad input is refused before any payment', () => {
   const helper = readFileSync(new URL('lib/agents/paid-route.ts', ROOT), 'utf8')
   assert.match(helper, /if \(!hasApiKey\(req\)\) return payPerCall\(req, t, work\)/)
   assert.match(helper, /await refund\(c, t\.tool, booked\.ref\)/)
-  for (const [route, tool] of [['store', 'STORE_HTTP_TOOL'], ['company', 'COMPANY_HTTP_TOOL'], ['check', 'CHECK_HTTP_TOOL']]) {
+  for (const [route, tool] of [['store', 'STORE_HTTP_TOOL'], ['company', 'COMPANY_HTTP_TOOL'], ['check', 'CHECK_HTTP_TOOL'], ['run', 'RUN_HTTP_TOOL']]) {
     const src = readFileSync(new URL(`app/api/agent/v1/${route}/route.ts`, ROOT), 'utf8')
     assert.ok(src.includes(`paidToolResponse(req, ${tool}`), route)
     assert.ok(src.indexOf('badRequest(') < src.indexOf('paidToolResponse(req'), `${route}: input checked first`)

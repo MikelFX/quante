@@ -28,6 +28,7 @@ export const AGENT_LINKS = {
   store: `${APP_ORIGIN}/api/agent/v1/store`,
   company: `${APP_ORIGIN}/api/agent/v1/company`,
   check: `${APP_ORIGIN}/api/agent/v1/check`,
+  run: `${APP_ORIGIN}/api/agent/v1/run`,
   inquiry: `${APP_ORIGIN}/api/agent/v1/inquiry`,
   openapi: `${APP_ORIGIN}/api/agent/v1/openapi.json`,
   mcp: `${APP_ORIGIN}/api/mcp`,
@@ -74,7 +75,11 @@ export const PER_CALL_APIS = [
     tool: 'check', mcpTool: 'check_store', product: 'Qgent', name: 'Quick store check by rules (API)', method: 'GET', params: ['url'],
     summary: 'GET ?url=<store home page>: the Qgent rule checks over the home page and one product page — headline, buttons, alt texts, prices, trust, contact, policies, SEO basics — as findings with severity and why. No AI, answers in seconds.',
   },
-] as const satisfies ReadonlyArray<{ tool: keyof typeof AGENT_LINKS & AgentTool; mcpTool: string; product: string; name: string; method: 'GET'; params: readonly string[]; summary: string }>
+  {
+    tool: 'run', mcpTool: null, product: 'Qbox', name: 'Run code once in a sandbox (API)', method: 'POST', params: ['language', 'code', 'stdin'],
+    summary: 'POST { language: python | javascript | shell, code, stdin? }: one snippet in a fresh Qbox sandbox with no network (up to 40 s, 1 vCPU), then the sandbox is gone. Returns stdout, stderr and the exit code. For longer work, files or ports use the Qbox sandboxes API.',
+  },
+] as const satisfies ReadonlyArray<{ tool: keyof typeof AGENT_LINKS & AgentTool; mcpTool: string | null; product: string; name: string; method: 'GET' | 'POST'; params: readonly string[]; summary: string }>
 
 export function czk(v: string | null): number | null {
   if (v === null) return null
@@ -232,7 +237,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
           human: null,
           agent: { payPerCall: rt.x402 ? `x402 USDC (${rt.x402.network}), no account: call, get 402, repeat with PAYMENT-SIGNATURE (v2) or X-PAYMENT (v1)` : null, auth: 'or Authorization: Bearer qbx_… (Qbox balance)' },
         },
-        interfaces: { openapi: AGENT_LINKS.openapi, mcp: { server: AGENT_LINKS.mcp, tool: a.mcpTool } },
+        interfaces: { openapi: AGENT_LINKS.openapi, ...(a.mcpTool ? { mcp: { server: AGENT_LINKS.mcp, tool: a.mcpTool } } : {}) },
       })),
     ],
     quantePricing: {
@@ -268,7 +273,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
       mcp: { url: AGENT_LINKS.mcp, transport: 'streamable-http', auth: 'none', writes: ['request_quote (inquiry for your person, consent required)'] },
       inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`,
       qboxMcp: { url: AGENT_LINKS.qbox.mcp, transport: 'streamable-http', auth: 'Bearer qbx_… API key' },
-      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, product: AGENT_LINKS.product, store: AGENT_LINKS.store, company: AGENT_LINKS.company, check: AGENT_LINKS.check, auth: 'Bearer qbx_… (Qbox account), or x402 per call with no account (product, store, company, check, scan)' } },
+      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, product: AGENT_LINKS.product, store: AGENT_LINKS.store, company: AGENT_LINKS.company, check: AGENT_LINKS.check, run: AGENT_LINKS.run, auth: 'Bearer qbx_… (Qbox account), or x402 per call with no account (product, store, company, check, run, scan)' } },
       markdown: 'Every public page answers `Accept: text/markdown` with Markdown, and also at the same path + ".md" (the home page as /index.md).',
       llms: [AGENT_LINKS.llmsSite, AGENT_LINKS.llmsApp, AGENT_LINKS.llmsFull],
       discovery: [AGENT_LINKS.apiCatalog, AGENT_LINKS.mcpCard],

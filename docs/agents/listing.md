@@ -8,6 +8,7 @@ What is sold (HTTP under `https://quantecode.com/api/agent/v1/`, MCP tools on `h
 | Store profile: contacts, IČO/VAT, payments, shipping, policy links | `GET store?url=` | `profile_store` | $0.01 |
 | Company check in ARES + VIES | `GET company?ico=&vat=` | `check_company` | $0.01 |
 | Quick store check by rules (no AI) | `GET check?url=` | `check_store` | $0.02 |
+| Run Python / JS / shell once, no network | `POST run` | — | $0.02 |
 | Store scan to JSON | `POST scan` | — | $0.20 |
 
 Pay per call over x402 (USDC on Base), no account; nothing is charged when the call fails. Code:
@@ -24,8 +25,8 @@ Pay per call over x402 (USDC on Base), no account; nothing is charged when the c
 
 | # | Where | What to do | Account |
 |---|---|---|---|
-| 1 | **x402 Bazaar** (Coinbase; also feeds agentic.market) | Automatic: the first call that settles through the CDP facilitator lists the tool (HTTP and MCP each once). Make one paid call per tool from any x402 wallet (≈ $0.25 for all five). Check `GET https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources`, ~15 min. | none |
-| 2 | **x402scan.com** | Register resource → paste the five URLs above (one each). It reads the 402 and lists price + schema. | sign in with a wallet / GitHub |
+| 1 | **x402 Bazaar** (Coinbase; also feeds agentic.market) | Automatic: the first call that settles through the CDP facilitator lists the tool (HTTP and MCP each once). Make one paid call per tool from any x402 wallet (≈ $0.27 for all six). Check `GET https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources`, ~15 min. | none |
+| 2 | **x402scan.com** | Register resource → paste the six URLs above (one each). It reads the 402 and lists price + schema. | sign in with a wallet / GitHub |
 | 3 | **Official MCP Registry** | `mcp-publisher login github` (as MikelFX) → `mcp-publisher publish docs/agents/server.json`. | GitHub |
 | 4 | **Smithery**, **Glama**, **mcp.so**, **PulseMCP** | Add remote server `https://quantecode.com/api/mcp`; paste the one-liner below. `tools/list` works without a key. | each site |
 | 5 | GitHub "awesome" lists for x402 and MCP servers | Pull request with the one-liner. | GitHub |
@@ -46,5 +47,7 @@ an honest error; nothing is stored. By Quante (AssetraDigital s.r.o., Czech Repu
 **Company check, one line:** Verify a Czech company (IČO, ARES) or any EU VAT number (VIES) in the official registers. $0.01 per call over x402, no account.
 
 **Store check, one line:** Instant rule-based audit of an online store (headline, buttons, alt texts, prices, trust, policies, SEO basics) as JSON findings. $0.02 per call over x402, no account.
+
+**Run code, one line:** Run a Python, JavaScript or shell snippet once in a fresh sandbox with no network and get stdout, stderr and the exit code. $0.02 per call over x402, no account.
 
 **Tags (store / company):** lead-generation, enrichment, kyb, company-data, vat, eu, x402, mcp

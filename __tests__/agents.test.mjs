@@ -136,7 +136,7 @@ test('discovery files point at the real endpoints', () => {
   const card = D.mcpServerCard(M.SITE_MCP_TOOLS)
   assert.equal(card.transport.endpoint, C.AGENT_LINKS.mcp)
   assert.equal(card.tools.length, M.SITE_MCP_TOOLS.length)
-  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/check', '/company', '/inquiry', '/page', '/pages', '/product', '/review', '/scan', '/search', '/store'])
+  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/check', '/company', '/inquiry', '/page', '/pages', '/product', '/review', '/run', '/scan', '/search', '/store'])
   // the old Next robots route is gone, so the rewrite answers
   assert.throws(() => read('app/robots.ts'))
 })
