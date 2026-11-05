@@ -3,8 +3,13 @@
 // paths that are complete and the one being written (fileProgress), and the stage maps those
 // paths onto the parts of a storefront the agents assemble (buildParts). Pure.
 
-/** Complete file paths and the file being written right now, from the raw model output. */
-export function fileProgress(raw: string, max = 80): { done: string[]; writing: string | null } {
+/**
+ * Complete file paths and the files being written right now, from the raw model output. A
+ * parallel generation (lib/generation/parallel.ts) puts every stream's complete blocks first and
+ * the open tails after them, so several files can be open at once: `writingAll` lists them all,
+ * `writing` is the first (kept for older clients).
+ */
+export function fileProgress(raw: string, max = 80): { done: string[]; writing: string | null; writingAll: string[] } {
   const done: string[] = []
   const re = /<file path="([^"]{1,200})">[\s\S]*?<\/file>/g
   let m: RegExpExecArray | null
@@ -14,8 +19,14 @@ export function fileProgress(raw: string, max = 80): { done: string[]; writing: 
     if (!done.includes(p) && done.length < max) done.push(p)
     lastEnd = re.lastIndex
   }
-  const open = /<file path="([^"]{1,200})">(?![\s\S]*<\/file>)/.exec(raw.slice(lastEnd))
-  return { done, writing: open ? open[1].trim() : null }
+  const writingAll: string[] = []
+  const open = /<file path="([^"]{1,200})">/g
+  const tail = raw.slice(lastEnd)
+  while ((m = open.exec(tail)) && writingAll.length < 12) {
+    const p = m[1].trim()
+    if (!writingAll.includes(p) && !done.includes(p)) writingAll.push(p)
+  }
+  return { done, writing: writingAll[0] ?? null, writingAll }
 }
 
 export type PartId = 'theme' | 'nav' | 'hero' | 'values' | 'products' | 'story' | 'detail' | 'collection' | 'footer' | 'pages'
@@ -60,12 +71,14 @@ export interface PartState { id: PartId; state: 'waiting' | 'building' | 'done';
 
 /**
  * The state of every part: done once a file that builds it is complete, building while such a
- * file is being written. `finished` (the generation completed) turns every part done.
+ * file is being written (several at once in a parallel generation). `finished` (the generation
+ * completed) turns every part done.
  */
-export function buildParts(done: string[], writing: string | null, finished = false): PartState[] {
+export function buildParts(done: string[], writing: string | readonly string[] | null, finished = false): PartState[] {
   const count = new Map<PartId, number>()
   for (const f of done) for (const id of partsOf(f)) count.set(id, (count.get(id) ?? 0) + 1)
-  const now = new Set(writing ? partsOf(writing) : [])
+  const open = writing == null ? [] : typeof writing === 'string' ? [writing] : writing
+  const now = new Set(open.flatMap(partsOf))
   return BUILD_PARTS.map(({ id }) => ({
     id,
     files: count.get(id) ?? 0,

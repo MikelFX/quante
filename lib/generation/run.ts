@@ -22,6 +22,7 @@ import { refundCapped } from '@/app/api/credits/refund/capped'
 import type { StoreCodeOutput } from '@/types/store-code'
 import type { GenerationPhase } from '@/lib/generation-poll'
 import { refundDebit } from '@/lib/credits'
+import { runParallelGeneration } from '@/lib/generation/parallel-run'
 
 const PRIMARY_MODEL = MODELS.generation
 const FALLBACK_MODEL = MODELS.fallback
@@ -155,6 +156,12 @@ export interface RunParams {
   agency: boolean
   /** Credits were debited up front (ref = jobId) — false for Agency. */
   charged: boolean
+  /**
+   * Write the pages side by side (lib/generation/parallel.ts): the foundation first, then every
+   * page component at the same time. Asked for by the 20-agent build on /qgent; falls back to the
+   * ordinary one-stream generation when the foundation can't be written.
+   */
+  parallel?: boolean
 }
 
 // ── Architecture note (Level 3 — see docs/update-log.md) ──────────────────────────────
@@ -171,7 +178,7 @@ export interface RunParams {
 // now is polling GET /api/quante/generate/status?jobId=..., which reads exactly the state
 // this function is writing here — there is no other channel.
 export async function runGeneration(params: RunParams): Promise<void> {
-  const { jobId, userId, brief, projectName, existingProjectId, agency, charged } = params
+  const { jobId, userId, brief, projectName, existingProjectId, agency, charged, parallel } = params
   const startedAt = Date.now()
   // Set once the code_versions row exists — past that point the user has received the
   // paid work, so a later failure is not refunded.
@@ -263,81 +270,35 @@ export async function runGeneration(params: RunParams): Promise<void> {
     let fallbackReason = ''
     let primaryStreamCompleted = false
 
-    const primaryStream = anthropic.messages.stream({
-      model: PRIMARY_MODEL, max_tokens: MAX_TOKENS,
-      system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: effectiveBrief }],
-    })
-
-    const softAbort = setTimeout(() => {
-      console.warn('[generate:bg] soft timeout — aborting primary stream for partial recovery')
-      primaryStream.abort()
-    }, SOFT_TIMEOUT_MS)
-
-    let lastCheckpointAt = Date.now()
-    try {
-      for await (const event of primaryStream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          rawOutput += event.delta.text
-        }
-        if (Date.now() - lastCheckpointAt > CHECKPOINT_INTERVAL_MS) {
-          lastCheckpointAt = Date.now()
-          await checkpoint(rawOutput, modelUsed)
-        }
-      }
-      primaryStreamCompleted = true
-    } catch (err) {
-      const isOurAbort = err instanceof Error && err.name === 'AbortError'
-      if (!isOurAbort) {
-        needFallback = true
-        fallbackReason = err instanceof Error ? err.message : 'api_error'
-      }
-    } finally {
-      clearTimeout(softAbort)
-    }
-
-    if (primaryStreamCompleted) {
-      try {
-        const finalMsg = await primaryStream.finalMessage()
-        if ((finalMsg.stop_reason as string) === 'refusal') {
-          needFallback = true
-          fallbackReason = 'refusal'
-          rawOutput = ''
-        }
-      } catch {
-        // finalMessage() failing after a completed stream is non-fatal — proceed with collected output
+    // --- Parallel generation (opt-in) ---
+    // Foundation first, then every page writer at the same time. null = the foundation could not
+    // be written: continue with the ordinary one-stream generation below.
+    let parallelDone = false
+    if (parallel) {
+      const result = await runParallelGeneration(effectiveBrief, startedAt + SOFT_TIMEOUT_MS, checkpoint, CHECKPOINT_INTERVAL_MS)
+        .catch((err) => { console.error('[generate:bg] parallel generation failed, falling back to one stream:', err); return null })
+      if (result) {
+        rawOutput = result.raw
+        modelUsed = result.model
+        parallelDone = true
       }
     }
 
-    // --- Fallback ---
-    // The fallback shares the primary's soft deadline: starting a fresh 270s timer after a
-    // late primary failure would run past maxDuration, the platform would kill the function
-    // mid-stream and the job would be left 'running' with no failure handling at all.
-    const remainingMs = SOFT_TIMEOUT_MS - (Date.now() - startedAt)
-    if (needFallback && remainingMs < 20_000) {
-      infraFailure = fallbackReason !== 'refusal'
-      throw new Error('Generation timed out. Please try again.')
-    }
-    if (needFallback) {
-      console.warn(`[generate:bg] model=${PRIMARY_MODEL} failed (${fallbackReason}) — retrying with ${FALLBACK_MODEL}`)
-      rawOutput = ''
-      modelUsed = FALLBACK_MODEL
-      await setPhase('retrying_fallback')
-
-      const fallbackStream = anthropic.messages.stream({
-        model: FALLBACK_MODEL, max_tokens: MAX_TOKENS,
+    if (!parallelDone) {
+      const primaryStream = anthropic.messages.stream({
+        model: PRIMARY_MODEL, max_tokens: MAX_TOKENS,
         system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
         messages: [{ role: 'user', content: effectiveBrief }],
       })
 
-      const softAbortFallback = setTimeout(() => {
-        console.warn('[generate:bg] soft timeout — aborting fallback stream for partial recovery')
-        fallbackStream.abort()
-      }, remainingMs)
+      const softAbort = setTimeout(() => {
+        console.warn('[generate:bg] soft timeout — aborting primary stream for partial recovery')
+        primaryStream.abort()
+      }, Math.max(1_000, SOFT_TIMEOUT_MS - (Date.now() - startedAt)))
 
-      lastCheckpointAt = Date.now()
+      let lastCheckpointAt = Date.now()
       try {
-        for await (const event of fallbackStream) {
+        for await (const event of primaryStream) {
           if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
             rawOutput += event.delta.text
           }
@@ -346,13 +307,75 @@ export async function runGeneration(params: RunParams): Promise<void> {
             await checkpoint(rawOutput, modelUsed)
           }
         }
+        primaryStreamCompleted = true
       } catch (err) {
-        // Partial file recovery for fallback stream too. A hard API error on the fallback
-        // after the primary also hit one (not a refusal) is our failure, not the user's.
         const isOurAbort = err instanceof Error && err.name === 'AbortError'
-        if (!isOurAbort && fallbackReason !== 'refusal' && rawOutput.length === 0) infraFailure = true
+        if (!isOurAbort) {
+          needFallback = true
+          fallbackReason = err instanceof Error ? err.message : 'api_error'
+        }
       } finally {
-        clearTimeout(softAbortFallback)
+        clearTimeout(softAbort)
+      }
+
+      if (primaryStreamCompleted) {
+        try {
+          const finalMsg = await primaryStream.finalMessage()
+          if ((finalMsg.stop_reason as string) === 'refusal') {
+            needFallback = true
+            fallbackReason = 'refusal'
+            rawOutput = ''
+          }
+        } catch {
+          // finalMessage() failing after a completed stream is non-fatal — proceed with collected output
+        }
+      }
+
+      // --- Fallback ---
+      // The fallback shares the primary's soft deadline: starting a fresh 270s timer after a
+      // late primary failure would run past maxDuration, the platform would kill the function
+      // mid-stream and the job would be left 'running' with no failure handling at all.
+      const remainingMs = SOFT_TIMEOUT_MS - (Date.now() - startedAt)
+      if (needFallback && remainingMs < 20_000) {
+        infraFailure = fallbackReason !== 'refusal'
+        throw new Error('Generation timed out. Please try again.')
+      }
+      if (needFallback) {
+        console.warn(`[generate:bg] model=${PRIMARY_MODEL} failed (${fallbackReason}) — retrying with ${FALLBACK_MODEL}`)
+        rawOutput = ''
+        modelUsed = FALLBACK_MODEL
+        await setPhase('retrying_fallback')
+
+        const fallbackStream = anthropic.messages.stream({
+          model: FALLBACK_MODEL, max_tokens: MAX_TOKENS,
+          system: [{ type: 'text', text: SYSTEM_PROMPT_CODE_GENERATION, cache_control: { type: 'ephemeral' } }],
+          messages: [{ role: 'user', content: effectiveBrief }],
+        })
+
+        const softAbortFallback = setTimeout(() => {
+          console.warn('[generate:bg] soft timeout — aborting fallback stream for partial recovery')
+          fallbackStream.abort()
+        }, remainingMs)
+
+        lastCheckpointAt = Date.now()
+        try {
+          for await (const event of fallbackStream) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+              rawOutput += event.delta.text
+            }
+            if (Date.now() - lastCheckpointAt > CHECKPOINT_INTERVAL_MS) {
+              lastCheckpointAt = Date.now()
+              await checkpoint(rawOutput, modelUsed)
+            }
+          }
+        } catch (err) {
+          // Partial file recovery for fallback stream too. A hard API error on the fallback
+          // after the primary also hit one (not a refusal) is our failure, not the user's.
+          const isOurAbort = err instanceof Error && err.name === 'AbortError'
+          if (!isOurAbort && fallbackReason !== 'refusal' && rawOutput.length === 0) infraFailure = true
+        } finally {
+          clearTimeout(softAbortFallback)
+        }
       }
     }
 

@@ -2,9 +2,10 @@
 
 // The build stage on /qgent: the 20 agents assemble the new store in front of the merchant. The
 // storefront is drawn as its parts (BUILD_PARTS); a part is "building" while the generation is
-// writing a file for it and "done" once such a file is complete (status poll filesDone / writing,
-// lib/qgent/swarm/build.ts). Each part has its own agents; they work on their part and rest beside
-// it when it is done. Real content from the scan (brand, products and their photos — our own
+// writing a file for it and "done" once such a file is complete (status poll filesDone / writingAll,
+// lib/qgent/swarm/build.ts). The generation writes the pages side by side (lib/generation/parallel.ts),
+// so several parts build at once. Each part has its own agents; every agent moves on its own clock
+// while its part is building and rests beside it when it is done. Real content from the scan (brand, products and their photos — our own
 // copies in store-assets) fills the parts as they finish; the old site is never loaded.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -25,7 +26,8 @@ interface Props {
   /** null while the old store is being read */
   info: BuildInfo | null
   filesDone: string[]
-  writing: string | null
+  /** every file being written right now (several at once in the parallel build) */
+  writing: string[]
   finished: boolean
   statusText: string
   accepted: number
@@ -41,9 +43,12 @@ export function BuildStage({ info, filesDone, writing, finished, statusText, acc
   const parts = useMemo(() => buildParts(filesDone, writing, finished), [filesDone, writing, finished])
   const state = useMemo(() => new Map<PartId, PartState>(parts.map((p) => [p.id, p])), [parts])
   const done = parts.filter((p) => p.state === 'done').length
-  const building = parts.find((p) => p.state === 'building')?.id ?? null
+  const buildingParts = parts.filter((p) => p.state === 'building')
+  // the topmost part being built: the view follows it
+  const building = buildingParts[0]?.id ?? null
+  const nextMove = useRef<number[]>([])
 
-  // follow the part being built
+  // follow the topmost part being built
   useEffect(() => {
     if (!building || !docRef.current || !viewRef.current) return
     const el = docRef.current.querySelector<HTMLElement>(`[data-part="${building}"]`)
@@ -64,29 +69,39 @@ export function BuildStage({ info, filesDone, writing, finished, statusText, acc
         return
       }
       const d = doc.getBoundingClientRect()
+      const now = performance.now()
       setPos((prev) => SWARM_AGENTS.map((a, i) => {
         const part = BUILD_PARTS.find((p) => p.agents.includes(a.id))!
         const el = doc.querySelector<HTMLElement>(`[data-part="${part.id}"]`)
         if (!el) return prev[i]
+        // every agent on its own clock, so the swarm never moves in lockstep
+        if (!still && prev[i] && now < (nextMove.current[i] ?? 0)) return prev[i]
+        nextMove.current[i] = now + 600 + Math.random() * 1100
         const r = el.getBoundingClientRect()
         const x0 = r.left - d.left
         const y0 = r.top - d.top
         const s = state.get(part.id)?.state
         const k = part.agents.indexOf(a.id)
-        if (s === 'building') return { x: x0 + 20 + Math.random() * Math.max(20, r.width - 80), y: y0 + 12 + Math.random() * Math.max(10, r.height - 30) }
+        if (s === 'building') return { x: x0 + 14 + Math.random() * Math.max(20, r.width - 120), y: y0 + 12 + Math.random() * Math.max(10, r.height - 30) }
         if (s === 'done') return { x: x0 + r.width - 70 - k * 64, y: y0 - 8 }
         return { x: x0 + 14 + k * 64, y: y0 + r.height / 2 - 8 }
       }))
     }
     place()
     if (still) return
-    const t = window.setInterval(place, info ? 1100 : 600)
+    const t = window.setInterval(place, info ? 250 : 600)
     return () => window.clearInterval(t)
   }, [info, state, still])
 
   const accent = info?.colors[0]
   const themed = state.get('theme')?.state === 'done' && accent
-  const writingAgent = building ? BUILD_PARTS.find((p) => p.id === building)?.agents[0] : null
+  const writers = buildingParts.map((p) => SWARM_AGENTS[agentIndex(BUILD_PARTS.find((b) => b.id === p.id)!.agents[0])]?.name).filter(Boolean)
+  const files = writing.map((w) => w.split('/').pop())
+  const writingLine = !writing.length
+    ? null
+    : writing.length === 1
+      ? `${writers[0] ?? 'Agent'} is writing ${files[0]}`
+      : `${writers.slice(0, 2).join(', ')}${writers.length > 2 ? ` +${writers.length - 2}` : ''} · ${files.length} files at once: ${files.join(', ')}`
 
   const part = (id: PartId, children: React.ReactNode, cls = '') => {
     const s = state.get(id)?.state ?? 'waiting'
@@ -159,10 +174,10 @@ export function BuildStage({ info, filesDone, writing, finished, statusText, acc
       <div className="qg-bar" role="status" aria-live="polite">
         <span className="qg-dots" aria-hidden="true">{SWARM_AGENTS.slice(0, 5).map((a, i) => <AgentDot key={a.id} index={i} />)}</span>
         <b>{N} agents</b>
-        <span className="qg-count">{info ? `${done} / ${parts.length} parts` : statusText}</span>
+        <span className="qg-count">{info ? `${done} / ${parts.length} parts${buildingParts.length > 1 && !finished ? ` · ${buildingParts.length} building` : ''}` : statusText}</span>
         <span className="qg-prog" aria-hidden="true"><i style={{ width: `${Math.round((done / parts.length) * 100)}%` }} /></span>
         <span className="qg-count qg-writing">
-          {finished ? 'built' : writing ? `${writingAgent ? SWARM_AGENTS[agentIndex(writingAgent)]?.name : 'Agent'} is writing ${writing.split('/').pop()}` : info ? statusText : accepted ? `${accepted} accepted changes go in` : ''}
+          {finished ? 'built' : writingLine ?? (info ? statusText : accepted ? `${accepted} accepted changes go in` : '')}
         </span>
       </div>
     </div>

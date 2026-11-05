@@ -155,8 +155,8 @@ test('accepted findings go into the rebuild brief, quoted and capped', () => {
 
 test('build: complete files and the file being written', () => {
   const raw = 'intro <file path="data/config.ts">x</file>\n<file path="styles/store.css">y</file><file path="components/store/HomePage.tsx">partial…'
-  assert.deepEqual(B.fileProgress(raw), { done: ['data/config.ts', 'styles/store.css'], writing: 'components/store/HomePage.tsx' })
-  assert.deepEqual(B.fileProgress(''), { done: [], writing: null })
+  assert.deepEqual(B.fileProgress(raw), { done: ['data/config.ts', 'styles/store.css'], writing: 'components/store/HomePage.tsx', writingAll: ['components/store/HomePage.tsx'] })
+  assert.deepEqual(B.fileProgress(''), { done: [], writing: null, writingAll: [] })
   assert.equal(B.fileProgress('<file path="a.ts">1</file>').writing, null)
   const parts = B.buildParts(['data/config.ts'], 'components/store/HomePage.tsx')
   const st = Object.fromEntries(parts.map((p) => [p.id, p.state]))
