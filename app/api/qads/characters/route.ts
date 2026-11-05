@@ -55,7 +55,7 @@ export async function POST(request: Request) {
 
   const credits = characterCredits()
   const generationId = randomUUID()
-  const charge = await chargeQadsGeneration({ userId, generationId, credits, videos: 0, images: 1 })
+  const charge = await chargeQadsGeneration({ userId, generationId, credits, videoSeconds: 0, images: 1 })
   if (!charge.ok) return charge.response
   const charged = charge.agency ? 0 : credits
 

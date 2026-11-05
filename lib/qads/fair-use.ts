@@ -2,8 +2,9 @@
 // lib/config.ts). Server-only.
 //
 // Agency renders debit nothing, so the credit ledger can't count them. Each render (a new item
-// or a regenerated one) is logged in quante_request_attempts (route 'qads_video' / 'qads_image',
-// ref_id = the generation) BEFORE the provider is called; then the last 24 h are counted,
+// or a regenerated one) is logged in quante_request_attempts (route 'qads_image' = one photo,
+// 'qads_video' = ONE SECOND of video, so a 30 s clip is 30 rows; ref_id = the generation)
+// BEFORE the provider is called; then the last 24 h are counted,
 // including our own rows — the k-th concurrent insert always sees >= k rows, so the cap holds
 // under races. Over the cap our rows are removed again. Fails closed: no log, no free render.
 import { supabaseAdmin } from '@/lib/supabase/admin'
@@ -16,11 +17,13 @@ export type AgencyRenderResult =
   | { ok: false; error: 'fair_use' | 'unavailable'; message: string }
 
 export const AGENCY_QADS_FAIR_USE_MESSAGE =
-  `Fair-use limit reached — the Agency plan includes ${AGENCY_FAIR_USE.qadsVideosPerDay} Qads videos and ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day. Try again later.`
+  `Fair-use limit reached — the Agency plan includes ${AGENCY_FAIR_USE.qadsVideoSecondsPerDay} seconds of Qads video and ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day. Try again later.`
 
-export async function reserveAgencyRenders(userId: string, generationId: string, videos: number, images: number): Promise<AgencyRenderResult> {
+/** @param videoSeconds total seconds of video about to render (clips × duration), whole number */
+export async function reserveAgencyRenders(userId: string, generationId: string, videoSeconds: number, images: number): Promise<AgencyRenderResult> {
+  const seconds = Number.isFinite(videoSeconds) ? Math.max(0, Math.ceil(videoSeconds)) : 0
   const rows = [
-    ...Array.from({ length: videos }, () => ({ user_id: userId, route: 'qads_video', ref_id: generationId })),
+    ...Array.from({ length: seconds }, () => ({ user_id: userId, route: 'qads_video', ref_id: generationId })),
     ...Array.from({ length: images }, () => ({ user_id: userId, route: 'qads_image', ref_id: generationId })),
   ]
   if (!rows.length) return { ok: true }
@@ -41,7 +44,7 @@ export async function reserveAgencyRenders(userId: string, generationId: string,
     return e ? null : (n ?? 0)
   }
   const [v, i] = await Promise.all([count('qads_video'), count('qads_image')])
-  const over = v === null || i === null || v > AGENCY_FAIR_USE.qadsVideosPerDay || i > AGENCY_FAIR_USE.qadsPhotosPerDay
+  const over = v === null || i === null || v > AGENCY_FAIR_USE.qadsVideoSecondsPerDay || i > AGENCY_FAIR_USE.qadsPhotosPerDay
   if (!over) return { ok: true }
 
   await releaseAgencyRenders(ids)

@@ -32,7 +32,9 @@ export const FREE_PROJECT_LIMIT = 3   // applies to both 'free' and 'credit' tie
 export const AGENCY_FAIR_USE = {
   generationsPerDay: 50,
   generationsPerHour: 30,   // above one full batch, so a batch never locks out single generations
-  qadsVideosPerDay: 20,
+  // Video is counted in seconds since 1080p × 30 s clips (owner 2026-11-05): 200 s = the
+  // old 20 videos × 10 s; at ~$1.05/s that is ≤ ~$210 of renders a day per account.
+  qadsVideoSecondsPerDay: 200,
   qadsPhotosPerDay: 100,
 } as const
 

@@ -783,7 +783,7 @@ export function QadsGeneratorClient() {
 
         <p className="qz-under">
           {agency
-            ? `Included in Agency · ${AGENCY_FAIR_USE.qadsVideosPerDay} videos, ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day`
+            ? `Included in Agency · ${AGENCY_FAIR_USE.qadsVideoSecondsPerDay} s of video, ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos a day`
             : isLoaded && !isSignedIn && starterCovers
               ? `${CREDIT_COSTS.welcome_grant} credits free to start`
               : isSignedIn && balance !== null
