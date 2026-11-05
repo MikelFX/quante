@@ -2,6 +2,9 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse, type NextFetchEvent, type NextRequest } from 'next/server'
 import { APP_ORIGIN, SITE_ORIGIN, isClerkFreePage } from '@/lib/domains'
 import { afterSignInPath, redirectParam } from '@/lib/auth/after-sign-in'
+import { hostKind } from '@/lib/domains'
+import { agentPageId } from '@/lib/agents/page-ids'
+import { wantsMarkdown } from '@/lib/agents/negotiate'
 
 const isProtectedRoute = createRouteMatcher([
   '/dashboard(.*)',
@@ -25,6 +28,7 @@ const isCrossSiteApi = createRouteMatcher([
   '/api/cron/(.*)',
   '/api/qads/cron/(.*)',
   '/api/qbox/v1/(.*)', // Qbox API: authenticated by API key, never by the session cookie
+  '/api/mcp', // site MCP server: read-only, no session, open to every agent (lib/agents/mcp.ts)
 ])
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
@@ -88,8 +92,28 @@ const withClerk = clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) await auth.protect()
 })
 
+function markdownRewrite(req: NextRequest): NextResponse | null {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return null
+  const path = req.nextUrl.pathname
+  if (path.startsWith('/api/') || path.startsWith('/_next/')) return null
+  const explicit = path.endsWith('.md') || path === '/agents'
+  if (!explicit && !wantsMarkdown(req.headers.get('accept'))) return null
+  if (!agentPageId(path, hostKind(req.headers.get('x-forwarded-host') ?? req.headers.get('host')))) return null
+  const url = req.nextUrl.clone()
+  url.pathname = '/api/agent/v1/page'
+  url.search = `?path=${encodeURIComponent(path)}`
+  // The path also travels as a header: a rewrite does not always hand the new query to the route.
+  const headers = new Headers(req.headers)
+  headers.set('x-agent-path', path)
+  return NextResponse.rewrite(url, { request: { headers } })
+}
+
 /** The root of the app host (quantecode.com/), which is not the website's homepage. */
 export function proxy(req: NextRequest, ev: NextFetchEvent) {
+  // Agents (lib/agents): a page asked for as Markdown (`Accept: text/markdown`, "<path>.md", or
+  // /agents) is answered by /api/agent/v1/page — same content as the HTML, no Clerk.
+  const md = markdownRewrite(req)
+  if (md) return md
   // The app/(site) pages — the AssetraDigital website and the Quante product pages, including
   // quantecode.com/ (the Quante overview, owner 2026-11-04) — never use Clerk (lib/domains.ts,
   // components/auth/QuanteClerk.tsx): skip it there — no session lookup, no handshake redirect.
