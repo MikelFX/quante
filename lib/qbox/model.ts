@@ -257,3 +257,27 @@ export function publicSandbox(row: SandboxRow & { template: string; ports: numbe
     previews,
   }
 }
+
+export type AdminAction =
+  | { action: 'invite'; userId: string; maxConcurrent: number | null; monthlyMinutes: number | null }
+  | { action: 'pause' | 'resume' | 'remove'; userId: string }
+
+/** Admin → Qbox beta: invite / pause / resume / remove one account (Clerk user id). */
+export function parseAdminAction(body: unknown): AdminAction {
+  const b = isObj(body) ? body : {}
+  const userId = typeof b.userId === 'string' ? b.userId.trim() : ''
+  if (!/^user_[A-Za-z0-9]{10,64}$/.test(userId)) throw new QboxInputError('userId must be a Clerk user id (user_…).')
+  const action = b.action
+  if (action === 'pause' || action === 'resume' || action === 'remove') return { action, userId }
+  if (action !== 'invite') throw new QboxInputError('action must be invite, pause, resume or remove.')
+  const num = (v: unknown, min: number, max: number, what: string) => {
+    if (v === undefined || v === null || v === '') return null
+    if (typeof v !== 'number' || !Number.isInteger(v) || v < min || v > max) throw new QboxInputError(`${what} must be a whole number ${min}–${max}.`)
+    return v
+  }
+  return {
+    action, userId,
+    maxConcurrent: num(b.maxConcurrent, 1, 50, 'maxConcurrent'),
+    monthlyMinutes: num(b.monthlyMinutes, 1, 100_000, 'monthlyMinutes'),
+  }
+}

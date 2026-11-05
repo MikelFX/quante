@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { requireAdmin } from '@/lib/admin'
 import { ChangelogAdmin, type ChangelogEntry } from './ChangelogAdmin'
 import { StoreUpdatesAdmin } from './StoreUpdatesAdmin'
+import { QboxAdmin } from './QboxAdmin'
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -67,6 +68,8 @@ export default async function AdminPage() {
 
   return (
     <div style={{ padding: '1.5rem 1rem 3rem', maxWidth: 900, margin: '0 auto' }}>
+      <QboxAdmin />
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>
         <h1 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em' }}>Admin — Agency subscribers</h1>
         <span style={{

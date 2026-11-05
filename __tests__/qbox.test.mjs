@@ -97,3 +97,15 @@ test('the API is key-authenticated, engine-agnostic and fails closed', () => {
   assert.ok(/'\/api\/qbox\/v1\/\(\.\*\)'/.test(src('proxy.ts')), 'API-key routes are exempt from the cookie CSRF check')
   assert.ok(!/process\.env\.(VERCEL_TOKEN|SUPABASE)/.test(src('lib/qbox/vercel.ts').split('env: input.env')[1] ?? ''), 'no platform secret goes into a sandbox')
 })
+
+test('admin: invite / pause / resume / remove one Clerk account, optional limits', () => {
+  const id = 'user_3El2cd7br6xR9CQ4iveT02qYjRc'
+  assert.deepEqual(M.parseAdminAction({ userId: id, action: 'invite' }), { action: 'invite', userId: id, maxConcurrent: null, monthlyMinutes: null })
+  assert.equal(M.parseAdminAction({ userId: id, action: 'invite', monthlyMinutes: 1200 }).monthlyMinutes, 1200)
+  for (const a of ['pause', 'resume', 'remove']) assert.equal(M.parseAdminAction({ userId: ` ${id} `, action: a }).action, a)
+  for (const bad of [null, { userId: id }, { userId: id, action: 'drop' }, { userId: 'bob', action: 'invite' }, { userId: "user_x'; drop table", action: 'invite' }, { userId: id, action: 'invite', maxConcurrent: 0 }, { userId: id, action: 'invite', monthlyMinutes: 1.5 }]) {
+    assert.throws(() => M.parseAdminAction(bad), M.QboxInputError, JSON.stringify(bad))
+  }
+  const src = readFileSync(ROOT + 'app/api/admin/qbox/route.ts', 'utf8')
+  assert.equal((src.match(/await requireAdmin\(\)/g) ?? []).length, 2, 'both admin handlers are gated')
+})
