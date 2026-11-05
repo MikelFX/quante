@@ -166,12 +166,13 @@ test('search finds sections in Czech without diacritics and in page titles', () 
 
 test('site MCP server: read-only tools, works without a key', async () => {
   let asked = null
-  const deps = { rt: C.RUNTIME_OFF, qboxLlms: '# Qbox', inquiry: async (a) => { asked = a; return { ok: true, id: 'L1' } }, changelog: async (n) => [{ date: '2026-11-05', title: 't', description: 'd', url: null }].slice(0, n) }
+  let looked = null
+  const deps = { rt: C.RUNTIME_OFF, qboxLlms: '# Qbox', inquiry: async (a) => { asked = a; return { ok: true, id: 'L1' } }, changelog: async (n) => [{ date: '2026-11-05', title: 't', description: 'd', url: null }].slice(0, n), lookupProduct: async (a, meta) => { looked = { a, meta }; return { isError: true, content: [{ type: 'text', text: '{}' }] } } }
   const init = await M.handleSiteRpc({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } }, deps)
   assert.equal(init.result.protocolVersion, '2025-06-18')
   assert.match(init.result.instructions, /Qbox/)
   const list = await M.handleSiteRpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, deps)
-  assert.deepEqual(list.result.tools.map((t) => t.name), ['get_catalog', 'list_pages', 'read_page', 'search_site', 'get_changelog', 'request_quote', 'get_contact'])
+  assert.deepEqual(list.result.tools.map((t) => t.name), ['get_catalog', 'list_pages', 'read_page', 'search_site', 'get_changelog', 'request_quote', 'lookup_product', 'get_contact'])
   // only request_quote writes, and nothing destroys
   assert.deepEqual(list.result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name), ['request_quote'])
   assert.ok(list.result.tools.every((t) => !t.annotations.destructiveHint))
@@ -184,6 +185,10 @@ test('site MCP server: read-only tools, works without a key', async () => {
   assert.equal((await call('get_changelog', { limit: 1 })).structuredContent.entries.length, 1)
   assert.equal((await call('request_quote', { contact: 'a@b.cz', consent: true })).structuredContent.id, 'L1')
   assert.equal(asked.contact, 'a@b.cz')
+  // the paid lookup gets its arguments and the x402 payment from _meta
+  await M.handleSiteRpc({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'lookup_product', arguments: { url: 'https://s.example/p' }, _meta: { 'x402/payment': { x402Version: 2 } } } }, deps)
+  assert.deepEqual(looked, { a: { url: 'https://s.example/p' }, meta: { 'x402/payment': { x402Version: 2 } } })
+  assert.match(list.result.tools.find((t) => t.name === 'lookup_product').description, /^PAID \(\$0\.01/)
   const unknown = await M.handleSiteRpc({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'delete_everything' } }, deps)
   assert.equal(unknown.error.code, -32602)
   assert.equal(await M.handleSiteRpc({ jsonrpc: '2.0', method: 'notifications/initialized' }, deps), null)

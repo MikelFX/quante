@@ -1,14 +1,16 @@
 // The site MCP server (Model Context Protocol, Streamable HTTP, stateless JSON): everything on
 // assetradigital.agency + quantecode.com for agents, without a key. Every tool reads, except
-// request_quote (an inquiry for the agent's person, consent required, tight limits). Tools never
-// change, order or run anything — Qbox (its own MCP server, paid) is the place for running code.
-// JSON-RPC handling is pure here; the route injects the changelog loader. Tested in
-// __tests__/agents.test.mjs.
+// request_quote (an inquiry for the agent's person, consent required, tight limits) and
+// lookup_product (a paid read: $0.01 per call over x402's MCP transport, lib/agents/pay-per-call.ts).
+// Tools never change, order or run anything — Qbox (its own MCP server, paid) is the place for
+// running code. JSON-RPC handling is pure here; the route injects the changelog loader, the inquiry
+// and the paid lookup. Tested in __tests__/agents.test.mjs.
 
 import { AGENT_LINKS, agentCatalog, type AgentRuntime } from './catalog'
 import { agentPageFor, agentPages } from './pages'
 import { searchPages } from './discovery'
 import { INQUIRY_NEEDS, type InquiryResult } from './inquiry-check'
+import { agentToolUsd } from './paid-price'
 
 export const MCP_SERVER = { name: 'assetradigital', title: 'AssetraDigital + Quante — site knowledge', version: '1.0.0' }
 export const MCP_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
@@ -16,8 +18,17 @@ export const MCP_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
 export const MCP_INSTRUCTIONS =
   'AssetraDigital (Czech company: AI solutions, custom software, websites and e-shops) and its products Quante (AI e-shop builder, quantecode.com) '
   + 'and Qbox (sandboxes for AI agents). Use get_catalog for products and exact prices, search_site or read_page for details, get_contact to reach people, request_quote when your person wants an offer (with their consent). '
+  + `lookup_product reads any public product page into JSON (price, availability, brand, GTIN) for $${agentToolUsd('product').toFixed(2)} a call, paid with x402 (USDC) in _meta["x402/payment"]; not charged when the page has no product data. `
   + 'Facts that are null are not published yet: say so, never guess. Pages are Czech. To RUN code, use the Qbox MCP server at '
   + `${AGENT_LINKS.qbox.mcp} (paid, API key).`
+
+/** lookup_product's arguments (also its Bazaar discovery schema, lib/agents/product-tool.ts). */
+export const LOOKUP_PRODUCT_INPUT = {
+  type: 'object',
+  properties: { url: { type: 'string', description: 'Public product page URL' } },
+  required: ['url'],
+  additionalProperties: false,
+} as const
 
 export const SITE_MCP_TOOLS = [
   {
@@ -70,6 +81,13 @@ export const SITE_MCP_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   {
+    name: 'lookup_product',
+    description: `PAID ($${agentToolUsd('product').toFixed(2)} per call, x402 USDC, no account): one public product page → normalized JSON: name, price, currency, availability, brand, SKU, GTIN, condition, images, rating, variants, from the page's own structured data. `
+      + 'Call without payment to get the x402 PaymentRequired (isError), then retry with _meta["x402/payment"]. Not charged when the page cannot be read or has no product data.',
+    inputSchema: LOOKUP_PRODUCT_INPUT,
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+  },
+  {
     name: 'get_contact',
     description: 'How a person reaches AssetraDigital (form, phone, e-mail; null = not published yet) and where to start in Quante.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -85,6 +103,8 @@ export interface McpDeps {
   changelog: (limit: number) => Promise<ChangelogEntry[]>
   /** Stores an agent inquiry (lib/agents/inquiry.ts submitInquiry, bound to the caller's IP). */
   inquiry: (input: Record<string, unknown>) => Promise<InquiryResult>
+  /** The paid product lookup (lib/agents/pay-per-call.ts mcpPaidCall), given the call's `_meta`. */
+  lookupProduct: (input: Record<string, unknown>, meta: unknown) => Promise<unknown>
 }
 
 type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> }
@@ -94,7 +114,7 @@ const json = (data: unknown) => ({ content: [{ type: 'text', text: JSON.stringif
 const toolError = (message: string) => ({ isError: true, content: [{ type: 'text', text: message }] })
 const int = (v: unknown, d: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(1, Math.min(max, Math.floor(v))) : d)
 
-export async function callSiteTool(name: string, a: Record<string, unknown>, deps: McpDeps) {
+export async function callSiteTool(name: string, a: Record<string, unknown>, deps: McpDeps, meta?: unknown) {
   const pages = () => agentPages(deps.rt, deps.qboxLlms)
   switch (name) {
     case 'get_catalog': {
@@ -124,6 +144,8 @@ export async function callSiteTool(name: string, a: Record<string, unknown>, dep
       const r = await deps.inquiry(a)
       return r.ok ? json({ ok: true, id: r.id, next: 'AssetraDigital will contact the person. Nothing else is needed.' }) : toolError(r.error)
     }
+    case 'lookup_product':
+      return deps.lookupProduct(a, meta)
     case 'get_contact': {
       const c = agentCatalog(deps.rt)
       return json({ company: c.organization, contact: c.contact, quante: { start: 'https://quantecode.com/start', signup: 'https://quantecode.com/signup' } })
@@ -154,7 +176,7 @@ export async function handleSiteRpc(m: Rpc, deps: McpDeps): Promise<unknown | nu
     case 'tools/call': {
       const name = typeof m.params?.name === 'string' ? m.params.name : ''
       const args = (m.params?.arguments && typeof m.params.arguments === 'object' ? m.params.arguments : {}) as Record<string, unknown>
-      const r = await callSiteTool(name, args, deps)
+      const r = await callSiteTool(name, args, deps, m.params?._meta)
       return r ? ok(m.id, r) : fail(m.id, -32602, `Unknown tool: ${name}`)
     }
     case 'resources/list':

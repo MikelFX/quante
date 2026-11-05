@@ -113,7 +113,7 @@ ${modulesList}`
 
 - [Start here](${by('agents').md}): how to use this site as an agent
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
-- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key)
+- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key), lookup_product (paid per call, x402)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
 - Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (product, scan; charged only when it works) or from a Qbox account
 - [Qbox](${AGENT_LINKS.qbox.llms}): sandboxes for AI agents — ${rt.qboxOpen ? (rt.x402 ? 'pay by yourself over x402 (USDC), no sign-up' : 'paid, prepaid balance') : 'invite-only beta'}`

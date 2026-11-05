@@ -1,16 +1,22 @@
 // The site MCP server: POST /api/mcp (JSON-RPC 2.0, Streamable HTTP, stateless JSON responses).
-// No key; read tools + request_quote (lib/agents/mcp.ts). GET answers 405 (no server-sent stream) with a pointer.
+// No key; read tools + request_quote + the paid lookup_product (x402 in _meta, lib/agents/mcp.ts). GET answers 405 (no server-sent stream) with a pointer.
 import { NextResponse } from 'next/server'
 import { handleSiteRpc, type ChangelogEntry } from '@/lib/agents/mcp'
 import { agentRuntime, qboxLlms } from '@/lib/agents/runtime'
 import { submitInquiry } from '@/lib/agents/inquiry'
 import { getClientIp } from '@/lib/rate-limit'
 import { APP_ORIGIN } from '@/lib/domains'
+import { AGENT_LINKS } from '@/lib/agents/catalog'
+import { mcpPaidCall } from '@/lib/agents/pay-per-call'
+import { PRODUCT_MCP_TOOL, productUrl, readProduct } from '@/lib/agents/product-tool'
+
+export const maxDuration = 30
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version',
+  'Access-Control-Expose-Headers': 'Mcp-Session-Id',
 }
 
 async function changelog(limit: number): Promise<ChangelogEntry[]> {
@@ -40,7 +46,12 @@ export async function POST(req: Request) {
   }
   const ip = getClientIp(req)
   const ua = req.headers.get('user-agent') ?? ''
-  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua) }
+  const lookupProduct = async (a: Record<string, unknown>, meta: unknown) => {
+    const url = productUrl(a.url)
+    if (!url) return { isError: true, content: [{ type: 'text', text: 'url must be a public http(s) product page.' }] }
+    return mcpPaidCall(meta, ip, PRODUCT_MCP_TOOL, AGENT_LINKS.mcp, () => readProduct(url))
+  }
+  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua), lookupProduct }
   if (Array.isArray(body)) {
     const out = (await Promise.all(body.slice(0, 20).map((m) => handleSiteRpc(m, deps)))).filter((x) => x !== null)
     return out.length ? NextResponse.json(out, { headers: CORS }) : new Response(null, { status: 202, headers: CORS })

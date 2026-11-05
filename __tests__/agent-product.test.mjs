@@ -108,7 +108,7 @@ test('pay-per-call settles only after the work succeeded', () => {
   const work = src.indexOf('await work()')
   const settle = src.indexOf('await settleVerified(')
   assert.ok(verify > 0 && verify < work && work < settle, 'verify → work → settle')
-  assert.match(src, /if \(!result\.ok\) return json\(\{ \.\.\.result\.body, charged: false \}/)
+  assert.match(src, /if \(!result\.ok\) return \{ kind: 'failed'/)
   assert.match(src, /signedUnits\(payment\) !== reqs\.maxAmountRequired/)
 })
 
@@ -185,4 +185,14 @@ test('the 402 carries a v2 PaymentRequired with a valid bazaar extension (GET an
   const post = O.bazaarExtension({ method: 'POST', body: { url: { type: 'string', description: 'x', example: 'https://s.example' }, rights: { type: 'boolean', description: 'y', example: true } } }, {})
   assert.deepEqual(post.info.input, { type: 'http', method: 'POST', bodyType: 'json', body: { url: 'https://s.example', rights: true } })
   assert.deepEqual(post.schema.properties.input.required, ['type', 'method', 'bodyType', 'body'])
+})
+
+test('MCP discovery: bazaar extension for an MCP tool reuses its input schema', () => {
+  const ext = O.bazaarExtension({ method: 'MCP', toolName: 'lookup_product', description: 'd', inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] }, example: { url: 'https://s.example/p' } }, { found: true })
+  assert.equal(ext.info.input.type, 'mcp')
+  assert.equal(ext.info.input.toolName, 'lookup_product')
+  assert.deepEqual(ext.schema.properties.input.required, ['type', 'toolName', 'inputSchema'])
+  const src = readFileSync(new URL('lib/agents/pay-per-call.ts', ROOT), 'utf8')
+  assert.match(src, /\['x402\/payment'\]/)
+  assert.match(src, /'x402\/payment-response': out\.receipt/)
 })
