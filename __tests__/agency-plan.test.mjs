@@ -45,7 +45,7 @@ test('Qads is included for Agency with a daily cap on renders', () => {
     assert.match(src(f), /reserveAgencyRenders\(/, `${f} counts Agency renders`)
   }
   const fair = src('lib/qads/fair-use.ts')
-  assert.match(fair, /qadsVideosPerDay/)
+  assert.match(fair, /qadsVideoSecondsPerDay/)
   assert.match(fair, /qadsPhotosPerDay/)
 })
 

@@ -68,7 +68,7 @@ export const quantePricing = {
   agency: {
     monthlyUsd: AGENCY_MONTHLY_USD,
     summary: `neomezeně obchodů · hromadné generování až ${AGENCY_BATCH_SIZE} obchodů · generování, úpravy a Qads bez kreditů (fair use) · export bez značky Quante · hosting v ceně`,
-    fairUse: `${AGENCY_FAIR_USE.generationsPerDay} generování obchodu, ${AGENCY_FAIR_USE.qadsVideosPerDay} videí a ${AGENCY_FAIR_USE.qadsPhotosPerDay} fotek v Qads denně`,
+    fairUse: `${AGENCY_FAIR_USE.generationsPerDay} generování obchodu, ${AGENCY_FAIR_USE.qadsVideoSecondsPerDay} sekund videa a ${AGENCY_FAIR_USE.qadsPhotosPerDay} fotek v Qads denně`,
     bulkExport: AGENCY_BATCH_SIZE,
   },
 }

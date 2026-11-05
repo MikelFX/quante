@@ -13,7 +13,7 @@ export const AGENCY_FEATURES: Array<{ text: string; soon?: boolean }> = [
   { text: `Batch generation of up to ${AGENCY_BATCH_SIZE} stores from one list, ${AGENCY_BATCH_CONCURRENCY} at a time` },
   { text: `Store generations without credits — fair use ${F.generationsPerDay} a day` },
   { text: 'Chat, editor and Qgent edits, image actions, insights and preview deploys without credits' },
-  { text: `Qads included — fair use ${F.qadsVideosPerDay} videos and ${F.qadsPhotosPerDay} photos a day` },
+  { text: `Qads included — fair use ${F.qadsVideoSecondsPerDay} seconds of video and ${F.qadsPhotosPerDay} photos a day` },
   { text: `Bulk export of up to ${AGENCY_BATCH_SIZE} stores at once — white-label ZIP, no Quante branding` },
   { text: 'Production hosting for every store included' },
 ]
