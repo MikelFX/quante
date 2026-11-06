@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "io.github.MikelFX/product-data",
   "title": "Product, store and company data (x402)",
-  "description": "Product and store pages to JSON, company check (ARES, VIES). $0.01 a call via x402, no account.",
+  "description": "Product/store pages to JSON, Czech company + counterparty checks. From $0.01 via x402, no account.",
   "version": "1.0.0",
   "websiteUrl": "https://quantecode.com/agents",
   "remotes": [

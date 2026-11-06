@@ -7,6 +7,7 @@ What is sold (HTTP under `https://quantecode.com/api/agent/v1/`, MCP tools on `h
 | Product page → product JSON | `GET product?url=` | `lookup_product` | $0.01 |
 | Store profile: contacts, IČO/VAT, payments, shipping, policy links | `GET store?url=` | `profile_store` | $0.01 |
 | Company check in ARES + VIES | `GET company?ico=&vat=` | `check_company` | $0.01 |
+| Counterparty check: safe to pay this Czech company? (ARES + VIES + unreliable VAT payer + published accounts + the account to pay) | `GET counterparty?ico=&vat=&account=` | `verify_counterparty` | $0.03 |
 | Quick store check by rules (no AI) | `GET check?url=` | `check_store` | $0.02 |
 | Run Python / JS / shell once, no network | `POST run` | — | $0.02 |
 | Store scan to JSON | `POST scan` | — | $0.20 |

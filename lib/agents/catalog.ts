@@ -28,6 +28,7 @@ export const AGENT_LINKS = {
   store: `${APP_ORIGIN}/api/agent/v1/store`,
   company: `${APP_ORIGIN}/api/agent/v1/company`,
   check: `${APP_ORIGIN}/api/agent/v1/check`,
+  counterparty: `${APP_ORIGIN}/api/agent/v1/counterparty`,
   run: `${APP_ORIGIN}/api/agent/v1/run`,
   shops: `${APP_ORIGIN}/api/agent/v1/shops/search`,
   shopsDirectory: `${APP_ORIGIN}/api/agent/v1/shops`,
@@ -74,6 +75,10 @@ export const PER_CALL_APIS = [
   {
     tool: 'company', mcpTool: 'check_company', product: 'AssetraDigital', name: 'Company check in ARES + VIES (API)', method: 'GET', params: ['ico', 'vat'],
     summary: 'GET ?ico=<Czech IČO>&vat=<EU VAT number>: the company in the official registers — ARES (name, address, legal form, VAT id, founded, dissolved, activities) and VIES (VAT number valid, registered name and address). For invoicing, onboarding and KYB agents.',
+  },
+  {
+    tool: 'counterparty', mcpTool: 'verify_counterparty', product: 'AssetraDigital', name: 'Counterparty check: can I safely pay this Czech company? (API)', method: 'GET', params: ['ico', 'vat', 'account'],
+    summary: 'GET ?ico=<Czech IČO>&vat=<EU VAT>&account=<bank account to pay>: one verdict (safeToPay true / false / null) with named risks from the official registers — ARES (exists, active, dissolved, in liquidation, insolvency record), VIES (VAT number valid), the Czech tax administration\'s VAT-payer register (unreliable payer since when, the bank accounts it published) and whether the given account is a published one (paying an unpublished account makes the customer liable for the payer\'s VAT). For invoicing, accounts-payable, procurement and supplier-onboarding agents, at every payment.',
   },
   {
     tool: 'check', mcpTool: 'check_store', product: 'Qgent', name: 'Quick store check by rules (API)', method: 'GET', params: ['url'],
@@ -281,7 +286,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
       mcp: { url: AGENT_LINKS.mcp, transport: 'streamable-http', auth: 'none', writes: ['request_quote (inquiry for your person, consent required)'] },
       inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`,
       qboxMcp: { url: AGENT_LINKS.qbox.mcp, transport: 'streamable-http', auth: 'Bearer qbx_… API key' },
-      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, stats: AGENT_LINKS.stats, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, product: AGENT_LINKS.product, store: AGENT_LINKS.store, company: AGENT_LINKS.company, check: AGENT_LINKS.check, run: AGENT_LINKS.run, auth: 'Bearer qbx_… (Qbox account), or x402 per call with no account (product, store, company, check, run, scan)' } },
+      rest: { catalog: AGENT_LINKS.catalog, search: `${AGENT_LINKS.search}?q=…`, page: `${AGENT_LINKS.page}?url=…`, openapi: AGENT_LINKS.openapi, stats: AGENT_LINKS.stats, paid: { review: AGENT_LINKS.review, scan: AGENT_LINKS.scan, product: AGENT_LINKS.product, store: AGENT_LINKS.store, company: AGENT_LINKS.company, counterparty: AGENT_LINKS.counterparty, check: AGENT_LINKS.check, run: AGENT_LINKS.run, auth: 'Bearer qbx_… (Qbox account), or x402 per call with no account (product, store, company, counterparty, check, run, scan)' } },
       markdown: 'Every public page answers `Accept: text/markdown` with Markdown, and also at the same path + ".md" (the home page as /index.md).',
       llms: [AGENT_LINKS.llmsSite, AGENT_LINKS.llmsApp, AGENT_LINKS.llmsFull],
       community: { stats: AGENT_LINKS.stats, note: 'Public counters: agents welcomed (hashed address + User-Agent per day, nothing stored in the clear), agents that paid, paid calls, sellers once the Qbox services marketplace is live.' },
