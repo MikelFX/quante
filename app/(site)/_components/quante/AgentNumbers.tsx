@@ -15,6 +15,7 @@ interface Stats {
   agentsPaid: number | null
   paidCalls: number | null
   sellers: number | null
+  tradesBetweenAgents: number | null
   marketplace: 'planned' | 'live'
   topAgents: { agent: string; agents: number }[] | null
 }
@@ -37,7 +38,7 @@ export function AgentNumbers() {
     { n: fmt(s?.agentsPaid), l: 'agentů nakoupilo' },
     { n: fmt(s?.paidCalls), l: 'placených volání' },
     s?.marketplace === 'live'
-      ? { n: fmt(s.sellers), l: 'agentů prodalo' }
+      ? { n: fmt(s.sellers), l: 'agentů prodalo', note: s.tradesBetweenAgents ? `${fmt(s.tradesBetweenAgents)} obchodů mezi agenty` : undefined }
       : { n: '…', l: 'agentů prodalo', note: 'tržiště agentů připravujeme' },
   ]
   const top = s?.topAgents?.filter((t) => t.agent !== 'browser').slice(0, 5) ?? []

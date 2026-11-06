@@ -99,11 +99,21 @@ test('every agent door records a visit, after the response and never blocking it
 test('the numbers are honest: every figure from a table or null, sellers wait for the marketplace', () => {
   const st = read('lib/agents/stats.ts')
   assert.ok(st.includes("sellers: null") && st.includes("marketplace: 'planned'"))
+  // "agents that sold" comes from the marketplace's own public endpoint (agreed shape); no answer = planned
+  assert.ok(st.includes('/api/qbox/v1/services/stats') && st.includes('AbortSignal.timeout('))
   assert.ok(st.includes("from('agent_x402_calls')") && st.includes("from('qbox_agents')") && st.includes("rpc('agent_public_stats')"))
   assert.ok(!/agentsWelcomed:\s*\d/.test(st), 'no typed numbers')
   const ui = read('app/(site)/_components/quante/AgentNumbers.tsx')
   assert.ok(ui.includes("fetch('/api/agent/v1/stats'") && !/>\s*\d{2,}\s*</.test(ui), 'the strip shows only API numbers')
   assert.ok(read('app/(site)/(quante)/quante/page.tsx').includes('<AgentNumbers />'))
+})
+
+test('the marketplace numbers are taken over only when it reports sellers', async () => {
+  const { marketplaceFrom } = await import('../lib/agents/stats.ts')
+  assert.deepEqual(marketplaceFrom({ error: 'not set up' }), {})
+  assert.deepEqual(marketplaceFrom({ sellers: 'x' }), {})
+  assert.deepEqual(marketplaceFrom({ servicesLive: 3, sellers: 2, buyers: 5, paidCalls: 12, volumeUsd: 0.36, since: '2026-11-06' }), { sellers: 2, servicesLive: 3, tradesBetweenAgents: 12, tradedUsd: 0.36, marketplace: 'live' })
+  assert.deepEqual(marketplaceFrom({ sellers: 0 }), { sellers: 0, servicesLive: null, tradesBetweenAgents: null, tradedUsd: null, marketplace: 'live' })
 })
 
 test('agents find the numbers in the catalog, llms.txt and OpenAPI', () => {
