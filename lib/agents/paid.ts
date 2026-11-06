@@ -8,11 +8,13 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { authorize, type Caller } from '@/lib/qbox/actions'
 import { ensureBalance } from '@/lib/qbox/billing'
 import { agentToolUnits, type AgentTool } from './paid-price'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 export const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-PAYMENT, PAYMENT-SIGNATURE', 'Access-Control-Expose-Headers': 'X-PAYMENT-RESPONSE, PAYMENT-RESPONSE, PAYMENT-REQUIRED' }
 
 /** The caller, on the paid tier only (a free beta seat does not cover paid tools). */
 export async function paidCaller(req: Request): Promise<Caller | NextResponse> {
+  recordAgentVisit(req, 'paid')
   const c = await authorize(req)
   if (c instanceof NextResponse) return c
   if (c.member.tier !== 'paid') {

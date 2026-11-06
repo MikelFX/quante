@@ -3,8 +3,10 @@
 import { hostKind } from '@/lib/domains'
 import { agentPage, agentPageFor, agentPageId } from '@/lib/agents/pages'
 import { agentHeaders, agentRuntime, qboxLlms, requestHost } from '@/lib/agents/runtime'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 export function GET(req: Request) {
+  recordAgentVisit(req, 'markdown')
   const u = new URL(req.url)
   const rt = agentRuntime()
   const path = req.headers.get('x-agent-path') ?? u.searchParams.get('path')

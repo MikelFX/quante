@@ -11,6 +11,7 @@ import { mcpPaidCall } from '@/lib/agents/pay-per-call'
 import { PRODUCT_MCP_TOOL, productUrl, readProduct } from '@/lib/agents/product-tool'
 import { CHECK_MCP_TOOL, COMPANY_MCP_TOOL, STORE_MCP_TOOL, checkCompany, quickCheck, readStoreProfile } from '@/lib/agents/agent-tools'
 import { CompanyInputError, parseCompanyQuery } from '@/lib/agents/company'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 export const maxDuration = 40
 
@@ -40,6 +41,7 @@ async function changelog(limit: number): Promise<ChangelogEntry[]> {
 }
 
 export async function POST(req: Request) {
+  recordAgentVisit(req, 'mcp')
   let body: unknown
   try {
     body = await req.json()

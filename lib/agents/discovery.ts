@@ -113,6 +113,7 @@ ${modulesList}`
 
 - [Start here](${by('agents').md}): how to use this site as an agent
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
+- [Agent numbers](${AGENT_LINKS.stats}): how many agents we have welcomed, how many paid, paid calls (public JSON, no key)
 - [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key); lookup_product, profile_store, check_company, check_store (paid per call, x402)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
 - Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store profile (contacts, company ids, payments, shipping, policies) $${agentToolUsd('store').toFixed(2)} (GET ${AGENT_LINKS.store}?url=…), company check in ARES + VIES $${agentToolUsd('company').toFixed(2)} (GET ${AGENT_LINKS.company}?ico=…&vat=…), quick store check by rules $${agentToolUsd('check').toFixed(2)} (GET ${AGENT_LINKS.check}?url=…), run Python / JavaScript / shell once in a sandbox with no network $${agentToolUsd('run').toFixed(2)} (POST ${AGENT_LINKS.run}), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (all but review; charged only when it works) or from a Qbox account
@@ -222,6 +223,7 @@ export function agentOpenApi() {
           responses: { 200: text('Markdown'), 404: { description: 'No such page' } },
         },
       },
+      '/stats': { get: { operationId: 'getAgentStats', summary: 'Public agent numbers: agents welcomed, agents that paid, paid calls, sellers (null until the agent marketplace is live)', responses: { 200: { description: 'Numbers', content: { 'application/json': { schema: { type: 'object', properties: { agentsWelcomed: { type: ['integer', 'null'] }, agentsToday: { type: ['integer', 'null'] }, agentsPaid: { type: ['integer', 'null'] }, paidCalls: { type: ['integer', 'null'] }, paidUsd: { type: ['number', 'null'] }, sellers: { type: ['integer', 'null'] }, marketplace: { type: 'string', enum: ['planned', 'live'] } } } } } } } } },
       '/pages': { get: { operationId: 'listPages', summary: 'Every page with its URLs', responses: { 200: { description: 'Pages', content: { 'application/json': { schema: { type: 'array', items: { type: 'object' } } } } } } } },
       '/inquiry': {
         post: {

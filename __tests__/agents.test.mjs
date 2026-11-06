@@ -127,6 +127,7 @@ test('discovery files point at the real endpoints', () => {
     [C.AGENT_LINKS.qbox.mcp]: 'app/api/qbox/v1/mcp/route.ts',
     [C.AGENT_LINKS.qbox.openapi]: 'app/api/qbox/v1/openapi.json/route.ts',
     [C.AGENT_LINKS.product]: 'app/api/agent/v1/product/route.ts',
+    [C.AGENT_LINKS.stats]: 'app/api/agent/v1/stats/route.ts',
   }
   for (const [url, file] of Object.entries(routes)) assert.ok(read(file).length > 0, `${url} → ${file}`)
   const cfg = read('next.config.ts')
@@ -136,7 +137,7 @@ test('discovery files point at the real endpoints', () => {
   const card = D.mcpServerCard(M.SITE_MCP_TOOLS)
   assert.equal(card.transport.endpoint, C.AGENT_LINKS.mcp)
   assert.equal(card.tools.length, M.SITE_MCP_TOOLS.length)
-  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/check', '/company', '/inquiry', '/page', '/pages', '/product', '/review', '/run', '/scan', '/search', '/store'])
+  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/check', '/company', '/inquiry', '/page', '/pages', '/product', '/review', '/run', '/scan', '/search', '/stats', '/store'])
   // the old Next robots route is gone, so the rewrite answers
   assert.throws(() => read('app/robots.ts'))
 })

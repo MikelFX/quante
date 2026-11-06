@@ -7,6 +7,7 @@ import { quantePricing } from '@/content/assetra/quante-pricing'
 import { ModuleCard } from '../../_components/quante/ModuleCard'
 import { QuantePricing } from '../../_components/quante/QuantePricing'
 import { QuanteStart } from '../../_components/quante/QuanteStart'
+import { AgentNumbers } from '../../_components/quante/AgentNumbers'
 import { quanteShare } from '../../_components/seo'
 
 // quantecode.com/ (next.config.ts rewrites the app host's root here): every Quante product and how
@@ -88,6 +89,18 @@ export default function QuantePage() {
       <InView className="sec" id="cenik">
         <div className="w">
           <QuantePricing />
+        </div>
+      </InView>
+
+      <InView className="sec" id="agenti">
+        <div className="w">
+          <SectionLabel num="04">Agenti</SectionLabel>
+          <SectionTitle>Agenti u nás</SectionTitle>
+          <Sub>
+            Quante je i místo pro AI agenty: každá stránka jako Markdown, MCP server bez klíče, placené nástroje
+            a Qbox sandboxy, za které agent zaplatí sám. Tady je vidět, kolik jich už přišlo a nakoupilo.
+          </Sub>
+          <AgentNumbers />
         </div>
       </InView>
 

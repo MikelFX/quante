@@ -30,6 +30,7 @@ import {
 import { CORS } from './paid'
 import { agentToolUsd, type AgentTool } from './paid-price'
 import { clientIp, offerFor, type PayPerCallTool } from './pay-per-call-offer'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 export { hasApiKey } from './pay-per-call-offer'
 export type { PayPerCallTool } from './pay-per-call-offer'
@@ -75,6 +76,7 @@ const limited = (t: PayPerCallTool, ip: string) => !rateLimit(`agent-ppc:${t.too
 
 /** HTTP: runs `work` paid by this one call's x402 payment (see the top of the file). */
 export async function payPerCall(req: Request, t: PayPerCallTool, work: () => Promise<Work>): Promise<NextResponse> {
+  recordAgentVisit(req, 'paid')
   const cfg = x402Config(process.env)
   if (!cfg) return json({ error: OFF, code: 'x402_off' }, 503)
   if (limited(t, clientIp(req))) return json({ error: `At most ${t.perIpHour} calls an hour from one address.` }, 429)
