@@ -9,6 +9,7 @@ import { APP_ORIGIN, SITE_ORIGIN, hostKind } from '@/lib/domains'
 import { AGENT_MODULE_SLUGS as MODULE_SLUGS, agentPageId } from './page-ids'
 import { AGENT_LINKS, agentCatalog, moduleUrl, RUNTIME_OFF, type AgentRuntime } from './catalog'
 import { agentToolUsd } from './paid-price'
+import { AGENT_SHOPS_PAGE, agentShopsMarkdown } from '@/lib/agent-shops/spec'
 
 export interface AgentPage {
   id: string
@@ -198,6 +199,10 @@ Rules: the website is in Czech, the Quante app and the APIs in English. Prices a
   return { id: 'agents', title: 'For AI agents', url: `${SITE_ORIGIN}/agents.md`, md: `${SITE_ORIGIN}/agents.md`, markdown: md }
 }
 
+function agentShopsPage(rt: AgentRuntime): AgentPage {
+  return { id: 'agent-shops', title: 'Agent-ready stores', url: AGENT_SHOPS_PAGE, md: `${AGENT_SHOPS_PAGE}.md`, markdown: agentShopsMarkdown() + footer(rt) }
+}
+
 function qboxPage(rt: AgentRuntime, qboxLlms: string): AgentPage {
   return { id: 'qbox', title: 'Qbox', url: AGENT_LINKS.qbox.page, md: AGENT_LINKS.qbox.llms, markdown: qboxLlms + footer(rt) }
 }
@@ -209,13 +214,14 @@ export function agentPage(id: string, rt: AgentRuntime = RUNTIME_OFF, qboxLlms =
   if (id === 'quante') return quantePage(rt)
   if (id === 'agents') return agentsPage(rt)
   if (id === 'qbox') return qboxPage(rt, qboxLlms)
+  if (id === 'agent-shops') return agentShopsPage(rt)
   if (id.startsWith('module:')) return modulePage(id.slice(7), rt)
   return null
 }
 
 /** Every page, in reading order. */
 export function agentPages(rt: AgentRuntime = RUNTIME_OFF, qboxLlms = ''): AgentPage[] {
-  const ids = ['agents', 'ai', 'web-eshop', 'quante', ...MODULE_SLUGS.map((s) => `module:${s}`), 'qbox']
+  const ids = ['agents', 'ai', 'web-eshop', 'quante', ...MODULE_SLUGS.map((s) => `module:${s}`), 'qbox', 'agent-shops']
   return ids.map((id) => agentPage(id, rt, qboxLlms)).filter((p): p is AgentPage => !!p)
 }
 

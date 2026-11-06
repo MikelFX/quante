@@ -19,6 +19,7 @@ import type { BrandKit } from '@/lib/brand-kit/model'
 import { LIVE_DAYS, type MoneySum } from '@/lib/grideet/live'
 import { GridImage, GridVideo } from './GrideetMedia'
 import { BrandKitPanel } from './BrandKitPanel'
+import { AgentShopPanel } from './AgentShopPanel'
 import { deleteNameMatches } from '@/lib/projects/delete-confirm'
 
 interface Props {
@@ -483,8 +484,10 @@ const ASSETS_PREFIX = `${(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\
 function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, onDelete, onAction, brandKitReady }: CardProps) {
   const [shown, setShown] = useState(ITEMS_STEP)
   const [kitOpen, setKitOpen] = useState(false)
+  const [agentsOpen, setAgentsOpen] = useState(false)
   const [kit, setKit] = useState<BrandKit | undefined>(g.meta.kit)
   const kitId = `gd-kit-${g.id ?? 'unassigned'}`
+  const agentsId = `gd-agents-${g.id ?? 'unassigned'}`
   const kitCount = kit ? kit.photos.length : 0
   const kitTexts = kit ? Object.values(kit.texts).filter(Boolean).length : 0
   const store = !!g.id
@@ -557,6 +560,11 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
             {kitOpen ? 'Close brand kit' : 'Brand kit'}
           </button>
         )}
+        {store && (
+          <button type="button" className="q-btn q-btn-gl" aria-expanded={agentsOpen} aria-controls={agentsId} onClick={() => setAgentsOpen((v) => !v)}>
+            {agentsOpen ? 'Close agents' : 'Agents'}
+          </button>
+        )}
         {store && <Link href={`/project/${g.id}?tab=publish`} className="q-btn q-btn-gl">{state === 'draft' ? 'Go live / hosting' : 'Export & hosting'}</Link>}
         {g.items.length > 0 && (
           <button type="button" className="q-btn q-btn-gl" aria-expanded={open} aria-controls={itemsId} onClick={onToggle}>
@@ -592,6 +600,12 @@ function BrandCard({ g, open, onToggle, capped, isAgency, selected, onSelect, on
           ) : (
             <p className="gd-kit gd-quiet">The brand kit is not set up yet — it appears here once the database update has run.</p>
           )}
+        </div>
+      )}
+
+      {agentsOpen && store && (
+        <div id={agentsId}>
+          <AgentShopPanel projectId={g.id!} name={g.name} />
         </div>
       )}
 

@@ -114,7 +114,8 @@ ${modulesList}`
 - [Start here](${by('agents').md}): how to use this site as an agent
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
 - [Agent numbers](${AGENT_LINKS.stats}): how many agents we have welcomed, how many paid, paid calls (public JSON, no key)
-- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key); lookup_product, profile_store, check_company, check_store (paid per call, x402)
+- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key); lookup_product, profile_store, check_company, check_store, find_products (paid per call, x402); list_agent_shops (free)
+- [Agent-ready stores](${AGENT_LINKS.agentShopSpec}): stores that describe themselves at /.well-known/agent-shop.json (catalog, quote, order, MCP) — free directory ${AGENT_LINKS.shopsDirectory}, product search across all of them $${agentToolUsd('shops').toFixed(2)} (GET ${AGENT_LINKS.shops}?q=…)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
 - Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store profile (contacts, company ids, payments, shipping, policies) $${agentToolUsd('store').toFixed(2)} (GET ${AGENT_LINKS.store}?url=…), company check in ARES + VIES $${agentToolUsd('company').toFixed(2)} (GET ${AGENT_LINKS.company}?ico=…&vat=…), quick store check by rules $${agentToolUsd('check').toFixed(2)} (GET ${AGENT_LINKS.check}?url=…), run Python / JavaScript / shell once in a sandbox with no network $${agentToolUsd('run').toFixed(2)} (POST ${AGENT_LINKS.run}), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (all but review; charged only when it works) or from a Qbox account
 - [Qbox](${AGENT_LINKS.qbox.llms}): sandboxes for AI agents — ${rt.qboxOpen ? (rt.x402 ? 'pay by yourself over x402 (USDC), no sign-up' : 'paid, prepaid balance') : 'invite-only beta'}`
@@ -259,7 +260,7 @@ export function agentOpenApi() {
           responses: { 200: { description: 'Product(s) as JSON' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 422: { description: 'Page unreadable or no product data (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Pay-per-call off: use a Qbox account' } },
         },
       },
-      ...Object.fromEntries(PER_CALL_APIS.filter((a) => a.tool !== 'product' && a.tool !== 'run').map((a) => [`/${a.tool}`, {
+      ...Object.fromEntries(PER_CALL_APIS.filter((a) => a.tool !== 'product' && a.tool !== 'run' && a.tool !== 'shops').map((a) => [`/${a.tool}`, {
         get: {
           operationId: { store: 'profileStore', company: 'checkCompany', check: 'checkStore' }[a.tool],
           summary: `${a.name.replace(/ \(API\)$/, '')} ($${agentToolUsd(a.tool).toFixed(2)} per call; not charged when it fails)`,
@@ -278,6 +279,38 @@ export function agentOpenApi() {
           responses: { 200: { description: 'Result (JSON)' }, 400: { description: 'Bad input (not charged)' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 422: { description: 'Page unreadable (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Registers unreachable or pay-per-call off (not charged)' } },
         },
       }])),
+      '/shops': {
+        get: {
+          operationId: 'listAgentShops',
+          summary: 'The registry of agent-ready stores (free)',
+          description: 'Every listed store that describes itself for agents at /.well-known/agent-shop.json (catalog, quote and order API, MCP server).',
+          parameters: [
+            { name: 'country', in: 'query', required: false, schema: { type: 'string' }, description: 'ISO 3166-1 alpha-2' },
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 100, default: 50 } },
+            { name: 'offset', in: 'query', required: false, schema: { type: 'integer', minimum: 0, default: 0 } },
+          ],
+          responses: { 200: { description: 'Stores' }, 503: { description: 'Registry not open yet' } },
+        },
+      },
+      '/shops/search': {
+        get: {
+          operationId: 'findProducts',
+          summary: `Search products across every agent-ready store ($${agentToolUsd('shops').toFixed(2)} per call; not charged when nothing is found)`,
+          description: 'Products with price, availability and stock, and the store to quote and order at (its agent-shop.json). Pay per call over x402 v1 or v2 with no account, or Bearer qbx_…. POST the same fields as JSON works too.',
+          security: [{}, { bearer: [] }],
+          parameters: [
+            { name: 'q', in: 'query', required: true, schema: { type: 'string' }, description: 'What to buy, a few words' },
+            { name: 'country', in: 'query', required: false, schema: { type: 'string' }, description: 'Store country, ISO 3166-1 alpha-2' },
+            { name: 'currency', in: 'query', required: false, schema: { type: 'string' }, description: 'ISO 4217' },
+            { name: 'maxPrice', in: 'query', required: false, schema: { type: 'number' } },
+            { name: 'inStock', in: 'query', required: false, schema: { type: 'boolean' } },
+            { name: 'limit', in: 'query', required: false, schema: { type: 'integer', minimum: 1, maximum: 50, default: 20 } },
+            { name: 'PAYMENT-SIGNATURE', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v2 payment (the offer is in the PAYMENT-REQUIRED header)' },
+            { name: 'X-PAYMENT', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v1 payment (the offer is in the 402 body)' },
+          ],
+          responses: { 200: { description: 'Results' }, 400: { description: 'Bad input (not charged)' }, 402: { description: 'Payment required: x402 accepts (exact price)' }, 404: { description: 'Nothing found (not charged)' }, 429: { description: 'Limit' }, 503: { description: 'Registry not open or pay-per-call off (not charged)' } },
+        },
+      },
       '/run': {
         post: {
           operationId: 'runOnce',

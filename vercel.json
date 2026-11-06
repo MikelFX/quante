@@ -9,6 +9,7 @@
     { "path": "/api/cron/scaffold-rollout", "schedule": "30 4 * * *" },
     { "path": "/api/cron/qgent-cleanup", "schedule": "50 4 * * *" },
     { "path": "/api/cron/batch-kick", "schedule": "* * * * *" },
-    { "path": "/api/cron/indexnow", "schedule": "20 5 * * 1" }
+    { "path": "/api/cron/indexnow", "schedule": "20 5 * * 1" },
+    { "path": "/api/cron/agent-shops", "schedule": "40 4 * * *" }
   ]
 }
