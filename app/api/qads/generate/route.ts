@@ -162,7 +162,7 @@ export async function POST(request: Request) {
   if (agency) {
     if ((await countRecentGenerations()) >= QADS_GENERATIONS_PER_HOUR) return rateLimited()
     const perKind = formats.length * parsed.variantsPerFormat
-    const fair = await reserveAgencyRenders(userId, generationId, wantVideos ? perKind : 0, wantImages ? perKind : 0)
+    const fair = await reserveAgencyRenders(userId, generationId, wantVideos ? perKind * (videoDurationSeconds ?? 0) : 0, wantImages ? perKind : 0)
     if (!fair.ok) {
       return NextResponse.json(
         { error: fair.message, code: fair.error === 'fair_use' ? 'fair_use' : 'db_error' },

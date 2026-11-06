@@ -22,10 +22,10 @@ export async function chargeQadsGeneration(params: {
   userId: string
   generationId: string
   credits: number
-  videos: number
+  videoSeconds: number
   images: number
 }): Promise<ChargeResult> {
-  const { userId, generationId, credits, videos, images } = params
+  const { userId, generationId, credits, videoSeconds, images } = params
   const since = new Date(Date.now() - 3_600_000).toISOString()
   const recentGenerations = async () => (await supabaseAdmin
     .from('qads_generations')
@@ -42,7 +42,7 @@ export async function chargeQadsGeneration(params: {
 
   if (await isAgencyUser(userId)) {
     if ((await recentGenerations()) >= QADS_GENERATIONS_PER_HOUR) return rateLimited()
-    const fair = await reserveAgencyRenders(userId, generationId, videos, images)
+    const fair = await reserveAgencyRenders(userId, generationId, videoSeconds, images)
     if (!fair.ok) {
       return {
         ok: false,

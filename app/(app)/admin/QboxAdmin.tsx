@@ -5,6 +5,7 @@
 // only stop new API calls; nothing here spends credits or starts sandboxes.
 
 import { useEffect, useState } from 'react'
+import { QboxServicesAdmin } from './QboxServicesAdmin'
 
 const mono = 'var(--q-mono)'
 
@@ -136,6 +137,8 @@ export function QboxAdmin() {
             />
             <button type="submit" style={btn(false, !!busy || !manualId.trim())} disabled={!!busy || !manualId.trim()}>Invite</button>
           </form>
+
+          <QboxServicesAdmin />
         </div>
       )}
 

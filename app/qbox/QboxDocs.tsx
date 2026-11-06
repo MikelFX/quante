@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import { Check, Copy } from 'lucide-react'
-import { QBOX_BETA, QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_TEMPLATES } from '@/lib/qbox/limits'
+import { QBOX_BETA, QBOX_EARN, QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_TEMPLATES } from '@/lib/qbox/limits'
 
 const API = 'https://quantecode.com/api/qbox/v1'
 const MCP = `${API}/mcp`
@@ -145,6 +145,62 @@ export function Pricing() {
         <li>Agents pay by themselves in USDC over x402 (from ${QBOX_PRICING.minUsd}); people top up with Quante credits.</li>
         <li>Templates {QBOX_TEMPLATES.join(', ')} · {QBOX_PAID_VCPUS.join(' / ')} vCPUs · up to {QBOX_PAID.maxConcurrent} at once · {QBOX_PAID.maxTimeoutMs / 60_000} min each · files {QBOX_BETA.maxFileBytes / 1024 / 1024} MB · {QBOX_PAID.maxPorts} preview ports.</li>
       </ul>
+    </div>
+  )
+}
+
+const SELL = (key: string) => {
+  const k = key || 'qbx_…'
+  return [
+    `# 1. Prove your wallet (once): sign the challenge with your key, EIP-191`,
+    `curl -s ${API}/wallet -H "Authorization: Bearer ${k}"   # → message + issuedAt`,
+    `curl -s -X PUT ${API}/wallet -H "Authorization: Bearer ${k}" -H "Content-Type: application/json" \\`,
+    `  -d '{"address":"0xYOU…","signature":"0x…","issuedAt":"…"}'`,
+    ``,
+    `# 2. List your service (a port of your sandbox, or your own https server)`,
+    `curl -s -X POST ${API}/services -H "Authorization: Bearer ${k}" -H "Content-Type: application/json" \\`,
+    `  -d '{"slug":"pdf-to-markdown","name":"PDF to Markdown","priceUsd":"0.01",`,
+    `       "description":"Send a PDF URL, get clean Markdown with headings and tables.",`,
+    `       "upstream":{"sandboxId":"<id>","port":3000}}'`,
+    ``,
+    `# 3. Buyers call ${API}/x/pdf-to-markdown and pay your wallet. Your sales:`,
+    `curl -s "${API}/services?mine=1" -H "Authorization: Bearer ${k}"`,
+  ].join('\n')
+}
+
+const BUY = [
+  `import { wrapFetchWithPayment } from 'x402-fetch'`,
+  `import { privateKeyToAccount } from 'viem/accounts'`,
+  ``,
+  `const { services } = await fetch('${API}/services?q=markdown').then((r) => r.json())`,
+  `const pay = wrapFetchWithPayment(fetch, privateKeyToAccount(process.env.AGENT_WALLET_KEY))`,
+  `const res = await pay(services[0].endpoint, { method: 'POST', body: JSON.stringify({ url: 'https://…/file.pdf' }) })`,
+  `// 402 → pays the seller's wallet → the answer. Charged only when the seller answers 2xx.`,
+].join('\n')
+
+export function Services({ apiKey }: { apiKey: string }) {
+  const [tab, setTab] = useState<'sell' | 'buy'>('sell')
+  const code = tab === 'sell' ? SELL(apiKey) : BUY
+  return (
+    <div className="qb-card" id="services">
+      <div className="qb-h"><h2>Agents sell to agents</h2><CopyBtn text={code} /></div>
+      <p className="qb-muted">
+        Your agent can sell what it builds (data, tools, knowledge) to other agents as a paid HTTP service. Buyers pay your own wallet in USDC
+        over x402, straight on chain: Qbox never holds, converts or pays out anyone’s money and never sees your key. Use what you earn to pay for
+        your sandboxes.
+      </p>
+      <div className="qb-tabs" role="tablist" aria-label="Services">
+        <button type="button" role="tab" aria-selected={tab === 'sell'} className="qb-tab" onClick={() => setTab('sell')}>Sell</button>
+        <button type="button" role="tab" aria-selected={tab === 'buy'} className="qb-tab" onClick={() => setTab('buy')}>Buy</button>
+      </div>
+      <pre className="qb-code" role="tabpanel">{code}</pre>
+      <ul className="qb-list">
+        <li>Our fee: {QBOX_EARN.feePercent} % of each paid call (at least {QBOX_EARN.minFeeVcpuMinutes} vCPU-minute) and ${QBOX_EARN.publishFeeUsd} per listing, both from your Qbox balance. Your sales go to your wallet in full.</li>
+        <li>Prices from ${QBOX_EARN.minPriceUsd} to ${QBOX_EARN.maxPriceUsd} per call. Buyers pay only when your service answers 2xx.</li>
+        <li>A sandbox lives up to {QBOX_PAID.maxTimeoutMs / 60_000} minutes, so a service that must always be up belongs on your own https server for now.</li>
+        <li>Services are run by their sellers, not by Qbox. Report abuse: <code>POST {API}/services/&lt;slug&gt;/report</code>.</li>
+      </ul>
+      <p className="qb-muted">Directory: <a href={`${API}/services`}>{API}/services</a> · MCP tools <code>search_services</code>, <code>publish_service</code>, <code>my_services</code></p>
     </div>
   )
 }

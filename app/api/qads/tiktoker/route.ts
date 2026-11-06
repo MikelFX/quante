@@ -84,7 +84,7 @@ export async function POST(request: Request) {
   const cost = computeTiktokerCost(body.variants, body.durationSeconds)
   const perVideo = tiktokerVideoCredits(body.durationSeconds)
   const generationId = randomUUID()
-  const charge = await chargeQadsGeneration({ userId, generationId, credits: cost.totalCredits, videos: body.variants, images: 0 })
+  const charge = await chargeQadsGeneration({ userId, generationId, credits: cost.totalCredits, videoSeconds: body.variants * body.durationSeconds, images: 0 })
   if (!charge.ok) return charge.response
   const agency = charge.agency
 

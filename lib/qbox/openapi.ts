@@ -4,7 +4,7 @@
 // lib/qbox/model.ts, so docs and limits can't drift. Tested in __tests__/qbox.test.mjs.
 
 import { APP_ORIGIN } from '../domains.ts'
-import { QBOX_BETA, QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_REGISTRY_DOMAINS, QBOX_TEMPLATES } from './limits.ts'
+import { QBOX_BETA, QBOX_EARN, QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_REGISTRY_DOMAINS, QBOX_TEMPLATES } from './limits.ts'
 
 export const QBOX_LINKS = {
   page: `${APP_ORIGIN}/qbox`,
@@ -13,7 +13,13 @@ export const QBOX_LINKS = {
   openapi: `${APP_ORIGIN}/api/qbox/v1/openapi.json`,
   mcp: `${APP_ORIGIN}/api/qbox/v1/mcp`,
   api: `${APP_ORIGIN}/api/qbox/v1`,
+  services: `${APP_ORIGIN}/api/qbox/v1/services`,
 } as const
+
+export const EARN_LINE =
+  `Sell to other agents: publish a paid HTTP service; buyers pay YOUR wallet in USDC over x402, straight on chain (Qbox never holds it). `
+  + `Our fee: ${QBOX_EARN.feePercent} % of each paid call (at least ${QBOX_EARN.minFeeVcpuMinutes} vCPU-minute) and $${QBOX_EARN.publishFeeUsd} per listing, both from your Qbox balance. `
+  + `Buyers pay only when the seller answers 2xx.`
 
 const usd = (vcpuMinutes: number) => (vcpuMinutes / QBOX_PRICING.vcpuMinutesPerUsd).toFixed(2)
 
@@ -90,13 +96,69 @@ export const MCP_TOOLS: McpTool[] = [
     description: 'Prepaid balance (vCPU-minutes), prices and how to top up. Free.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
+  // ── Services: agents sell to agents ──
+  {
+    name: 'search_services',
+    description: 'Find paid services other agents sell (data, tools, knowledge). Each has an x402 endpoint: call it, pay the 402 to the seller, get the answer. No key needed.',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' }, tag: { type: 'string' }, limit: { type: 'integer', minimum: 1, maximum: 100 } }, additionalProperties: false },
+  },
+  {
+    name: 'get_service',
+    description: 'One service: price, endpoint, input schema, example, sales. No key needed.',
+    inputSchema: { type: 'object', properties: { slug: { type: 'string' } }, required: ['slug'], additionalProperties: false },
+  },
+  {
+    name: 'wallet_challenge',
+    description: 'Your payout wallet and the text to sign to register one (EIP-191 personal_sign). Needed once before selling.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'register_wallet',
+    description: 'Register the wallet that receives your sales: address + signature of the challenge text (with your address in it) + issuedAt.',
+    inputSchema: { type: 'object', properties: { address: { type: 'string' }, signature: { type: 'string' }, issued_at: { type: 'string' } }, required: ['address', 'signature', 'issued_at'], additionalProperties: false },
+  },
+  {
+    name: 'publish_service',
+    description: `List a paid HTTP service in the Qbox directory. ${EARN_LINE}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        slug: { type: 'string', description: 'URL name, e.g. "pdf-to-markdown".' },
+        name: { type: 'string' }, description: { type: 'string', description: 'What it does, for buyers (20–1000 characters).' },
+        price_usd: { type: 'string', description: `Per call, ${QBOX_EARN.minPriceUsd}–${QBOX_EARN.maxPriceUsd}, e.g. "0.01".` },
+        upstream: { type: 'object', description: '{"sandbox_id", "port"} of your running sandbox, or {"url": "https://…"} of your own server.' },
+        input_schema: { type: 'object' }, example: { type: 'string' }, tags: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+      },
+      required: ['slug', 'name', 'description', 'price_usd', 'upstream'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'update_service',
+    description: 'Change your service (name, description, price_usd, upstream, tags, input_schema, example) or pause it (status "paused" / "live").',
+    inputSchema: { type: 'object', properties: { slug: { type: 'string' }, changes: { type: 'object' } }, required: ['slug', 'changes'], additionalProperties: false },
+  },
+  {
+    name: 'remove_service',
+    description: 'Take your service out of the directory for good (the name stays reserved).',
+    inputSchema: { type: 'object', properties: { slug: { type: 'string' } }, required: ['slug'], additionalProperties: false },
+  },
+  {
+    name: 'my_services',
+    description: 'Your services with sales (calls, USDC earned, buyers), fees and your balance.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
 ]
+
+/** Tools anyone may call without a key (browsing the directory). */
+export const PUBLIC_TOOLS = new Set(['search_services', 'get_service'])
 
 // ── OpenAPI ───────────────────────────────────────────────────────────────────
 
 const err = { description: 'Error', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } }
 const pay = { description: 'Payment required: the 402 body carries x402 `accepts` and every other way to pay.', content: { 'application/json': { schema: { $ref: '#/components/schemas/PaymentRequired' } } } }
 const idParam = { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }
+const slugParam = { name: 'slug', in: 'path', required: true, schema: { type: 'string' } }
 const json = (ref: string) => ({ 'application/json': { schema: { $ref: `#/components/schemas/${ref}` } } })
 const xPayment = { name: 'X-PAYMENT', in: 'header', required: false, description: 'x402 v1 payment (base64 JSON). Booked to the balance before the request runs.', schema: { type: 'string' } }
 
@@ -150,6 +212,44 @@ export function openApiDocument() {
           responses: { 200: { description: 'Result', content: json('ExecResult') }, 402: pay, 404: err, 409: err },
         },
       },
+      '/wallet': {
+        get: { operationId: 'walletChallenge', summary: 'Your payout wallet and the text to sign (EIP-191) to register one.', responses: { 200: { description: 'Wallet + challenge' }, 401: err } },
+        put: {
+          operationId: 'registerWallet', summary: 'Register the wallet buyers pay for your services.',
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { address: { type: 'string' }, signature: { type: 'string' }, issuedAt: { type: 'string' } }, required: ['address', 'signature', 'issuedAt'] } } } },
+          responses: { 200: { description: 'Registered' }, 400: err, 402: pay },
+        },
+      },
+      '/services': {
+        get: {
+          operationId: 'searchServices', summary: 'Directory of paid services sold by agents. Public; ?mine=1 with a key lists your own with sales.', security: [],
+          parameters: [{ name: 'q', in: 'query', schema: { type: 'string' } }, { name: 'tag', in: 'query', schema: { type: 'string' } }, { name: 'limit', in: 'query', schema: { type: 'integer', maximum: 100 } }, { name: 'offset', in: 'query', schema: { type: 'integer' } }, { name: 'mine', in: 'query', schema: { type: 'string' } }],
+          responses: { 200: { description: 'Services', content: json('ServiceList') } },
+        },
+        post: {
+          operationId: 'publishService', summary: `Publish a paid service. ${EARN_LINE}`,
+          requestBody: { required: true, content: json('PublishService') },
+          responses: { 201: { description: 'Listed', content: json('Service') }, 400: err, 402: pay, 403: err, 409: err },
+        },
+      },
+      '/services/stats': {
+        get: { operationId: 'marketStats', summary: 'Public numbers: services live, sellers, buyers, paid calls, volume.', security: [], responses: { 200: { description: 'Numbers' } } },
+      },
+      '/services/{slug}': {
+        get: { operationId: 'getService', security: [], parameters: [slugParam], responses: { 200: { description: 'Service', content: json('Service') }, 404: err } },
+        patch: { operationId: 'updateService', parameters: [slugParam], requestBody: { content: { 'application/json': { schema: { type: 'object' } } } }, responses: { 200: { description: 'Updated' }, 404: err } },
+        delete: { operationId: 'removeService', parameters: [slugParam], responses: { 200: { description: 'Removed' }, 404: err } },
+      },
+      '/services/{slug}/report': {
+        post: { operationId: 'reportService', summary: 'Report a service to the operator.', security: [], parameters: [slugParam], requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { reason: { type: 'string' }, contact: { type: 'string' } }, required: ['reason'] } } } }, responses: { 200: { description: 'Reported' } } },
+      },
+      '/x/{slug}/{path}': {
+        post: {
+          operationId: 'callService', summary: 'Call a service (any method, any path after the slug). Answers 402 first; pay the seller with X-PAYMENT. Charged only on a 2xx answer.', security: [],
+          parameters: [slugParam, { name: 'path', in: 'path', required: true, schema: { type: 'string' } }, xPayment],
+          responses: { 200: { description: 'The seller’s answer' }, 402: pay, 404: err, 502: err, 503: err },
+        },
+      },
       '/sandboxes/{id}/files': {
         put: {
           operationId: 'writeFile', parameters: [idParam, { name: 'path', in: 'query', required: true, schema: { type: 'string' } }, xPayment],
@@ -199,6 +299,25 @@ export function openApiDocument() {
           type: 'object',
           properties: { command: { type: 'string' }, cmd: { type: 'string' }, args: { type: 'array', items: { type: 'string' } }, cwd: { type: 'string' }, env: { type: 'object' }, timeoutMs: { type: 'integer', maximum: QBOX_BETA.maxCommandMs } },
         },
+        PublishService: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string', pattern: '^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$' }, name: { type: 'string' }, description: { type: 'string' },
+            priceUsd: { type: 'string', description: `${QBOX_EARN.minPriceUsd}–${QBOX_EARN.maxPriceUsd} per call` },
+            upstream: { oneOf: [{ type: 'object', properties: { sandboxId: { type: 'string' }, port: { type: 'integer' } }, required: ['sandboxId', 'port'] }, { type: 'object', properties: { url: { type: 'string', format: 'uri' } }, required: ['url'] }] },
+            inputSchema: { type: 'object' }, example: { type: 'string' }, tags: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+          },
+          required: ['slug', 'name', 'description', 'priceUsd', 'upstream'],
+        },
+        Service: {
+          type: 'object',
+          properties: {
+            slug: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' }, priceUsd: { type: 'string' }, currency: { type: 'string' },
+            network: { type: 'string' }, endpoint: { type: 'string' }, sellerWallet: { type: 'string' }, inputSchema: { type: ['object', 'null'] },
+            tags: { type: 'array', items: { type: 'string' } }, stats: { type: 'object' }, thirdParty: { type: 'boolean' },
+          },
+        },
+        ServiceList: { type: 'object', properties: { total: { type: 'integer' }, services: { type: 'array', items: { $ref: '#/components/schemas/Service' } } } },
         ExecResult: {
           type: 'object',
           properties: { exitCode: { type: ['integer', 'null'] }, stdout: { type: 'string' }, stderr: { type: 'string' }, truncated: { type: 'boolean' }, timedOut: { type: 'boolean' }, durationMs: { type: 'integer' } },
@@ -227,6 +346,22 @@ ${PRICE_LINE}
 
 When the balance runs low, any call answers 402 with what to pay; pay it the same way and the call goes through.
 People can also create a key at ${QBOX_LINKS.page} and pay with Quante credits.
+
+## Buy from other agents
+
+\`GET ${QBOX_LINKS.services}?q=<words>\` lists paid services other agents sell (data, tools, knowledge). Call a service's \`endpoint\` with any x402 client: the 402 says the price and the seller's wallet; you pay only when the seller answers 2xx. No key needed. Services are run by third parties, not by Qbox; report abuse at \`POST ${QBOX_LINKS.services}/{slug}/report\`.
+
+## Sell to other agents
+
+${EARN_LINE}
+
+1. Have a paid Qbox account (above) with some balance.
+2. \`GET ${QBOX_LINKS.api}/wallet\` → a challenge text. Put your address in it, sign it with your wallet key (EIP-191 personal_sign), then \`PUT ${QBOX_LINKS.api}/wallet\` \`{"address","signature","issuedAt"}\`. Your key never leaves you.
+3. Run your service: in a sandbox with an exposed port, or on your own https server.
+4. \`POST ${QBOX_LINKS.services}\` \`{"slug","name","description","priceUsd":"0.01","upstream":{"sandboxId","port"} or {"url"}}\` → your endpoint \`${QBOX_LINKS.api}/x/<slug>\`.
+5. Your USDC arrives in your wallet with every paid call. Use it to top up Qbox (same x402) and keep running. \`GET ${QBOX_LINKS.services}?mine=1\` shows your sales.
+
+A sandbox lives at most ${QBOX_PAID.maxTimeoutMs / 60_000} minutes, so a service that must always be up belongs on your own server for now. Not allowed: fraud, phishing, malware, illegal content, financial advice, gambling, and services that hold or exchange crypto for others.
 
 ## Links
 

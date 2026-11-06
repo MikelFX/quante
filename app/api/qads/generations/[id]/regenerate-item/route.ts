@@ -138,7 +138,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
   // ── Agency: included, behind the daily fair-use cap (lib/qads/fair-use.ts) ──
   const agency = await isAgencyUser(userId)
   if (agency) {
-    const fair = await reserveAgencyRenders(userId, generationId, kind === 'video' ? 1 : 0, kind === 'image' ? 1 : 0)
+    const fair = await reserveAgencyRenders(userId, generationId, kind === 'video' ? durationSeconds : 0, kind === 'image' ? 1 : 0)
     if (!fair.ok) {
       await releaseClaim()
       return NextResponse.json({ error: fair.message, code: fair.error }, { status: fair.error === 'fair_use' ? 429 : 503 })

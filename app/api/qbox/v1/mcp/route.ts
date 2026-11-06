@@ -11,7 +11,8 @@ import { NextResponse } from 'next/server'
 import { authorize, createSandbox, execIn, getSandbox, listSandboxes, readFileIn, stopSandbox, writeFileIn, type Caller, type Result } from '@/lib/qbox/actions'
 import { pricing } from '@/lib/qbox/billing'
 import { paidAccount } from '@/lib/qbox/store'
-import { MCP_TOOLS, QBOX_LINKS, PRICE_LINE } from '@/lib/qbox/openapi'
+import { EARN_LINE, MCP_TOOLS, PUBLIC_TOOLS, QBOX_LINKS, PRICE_LINE } from '@/lib/qbox/openapi'
+import { changeService, getService, myServices, publishService, registerWallet, removeService, searchServices, walletInfo } from '@/lib/qbox/services/actions'
 
 export const maxDuration = 300
 
@@ -73,9 +74,27 @@ async function callTool(c: Caller, name: string, a: Record<string, unknown>): Pr
         return { ok: false, status: 503, error: 'Qbox paid access is not set up yet.' }
       }
     }
+    case 'wallet_challenge':
+      return walletInfo(c)
+    case 'register_wallet':
+      return registerWallet(c, { address: a.address, signature: a.signature, issuedAt: a.issued_at ?? a.issuedAt })
+    case 'publish_service':
+      return publishService(c, a)
+    case 'update_service':
+      return changeService(c, a.slug, a.changes)
+    case 'remove_service':
+      return removeService(c, a.slug)
+    case 'my_services':
+      return myServices(c)
     default:
       return { ok: false, status: 404, error: `Unknown tool ${name}.` }
   }
+}
+
+/** Directory tools: anyone, no key. */
+function callPublicTool(name: string, a: Record<string, unknown>): Promise<Result<unknown>> {
+  if (name === 'get_service') return getService(a.slug)
+  return searchServices({ q: str(a.query), tag: str(a.tag), limit: typeof a.limit === 'number' ? a.limit : undefined })
 }
 
 async function handle(msg: Rpc, request: Request, caller: { c?: Caller | NextResponse }) {
@@ -90,7 +109,8 @@ async function handle(msg: Rpc, request: Request, caller: { c?: Caller | NextRes
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER,
         instructions: `Qbox gives you isolated Linux sandboxes. create_sandbox, then run_command / write_file / read_file, and stop_sandbox when done. ${PRICE_LINE} `
-          + `No key yet? An agent can open a paid account itself: POST ${QBOX_LINKS.api}/accounts (x402). Docs: ${QBOX_LINKS.llms}`,
+          + `No key yet? An agent can open a paid account itself: POST ${QBOX_LINKS.api}/accounts (x402). `
+          + `Agents also buy and sell paid services here: search_services (no key) to buy; ${EARN_LINE} Docs: ${QBOX_LINKS.llms}`,
       })
     }
     case 'ping':
@@ -98,6 +118,11 @@ async function handle(msg: Rpc, request: Request, caller: { c?: Caller | NextRes
     case 'tools/list':
       return rpcResult(id, { tools: MCP_TOOLS })
     case 'tools/call': {
+      const pub = str(msg.params?.name)
+      if (PUBLIC_TOOLS.has(pub)) {
+        const args = (msg.params?.arguments && typeof msg.params.arguments === 'object' ? msg.params.arguments : {}) as Record<string, unknown>
+        return rpcResult(id, text(await callPublicTool(pub, args)))
+      }
       caller.c ??= await authorize(request)
       if (caller.c instanceof NextResponse) {
         const body = await caller.c.clone().json().catch(() => ({ error: 'Unauthorized.' }))

@@ -6,6 +6,7 @@ import { readFileSync } from 'node:fs'
 
 const P = await import('../lib/qads/pricing.ts')
 const mapper = readFileSync(new URL('../lib/qads/media/providers/higgsfield/mapper.ts', import.meta.url), 'utf8')
+const C = await import('../lib/config.ts')
 const route = readFileSync(new URL('../app/api/qads/generate/route.ts', import.meta.url), 'utf8')
 
 test('a video never costs us more than it brings in, at any length', () => {
@@ -26,4 +27,8 @@ test('videos render at 1080p, up to 30 s, and the API accepts 30 s', () => {
   assert.match(body.slice(0, 900), /resolution: '1080p'/)
   assert.match(body.slice(0, 900), /Math\.min\(30, Math\.max\(4,/)
   assert.match(route, /videoDurationSeconds: z\.number\(\)\.int\(\)\.min\(4\)\.max\(30\)/)
+})
+
+test('Agency fair use counts video in seconds, and a day of it stays affordable', () => {
+  assert.ok(C.AGENCY_FAIR_USE.qadsVideoSecondsPerDay * P.HIGGSFIELD_MODELS.video.usdPerUnit <= 250, 'a full day of Agency video costs at most ~$250')
 })

@@ -266,7 +266,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
       agencyPlan: {
         perMonthUsd: AGENCY_MONTHLY_USD,
         includes: ['unlimited stores', `batch generation of up to ${AGENCY_BATCH_SIZE} stores`, 'store work and Qads without credits (fair use)', 'export without Quante branding', 'hosting'],
-        fairUsePerDay: { storeGenerations: AGENCY_FAIR_USE.generationsPerDay, qadsVideos: AGENCY_FAIR_USE.qadsVideosPerDay, qadsPhotos: AGENCY_FAIR_USE.qadsPhotosPerDay },
+        fairUsePerDay: { storeGenerations: AGENCY_FAIR_USE.generationsPerDay, qadsVideoSeconds: AGENCY_FAIR_USE.qadsVideoSecondsPerDay, qadsPhotos: AGENCY_FAIR_USE.qadsPhotosPerDay },
       },
       textual: k.quante.pricing,
     },
