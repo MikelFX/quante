@@ -16,7 +16,10 @@ list, in a registry, or what search and their developer recommend. What is built
    become `com.quantecode/qbox` instead.
 2. **Smithery** (smithery.ai) and **Glama** (glama.ai/mcp): add a remote server with the MCP URL above;
    both read `tools/list` without a key.
-3. **x402 Bazaar** (the x402 discovery catalogue): services appear when payments settle through a
-   facilitator that lists them; check the current rules at x402.org before going live on `base`.
+3. **x402 Bazaar** (Coinbase CDP's discovery catalogue, also behind agentic.market): set
+   `CDP_API_KEY_ID` + `CDP_API_KEY_SECRET` (a CDP *secret API key*, portal.cdp.coinbase.com → API keys,
+   Ed25519) and `QBOX_X402_NETWORK=base`. The pay-per-call tools (`/api/agent/v1/product`, `/scan`)
+   send the `bazaar` extension in their 402; the first call that settles through CDP lists them
+   (indexing can take ~15 min). Check: `GET https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources`.
 4. **mcp.so, PulseMCP, awesome-mcp-servers** — submit the MCP URL + one line.
 5. **npm / PyPI** `qbox` clients — thin wrappers over the REST API (not built yet).

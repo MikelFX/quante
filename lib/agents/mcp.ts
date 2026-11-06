@@ -1,14 +1,17 @@
 // The site MCP server (Model Context Protocol, Streamable HTTP, stateless JSON): everything on
 // assetradigital.agency + quantecode.com for agents, without a key. Every tool reads, except
-// request_quote (an inquiry for the agent's person, consent required, tight limits). Tools never
-// change, order or run anything — Qbox (its own MCP server, paid) is the place for running code.
-// JSON-RPC handling is pure here; the route injects the changelog loader. Tested in
-// __tests__/agents.test.mjs.
+// request_quote (an inquiry for the agent's person, consent required, tight limits) and the paid
+// reads (PAID_MCP_TOOLS: lookup_product, profile_store, check_company, check_store — a cent or two
+// per call over x402's MCP transport, lib/agents/pay-per-call.ts). Tools never change, order or run
+// anything — running code is Qbox's (its own MCP server, paid). JSON-RPC
+// handling is pure here; the route injects the changelog loader, the inquiry and the paid tools.
+// Tested in __tests__/agents.test.mjs.
 
 import { AGENT_LINKS, agentCatalog, type AgentRuntime } from './catalog'
 import { agentPageFor, agentPages } from './pages'
 import { searchPages } from './discovery'
 import { INQUIRY_NEEDS, type InquiryResult } from './inquiry-check'
+import { agentToolUsd } from './paid-price'
 
 export const MCP_SERVER = { name: 'assetradigital', title: 'AssetraDigital + Quante — site knowledge', version: '1.0.0' }
 export const MCP_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
@@ -16,8 +19,48 @@ export const MCP_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05']
 export const MCP_INSTRUCTIONS =
   'AssetraDigital (Czech company: AI solutions, custom software, websites and e-shops) and its products Quante (AI e-shop builder, quantecode.com) '
   + 'and Qbox (sandboxes for AI agents). Use get_catalog for products and exact prices, search_site or read_page for details, get_contact to reach people, request_quote when your person wants an offer (with their consent). '
+  + `Paid reads, x402 (USDC) in _meta["x402/payment"], no account, not charged when they fail: lookup_product (a product page → JSON, $${usd('product')}), `
+  + `profile_store (a store → contacts, company ids, payments, shipping, policies, $${usd('store')}), check_company (Czech IČO / EU VAT in the official registers, $${usd('company')}), `
+  + `check_store (rule-based store check, $${usd('check')}). `
   + 'Facts that are null are not published yet: say so, never guess. Pages are Czech. To RUN code, use the Qbox MCP server at '
   + `${AGENT_LINKS.qbox.mcp} (paid, API key).`
+
+function usd(tool: Parameters<typeof agentToolUsd>[0]) {
+  return agentToolUsd(tool).toFixed(2)
+}
+
+const PAY_HOW = 'Call without payment to get the x402 PaymentRequired (isError), then retry with _meta["x402/payment"].'
+const PAID_READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const
+
+/** The paid MCP tools → the agent tool they bill as (lib/agents/paid-price.ts). */
+export const PAID_MCP_TOOLS = { lookup_product: 'product', profile_store: 'store', check_company: 'company', check_store: 'check' } as const
+export type PaidMcpTool = keyof typeof PAID_MCP_TOOLS
+
+/** profile_store's and check_store's arguments (also their Bazaar discovery schema). */
+export const STORE_URL_INPUT = {
+  type: 'object',
+  properties: { url: { type: 'string', description: 'Public store address (home page)' } },
+  required: ['url'],
+  additionalProperties: false,
+} as const
+
+/** check_company's arguments. */
+export const CHECK_COMPANY_INPUT = {
+  type: 'object',
+  properties: {
+    ico: { type: 'string', description: 'Czech company number (IČO, 8 digits)' },
+    vat: { type: 'string', description: 'EU VAT number with country prefix, e.g. CZ27082440, DE123456789' },
+  },
+  additionalProperties: false,
+} as const
+
+/** lookup_product's arguments (also its Bazaar discovery schema, lib/agents/product-tool.ts). */
+export const LOOKUP_PRODUCT_INPUT = {
+  type: 'object',
+  properties: { url: { type: 'string', description: 'Public product page URL' } },
+  required: ['url'],
+  additionalProperties: false,
+} as const
 
 export const SITE_MCP_TOOLS = [
   {
@@ -70,6 +113,34 @@ export const SITE_MCP_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   {
+    name: 'lookup_product',
+    description: `PAID ($${usd('product')} per call, x402 USDC, no account): one public product page → normalized JSON: name, price, currency, availability, brand, SKU, GTIN, condition, images, rating, variants, from the page's own structured data. `
+      + `${PAY_HOW} Not charged when the page cannot be read or has no product data.`,
+    inputSchema: LOOKUP_PRODUCT_INPUT,
+    annotations: PAID_READ,
+  },
+  {
+    name: 'profile_store',
+    description: `PAID ($${usd('store')} per call, x402 USDC, no account): an online store's home page → who runs it and how it sells: name, platform, language, currency, contact e-mails and phones, address, company ids (IČO, EU VAT), social profiles, payment and shipping methods, links to shipping / returns / terms / privacy / contact pages. Only what the page publishes. `
+      + `${PAY_HOW} Not charged when the page cannot be read.`,
+    inputSchema: STORE_URL_INPUT,
+    annotations: PAID_READ,
+  },
+  {
+    name: 'check_company',
+    description: `PAID ($${usd('company')} per call, x402 USDC, no account): verify a company in the official registers — a Czech IČO in ARES (name, address, legal form, VAT id, founded, dissolved, activities) and/or an EU VAT number in VIES (valid or not, registered name and address). `
+      + `${PAY_HOW} Not charged when the registers cannot be reached; a "not found" / "invalid" answer is a result.`,
+    inputSchema: CHECK_COMPANY_INPUT,
+    annotations: PAID_READ,
+  },
+  {
+    name: 'check_store',
+    description: `PAID ($${usd('check')} per call, x402 USDC, no account): a quick rule-based check of an online store's home page (and one product page) by the Qgent checks — headline, buttons, image alt texts, prices, trust signals, contact, policies, SEO basics — as findings with severity and why, in English. No AI involved, answers in seconds. `
+      + `${PAY_HOW} Not charged when the page cannot be read.`,
+    inputSchema: STORE_URL_INPUT,
+    annotations: PAID_READ,
+  },
+  {
     name: 'get_contact',
     description: 'How a person reaches AssetraDigital (form, phone, e-mail; null = not published yet) and where to start in Quante.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
@@ -85,6 +156,8 @@ export interface McpDeps {
   changelog: (limit: number) => Promise<ChangelogEntry[]>
   /** Stores an agent inquiry (lib/agents/inquiry.ts submitInquiry, bound to the caller's IP). */
   inquiry: (input: Record<string, unknown>) => Promise<InquiryResult>
+  /** A paid tool (lib/agents/pay-per-call.ts mcpPaidCall), given the call's `_meta`. */
+  paidTool: (name: PaidMcpTool, input: Record<string, unknown>, meta: unknown) => Promise<unknown>
 }
 
 type Rpc = { jsonrpc?: string; id?: string | number | null; method?: string; params?: Record<string, unknown> }
@@ -94,7 +167,7 @@ const json = (data: unknown) => ({ content: [{ type: 'text', text: JSON.stringif
 const toolError = (message: string) => ({ isError: true, content: [{ type: 'text', text: message }] })
 const int = (v: unknown, d: number, max: number) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(1, Math.min(max, Math.floor(v))) : d)
 
-export async function callSiteTool(name: string, a: Record<string, unknown>, deps: McpDeps) {
+export async function callSiteTool(name: string, a: Record<string, unknown>, deps: McpDeps, meta?: unknown) {
   const pages = () => agentPages(deps.rt, deps.qboxLlms)
   switch (name) {
     case 'get_catalog': {
@@ -124,6 +197,11 @@ export async function callSiteTool(name: string, a: Record<string, unknown>, dep
       const r = await deps.inquiry(a)
       return r.ok ? json({ ok: true, id: r.id, next: 'AssetraDigital will contact the person. Nothing else is needed.' }) : toolError(r.error)
     }
+    case 'lookup_product':
+    case 'profile_store':
+    case 'check_company':
+    case 'check_store':
+      return deps.paidTool(name, a, meta)
     case 'get_contact': {
       const c = agentCatalog(deps.rt)
       return json({ company: c.organization, contact: c.contact, quante: { start: 'https://quantecode.com/start', signup: 'https://quantecode.com/signup' } })
@@ -154,7 +232,7 @@ export async function handleSiteRpc(m: Rpc, deps: McpDeps): Promise<unknown | nu
     case 'tools/call': {
       const name = typeof m.params?.name === 'string' ? m.params.name : ''
       const args = (m.params?.arguments && typeof m.params.arguments === 'object' ? m.params.arguments : {}) as Record<string, unknown>
-      const r = await callSiteTool(name, args, deps)
+      const r = await callSiteTool(name, args, deps, m.params?._meta)
       return r ? ok(m.id, r) : fail(m.id, -32602, `Unknown tool: ${name}`)
     }
     case 'resources/list':

@@ -4,10 +4,12 @@ import { hostKind } from '@/lib/domains'
 import { apiCatalog, llmsTxt, mcpIndex, mcpServerCard } from '@/lib/agents/discovery'
 import { SITE_MCP_TOOLS } from '@/lib/agents/mcp'
 import { agentHeaders, agentRuntime, requestHost } from '@/lib/agents/runtime'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 const j = (v: unknown, type = 'application/json; charset=utf-8') => new Response(JSON.stringify(v, null, 2), { headers: agentHeaders(type) })
 
 export async function GET(req: Request, { params }: { params: Promise<{ file: string[] }> }) {
+  recordAgentVisit(req, 'discovery')
   const file = (await params).file.join('/')
   switch (file) {
     case 'api-catalog': return j(apiCatalog(), 'application/linkset+json')

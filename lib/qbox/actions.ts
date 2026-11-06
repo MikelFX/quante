@@ -35,7 +35,7 @@ export async function authorize(request: Request): Promise<Caller | NextResponse
 
 /** A Result as the REST API's JSON response (with X-PAYMENT-RESPONSE after an x402 payment). */
 export function toResponse<T>(r: Result<T>, caller?: Caller) {
-  const headers = caller?.paymentResponse ? { 'X-PAYMENT-RESPONSE': caller.paymentResponse } : undefined
+  const headers = caller?.paymentResponse ? { 'X-PAYMENT-RESPONSE': caller.paymentResponse, 'PAYMENT-RESPONSE': caller.paymentResponse } : undefined
   return r.ok
     ? NextResponse.json(r.data, { status: r.status ?? 200, headers })
     : NextResponse.json(r.body ?? { error: r.error }, { status: r.status, headers })

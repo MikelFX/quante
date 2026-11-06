@@ -3,10 +3,12 @@
 import { NextResponse } from 'next/server'
 import { submitInquiry } from '@/lib/agents/inquiry'
 import { getClientIp } from '@/lib/rate-limit'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type' }
 
 export async function POST(req: Request) {
+  recordAgentVisit(req, 'api')
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== 'object') return NextResponse.json({ error: 'JSON body required' }, { status: 400, headers: CORS })
   const r = await submitInquiry(body, getClientIp(req), req.headers.get('user-agent') ?? '')

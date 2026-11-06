@@ -16,7 +16,7 @@ import { debitCredits, refundDebit } from '@/lib/credits'
 import { QBOX_PRICING, creditsFor } from './model'
 import { QboxNotSetUpError, hasPaidPurchase, paidAccount, type BetaMember } from './store'
 import {
-  decodePaymentHeader, encodeHeader, paidUsd, paymentRequiredBody, requirements, settle, x402Config,
+  decodePaymentHeader, encodeHeader, paidUsd, paymentHeader, paymentRequiredBody, requirements, settle, x402Config,
 } from './x402'
 
 export const isAgentAccount = (userId: string) => userId.startsWith('agent_')
@@ -80,10 +80,10 @@ type Booked = { ok: true; vcpuMinutes: number; usd: number; transaction: string;
  * the facilitator checks it against our requirements (receiver, token, amount). null = no header.
  */
 export async function acceptX402(request: Request, userId: string): Promise<Booked | null> {
-  const raw = request.headers.get('x-payment')
+  const raw = paymentHeader(request.headers)
   if (!raw) return null
   const payment = decodePaymentHeader(raw)
-  if (!payment) return { ok: false, status: 400, error: 'X-PAYMENT is not valid base64 JSON.' }
+  if (!payment) return { ok: false, status: 400, error: 'The payment header is not valid base64 JSON.' }
   const cfg = x402Config(process.env)
   if (!cfg) return { ok: false, status: 400, error: 'Agent payments (x402) are not switched on.' }
   const usd = paidUsd(payment)

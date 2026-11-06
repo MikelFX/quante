@@ -2,8 +2,10 @@
 import { searchPages } from '@/lib/agents/discovery'
 import { agentPages } from '@/lib/agents/pages'
 import { agentHeaders, agentRuntime, qboxLlms } from '@/lib/agents/runtime'
+import { recordAgentVisit } from '@/lib/agents/visits-record'
 
 export function GET(req: Request) {
+  recordAgentVisit(req, 'api')
   const u = new URL(req.url)
   const q = (u.searchParams.get('q') ?? '').slice(0, 200)
   const limit = Number(u.searchParams.get('limit') ?? 5)
