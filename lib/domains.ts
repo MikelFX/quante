@@ -47,6 +47,7 @@ export const APP_PATHS = [
   '/qscan/:path*',
   '/qgent/:path*',
   '/qbox/:path*',
+  '/agent-shops',
   '/start/:path*',
   '/changelog/:path*',
   '/terms',

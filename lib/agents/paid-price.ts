@@ -26,6 +26,8 @@ export const AGENT_TOOL_FIXED_USD = {
   check: 0.02,
   /** One snippet of Python / JavaScript / shell in a fresh Qbox sandbox with no network (≤ 40 s, 1 vCPU). */
   run: 0.02,
+  /** A product search across the registry of agent-ready stores (lib/agent-shops). */
+  shops: 0.01,
 } as const
 
 export type AgentTool = keyof typeof AGENT_TOOL_CREDITS | keyof typeof AGENT_TOOL_FIXED_USD
@@ -41,4 +43,4 @@ export const agentToolUnits = (tool: AgentTool) => isFixed(tool)
 export const agentToolUsd = (tool: AgentTool) => Math.round((agentToolUnits(tool) / QBOX_PRICING.vcpuMinutesPerUsd) * 100) / 100
 
 /** Tools an agent can pay per call over x402, without any account (review runs too long for that). */
-export const PAY_PER_CALL_TOOLS = ['product', 'store', 'company', 'check', 'run', 'scan'] as const satisfies readonly AgentTool[]
+export const PAY_PER_CALL_TOOLS = ['product', 'store', 'company', 'check', 'run', 'scan', 'shops'] as const satisfies readonly AgentTool[]

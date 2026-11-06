@@ -13,6 +13,7 @@ import path from 'path'
 import ts from 'typescript'
 import type { ShopManifest } from '@/types/manifest'
 import type { CodeVersionFiles } from '@/types/store-code'
+import { AGENT_SHOP_FILES, AGENT_SHOP_LINK, AGENT_SHOP_REWRITES } from './agent-shop.ts'
 
 export interface GeneratedFile {
   path: string
@@ -37,7 +38,9 @@ export function toStoreSlug(s: string): string {
 //       Google Fonts link; ThemeBridge: live theme preview from the Studio)
 //   5 = theme tokens 2026-09-26 (@theme in styles/store.css: bg-accent, text-muted,
 //       font-heading, rounded-store … — withThemeTokens)
-export const SCAFFOLD_VERSION = 5
+//   6 = agent-ready store 2026-11-06 (/.well-known/agent-shop.json, /llms.txt, agent
+//       catalog / quote / order, store MCP server — lib/store-template/agent-shop.ts)
+export const SCAFFOLD_VERSION = 6
 
 // ─── Store theme (config.design → CSS variables) ──────────────────────────────
 // data/config.ts `design` is the single source of the store's colors / fonts / radius:
@@ -138,8 +141,12 @@ const FRAME_ANCESTORS = "frame-ancestors 'self' https://quantecode.com https://*
 const nextConfig: NextConfig = {
   async headers() {
     return [
-      { source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: FRAME_ANCESTORS }] },${adminRules}
+      { source: '/(.*)', headers: [{ key: 'Content-Security-Policy', value: FRAME_ANCESTORS }, { key: 'Link', value: ${JSON.stringify(AGENT_SHOP_LINK)} }] },${adminRules}
     ]
+  },
+  // Agent-ready store: the description and llms.txt at their well-known addresses.
+  async rewrites() {
+    return { beforeFiles: ${JSON.stringify(AGENT_SHOP_REWRITES)} }
   },
 }
 export default nextConfig
@@ -1369,6 +1376,8 @@ export const PLATFORM_LOCKED_FILES: ReadonlySet<string> = new Set([
   'package.json', 'tsconfig.json', 'next.config.ts', 'next.config.js', 'next.config.mjs',
   'postcss.config.mjs', 'postcss.config.js', 'tailwind.config.ts', 'tailwind.config.js',
   'next-env.d.ts', 'vercel.json', 'lib/platform.ts',
+  // Agent-ready store (2026-11-06): catalog, quote, order and MCP for AI agents.
+  ...Object.keys(AGENT_SHOP_FILES),
 ])
 
 // Scaffold UI files the AI may rewrite (locked until 2026-09). The iterate route shows
@@ -1795,6 +1804,10 @@ function buildCodeGenScaffold(): GeneratedFile[] {
   // ── lib/platform.ts (LOCKED) ──────────────────────────────────────────────
   // Hosted-mode connection helpers shared by the checkout/shipping/legal routes.
   add('lib/platform.ts', PLATFORM_HELPER_TS)
+
+  // ── Agent-ready store (LOCKED, 2026-11-06) ────────────────────────────────
+  // /.well-known/agent-shop.json, /llms.txt, /api/agent/{products,quote,order}, /api/mcp.
+  for (const [name, content] of Object.entries(AGENT_SHOP_FILES)) add(name, content)
 
   // ── data/products.ts (fallback — Claude's version overrides this) ────────
   // The checkout route prices every cart line from this catalog, so it must

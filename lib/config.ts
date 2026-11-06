@@ -80,6 +80,7 @@ export const CREDIT_COSTS = {
   qgent_apply:       1,  // one confirmed Qgent change; undo is free
   qgent_swarm:       2,  // /qgent: 20 agents review a store's page by its address (free on Agency)
   qads_plan:         3,  // Qads Plan: personas, competitor research, ad concepts, calendar
+  agent_shop_listing: 20, // once per store: listed in the agent-ready store registry (free on Agency)
   welcome_grant:    12,
 } as const
 
