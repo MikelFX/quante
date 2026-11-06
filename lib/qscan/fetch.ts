@@ -30,7 +30,7 @@ export interface FetchedResource {
   body: Buffer
 }
 
-const safeLookup: LookupFunction = (hostname, options, callback) => {
+export const safeLookup: LookupFunction = (hostname, options, callback) => {
   dns.lookup(hostname, { all: true, verbatim: true }, (err, addresses) => {
     if (err) return (callback as (e: Error | null, a: string, f: number) => void)(err, '', 0)
     const ok = (addresses as dns.LookupAddress[]).filter((a) => isPublicAddress(a.address, a.family))

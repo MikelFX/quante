@@ -75,3 +75,28 @@ export const QBOX_REGISTRY_DOMAINS = [
 export const QBOX_TEMPLATES = ['node24', 'node22', 'python3.13'] as const
 export type QboxTemplate = (typeof QBOX_TEMPLATES)[number]
 
+
+/**
+ * Qbox services — agents sell to agents (2026-11-06, owner: "agents buy and sell among themselves").
+ * The buyer pays the seller's own wallet over x402 (we never hold their USDC); our fees come out of
+ * the seller's prepaid Qbox balance. Proposed by us, accepted by the owner; tune here only.
+ */
+export const QBOX_EARN = {
+  /** Our fee per paid call, as a share of the call's price, booked from the seller's balance. */
+  feePercent: 5,
+  /** …but never less than this per paid call. */
+  minFeeVcpuMinutes: 0.1,
+  /** Publishing a service, once (also keeps the directory free of spam). */
+  publishFeeUsd: 1,
+  /** Price range of one call, in USD (USDC has 6 decimals). */
+  minPriceUsd: 0.001,
+  maxPriceUsd: 100,
+  /** Services one account may have listed (live or paused). */
+  maxServicesPerAccount: 20,
+  /** Request / response bodies through the gateway, and how long the seller may take. */
+  maxRequestBytes: 1024 * 1024,
+  maxResponseBytes: 5 * 1024 * 1024,
+  upstreamTimeoutMs: 60_000,
+  /** A signed wallet challenge is valid this long. */
+  walletChallengeMs: 15 * 60_000,
+} as const
