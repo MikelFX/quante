@@ -22,6 +22,7 @@ export const SITE_PATHS = [
   '/vzorova-smlouva',
   '/design',
   '/og',
+  '/og/:path*',
 ] as const
 
 /**

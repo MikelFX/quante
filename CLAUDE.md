@@ -441,6 +441,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - **Agents:** free directory `GET /api/agent/v1/shops`, paid product search `GET /api/agent/v1/shops/search?q=` ($0.01, `AGENT_TOOL_FIXED_USD.shops`, x402 per call or Qbox balance, **not charged when nothing is found**), site MCP `list_agent_shops` (free) + `find_products` (paid). Public page `quantecode.com/agent-shops` (Markdown `/agent-shops.md` from `lib/agent-shops/spec.ts`, the one source of the format). Tested in `__tests__/agent-shops.test.mjs`.
 - Not built yet: foreign stores (part 2: Qscan-based adapter + domain proof), x402 payment straight to a merchant, variants as orderable lines (orders are by product id, like the cart).
 
+## 13q. Brand icons + SEO basics (2026-11-06)
+
+- Owner: Google showed a generic icon next to assetradigital.agency; the result must carry our Pixel A. Every raster icon comes from `scripts/brand-icons.py` (draws `packages/ui/mark.ts` on whole pixels, dark tile): `app/favicon.ico` 16/32/48, `app/icon1.png` 96, `app/icon2.png` 192, `app/apple-icon.png` 180, `public/apple-touch-icon.png`, `public/icon-512.png`, `public/icon-maskable-512.png`, `public/logo.png` (schema.org logo). Rerun it after a logo change; `app/manifest.ts` lists them. Google needs a square multiple of 48 px (`__tests__/brand-icons.test.mjs`).
+- Share cards: `/og` (AssetraDigital, magenta) and `/og/quante` (Quante, mint), one renderer `app/(site)/og/card.tsx` with the mark. Quante pages and every `buildMetadata` page default to `/og/quante` — never a page with `summary_large_image` and no image.
+- JSON-LD: Organization logo = `logo.png` (ImageObject), WebSite entries for both hosts (Google site names). Sitemaps list every indexable public page per host, without a fake `lastmod`.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

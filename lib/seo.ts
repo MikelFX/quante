@@ -15,6 +15,10 @@
 //                 warns in dev if this is exceeded.
 
 import type { Metadata } from 'next'
+import { SITE_ORIGIN } from '@/lib/domains'
+
+/** Default share card of the Quante pages (app/(site)/og/quante, served from the website host). */
+const DEFAULT_OG_IMAGE = SITE_ORIGIN + '/og/quante'
 
 /**
  * Public base URL used for absolute canonical / OG image URLs. Set
@@ -92,14 +96,14 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
       url: canonical,
       siteName: SITE_NAME,
       type: 'website',
-      images: ogImage ? [{ url: absUrl(ogImage) }] : undefined,
+      images: [{ url: absUrl(ogImage ?? DEFAULT_OG_IMAGE), width: ogImage ? undefined : 1200, height: ogImage ? undefined : 630 }],
       locale: 'en_US',
     },
     twitter: {
       card: 'summary_large_image',
       title: fullTitle,
       description,
-      images: ogImage ? [absUrl(ogImage)] : undefined,
+      images: [absUrl(ogImage ?? DEFAULT_OG_IMAGE)],
     },
   }
 }

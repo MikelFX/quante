@@ -18,6 +18,10 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: 'Quante — AI E-commerce Builder',
   description: 'Describe your store. Quante builds it.',
+  applicationName: 'Quante',
+  // Icons are files: app/favicon.ico (16/32/48), icon.svg, icon1.png (96), icon2.png (192),
+  // apple-icon.png (180) and app/manifest.ts — all from scripts/brand-icons.py. Google picks the
+  // search-result icon from these (a multiple of 48 px, square).
 }
 
 export default function RootLayout({

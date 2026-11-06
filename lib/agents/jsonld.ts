@@ -11,9 +11,11 @@ function organization() {
     '@type': 'Organization',
     '@id': ORG_ID,
     name: c.organization.name,
-    alternateName: 'Assetra Digital',
+    alternateName: ['Assetra Digital', 'AssetraDigital'],
     url: `${SITE_ORIGIN}/`,
-    logo: `${SITE_ORIGIN}/icon.svg`,
+    // Raster logo (scripts/brand-icons.py): Google wants ≥ 112 px in a format Google Images reads.
+    logo: { '@type': 'ImageObject', '@id': `${SITE_ORIGIN}/#logo`, url: `${SITE_ORIGIN}/logo.png`, contentUrl: `${SITE_ORIGIN}/logo.png`, width: 512, height: 512, caption: 'AssetraDigital' },
+    image: { '@id': `${SITE_ORIGIN}/#logo` },
     areaServed: 'CZ',
     knowsLanguage: ['cs', 'en'],
     ...(c.organization.companyId ? { identifier: c.organization.companyId } : {}),
@@ -29,7 +31,7 @@ export function siteJsonLd() {
     '@context': 'https://schema.org',
     '@graph': [
       organization(),
-      { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, url: `${SITE_ORIGIN}/`, name: 'Assetra Digital', inLanguage: 'cs', publisher: { '@id': ORG_ID } },
+      { '@type': 'WebSite', '@id': `${SITE_ORIGIN}/#website`, url: `${SITE_ORIGIN}/`, name: 'Assetra Digital', alternateName: ['AssetraDigital', 'assetradigital.agency'], inLanguage: 'cs', publisher: { '@id': ORG_ID } },
       ...services.map((s) => ({ '@type': 'Service', name: s.name, description: s.summary, url: s.url, provider: { '@id': ORG_ID }, areaServed: 'CZ' })),
     ],
   }
@@ -42,11 +44,14 @@ export function quanteJsonLd() {
     '@context': 'https://schema.org',
     '@graph': [
       organization(),
+      // Site name in Google results for quantecode.com (it reads WebSite on the home page).
+      { '@type': 'WebSite', '@id': `${APP_ORIGIN}/#website`, url: `${APP_ORIGIN}/`, name: 'Quante', alternateName: 'quantecode.com', inLanguage: 'cs', publisher: { '@id': ORG_ID } },
       {
         '@type': 'SoftwareApplication',
         '@id': `${APP_ORIGIN}/#quante`,
         name: 'Quante',
         url: `${APP_ORIGIN}/`,
+        image: `${APP_ORIGIN}/logo.png`,
         applicationCategory: 'BusinessApplication',
         operatingSystem: 'Web',
         description: 'AI e-shop builder: a whole store from a text brief, visual editing, ad photos and videos, review by 20 agents.',

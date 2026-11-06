@@ -32,6 +32,9 @@ export function QuanteFooter() {
             <a href={quanteApp.dashboard}>Dashboard</a>
             <Link href={quanteHome('#cenik')}>Ceník</Link>
             <a href={siteHref('/web-eshop#kontakt')}>E-shop na míru od AssetraDigital</a>
+            <a href={appHref('/qbox')}>Qbox: sandboxy pro AI agenty</a>
+            <a href={appHref('/agent-shops')}>Obchody pro AI agenty</a>
+            <a href={appHref('/changelog')}>Novinky</a>
           </nav>
           <nav className="ftl ftp" aria-labelledby="ft-produkty">
             <p className="ftk" id="ft-produkty">Produkty</p>
