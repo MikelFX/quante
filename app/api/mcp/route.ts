@@ -13,6 +13,9 @@ import { CHECK_MCP_TOOL, COMPANY_MCP_TOOL, COUNTERPARTY_MCP_TOOL, STORE_MCP_TOOL
 import { parseCounterpartyQuery } from '@/lib/agents/counterparty'
 import { CompanyInputError, parseCompanyQuery } from '@/lib/agents/company'
 import { recordAgentVisit } from '@/lib/agents/visits-record'
+import { parseSearch } from '@/lib/agent-shops/model'
+import { SHOPS_MCP_TOOL, findProducts } from '@/lib/agent-shops/tool'
+import { RegistryUnavailable, listDirectory } from '@/lib/agent-shops/registry'
 
 export const maxDuration = 40
 
@@ -51,7 +54,7 @@ export async function POST(req: Request) {
   }
   const ip = getClientIp(req)
   const ua = req.headers.get('user-agent') ?? ''
-  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua), paidTool: (name: PaidMcpTool, a: Record<string, unknown>, meta: unknown) => paidTool(name, a, meta, ip) }
+  const deps = { rt: agentRuntime(), qboxLlms: qboxLlms(), changelog, inquiry: (a: Record<string, unknown>) => submitInquiry(a, ip, ua), paidTool: (name: PaidMcpTool, a: Record<string, unknown>, meta: unknown) => paidTool(name, a, meta, ip), shops }
   if (Array.isArray(body)) {
     const out = (await Promise.all(body.slice(0, 20).map((m) => handleSiteRpc(m, deps)))).filter((x) => x !== null)
     return out.length ? NextResponse.json(out, { headers: CORS }) : new Response(null, { status: 202, headers: CORS })
@@ -61,6 +64,17 @@ export async function POST(req: Request) {
 }
 
 const inputError = (text: string) => ({ isError: true, content: [{ type: 'text', text }] })
+
+/** The free directory of agent-ready stores (null while the registry is not set up). */
+async function shops(p: { country: string | null; limit: number; offset: number }) {
+  const country = p.country && /^[A-Za-z]{2}$/.test(p.country) ? p.country.toUpperCase() : null
+  try {
+    return await listDirectory({ ...p, country })
+  } catch (e) {
+    if (e instanceof RegistryUnavailable) return null
+    throw e
+  }
+}
 
 /** A paid site tool: its input is checked first (a bad input costs nothing), then x402 over MCP. */
 async function paidTool(name: PaidMcpTool, a: Record<string, unknown>, meta: unknown, ip: string) {
@@ -81,6 +95,11 @@ async function paidTool(name: PaidMcpTool, a: Record<string, unknown>, meta: unk
       return inputError(e instanceof CompanyInputError ? e.message : 'Send ico and/or vat, optionally account.')
     }
     return mcpPaidCall(meta, ip, COUNTERPARTY_MCP_TOOL, AGENT_LINKS.mcp, () => verifyCounterparty(q))
+  }
+  if (name === 'find_products') {
+    const f = parseSearch(a)
+    if (!f.ok) return inputError(f.error)
+    return mcpPaidCall(meta, ip, SHOPS_MCP_TOOL, AGENT_LINKS.mcp, () => findProducts(f.value))
   }
   const url = productUrl(a.url)
   if (!url) return inputError('url must be a public http(s) address.')

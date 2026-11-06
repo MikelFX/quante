@@ -28,6 +28,7 @@ export function agentPageId(pathname: string, kind: Kind): string | null {
   const tool = /^\/([a-z]+)$/.exec(p)
   if (app && tool && TOOL_PAGES[tool[1]]) return `module:${TOOL_PAGES[tool[1]]}`
   if (app && p === '/qbox') return 'qbox'
+  if (app && p === '/agent-shops') return 'agent-shops'
   if (p === '/agents') return 'agents'
   return null
 }

@@ -137,7 +137,7 @@ test('discovery files point at the real endpoints', () => {
   const card = D.mcpServerCard(M.SITE_MCP_TOOLS)
   assert.equal(card.transport.endpoint, C.AGENT_LINKS.mcp)
   assert.equal(card.tools.length, M.SITE_MCP_TOOLS.length)
-  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/check', '/company', '/counterparty', '/inquiry', '/page', '/pages', '/product', '/review', '/run', '/scan', '/search', '/stats', '/store'])
+  assert.deepEqual(Object.keys(D.agentOpenApi().paths).sort(), ['/catalog', '/check', '/company', '/counterparty', '/inquiry', '/page', '/pages', '/product', '/review', '/run', '/scan', '/search', '/shops', '/shops/search', '/stats', '/store'])
   // the old Next robots route is gone, so the rewrite answers
   assert.throws(() => read('app/robots.ts'))
 })
@@ -174,7 +174,7 @@ test('site MCP server: read-only tools, works without a key', async () => {
   assert.equal(init.result.protocolVersion, '2025-06-18')
   assert.match(init.result.instructions, /Qbox/)
   const list = await M.handleSiteRpc({ jsonrpc: '2.0', id: 2, method: 'tools/list' }, deps)
-  assert.deepEqual(list.result.tools.map((t) => t.name), ['get_catalog', 'list_pages', 'read_page', 'search_site', 'get_changelog', 'request_quote', 'lookup_product', 'profile_store', 'check_company', 'verify_counterparty', 'check_store', 'get_contact'])
+  assert.deepEqual(list.result.tools.map((t) => t.name), ['get_catalog', 'list_pages', 'read_page', 'search_site', 'get_changelog', 'request_quote', 'lookup_product', 'profile_store', 'check_company', 'verify_counterparty', 'check_store', 'list_agent_shops', 'find_products', 'get_contact'])
   // only request_quote writes, and nothing destroys
   assert.deepEqual(list.result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name), ['request_quote'])
   assert.ok(list.result.tools.every((t) => !t.annotations.destructiveHint))

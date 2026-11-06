@@ -30,6 +30,9 @@ export const AGENT_LINKS = {
   check: `${APP_ORIGIN}/api/agent/v1/check`,
   counterparty: `${APP_ORIGIN}/api/agent/v1/counterparty`,
   run: `${APP_ORIGIN}/api/agent/v1/run`,
+  shops: `${APP_ORIGIN}/api/agent/v1/shops/search`,
+  shopsDirectory: `${APP_ORIGIN}/api/agent/v1/shops`,
+  agentShopSpec: `${APP_ORIGIN}/agent-shops`,
   inquiry: `${APP_ORIGIN}/api/agent/v1/inquiry`,
   openapi: `${APP_ORIGIN}/api/agent/v1/openapi.json`,
   stats: `${APP_ORIGIN}/api/agent/v1/stats`,
@@ -84,6 +87,10 @@ export const PER_CALL_APIS = [
   {
     tool: 'run', mcpTool: null, product: 'Qbox', name: 'Run code once in a sandbox (API)', method: 'POST', params: ['language', 'code', 'stdin'],
     summary: 'POST { language: python | javascript | shell, code, stdin? }: one snippet in a fresh Qbox sandbox with no network (up to 40 s, 1 vCPU), then the sandbox is gone. Returns stdout, stderr and the exit code. For longer work, files or ports use the Qbox sandboxes API.',
+  },
+  {
+    tool: 'shops', mcpTool: 'find_products', product: 'Quante', name: 'Product search across agent-ready stores (API)', method: 'GET', params: ['q', 'country', 'currency', 'maxPrice', 'inStock', 'limit'],
+    summary: 'GET ?q=<what to buy>&country=CZ&maxPrice=…&inStock=1: products from every store in the registry of agent-ready stores — price, availability, stock and the store\'s own /.well-known/agent-shop.json, where an agent quotes the basket and orders with its person\'s consent. Not charged when nothing is found. The directory of stores is free: GET /api/agent/v1/shops.',
   },
 ] as const satisfies ReadonlyArray<{ tool: keyof typeof AGENT_LINKS & AgentTool; mcpTool: string | null; product: string; name: string; method: 'GET' | 'POST'; params: readonly string[]; summary: string }>
 
