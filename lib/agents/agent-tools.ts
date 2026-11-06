@@ -15,7 +15,8 @@ import { engine } from '@/lib/qbox/vercel'
 import { RUN_ONCE, type RunOnceInput } from './run-once'
 import { storeProfile } from './store-profile'
 import { aresCompany, viesCheck, type CompanyQuery } from './company'
-import { CHECK_COMPANY_INPUT, STORE_URL_INPUT } from './mcp'
+import { counterpartyVerdict, parseVatPayerStatus, VAT_PAYER_SERVICE, vatPayerRequestXml, type CounterpartyQuery, type VatPayerStatus } from './counterparty'
+import { CHECK_COMPANY_INPUT, STORE_URL_INPUT, VERIFY_COUNTERPARTY_INPUT } from './mcp'
 import type { Work } from './pay-per-call'
 import type { PayPerCallTool } from './pay-per-call-offer'
 
@@ -112,6 +113,66 @@ export async function checkCompany(q: CompanyQuery): Promise<Work> {
   }
   if (!answered) return failed(503, 'The registers are not answering right now. Nothing was charged; try again in a minute.', body)
   return { ok: true, body }
+}
+
+// ── counterparty check ──────────────────────────────────────────────────────────────────────
+
+export const COUNTERPARTY_HTTP_TOOL: PayPerCallTool = {
+  tool: 'counterparty',
+  description: 'Can I safely pay / invoice this Czech company? One verdict from the official registers: ARES (exists, active, liquidation, insolvency record), VIES (VAT valid), the tax administration\'s VAT-payer register (unreliable payer, published bank accounts) and whether the account you are about to pay is a published one',
+  call: { method: 'GET', query: {
+    ico: { description: 'Czech company number (IČO, 8 digits)', example: '27082440' },
+    vat: { description: 'EU VAT number with country prefix', example: 'CZ27082440' },
+    account: { description: 'The bank account you are about to pay: "19-2000145399/0800", "2000145399/0800" or an IBAN', example: '2000145399/0800' },
+  } },
+  outputExample: {
+    safeToPay: true, risks: [],
+    company: { ico: '27082440', name: 'Alza.cz a.s.', vatId: 'CZ27082440', vatRegistered: true, active: true, inLiquidation: false, insolvencyRecord: false },
+    vies: { vatNumber: 'CZ27082440', valid: true },
+    vatPayer: { vatId: 'CZ27082440', status: 'reliable', unreliableSince: null, accounts: [{ iban: 'CZ6508000000192000145399', local: '19-2000145399/0800', published: '2013-04-01' }] },
+    account: { iban: 'CZ6508000000192000145399', local: '19-2000145399/0800', published: true, publishedSince: '2013-04-01' },
+    links: { ares: 'https://ares.gov.cz/ekonomicke-subjekty?ico=27082440' },
+  },
+  tags: ['kyb', 'accounts-payable', 'invoicing', 'vat', 'compliance', 'czech', 'business-registry'],
+  perIpHour: 300,
+}
+export const COUNTERPARTY_MCP_TOOL = mcp(COUNTERPARTY_HTTP_TOOL, 'verify_counterparty', VERIFY_COUNTERPARTY_INPUT, { ico: '27082440', account: '2000145399/0800' })
+
+/** The Czech VAT-payer register (SOAP, fixed host), one retry. null = unreachable or an error answer. */
+async function vatPayerStatus(vatId: string, attempt = 0): Promise<VatPayerStatus | null> {
+  try {
+    const res = await fetch(VAT_PAYER_SERVICE, {
+      method: 'POST',
+      headers: { 'content-type': 'text/xml; charset=utf-8', soapaction: '""', 'user-agent': 'QuanteAgentTools/1.0 (+https://quantecode.com/agents)' },
+      body: vatPayerRequestXml([vatId]),
+      signal: AbortSignal.timeout(10_000),
+      cache: 'no-store',
+    })
+    if (!res.ok) return attempt === 0 ? vatPayerStatus(vatId, 1) : null
+    const parsed = parseVatPayerStatus(await res.text())
+    return parsed?.find((p) => p.vatId === vatId) ?? parsed?.[0] ?? null
+  } catch {
+    return attempt === 0 ? vatPayerStatus(vatId, 1) : null
+  }
+}
+
+/** ARES + VIES + the VAT-payer register, then the verdict. Charged only when at least one register answered. */
+export async function verifyCounterparty(q: CounterpartyQuery): Promise<Work> {
+  const [aresRes, viesRes] = await Promise.all([
+    q.ico ? getJson(`https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${q.ico}`) : null,
+    q.vat ? getJson(`https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${q.vat.country}/vat/${encodeURIComponent(q.vat.number)}`) : null,
+  ])
+  const ares = !q.ico ? undefined
+    : aresRes && aresRes.status === 200 && aresCompany(aresRes.json) ? aresCompany(aresRes.json)
+    : aresRes && (aresRes.status === 404 || aresRes.status === 400) ? false
+    : null
+  const vies = q.vat ? (viesRes && viesRes.status === 200 ? viesCheck(viesRes.json, q.vat.country, q.vat.number) : { vatNumber: `${q.vat.country}${q.vat.number}`, valid: null, name: null, address: null, checkedAt: null, note: 'VIES is not answering right now.' }) : undefined
+  // The Czech VAT id: from the input, or the one ARES knows.
+  const czVat = q.vat?.country === 'CZ' ? `CZ${q.vat.number}` : ares && typeof ares === 'object' && ares.vatId?.startsWith('CZ') ? ares.vatId : null
+  const vatPayer = czVat ? await vatPayerStatus(czVat) : undefined
+  const answered = (ares !== null && ares !== undefined) || (vies !== undefined && vies.valid !== null) || (vatPayer !== null && vatPayer !== undefined)
+  if (!answered) return failed(503, 'The registers are not answering right now. Nothing was charged; try again in a minute.')
+  return { ok: true, body: { query: { ico: q.ico, vat: q.vat ? `${q.vat.country}${q.vat.number}` : null, account: q.account?.local ?? q.account?.iban ?? null }, ...counterpartyVerdict({ query: q, ares, vies, vatPayer }) } }
 }
 
 // ── quick store check ───────────────────────────────────────────────────────────────────────

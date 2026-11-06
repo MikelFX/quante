@@ -114,9 +114,9 @@ ${modulesList}`
 - [Start here](${by('agents').md}): how to use this site as an agent
 - [JSON catalog](${AGENT_LINKS.catalog}): every product, price and status in one object
 - [Agent numbers](${AGENT_LINKS.stats}): how many agents we have welcomed, how many paid, paid calls (public JSON, no key)
-- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key); lookup_product, profile_store, check_company, check_store (paid per call, x402)
+- [MCP server](${AGENT_LINKS.mcp}): get_catalog, list_pages, read_page, search_site, get_changelog, get_contact, request_quote (no key); lookup_product, profile_store, check_company, verify_counterparty, check_store (paid per call, x402)
 - [OpenAPI](${AGENT_LINKS.openapi}) · [API catalog](${AGENT_LINKS.apiCatalog}) · [Full text](${AGENT_LINKS.llmsFull})
-- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store profile (contacts, company ids, payments, shipping, policies) $${agentToolUsd('store').toFixed(2)} (GET ${AGENT_LINKS.store}?url=…), company check in ARES + VIES $${agentToolUsd('company').toFixed(2)} (GET ${AGENT_LINKS.company}?ico=…&vat=…), quick store check by rules $${agentToolUsd('check').toFixed(2)} (GET ${AGENT_LINKS.check}?url=…), run Python / JavaScript / shell once in a sandbox with no network $${agentToolUsd('run').toFixed(2)} (POST ${AGENT_LINKS.run}), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (all but review; charged only when it works) or from a Qbox account
+- Paid tools for agents ([OpenAPI](${AGENT_LINKS.openapi})): product page to product JSON $${agentToolUsd('product').toFixed(2)} (GET ${AGENT_LINKS.product}?url=…), store profile (contacts, company ids, payments, shipping, policies) $${agentToolUsd('store').toFixed(2)} (GET ${AGENT_LINKS.store}?url=…), company check in ARES + VIES $${agentToolUsd('company').toFixed(2)} (GET ${AGENT_LINKS.company}?ico=…&vat=…), counterparty check — can I safely pay this Czech company: ARES + VIES + unreliable VAT payer + published bank accounts $${agentToolUsd('counterparty').toFixed(2)} (GET ${AGENT_LINKS.counterparty}?ico=…&account=…), quick store check by rules $${agentToolUsd('check').toFixed(2)} (GET ${AGENT_LINKS.check}?url=…), run Python / JavaScript / shell once in a sandbox with no network $${agentToolUsd('run').toFixed(2)} (POST ${AGENT_LINKS.run}), store scan to JSON $${agentToolUsd('scan').toFixed(2)}, store review by 20 agents $${agentToolUsd('review').toFixed(2)}; pay per call over x402 with no account (all but review; charged only when it works) or from a Qbox account
 - [Qbox](${AGENT_LINKS.qbox.llms}): sandboxes for AI agents — ${rt.qboxOpen ? (rt.x402 ? 'pay by yourself over x402 (USDC), no sign-up' : 'paid, prepaid balance') : 'invite-only beta'}`
   const head = kind === 'app'
     ? `# Quante\n\n> AI e-commerce builder and tools for e-shops (generate, edit, ads, review by 20 agents), plus Qbox, sandboxes for AI agents. A product of AssetraDigital s.r.o. (Czech Republic). The product pages are Czech, the app and APIs English.`
@@ -181,7 +181,7 @@ export function mcpServerCard(tools: { name: string; description: string }[]) {
     version: '1.0',
     protocolVersion: '2025-06-18',
     serverInfo: { name: 'assetradigital', title: 'AssetraDigital + Quante — site knowledge', version: '1.0.0' },
-    description: 'MCP server for everything on assetradigital.agency and quantecode.com: products, prices, pages as Markdown, search, changelog, contact, request_quote (an inquiry for your person), and paid reads per call over x402 (product page, store profile, company check, store check). No key.',
+    description: 'MCP server for everything on assetradigital.agency and quantecode.com: products, prices, pages as Markdown, search, changelog, contact, request_quote (an inquiry for your person), and paid reads per call over x402 (product page, store profile, company check, counterparty check, store check). No key.',
     documentationUrl: `${SITE_ORIGIN}/agents.md`,
     transport: { type: 'streamable-http', endpoint: AGENT_LINKS.mcp },
     authentication: { required: false },
@@ -261,15 +261,16 @@ export function agentOpenApi() {
       },
       ...Object.fromEntries(PER_CALL_APIS.filter((a) => a.tool !== 'product' && a.tool !== 'run').map((a) => [`/${a.tool}`, {
         get: {
-          operationId: { store: 'profileStore', company: 'checkCompany', check: 'checkStore' }[a.tool],
+          operationId: { store: 'profileStore', company: 'checkCompany', counterparty: 'verifyCounterparty', check: 'checkStore' }[a.tool],
           summary: `${a.name.replace(/ \(API\)$/, '')} ($${agentToolUsd(a.tool).toFixed(2)} per call; not charged when it fails)`,
           description: `${a.summary} Pay per call over x402 v1 or v2 with no account (call, get 402, repeat with the payment header; settled only after it worked), or Bearer qbx_…. POST with the same fields as JSON works too.`,
           security: [{}, { bearer: [] }],
           parameters: [
-            ...(a.tool === 'company'
+            ...(a.tool === 'company' || a.tool === 'counterparty'
               ? [
                 { name: 'ico', in: 'query', required: false, schema: { type: 'string' }, description: 'Czech company number (IČO, 8 digits)' },
                 { name: 'vat', in: 'query', required: false, schema: { type: 'string' }, description: 'EU VAT number with country prefix (one of ico / vat is required)' },
+                ...(a.tool === 'counterparty' ? [{ name: 'account', in: 'query', required: false, schema: { type: 'string' }, description: 'The bank account you are about to pay: "19-2000145399/0800", "2000145399/0800" or an IBAN' }] : []),
               ]
               : [{ name: 'url', in: 'query', required: true, schema: { type: 'string' }, description: 'Public store address (home page)' }]),
             { name: 'PAYMENT-SIGNATURE', in: 'header', required: false, schema: { type: 'string' }, description: 'x402 v2 payment (the offer is in the PAYMENT-REQUIRED header)' },

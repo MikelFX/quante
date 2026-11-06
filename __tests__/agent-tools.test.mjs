@@ -100,7 +100,7 @@ test('ARES and VIES answers → the company', () => {
   })
   assert.deepEqual(a, {
     ico: '27082440', name: 'Alza.cz a.s.', vatId: 'CZ27082440', vatRegistered: true, legalForm: 'joint-stock company (a.s.)', legalFormCode: '121',
-    address: 'Jankovcova 1522/53, Holešovice, 17000 Praha 7', country: 'CZ', founded: '2003-08-26', dissolved: null, active: true, activities: ['47911', '620'],
+    address: 'Jankovcova 1522/53, Holešovice, 17000 Praha 7', country: 'CZ', founded: '2003-08-26', dissolved: null, active: true, inLiquidation: false, insolvencyRecord: null, activities: ['47911', '620'],
   })
   assert.equal(CO.aresCompany({ kod: 'NENALEZENO' }), null)
   assert.equal(CO.aresCompany({ ico: '1', obchodniJmeno: 'X', datumZaniku: '2020-01-01' }).active, false)

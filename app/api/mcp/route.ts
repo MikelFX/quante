@@ -9,7 +9,8 @@ import { APP_ORIGIN } from '@/lib/domains'
 import { AGENT_LINKS } from '@/lib/agents/catalog'
 import { mcpPaidCall } from '@/lib/agents/pay-per-call'
 import { PRODUCT_MCP_TOOL, productUrl, readProduct } from '@/lib/agents/product-tool'
-import { CHECK_MCP_TOOL, COMPANY_MCP_TOOL, STORE_MCP_TOOL, checkCompany, quickCheck, readStoreProfile } from '@/lib/agents/agent-tools'
+import { CHECK_MCP_TOOL, COMPANY_MCP_TOOL, COUNTERPARTY_MCP_TOOL, STORE_MCP_TOOL, checkCompany, quickCheck, readStoreProfile, verifyCounterparty } from '@/lib/agents/agent-tools'
+import { parseCounterpartyQuery } from '@/lib/agents/counterparty'
 import { CompanyInputError, parseCompanyQuery } from '@/lib/agents/company'
 import { recordAgentVisit } from '@/lib/agents/visits-record'
 
@@ -71,6 +72,15 @@ async function paidTool(name: PaidMcpTool, a: Record<string, unknown>, meta: unk
       return inputError(e instanceof CompanyInputError ? e.message : 'Send ico and/or vat.')
     }
     return mcpPaidCall(meta, ip, COMPANY_MCP_TOOL, AGENT_LINKS.mcp, () => checkCompany(q))
+  }
+  if (name === 'verify_counterparty') {
+    let q
+    try {
+      q = parseCounterpartyQuery(a)
+    } catch (e) {
+      return inputError(e instanceof CompanyInputError ? e.message : 'Send ico and/or vat, optionally account.')
+    }
+    return mcpPaidCall(meta, ip, COUNTERPARTY_MCP_TOOL, AGENT_LINKS.mcp, () => verifyCounterparty(q))
   }
   const url = productUrl(a.url)
   if (!url) return inputError('url must be a public http(s) address.')

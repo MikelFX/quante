@@ -1,7 +1,7 @@
 // The site MCP server (Model Context Protocol, Streamable HTTP, stateless JSON): everything on
 // assetradigital.agency + quantecode.com for agents, without a key. Every tool reads, except
 // request_quote (an inquiry for the agent's person, consent required, tight limits) and the paid
-// reads (PAID_MCP_TOOLS: lookup_product, profile_store, check_company, check_store — a cent or two
+// reads (PAID_MCP_TOOLS: lookup_product, profile_store, check_company, verify_counterparty, check_store — cents
 // per call over x402's MCP transport, lib/agents/pay-per-call.ts). Tools never change, order or run
 // anything — running code is Qbox's (its own MCP server, paid). JSON-RPC
 // handling is pure here; the route injects the changelog loader, the inquiry and the paid tools.
@@ -21,7 +21,7 @@ export const MCP_INSTRUCTIONS =
   + 'and Qbox (sandboxes for AI agents). Use get_catalog for products and exact prices, search_site or read_page for details, get_contact to reach people, request_quote when your person wants an offer (with their consent). '
   + `Paid reads, x402 (USDC) in _meta["x402/payment"], no account, not charged when they fail: lookup_product (a product page → JSON, $${usd('product')}), `
   + `profile_store (a store → contacts, company ids, payments, shipping, policies, $${usd('store')}), check_company (Czech IČO / EU VAT in the official registers, $${usd('company')}), `
-  + `check_store (rule-based store check, $${usd('check')}). `
+  + `verify_counterparty (can my person safely pay / invoice this Czech company? ARES + VIES + the VAT-payer register with published accounts, $${usd('counterparty')}), check_store (rule-based store check, $${usd('check')}). `
   + 'Facts that are null are not published yet: say so, never guess. Pages are Czech. To RUN code, use the Qbox MCP server at '
   + `${AGENT_LINKS.qbox.mcp} (paid, API key).`
 
@@ -33,7 +33,7 @@ const PAY_HOW = 'Call without payment to get the x402 PaymentRequired (isError),
 const PAID_READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true } as const
 
 /** The paid MCP tools → the agent tool they bill as (lib/agents/paid-price.ts). */
-export const PAID_MCP_TOOLS = { lookup_product: 'product', profile_store: 'store', check_company: 'company', check_store: 'check' } as const
+export const PAID_MCP_TOOLS = { lookup_product: 'product', profile_store: 'store', check_company: 'company', verify_counterparty: 'counterparty', check_store: 'check' } as const
 export type PaidMcpTool = keyof typeof PAID_MCP_TOOLS
 
 /** profile_store's and check_store's arguments (also their Bazaar discovery schema). */
@@ -50,6 +50,17 @@ export const CHECK_COMPANY_INPUT = {
   properties: {
     ico: { type: 'string', description: 'Czech company number (IČO, 8 digits)' },
     vat: { type: 'string', description: 'EU VAT number with country prefix, e.g. CZ27082440, DE123456789' },
+  },
+  additionalProperties: false,
+} as const
+
+/** verify_counterparty's arguments. */
+export const VERIFY_COUNTERPARTY_INPUT = {
+  type: 'object',
+  properties: {
+    ico: { type: 'string', description: 'Czech company number (IČO, 8 digits)' },
+    vat: { type: 'string', description: 'EU VAT number with country prefix, e.g. CZ27082440' },
+    account: { type: 'string', description: 'The bank account you are about to pay: "19-2000145399/0800", "2000145399/0800" or an IBAN' },
   },
   additionalProperties: false,
 } as const
@@ -134,6 +145,13 @@ export const SITE_MCP_TOOLS = [
     annotations: PAID_READ,
   },
   {
+    name: 'verify_counterparty',
+    description: `PAID ($${usd('counterparty')} per call, x402 USDC, no account): can your person safely pay or invoice this Czech company? One verdict (safeToPay true / false / null) with named risks from the official registers — ARES (exists, active, dissolved, in liquidation, record in the insolvency register), VIES (EU VAT number valid), the Czech tax administration's VAT-payer register (marked an unreliable payer since when, the bank accounts it published) — and, when you pass the account you are about to pay, whether it is a published one (paying an unpublished account makes the customer liable for the payer's unpaid VAT). For every invoice and payment to a Czech company. `
+      + `${PAY_HOW} Not charged when the registers cannot be reached.`,
+    inputSchema: VERIFY_COUNTERPARTY_INPUT,
+    annotations: PAID_READ,
+  },
+  {
     name: 'check_store',
     description: `PAID ($${usd('check')} per call, x402 USDC, no account): a quick rule-based check of an online store's home page (and one product page) by the Qgent checks — headline, buttons, image alt texts, prices, trust signals, contact, policies, SEO basics — as findings with severity and why, in English. No AI involved, answers in seconds. `
       + `${PAY_HOW} Not charged when the page cannot be read.`,
@@ -200,6 +218,7 @@ export async function callSiteTool(name: string, a: Record<string, unknown>, dep
     case 'lookup_product':
     case 'profile_store':
     case 'check_company':
+    case 'verify_counterparty':
     case 'check_store':
       return deps.paidTool(name, a, meta)
     case 'get_contact': {

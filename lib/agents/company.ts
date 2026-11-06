@@ -80,6 +80,10 @@ export interface AresCompany {
   founded: string | null
   dissolved: string | null
   active: boolean
+  /** "v likvidaci" in the registered name (Czech law requires it once liquidation starts). */
+  inLiquidation: boolean
+  /** ARES lists a record for it in the insolvency register (ISIR); null when ARES does not say. */
+  insolvencyRecord: boolean | null
   /** CZ-NACE activity codes. */
   activities: string[]
 }
@@ -111,6 +115,8 @@ export function aresCompany(json: unknown): AresCompany | null {
     founded: str(j.datumVzniku),
     dissolved,
     active: !dissolved,
+    inLiquidation: /\bv\s+likvidaci\b/i.test(name),
+    insolvencyRecord: str(regs.stavZdrojeIr) ? regs.stavZdrojeIr === 'AKTIVNI' : null,
     activities: Array.isArray(j.czNace2008) ? j.czNace2008.filter((x): x is string => typeof x === 'string').slice(0, 30)
       : Array.isArray(j.czNace) ? j.czNace.filter((x): x is string => typeof x === 'string').slice(0, 30) : [],
   }

@@ -88,7 +88,7 @@ test('a page with no product data is not found (and so not charged)', () => {
 test('price: a cent a lookup, same balance units as Qbox ($1 = 300)', () => {
   assert.equal(PR.agentToolUsd('product'), 0.01)
   assert.equal(PR.agentToolUnits('product'), 3)
-  assert.deepEqual([...PR.PAY_PER_CALL_TOOLS].sort(), ['check', 'company', 'product', 'run', 'scan', 'store'])
+  assert.deepEqual([...PR.PAY_PER_CALL_TOOLS].sort(), ['check', 'company', 'counterparty', 'product', 'run', 'scan', 'store'])
 })
 
 test('x402 offer asks the exact price in USDC base units and carries the discovery hint', () => {
