@@ -201,10 +201,14 @@ test('agent-facing docs: OpenAPI covers every route, MCP tools are described, ll
     assert.ok(readFileSync(ROOT + `app/api/qbox/v1/${dir}/${file}`, 'utf8').length > 0, dir)
   }
   const names = O.MCP_TOOLS.map((t) => t.name)
-  assert.deepEqual(names, ['create_sandbox', 'run_command', 'write_file', 'read_file', 'get_sandbox', 'list_sandboxes', 'stop_sandbox', 'get_balance'])
+  assert.deepEqual(names, [
+    'create_sandbox', 'run_command', 'write_file', 'read_file', 'get_sandbox', 'list_sandboxes', 'stop_sandbox', 'get_balance',
+    'search_services', 'get_service', 'wallet_challenge', 'register_wallet', 'publish_service', 'update_service', 'remove_service', 'my_services',
+  ])
   for (const t of O.MCP_TOOLS) assert.equal(t.inputSchema.type, 'object', t.name)
   const mcp = readFileSync(ROOT + 'app/api/qbox/v1/mcp/route.ts', 'utf8')
-  for (const n of names) assert.ok(mcp.includes(`case '${n}'`), `MCP handles ${n}`)
+  // Directory tools (no key) run in callPublicTool; every other tool has its own case.
+  for (const n of names) assert.ok(O.PUBLIC_TOOLS.has(n) || mcp.includes(`case '${n}'`), `MCP handles ${n}`)
   const txt = O.llmsTxt()
   assert.match(txt, /\$1 = 300 vCPU-minutes/)
   assert.match(txt, /\/accounts\?usd=5/)

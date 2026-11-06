@@ -38,10 +38,13 @@ export interface X402Config {
   cdp: { keyId: string; secret: string } | null
 }
 
-/** The x402 settings, or null when agent payments are off (or misconfigured). */
-export function x402Config(env: Record<string, string | undefined>): X402Config | null {
-  const payTo = env.QBOX_X402_PAY_TO?.trim() ?? ''
-  if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) return null
+export type FacilitatorConfig = Omit<X402Config, 'payTo'>
+
+/**
+ * Network + facilitator without our own wallet — enough for the Qbox services gateway, where the
+ * buyer pays the SELLER's wallet (lib/qbox/services). null when misconfigured.
+ */
+export function facilitatorConfig(env: Record<string, string | undefined>): FacilitatorConfig | null {
   const network = env.QBOX_X402_NETWORK?.trim() || 'base-sepolia'
   if (!USDC[network]) return null
   const keyId = env.CDP_API_KEY_ID?.trim() ?? ''
@@ -49,8 +52,19 @@ export function x402Config(env: Record<string, string | undefined>): X402Config 
   const cdp = keyId && secret ? { keyId, secret } : null
   const facilitator = (env.QBOX_X402_FACILITATOR?.trim() || (cdp ? CDP_FACILITATOR : 'https://x402.org/facilitator')).replace(/\/+$/, '')
   if (!/^https:\/\//.test(facilitator)) return null
-  return { payTo, network, facilitator, auth: env.QBOX_X402_FACILITATOR_AUTH?.trim() || null, cdp }
+  return { network, facilitator, auth: env.QBOX_X402_FACILITATOR_AUTH?.trim() || null, cdp }
 }
+
+/** The x402 settings, or null when agent payments are off (or misconfigured). */
+export function x402Config(env: Record<string, string | undefined>): X402Config | null {
+  const payTo = env.QBOX_X402_PAY_TO?.trim() ?? ''
+  if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) return null
+  const f = facilitatorConfig(env)
+  return f ? { payTo, ...f } : null
+}
+
+/** USDC contract of a supported network, or null. */
+export const usdcAsset = (network: string) => USDC[network] ?? null
 
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url')
 
@@ -119,6 +133,26 @@ export function requirements(cfg: X402Config, usd: number, resource: string, des
   }
 }
 
+/**
+ * What a buyer must pay a seller's wallet for one Qbox service call (lib/qbox/services): `units` is
+ * the price in USDC base units (6 decimals), `payTo` the seller's verified wallet — never ours.
+ */
+export function requirementsTo(cfg: FacilitatorConfig, payTo: string, units: number, resource: string, description: string): PaymentRequirements {
+  const token = USDC[cfg.network]
+  return {
+    scheme: 'exact',
+    network: cfg.network,
+    maxAmountRequired: String(units),
+    resource,
+    description: description.slice(0, 200),
+    mimeType: 'application/json',
+    payTo,
+    maxTimeoutSeconds: 120,
+    asset: token.asset,
+    extra: { name: token.name, version: '2' },
+  }
+}
+
 /** The 402 body an x402 client understands (plus our own human-readable fields). */
 export function paymentRequiredBody(reqs: PaymentRequirements, error: string, extra: Record<string, unknown> = {}) {
   return { x402Version: X402_VERSION, error, accepts: [reqs], ...extra }
@@ -172,7 +206,7 @@ export function facilitatorBody(payment: Record<string, unknown>, reqs: PaymentR
   return { x402Version: v, paymentPayload: payment, paymentRequirements: v === 2 ? requirementsV2(reqs) : reqs }
 }
 
-async function facilitatorCall(cfg: X402Config, path: 'verify' | 'settle', payment: Record<string, unknown>, reqs: PaymentRequirements) {
+async function facilitatorCall(cfg: FacilitatorConfig, path: 'verify' | 'settle', payment: Record<string, unknown>, reqs: PaymentRequirements) {
   const url = `${cfg.facilitator}/${path}`
   const body = JSON.stringify(facilitatorBody(payment, reqs))
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
@@ -183,7 +217,7 @@ async function facilitatorCall(cfg: X402Config, path: 'verify' | 'settle', payme
 }
 
 /** Only checks the payment (nothing moves yet). Pay-per-call tools verify, work, then settle. Never throws. */
-export async function verifyPayment(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function verifyPayment(cfg: FacilitatorConfig, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const v = await facilitatorCall(cfg, 'verify', payment, reqs)
     return v?.isValid ? { ok: true } : { ok: false, error: `Payment not valid: ${String(v?.invalidReason ?? 'rejected by the facilitator')}.` }
@@ -193,7 +227,7 @@ export async function verifyPayment(cfg: X402Config, payment: Record<string, unk
 }
 
 /** Settles an already verified payment. Never throws. */
-export async function settleVerified(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
+export async function settleVerified(cfg: FacilitatorConfig, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
   try {
     const s = await facilitatorCall(cfg, 'settle', payment, reqs)
     if (!s?.success || typeof s.transaction !== 'string' || !s.transaction) {
@@ -206,7 +240,7 @@ export async function settleVerified(cfg: X402Config, payment: Record<string, un
 }
 
 /** Verify, then settle, the agent's payment through the facilitator. Never throws. */
-export async function settle(cfg: X402Config, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
+export async function settle(cfg: FacilitatorConfig, payment: Record<string, unknown>, reqs: PaymentRequirements): Promise<Settled> {
   const v = await verifyPayment(cfg, payment, reqs)
   if (!v.ok) return v
   return settleVerified(cfg, payment, reqs)
