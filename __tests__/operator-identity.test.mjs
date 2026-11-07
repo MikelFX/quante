@@ -28,7 +28,7 @@ test('no code names QuanteCode as a company', () => {
 
 test('the operator is the AssetraDigital company from the website data', () => {
   const cfg = src('lib/site-config.ts')
-  assert.match(cfg, /import \{ company \} from '@\/content\/assetra\/site'/)
+  assert.match(cfg, /import \{ company, contact \} from '@\/content\/assetra\/site'/)
   assert.match(cfg, /const companyName\s+= company\.name/)
   assert.match(src('content/assetra/site.ts'), /name: 'AssetraDigital s\.r\.o\.'/)
   assert.match(src('components/SiteFooter.tsx'), /A product of \{operator\.companyName\}/)

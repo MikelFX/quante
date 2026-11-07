@@ -11,7 +11,7 @@
 // is known — `isFilled()` drops any field that still has one, so an
 // unfilled block never leaks a placeholder to the public site.
 import { quanteHref, siteHref } from '@/lib/domains'
-import { company } from '@/content/assetra/site'
+import { company, contact } from '@/content/assetra/site'
 
 const companyName  = company.name
 const founderName  = 'Michal Svoboda'
@@ -19,7 +19,7 @@ const founderRole  = 'Founder'
 const address      = company.seat ?? 'TODO(michal): registered company address'
 const ico          = company.ico ?? 'TODO(michal): Czech company ID (IČO)'
 const dic          = 'TODO(michal): VAT ID (DIČ) — or leave TODO if not VAT-registered'
-const contactEmail = 'TODO(michal): public contact email'
+const contactEmail = contact.email ?? 'TODO(michal): public contact email'
 
 /** How Quante names its maker wherever a company would otherwise appear. */
 const productOf    = `Quante is a product of ${companyName}`

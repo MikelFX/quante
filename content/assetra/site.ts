@@ -9,13 +9,13 @@ import { quanteHref } from '@/lib/domains'
 export const company = {
   name: 'AssetraDigital s.r.o.',
   ico: null as string | null, // [IČO] — the company is being founded
-  seat: null as string | null, // [sídlo]
+  seat: 'Švermova 441/12, 273 43 Buštěhrad' as string | null,
   registry: null as string | null, // [obchodní rejstřík]
 }
 
 export const contact = {
   phone: null as string | null, // [telefon]
-  email: null as string | null, // [e-mail]
+  email: 'info@assetradigital.agency' as string | null,
   responseTime: null as string | null, // „Ozveme se do [doba]“
 }
 
