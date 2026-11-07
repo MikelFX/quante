@@ -7,6 +7,7 @@ import { AnnouncementBanner } from '@/components/AnnouncementBanner'
 import { ParticleField } from '@ad/ui/particles'
 import { ThemeScript } from '@ad/ui/ThemeScript'
 import { adFontVars } from '@ad/ui/fonts'
+import { LANG_SCRIPT } from '@/lib/lang-script'
 import './globals.css'
 import '@ad/ui/styles/app-tokens.css'
 
@@ -42,6 +43,8 @@ export default function RootLayout({
     >
       <head>
         <ThemeScript />
+        {/* lang of this page (cs website + Quante pages, en app and /en): lib/lang-script.ts */}
+        <script dangerouslySetInnerHTML={{ __html: LANG_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {/* The particle engine and the website's background canvas, here so they survive navigation.

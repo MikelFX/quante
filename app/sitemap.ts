@@ -24,6 +24,9 @@ const SITE: Entry[] = [
 const APP: Entry[] = [
   { path: '/',          priority: 1.0, changeFrequency: 'monthly' },
   ...modules.map((m) => ({ path: '/quante/' + m.slug, priority: m.status === 'live' ? 0.8 : 0.5, changeFrequency: 'monthly' as const })),
+  // English Quante pages (hreflang pairs with the Czech ones above)
+  { path: '/en',        priority: 0.9, changeFrequency: 'monthly' },
+  ...modules.map((m) => ({ path: '/en/' + m.slug, priority: m.status === 'live' ? 0.7 : 0.4, changeFrequency: 'monthly' as const })),
   { path: '/qgent',     priority: 0.7, changeFrequency: 'monthly' },
   { path: '/qads',      priority: 0.7, changeFrequency: 'monthly' },
   { path: '/qscan',     priority: 0.7, changeFrequency: 'monthly' },

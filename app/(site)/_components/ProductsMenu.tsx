@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useEffect, useId, useRef, useState } from 'react'
-import { productLinks, quanteApp, quanteHome } from '@/content/assetra/modules'
+import { productLinks, quanteApp, quanteHome, type Locale } from '@/content/assetra/modules'
+import { uiCopy } from './quante/ui-copy'
 
 /**
  * „Produkty“ in the floating nav (website and Quante pages): every Quante product with its page,
@@ -10,7 +11,8 @@ import { productLinks, quanteApp, quanteHome } from '@/content/assetra/modules'
  * Desktop: a disclosure panel under the nav pill (click, Escape and a click outside close it).
  * Phone: ProductsMenuList at the top of the full-screen menu.
  */
-export function ProductsMenu() {
+export function ProductsMenu({ locale = 'cs' }: { locale?: Locale }) {
+  const t = uiCopy(locale)
   const [open, setOpen] = useState(false)
   const id = useId()
   const root = useRef<HTMLDivElement>(null)
@@ -40,13 +42,13 @@ export function ProductsMenu() {
   return (
     <div className="pm" ref={root} data-open={open ? '' : undefined}>
       <button ref={button} type="button" className="pm-b" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
-        Produkty
+        {t.products}
         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       <div className="pm-p glass" id={id} hidden={!open}>
-        <p className="pm-k">Produkty Quante</p>
+        <p className="pm-k">{t.productsOfQuante}</p>
         <ul className="pm-g">
-          {productLinks().map((p) => (
+          {productLinks(locale).map((p) => (
             <li key={p.slug}>
               <Link className={'pm-i' + (p.dev ? ' pm-dev' : '')} href={p.href} onClick={close}>
                 <span className="pm-n">
@@ -59,8 +61,8 @@ export function ProductsMenu() {
           ))}
         </ul>
         <div className="pm-f">
-          <Link href={quanteHome()} onClick={close}>Celý Quante a jak moduly navazují →</Link>
-          <a href={quanteApp.start} onClick={close}>Začít zdarma →</a>
+          <Link href={quanteHome('', locale)} onClick={close}>{t.menuOverview}</Link>
+          <a href={quanteApp.start} onClick={close}>{t.startFree} →</a>
         </div>
       </div>
     </div>
@@ -68,15 +70,16 @@ export function ProductsMenu() {
 }
 
 /** The products at the top of the phone menu: compact, two columns, Qgent's highlight included. */
-export function ProductsMenuList({ close }: { close: () => void }) {
+export function ProductsMenuList({ close, locale = 'cs' }: { close: () => void; locale?: Locale }) {
+  const t = uiCopy(locale)
   return (
-    <nav className="pm-m" aria-label="Produkty">
-      <p className="pm-k">Produkty</p>
+    <nav className="pm-m" aria-label={t.products}>
+      <p className="pm-k">{t.products}</p>
       <ul>
         <li>
-          <Link href={quanteHome()} onClick={close}><b>Quante</b><span className="pm-t">všechny</span></Link>
+          <Link href={quanteHome('', locale)} onClick={close}><b>Quante</b><span className="pm-t">{t.allLabel}</span></Link>
         </li>
-        {productLinks().map((p) => (
+        {productLinks(locale).map((p) => (
           <li key={p.slug}>
             <Link href={p.href} onClick={close} className={p.dev ? 'pm-dev' : undefined}>
               <b>{p.name}</b>

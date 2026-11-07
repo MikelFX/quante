@@ -117,3 +117,103 @@ export function moduleCosts(slug: ModuleSlug): { label: string; value: string }[
       return []
   }
 }
+
+// ── English (quantecode.com/en, owner 2026-11-07) ────────────────────────────────────────────────
+// The same numbers from the same config, in English words. Keep the rows in step with the Czech ones.
+
+/** 1 credit · 10 credits */
+export const creditsEn = (n: number) => (n === 1 ? '1 credit' : `${n} credits`)
+/** 999 → "9.99" */
+export const usdEn = (cents: number) => usd(cents).replace(',', '.')
+
+const freeEn = 'free'
+const cEn = (n: number) => (n === 0 ? freeEn : creditsEn(n))
+
+function tiktokerRowsEn() {
+  const during = new Date(TIKTOKER_LAUNCH.startsAt)
+  const after = new Date(TIKTOKER_LAUNCH.endsAt)
+  const last = new Date(Date.parse(TIKTOKER_LAUNCH.endsAt) - 1)
+  const until = last.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const video = (at: Date) => `${creditsEn(computeTiktokerCost(1, 15, at).totalCredits)} for 15 s, ${creditsEn(computeTiktokerCost(1, 10, at).totalCredits)} for 10 s`
+  return [
+    { label: 'AI character for Qads Character', value: creditsEn(characterCredits(during)) },
+    { label: 'Video with a talking AI character', value: `until ${until} at cost: ${video(during)}; then ${video(after)}` },
+  ]
+}
+
+export const quantePricingEn = {
+  packs: CREDIT_PACKS.map((p) => ({
+    id: p.id,
+    credits: p.credits,
+    price: usdEn(p.priceCents),
+    perCredit: usdEn(Math.round(p.priceCents / p.credits)),
+    popular: !!p.popular,
+  })),
+  welcomeCredits: CREDIT_COSTS.welcome_grant,
+  costs: [
+    { label: 'Generating a store', value: cEn(CREDIT_COSTS.generate) },
+    { label: 'A change in the chat', value: cEn(CREDIT_COSTS.iterate) },
+    { label: 'Automatic build fixes', value: cEn(CREDIT_COSTS.fix) },
+    { label: 'Editing by hand in Qdit', value: freeEn },
+    { label: 'AI in Qdit', value: cEn(CREDIT_COSTS.iterate) },
+    { label: 'Store review by 20 agents in Qgent', value: cEn(CREDIT_COSTS.qgent_swarm) },
+    { label: 'Store review by Qgent in the Studio', value: cEn(CREDIT_COSTS.qgent_review) },
+    { label: 'A change made by Qgent', value: `${cEn(CREDIT_COSTS.qgent_apply)}, undo free` },
+    { label: 'Ad photo in Qads', value: cEn(QADS.imagePerVariant) },
+    { label: 'Ad video in Qads', value: `${creditsEn(videoExample)} for 5 s` },
+    { label: 'Ad preparation in Qads', value: `${creditsEn(QADS.strategyPerGeneration)} per generation` },
+    ...tiktokerRowsEn(),
+    { label: 'Code download as a ZIP', value: `${cEn(CREDIT_COSTS.export)} per store, later downloads free` },
+  ],
+  hosting: { annualUsd: HOSTING_ANNUAL_USD, trialDays: 30 },
+  agency: {
+    monthlyUsd: AGENCY_MONTHLY_USD,
+    summary: `unlimited stores · batch generation of up to ${AGENCY_BATCH_SIZE} stores · generation, edits and Qads without credits (fair use) · export without Quante branding · hosting included`,
+    fairUse: `${AGENCY_FAIR_USE.generationsPerDay} store generations, ${AGENCY_FAIR_USE.qadsVideoSecondsPerDay} seconds of video and ${AGENCY_FAIR_USE.qadsPhotosPerDay} photos in Qads a day`,
+  },
+}
+
+/** The cost rows of an English module page (same rows as moduleCosts). */
+export function moduleCostsEn(slug: ModuleSlug): { label: string; value: string }[] {
+  switch (slug) {
+    case 'generate':
+      return [
+        { label: 'Generating a store', value: cEn(CREDIT_COSTS.generate) },
+        { label: 'A change in the chat', value: cEn(CREDIT_COSTS.iterate) },
+        { label: 'Automatic build fixes', value: cEn(CREDIT_COSTS.fix) },
+        { label: 'Code download as a ZIP', value: `${cEn(CREDIT_COSTS.export)} per store, later downloads free` },
+        { label: 'Hosting', value: `${HOSTING_ANNUAL_USD} USD a year, first month free` },
+      ]
+    case 'qscan':
+      return [
+        { label: 'Scanning a store', value: `${freeEn}, up to ${QSCAN_DAILY_SCANS} scans a day` },
+        { label: 'Building the new store', value: cEn(CREDIT_COSTS.generate) },
+        { label: 'Hosting', value: `${HOSTING_MONTHLY_USD} USD a month or ${HOSTING_ANNUAL_USD} USD a year` },
+        { label: 'Code download as a ZIP', value: `${cEn(CREDIT_COSTS.export)} per store, later downloads free` },
+      ]
+    case 'qdit':
+      return [
+        { label: 'Editing by hand', value: freeEn },
+        { label: 'AI action on an element', value: `${cEn(CREDIT_COSTS.iterate)}, refunded on failure` },
+      ]
+    case 'qgent':
+      return [
+        { label: 'Store review by 20 agents', value: `${cEn(CREDIT_COSTS.qgent_swarm)}, refunded on failure` },
+        { label: 'A new store from the old one', value: cEn(CREDIT_COSTS.generate) },
+        { label: 'Code review of a store in the Studio', value: `${cEn(CREDIT_COSTS.qgent_review)}, refunded on failure` },
+        { label: 'Making a confirmed change', value: `${cEn(CREDIT_COSTS.qgent_apply)}, refunded on failure` },
+        { label: 'Rejecting or undoing a change', value: freeEn },
+      ]
+    case 'qads':
+      return [
+        { label: 'Photo', value: `${creditsEn(QADS.imagePerVariant)} each` },
+        { label: 'Video (1080p, 4–30 s)', value: Number.isInteger(QADS.videoPerSecond)
+          ? `${creditsEn(QADS.videoPerSecond)} a second (5 s = ${creditsEn(videoExample)}, 30 s = ${creditsEn(videoLongest)})`
+          : `${QADS.videoPerSecond} credits a second, rounded up (5 s = ${creditsEn(videoExample)}, 30 s = ${creditsEn(videoLongest)})` },
+        { label: 'Preparing ads and copy', value: `${creditsEn(QADS.strategyPerGeneration)} per generation` },
+        ...tiktokerRowsEn(),
+      ]
+    default:
+      return []
+  }
+}

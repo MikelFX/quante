@@ -22,8 +22,9 @@ export function agentPageId(pathname: string, kind: Kind): string | null {
   const app = kind !== 'site'
   if (p === '/') return kind === 'app' ? 'quante' : 'ai'
   if (site && p === '/web-eshop') return 'web-eshop'
-  if (app && p === '/quante') return 'quante'
-  const mod = /^\/quante\/([a-z]+)$/.exec(p)
+  // /en and /en/<modul> are the English Quante pages: agents get the same Markdown page.
+  if (app && (p === '/quante' || p === '/en')) return 'quante'
+  const mod = /^\/(?:quante|en)\/([a-z]+)$/.exec(p)
   if (app && mod && MODULE_SLUGS.includes(mod[1])) return `module:${mod[1]}`
   const tool = /^\/([a-z]+)$/.exec(p)
   if (app && tool && TOOL_PAGES[tool[1]]) return `module:${TOOL_PAGES[tool[1]]}`

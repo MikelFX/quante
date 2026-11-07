@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ modul: st
   return {
     title,
     description: m.lead,
-    ...quanteShare({ path: `/quante/${m.slug}`, title: `${m.name} · Quante`, description: m.lead }),
+    ...quanteShare({ path: `/quante/${m.slug}`, title: `${m.name} · Quante`, description: m.lead, alternate: { cs: `/quante/${m.slug}`, en: `/en/${m.slug}` } }),
   }
 }
 

@@ -31,7 +31,9 @@ export const SITE_PATHS = [
  * module pages are quantecode.com/quante/<modul>. assetradigital.agency sends them across
  * (owner 2026-11-04: quantecode.com is the domain of the Quante products only).
  */
-export const QUANTE_PATHS = ['/quante', '/quante/:path*'] as const
+export const QUANTE_PATHS = ['/quante', '/quante/:path*', '/en', '/en/:path*'] as const
+/** The English Quante pages (owner 2026-11-07): quantecode.com/en and /en/<modul>. */
+export const QUANTE_EN_PATHS = ['/en', '/en/:path*'] as const
 
 /** App paths: on the website host they redirect to APP_ORIGIN, so Clerk only ever runs on one host. */
 export const APP_PATHS = [
@@ -70,6 +72,17 @@ export function isSitePath(pathname: string): boolean {
 /** True for a Quante product page (QUANTE_PATHS). */
 export function isQuantePath(pathname: string): boolean {
   return matches(QUANTE_PATHS, pathname)
+}
+
+/**
+ * The language of a page, from its path alone (both hosts, previews, localhost): the website and the
+ * Quante pages are Czech, /en(/…) English, the app (its own English pages) English. The root layout
+ * is shared and static, so <html lang> is set from this before the first paint (LANG_SCRIPT) and the
+ * same rule sends Content-Language (next.config.ts) for crawlers that do not run scripts.
+ */
+export function pageLang(pathname: string): 'cs' | 'en' {
+  if (matches(QUANTE_EN_PATHS, pathname)) return 'en'
+  return pathname === '/' || isSitePath(pathname) || isQuantePath(pathname) ? 'cs' : 'en'
 }
 
 /** Pages rendered by app/(site) — the website and the Quante product pages. proxy.ts skips Clerk on

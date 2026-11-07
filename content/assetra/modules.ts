@@ -16,6 +16,10 @@
 //    no dates promised.
 
 import { appHref, quanteHref } from '@/lib/domains'
+import { MODULES_EN, QUANTE_FLOW_EN, QUANTE_INTRO_EN, QUANTE_START_EN, statusLineEn } from './modules-en'
+
+/** Quante pages exist in Czech (quantecode.com/) and English (quantecode.com/en, ./modules-en.ts). */
+export type Locale = 'cs' | 'en'
 
 export type ModuleStatus = 'live' | 'dev'
 export type ModuleSlug = 'generate' | 'qscan' | 'qgent' | 'qdit' | 'qads' | 'qails'
@@ -231,31 +235,77 @@ export const quanteFlow: { slug: ModuleSlug; title: string; text: string }[] = [
   { slug: 'qails', title: 'Komunikace', text: 'Qails sjednotí e-maily všech obchodů na jednom místě.' },
 ]
 
-/** The module page — on quantecode.com in production (lib/domains.ts quanteHref). */
-export const moduleHref = (m: Pick<QuanteModule, 'slug'>) => quanteHref('/quante/' + m.slug)
-/** The Quante overview (quantecode.com/ in production), optionally at one of its sections. */
-export const quanteHome = (hash = '') => quanteHref('/quante' + hash)
+/** The module page — on quantecode.com in production (lib/domains.ts quanteHref); English at /en/<slug>. */
+export const moduleHref = (m: Pick<QuanteModule, 'slug'>, locale: Locale = 'cs') =>
+  quanteHref(locale === 'en' ? '/en/' + m.slug : '/quante/' + m.slug)
+/** The Quante overview (quantecode.com/ in production, English /en), optionally at one of its sections. */
+export const quanteHome = (hash = '', locale: Locale = 'cs') => quanteHref((locale === 'en' ? '/en' : '/quante') + hash)
+
+/** The modules in a language: the Czech data with the English words swapped in (./modules-en.ts). */
+export function modulesFor(locale: Locale): QuanteModule[] {
+  if (locale === 'cs') return modules
+  return modules.map((m) => {
+    const en = MODULES_EN[m.slug]
+    return {
+      ...m,
+      short: en.short,
+      tag: en.tag,
+      badge: m.badge === undefined ? undefined : en.badge,
+      lead: en.lead,
+      features: en.features,
+      note: en.note,
+      links: m.links.map((l) => ({ to: l.to, text: en.links[l.to] ?? l.text })),
+      app: m.app && { label: en.appLabel ?? m.app.label, href: m.app.href },
+    }
+  })
+}
+
+export function quanteIntroFor(locale: Locale) {
+  return locale === 'en' ? { ...quanteIntro, sub: QUANTE_INTRO_EN.sub } : quanteIntro
+}
+
+export function quanteFlowFor(locale: Locale) {
+  return locale === 'en' ? quanteFlow.map((f) => ({ slug: f.slug, ...QUANTE_FLOW_EN[f.slug] })) : quanteFlow
+}
+
+export function quanteStartFor(locale: Locale) {
+  if (locale === 'cs') return quanteStart
+  return {
+    title: QUANTE_START_EN.title,
+    sub: QUANTE_START_EN.sub,
+    goals: quanteStart.goals.map((g) => ({ ...g, ...QUANTE_START_EN.goals[g.goal] })),
+  }
+}
 
 /** The products menu and footer list: every module with its page, short line and highlight. */
-export function productLinks() {
-  return modules.map((m) => ({
+export function productLinks(locale: Locale = 'cs') {
+  return modulesFor(locale).map((m) => ({
     slug: m.slug,
     name: m.name,
     short: m.short,
-    href: moduleHref(m),
+    href: moduleHref(m, locale),
     app: m.app,
-    badge: m.status === 'dev' ? 'Ve vývoji' : m.badge,
+    badge: m.status === 'dev' ? (locale === 'en' ? 'In development' : 'Ve vývoji') : m.badge,
     dev: m.status === 'dev',
   }))
 }
-export const moduleBySlug = (slug: string) => modules.find((m) => m.slug === slug)
+export const moduleBySlug = (slug: string, locale: Locale = 'cs') => modulesFor(locale).find((m) => m.slug === slug)
 
 const CS_LIVE = ['Žádný modul zatím nefunguje', 'Jeden modul funguje', 'Dva moduly fungují', 'Tři moduly fungují', 'Čtyři moduly fungují', 'Pět modulů funguje', 'Šest modulů funguje']
 
 /** „Čtyři moduly fungují … Qscan a Qails jsou ve vývoji.“ — computed, so it follows `status`. */
-export function modulesStatusLine(): string {
+export function modulesStatusLine(locale: Locale = 'cs'): string {
   const live = modules.filter((m) => m.status === 'live').length
   const dev = modules.filter((m) => m.status === 'dev').map((m) => m.name)
+  if (locale === 'en') return statusLineEn(live, dev)
   const devText = !dev.length ? '' : dev.length === 1 ? ` ${dev[0]} je ve vývoji.` : ` ${dev.slice(0, -1).join(', ')} a ${dev[dev.length - 1]} jsou ve vývoji.`
   return `${CS_LIVE[live] ?? `${live} modulů funguje`}${live ? ` a můžete ${live === 1 ? 'ho' : 'je'} používat hned.` : '.'}${devText}`
+}
+
+/** The same Quante page in the other language: / ↔ /en, /quante/<slug> ↔ /en/<slug>. */
+export function otherLocalePath(pathname: string, locale: Locale): string {
+  const slug = (locale === 'en' ? /^\/en\/([a-z]+)\/?$/ : /^\/quante\/([a-z]+)\/?$/).exec(pathname)?.[1]
+  const m = slug ? moduleBySlug(slug) : undefined
+  if (locale === 'en') return m ? '/quante/' + m.slug : '/quante'
+  return m ? '/en/' + m.slug : '/en'
 }

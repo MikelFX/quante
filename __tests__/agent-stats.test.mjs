@@ -105,7 +105,8 @@ test('the numbers are honest: every figure from a table or null, sellers wait fo
   assert.ok(!/agentsWelcomed:\s*\d/.test(st), 'no typed numbers')
   const ui = read('app/(site)/_components/quante/AgentNumbers.tsx')
   assert.ok(ui.includes("fetch('/api/agent/v1/stats'") && !/>\s*\d{2,}\s*</.test(ui), 'the strip shows only API numbers')
-  assert.ok(read('app/(site)/(quante)/quante/page.tsx').includes('<AgentNumbers />'))
+  assert.ok(read('app/(site)/_components/quante/QuanteOverview.tsx').includes('<AgentNumbers locale={locale} />'))
+  assert.ok(read('app/(site)/(quante)/quante/page.tsx').includes('<QuanteOverview />'))
 })
 
 test('the marketplace numbers are taken over only when it reports sellers', async () => {

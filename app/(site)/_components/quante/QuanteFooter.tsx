@@ -1,8 +1,9 @@
 import Link from 'next/link'
 import { AdMark, BinaryStrip, GiantWordmark, InView, ParticleZone } from '@ad/ui'
 import { company } from '@/content/assetra/site'
-import { productLinks, quanteApp, quanteHome } from '@/content/assetra/modules'
+import { productLinks, quanteApp, quanteHome, type Locale } from '@/content/assetra/modules'
 import { appHref, siteHref } from '@/lib/domains'
+import { uiCopy } from './ui-copy'
 
 // Quante's own legal pages live in the app (English, app/(marketing)).
 const docs = [
@@ -14,31 +15,32 @@ const docs = [
 
 /** Footer of the Quante pages (quantecode.com): every product, the app, the documents, and that
  *  Quante is a product of AssetraDigital s.r.o. (company data from content/assetra/site.ts). */
-export function QuanteFooter() {
+export function QuanteFooter({ locale = 'cs' }: { locale?: Locale }) {
+  const t = uiCopy(locale)
   return (
     <InView as="footer" className="ft" id="paticka">
       <div className="w">
         <div className="ftg">
           <div>
-            <a className="logo" href="#top" aria-label="Quante, nahoru">
+            <a className="logo" href="#top" aria-label={t.footerUp}>
               <AdMark />
               <span className="wm">Quante</span>
             </a>
-            <p>Quante je produkt společnosti <a href={siteHref('/')}>{company.name}</a>.</p>
+            <p>{t.footerProductOf} <a href={siteHref('/')}>{company.name}</a>.</p>
           </div>
           <nav className="ftl" aria-labelledby="ft-aplikace">
-            <p className="ftk" id="ft-aplikace">Aplikace</p>
-            <a href={quanteApp.start}>Začít zdarma</a>
-            <a href={quanteApp.dashboard}>Dashboard</a>
-            <Link href={quanteHome('#cenik')}>Ceník</Link>
-            <a href={siteHref('/web-eshop#kontakt')}>E-shop na míru od AssetraDigital</a>
-            <a href={appHref('/qbox')}>Qbox: sandboxy pro AI agenty</a>
-            <a href={appHref('/agent-shops')}>Obchody pro AI agenty</a>
-            <a href={appHref('/changelog')}>Novinky</a>
+            <p className="ftk" id="ft-aplikace">{t.footerApp}</p>
+            <a href={quanteApp.start}>{t.startFree}</a>
+            <a href={quanteApp.dashboard}>{t.footerDashboard}</a>
+            <Link href={quanteHome('#cenik', locale)}>{t.navPricing}</Link>
+            <a href={siteHref('/web-eshop#kontakt')}>{t.footerCustom}</a>
+            <a href={appHref('/qbox')}>{t.footerQbox}</a>
+            <a href={appHref('/agent-shops')}>{t.footerAgentShops}</a>
+            <a href={appHref('/changelog')}>{t.footerNews}</a>
           </nav>
           <nav className="ftl ftp" aria-labelledby="ft-produkty">
-            <p className="ftk" id="ft-produkty">Produkty</p>
-            {productLinks().map((p) => (
+            <p className="ftk" id="ft-produkty">{t.products}</p>
+            {productLinks(locale).map((p) => (
               <Link key={p.slug} href={p.href}>
                 {p.name}
                 {p.badge && <span className={'ftn' + (p.dev ? ' ftn-dev' : '')}>{p.badge}</span>}
@@ -46,7 +48,7 @@ export function QuanteFooter() {
             ))}
           </nav>
           <nav className="ftl" aria-labelledby="ft-dokumenty">
-            <p className="ftk" id="ft-dokumenty">Dokumenty</p>
+            <p className="ftk" id="ft-dokumenty">{t.footerDocs}</p>
             {docs.map((d) => <a key={d.href} href={d.href}>{d.label}</a>)}
           </nav>
         </div>
@@ -58,7 +60,7 @@ export function QuanteFooter() {
       <GiantWordmark a="QUANTE" b="CODE" />
       <div className="w ftb">
         <span>© 2026 {company.name}</span>
-        <a href="#top">Nahoru ↑</a>
+        <a href="#top">{t.footerTop}</a>
       </div>
     </InView>
   )

@@ -425,3 +425,6 @@
 .ad .q-new b{padding:7px 11px;border-radius:999px;background:var(--acc);color:var(--accInk);font:700 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
 .ad .q-new span{color:var(--accText);transition:transform .3s}
 .ad .q-new:hover span{transform:translateX(3px)}
+
+/* Quante nav: the other language (QuanteHeader, owner 2026-11-07), a round icon button like the toggles. */
+.ad .q-lang{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.06em;text-decoration:none}
