@@ -10,12 +10,12 @@ import { quanteHref } from '@/lib/domains'
 // The nav of the Quante tool pages (Qads, Qscan, Qgent) and the legal pages. Every product is one
 // click away (owner 2026-11-04): on phones the links sit in a scrolling row under the bar.
 const LINKS = [
-  { href: quanteHref('/quante'), label: 'All products' },
+  { href: quanteHref('/en'), label: 'All products' },
   { href: '/qads', label: 'Qads' },
   { href: '/qscan', label: 'Qscan' },
   { href: '/qgent', label: 'Qgent', badge: '20 agents' },
   { href: '/new', label: 'Generate' },
-  { href: quanteHref('/quante#cenik'), label: 'Pricing' },
+  { href: quanteHref('/en#cenik'), label: 'Pricing' },
 ]
 
 // Shared sticky glass nav for every public/marketing page. Deliberately the
@@ -72,7 +72,7 @@ export function PublicNav() {
           justifyContent: 'space-between',
         }}
       >
-        <Link href={quanteHref('/quante')} aria-label="Quante, all products" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
+        <Link href={quanteHref('/en')} aria-label="Quante, all products" style={{ display: 'flex', minHeight: 44, alignItems: 'center', textDecoration: 'none' }}>
           <QuanteBrand />
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>

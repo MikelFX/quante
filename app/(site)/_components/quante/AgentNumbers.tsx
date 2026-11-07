@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { APP_ORIGIN } from '@/lib/domains'
+import type { Locale } from '@/content/assetra/modules'
+import { uiCopy } from './ui-copy'
 
 const STATS_URL = `${APP_ORIGIN}/api/agent/v1/stats`
 
@@ -20,9 +22,9 @@ interface Stats {
   topAgents: { agent: string; agents: number }[] | null
 }
 
-const fmt = (n: number | null | undefined) => (typeof n === 'number' ? n.toLocaleString('cs-CZ') : '—')
-
-export function AgentNumbers() {
+export function AgentNumbers({ locale = 'cs' }: { locale?: Locale }) {
+  const t = uiCopy(locale)
+  const fmt = (n: number | null | undefined) => (typeof n === 'number' ? n.toLocaleString(t.numberLocale) : '—')
   const [s, setS] = useState<Stats | null>(null)
   useEffect(() => {
     const ctl = new AbortController()
@@ -34,12 +36,12 @@ export function AgentNumbers() {
     return () => ctl.abort()
   }, [])
   const items: { n: string; l: string; note?: string }[] = [
-    { n: fmt(s?.agentsWelcomed), l: 'přivítaných agentů', note: s?.agentsToday ? `${fmt(s.agentsToday)} dnes` : undefined },
-    { n: fmt(s?.agentsPaid), l: 'agentů nakoupilo' },
-    { n: fmt(s?.paidCalls), l: 'placených volání' },
+    { n: fmt(s?.agentsWelcomed), l: t.agentsWelcomed, note: s?.agentsToday ? t.agentsToday(fmt(s.agentsToday)) : undefined },
+    { n: fmt(s?.agentsPaid), l: t.agentsPaid },
+    { n: fmt(s?.paidCalls), l: t.paidCalls },
     s?.marketplace === 'live'
-      ? { n: fmt(s.sellers), l: 'agentů prodalo', note: s.tradesBetweenAgents ? `${fmt(s.tradesBetweenAgents)} obchodů mezi agenty` : undefined }
-      : { n: '…', l: 'agentů prodalo', note: 'tržiště agentů připravujeme' },
+      ? { n: fmt(s.sellers), l: t.agentsSold, note: s.tradesBetweenAgents ? t.trades(fmt(s.tradesBetweenAgents)) : undefined }
+      : { n: '…', l: t.agentsSold, note: t.marketPlanned },
   ]
   const top = s?.topAgents?.filter((t) => t.agent !== 'browser').slice(0, 5) ?? []
   return (
@@ -54,9 +56,8 @@ export function AgentNumbers() {
         ))}
       </dl>
       <p className="fine qag-f">
-        {top.length > 0 && <>Nejčastěji u nás: {top.map((t) => t.agent).join(', ')}. </>}
-        Počítáme anonymně: agent = otisk adresy a klienta za den, nic neukládáme v čitelné podobě.
-        Čísla jsou veřejná i pro agenty: <a href={STATS_URL}>{STATS_URL.replace(/^https?:\/\//, '')}</a>.
+        {top.length > 0 && <>{t.topAgents} {top.map((a) => a.agent).join(', ')}. </>}
+        {t.agentsFine} <a href={STATS_URL}>{STATS_URL.replace(/^https?:\/\//, '')}</a>.
       </p>
     </div>
   )

@@ -7,6 +7,7 @@ import { AnnouncementBanner } from '@/components/AnnouncementBanner'
 import { ParticleField } from '@ad/ui/particles'
 import { ThemeScript } from '@ad/ui/ThemeScript'
 import { adFontVars } from '@ad/ui/fonts'
+import { LANG_SCRIPT } from '@/lib/lang-script'
 import './globals.css'
 import '@ad/ui/styles/app-tokens.css'
 
@@ -18,6 +19,10 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: 'Quante — AI E-commerce Builder',
   description: 'Describe your store. Quante builds it.',
+  applicationName: 'Quante',
+  // Icons are files: app/favicon.ico (16/32/48), icon.svg, icon1.png (96), icon2.png (192),
+  // apple-icon.png (180) and app/manifest.ts — all from scripts/brand-icons.py. Google picks the
+  // search-result icon from these (a multiple of 48 px, square).
 }
 
 export default function RootLayout({
@@ -38,6 +43,8 @@ export default function RootLayout({
     >
       <head>
         <ThemeScript />
+        {/* lang of this page (cs website + Quante pages, en app and /en): lib/lang-script.ts */}
+        <script dangerouslySetInnerHTML={{ __html: LANG_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {/* The particle engine and the website's background canvas, here so they survive navigation.

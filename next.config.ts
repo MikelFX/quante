@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { withBotId } from 'botid/next/config';
-import { APP_HOST_PATTERN, APP_ORIGIN, APP_PATHS, SITE_HOST_PATTERN, SITE_ORIGIN, SITE_PATHS } from './lib/domains';
+import { APP_HOST_PATTERN, APP_ORIGIN, APP_PATHS, QUANTE_EN_PATHS, SITE_HOST_PATTERN, SITE_ORIGIN, SITE_PATHS } from './lib/domains';
 
 // Baseline security headers for every platform response. Deliberately NO script-src
 // CSP yet: Clerk, Stripe and Supabase need an allowlist rolled out in Report-Only
@@ -47,6 +47,10 @@ const nextConfig: NextConfig = {
       { source: '/((?!api/preview/component).*)', headers: securityHeaders },
       // Agents (lib/agents): every page points at the machine-readable layer (RFC 8288 Link).
       { source: '/((?!api/|_next/).*)', headers: [{ key: 'Link', value: AGENT_LINK_HEADER }] },
+      // The page's language for crawlers that don't run the root layout's lang script (lib/domains.ts
+      // pageLang): the website and the Quante pages are Czech, /en English.
+      ...['/', ...SITE_PATHS.filter((p) => !p.startsWith('/og')), '/quante', '/quante/:path*'].map((source) => ({ source, headers: [{ key: 'Content-Language', value: 'cs' }] })),
+      ...QUANTE_EN_PATHS.map((source) => ({ source, headers: [{ key: 'Content-Language', value: 'en' }] })),
     ]
   },
   async rewrites() {
@@ -77,6 +81,9 @@ const nextConfig: NextConfig = {
       { source: '/quante', has: [{ type: 'host', value: SITE_HOST_PATTERN }], destination: APP_ORIGIN + '/', permanent: true },
       { source: '/quante/:path+', has: [{ type: 'host', value: SITE_HOST_PATTERN }], destination: APP_ORIGIN + '/quante/:path+', permanent: true },
       { source: '/quante', has: [{ type: 'host', value: APP_HOST_PATTERN }], destination: '/', permanent: true },
+      // The English Quante pages (quantecode.com/en, /en/<modul>) live on quantecode.com too.
+      { source: '/en', has: [{ type: 'host', value: SITE_HOST_PATTERN }], destination: APP_ORIGIN + '/en', permanent: true },
+      { source: '/en/:path+', has: [{ type: 'host', value: SITE_HOST_PATTERN }], destination: APP_ORIGIN + '/en/:path+', permanent: true },
       // Qads moved out of the Studio (was /project/:id/ads/...) and into a
       // standalone generator at /qads that doesn't tie to a specific project.
       // 308 (permanent, preserves method) rather than 307 so search engines +

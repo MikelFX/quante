@@ -117,5 +117,7 @@ test('quantecode.com/ is the Quante overview, the wizard is linked from it (owne
   const proxy = src('proxy.ts')
   assert.doesNotMatch(proxy, /isAppRoot/)
   // the overview links into the wizard
-  assert.match(src('app/(site)/(quante)/quante/page.tsx'), /quanteApp\.start/)
+  // the overview (Czech quantecode.com/ and English /en) is QuanteOverview
+  assert.match(src('app/(site)/(quante)/quante/page.tsx'), /<QuanteOverview \/>/)
+  assert.match(src('app/(site)/_components/quante/QuanteOverview.tsx'), /quanteApp\.start/)
 })

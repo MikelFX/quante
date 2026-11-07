@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic'
 import { buildMetadata } from '@/lib/seo'
 
 export const metadata = buildMetadata({
-  title: 'Changelog — what\'s new in Quante',
+  title: 'Changelog — what\'s new',
   description: 'Release notes and product updates from the Quante team — new features, fixes and behind-the-scenes work.',
   path: '/changelog',
 })
