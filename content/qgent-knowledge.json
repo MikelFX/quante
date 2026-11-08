@@ -2,15 +2,15 @@
   "version": 1,
   "source": "Obsah webu AssetraDigital (content/assetra/*.ts). Nic jiného není ověřené.",
   "company": {
-    "name": "AssetraDigital s.r.o.",
-    "note": "Firma se zakládá.",
+    "name": "AssetraDigital",
+    "note": "Zatím bez založené firmy. Kontaktní osoba: Michal Svoboda.",
     "ico": null,
-    "seat": null,
+    "seat": "Švermova 441/12, 273 43 Buštěhrad",
     "registry": null
   },
   "contact": {
     "phone": null,
-    "email": null,
+    "email": "info@assetradigital.agency",
     "responseTime": null,
     "howToReachUs": "Formulář poptávky na hlavní stránce nebo na stránce Web & Eshop (sekce Kontakt). Konzultace je zdarma."
   },
@@ -592,8 +592,8 @@
     ]
   },
   "unknownUntilConsultation": [
-    "IČO, sídlo a zápis v obchodním rejstříku (firma se zakládá)",
-    "telefon a e-mail",
+    "IČO a právní forma (firma zatím není založená)",
+    "telefon",
     "do kdy se ozveme",
     "cena a termín AI řešení a softwaru na míru (nacení se po konzultaci)",
     "cena správy při jednorázové platbě a hodinová sazba",

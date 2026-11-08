@@ -41,7 +41,7 @@ const CS = {
   go: 'Začít',
   // footer
   footerUp: 'Quante, nahoru',
-  footerProductOf: 'Quante je produkt společnosti',
+  footerProductOf: 'Quante je produkt',
   footerApp: 'Aplikace',
   footerDashboard: 'Dashboard',
   footerCustom: 'E-shop na míru od AssetraDigital',

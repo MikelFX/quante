@@ -12,9 +12,10 @@ export type LegalDocument = { slug: string; title: string; lead: string; effecti
 
 /** Values for the {{key}} tokens; null = not known yet → placeholder with the label. */
 export const legalFacts: Record<string, { value: string | null; label: string }> = {
-  name: { value: company.name, label: 'název společnosti' },
+  name: { value: company.name, label: 'název' },
+  person: { value: company.person, label: 'kontaktní osoba' },
   ico: { value: company.ico, label: 'IČO' },
-  seat: { value: company.seat, label: 'sídlo' },
+  seat: { value: company.seat, label: 'adresa' },
   registry: { value: company.registry, label: 'spisová značka v obchodním rejstříku' },
   email: { value: contact.email, label: 'e-mail' },
   phone: { value: contact.phone, label: 'telefon' },
@@ -22,7 +23,9 @@ export const legalFacts: Record<string, { value: string | null; label: string }>
   vat: { value: pricing.vat, label: 'ceny bez DPH / s DPH' },
 }
 
-const providerId = '{{name}}, IČO {{ico}}, se sídlem {{seat}}, zapsaná v obchodním rejstříku vedeném {{registry}}'
+// Owner 2026-11-08: no company yet — name, contact person and address only. Add the legal form,
+// IČO and registry here once the business is registered.
+const providerId = '{{name}}, {{person}}, {{seat}}'
 const provider = `${providerId}, e-mail {{email}}, telefon {{phone}}`
 
 export const terms: LegalDocument = {
@@ -34,7 +37,7 @@ export const terms: LegalDocument = {
     {
       h: 'Úvodní ustanovení',
       ol: [
-        `Tyto obchodní podmínky (dále „podmínky“) upravují vztahy mezi společností ${provider} (dále „poskytovatel“), a jejími zákazníky (dále „objednatel“).`,
+        `Tyto obchodní podmínky (dále „podmínky“) upravují vztahy mezi ${provider} (dále „poskytovatel“), a jejími zákazníky (dále „objednatel“).`,
         'Podmínky se vztahují na návrh a vývoj AI řešení, systémů postavených kolem AI, CRM, asistentů, automatizací a dalšího softwaru na míru, na návrh a stavbu webů a e-shopů a na jejich správu a hosting (dále společně „služby“).',
         'Podmínky jsou součástí každé smlouvy uzavřené mezi poskytovatelem a objednatelem (dále „smlouva“). Pokud se smlouva od podmínek odchyluje, platí smlouva.',
         'Aplikace Quante (quantecode.com) se řídí vlastními podmínkami zveřejněnými v aplikaci; tyto podmínky se na ni nevztahují.',
@@ -283,7 +286,7 @@ export const sampleContract: LegalDocument = {
     {
       h: 'Smluvní strany',
       p: [
-        `Poskytovatel: ${providerId}, zastoupená {{?jméno a funkce jednatele}}, e-mail {{email}}`,
+        `Poskytovatel: ${providerId}, e-mail {{email}}`,
         `Objednatel: ${party('objednatel')}`,
         'uzavírají podle § 2586 a násl. a § 1746 odst. 2 zákona č. 89/2012 Sb., občanský zákoník, tuto smlouvu o dílo a o poskytování služeb správy (dále „smlouva“).',
       ],

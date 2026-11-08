@@ -14,7 +14,7 @@ const docs = [
 ]
 
 /** Footer of the Quante pages (quantecode.com): every product, the app, the documents, and that
- *  Quante is a product of AssetraDigital s.r.o. (company data from content/assetra/site.ts). */
+ *  Quante is a product of AssetraDigital (company data from content/assetra/site.ts). */
 export function QuanteFooter({ locale = 'cs' }: { locale?: Locale }) {
   const t = uiCopy(locale)
   return (

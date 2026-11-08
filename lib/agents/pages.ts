@@ -38,7 +38,7 @@ function aiPage(rt: AgentRuntime): AgentPage {
 
 > ${k.ai.what}
 
-Firma: ${k.company.name} (${k.company.note}) · IČO ${nul(k.company.ico, 'IČO')} · Web: ${SITE_ORIGIN}
+Firma: ${k.company.name} (${k.company.note}) · Web: ${SITE_ORIGIN}
 
 ## Služby
 
@@ -126,7 +126,7 @@ function quantePage(rt: AgentRuntime): AgentPage {
 
 > ${k.quante.what} ${k.quante.relation} ${k.quante.language}
 
-Quante je produkt AssetraDigital s.r.o. Aplikace: ${APP_ORIGIN}/dashboard · Začít: ${APP_ORIGIN}/start
+Quante je produkt AssetraDigital Aplikace: ${APP_ORIGIN}/dashboard · Začít: ${APP_ORIGIN}/start
 
 ## Moduly
 

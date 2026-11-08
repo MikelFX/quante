@@ -49,7 +49,7 @@ test('catalog prices are the ones the code charges', () => {
   assert.ok(web.price.subscription.plans.every((p) => Number.isInteger(p.perMonth) && p.perMonth > 0))
   // unknown facts stay null, never invented
   assert.equal(c.organization.companyId, null)
-  assert.equal(c.contact.email, null)
+  assert.equal(c.contact.email, 'info@assetradigital.agency') // published by the owner 2026-11-07
   assert.equal(c.offerings.find((o) => o.id === 'ai-solutions').price.currency, null)
   // every Quante module, with its real status
   for (const m of modules) assert.equal(c.offerings.find((o) => o.id === `quante-${m.slug}`).status, m.status === 'live' ? 'available' : 'in-development')
@@ -217,7 +217,7 @@ test('JSON-LD carries the real prices and nothing that closes the script tag', a
   const app = q['@graph'].find((n) => n['@type'] === 'SoftwareApplication')
   assert.deepEqual(app.offers.map((o) => o.price), CREDIT_PACKS.map((p) => (p.priceCents / 100).toFixed(2)))
   assert.doesNotMatch(J.jsonLdString({ x: '</script>' }), /<\/script>/)
-  assert.ok(J.siteJsonLd()['@graph'].some((n) => n['@type'] === 'Organization' && n.name === 'AssetraDigital s.r.o.'))
+  assert.ok(J.siteJsonLd()['@graph'].some((n) => n['@type'] === 'Organization' && n.name === 'AssetraDigital'))
 })
 
 test('agent inquiry: consent required, the form validation, marked as from an agent', async () => {

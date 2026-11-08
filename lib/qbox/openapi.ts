@@ -172,7 +172,7 @@ export function openApiDocument() {
       description: `${PRICE_LINE}\n\nAn agent can open its own account by paying (POST /accounts, x402 / USDC), or a person creates a key at ${QBOX_LINKS.page}. `
         + `MCP server: ${QBOX_LINKS.mcp} (Streamable HTTP, same API key). Terms: ${QBOX_LINKS.terms}`,
       contact: { url: QBOX_LINKS.page },
-      'x-operator': 'AssetraDigital s.r.o. (Quante)',
+      'x-operator': 'AssetraDigital (Quante)',
     },
     servers: [{ url: QBOX_LINKS.api }],
     security: [{ bearer: [] }],
@@ -332,7 +332,7 @@ export function openApiDocument() {
 export function llmsTxt(): string {
   return `# Qbox
 
-> Sandboxes for AI agents. One API call starts an isolated Linux microVM (${QBOX_TEMPLATES.join(', ')}) where your agent runs code, installs packages, reads and writes files and exposes preview URLs. Made by AssetraDigital s.r.o. (Quante).
+> Sandboxes for AI agents. One API call starts an isolated Linux microVM (${QBOX_TEMPLATES.join(', ')}) where your agent runs code, installs packages, reads and writes files and exposes preview URLs. Made by AssetraDigital (Quante).
 
 ${PRICE_LINE}
 

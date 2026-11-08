@@ -19,6 +19,9 @@ function organization() {
     areaServed: 'CZ',
     knowsLanguage: ['cs', 'en'],
     ...(c.organization.companyId ? { identifier: c.organization.companyId } : {}),
+    ...(c.contact.email ? { email: c.contact.email } : {}),
+    ...(c.contact.phone ? { telephone: c.contact.phone } : {}),
+    ...(c.organization.seat ? { address: { '@type': 'PostalAddress', streetAddress: c.organization.seat, addressCountry: 'CZ' } } : {}),
     owns: [{ '@id': `${APP_ORIGIN}/#quante` }, { '@id': `${APP_ORIGIN}/qbox#qbox` }],
   }
 }

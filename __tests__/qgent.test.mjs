@@ -39,7 +39,7 @@ test('the knowledge base holds nothing that must not be on the website', () => {
   // Placeholders on the site stay unknown for the assistant.
   assert.equal(k.company.ico, null)
   assert.equal(k.contact.phone, null)
-  assert.equal(k.contact.email, null)
+  assert.equal(k.contact.email, 'info@assetradigital.agency') // published by the owner 2026-11-07
   assert.equal(k.contact.responseTime, null)
   assert.equal(k.agency.pricing.vat, null)
   assert.equal(k.agency.pricing.oneOff.hourlyRateCzk, null)

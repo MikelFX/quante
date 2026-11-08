@@ -4,14 +4,14 @@
 // gracefully omitted from the rendered footer (see components/SiteFooter.tsx).
 
 // Legal entity. Quante is a product, not a company (owner, 2026-10-28):
-// the operator of the Quante platform is AssetraDigital s.r.o., the same
+// the operator of the Quante platform is AssetraDigital, the same
 // company as the AssetraDigital website, so the name comes from that site's
 // company data (`content/assetra/site.ts`). The address / IČO / DIČ /
 // contact fields stay as TODO(michal) placeholders until the company data
 // is known — `isFilled()` drops any field that still has one, so an
 // unfilled block never leaks a placeholder to the public site.
 import { quanteHref, siteHref } from '@/lib/domains'
-import { company } from '@/content/assetra/site'
+import { company, contact } from '@/content/assetra/site'
 
 const companyName  = company.name
 const founderName  = 'Michal Svoboda'
@@ -19,7 +19,7 @@ const founderRole  = 'Founder'
 const address      = company.seat ?? 'TODO(michal): registered company address'
 const ico          = company.ico ?? 'TODO(michal): Czech company ID (IČO)'
 const dic          = 'TODO(michal): VAT ID (DIČ) — or leave TODO if not VAT-registered'
-const contactEmail = 'TODO(michal): public contact email'
+const contactEmail = contact.email ?? 'TODO(michal): public contact email'
 
 /** How Quante names its maker wherever a company would otherwise appear. */
 const productOf    = `Quante is a product of ${companyName}`
@@ -46,7 +46,7 @@ export function isFilled(v: string | undefined | null): v is string {
   return !!v && !v.startsWith('TODO(michal)') && !v.includes('[TO')
 }
 
-/** "AssetraDigital s.r.o., <address>" — only the fields that are filled in. */
+/** "AssetraDigital, <address>" — only the fields that are filled in. */
 export function operatorIdentity(): string {
   return [operator.companyName, operator.address].filter(isFilled).join(', ')
 }
