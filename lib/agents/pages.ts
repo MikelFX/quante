@@ -38,7 +38,7 @@ function aiPage(rt: AgentRuntime): AgentPage {
 
 > ${k.ai.what}
 
-Firma: ${k.company.name} (${k.company.note}) · IČO ${nul(k.company.ico, 'IČO')} · Web: ${SITE_ORIGIN}
+Firma: ${k.company.name} (${k.company.note}) · Web: ${SITE_ORIGIN}
 
 ## Služby
 
