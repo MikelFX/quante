@@ -1,5 +1,5 @@
 // Quante is a product, not a company (owner, 2026-10-28): the operator and copyright holder is
-// AssetraDigital s.r.o., read from the website's company data. These checks keep the old
+// AssetraDigital, read from the website's company data. These checks keep the old
 // "QuanteCode s.r.o." from coming back and keep unfilled operator fields off the legal pages.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -30,7 +30,7 @@ test('the operator is the AssetraDigital company from the website data', () => {
   const cfg = src('lib/site-config.ts')
   assert.match(cfg, /import \{ company, contact \} from '@\/content\/assetra\/site'/)
   assert.match(cfg, /const companyName\s+= company\.name/)
-  assert.match(src('content/assetra/site.ts'), /name: 'AssetraDigital s\.r\.o\.'/)
+  assert.match(src('content/assetra/site.ts'), /name: 'AssetraDigital',/) // no company yet (owner 2026-11-08)
   assert.match(src('components/SiteFooter.tsx'), /A product of \{operator\.companyName\}/)
 })
 

@@ -111,12 +111,13 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
   return {
     schemaVersion: 1,
     about:
-      'Machine-readable offer of AssetraDigital s.r.o. (AI solutions, websites and e-shops, Czech Republic) and its products '
+      'Machine-readable offer of AssetraDigital (AI solutions, websites and e-shops, Czech Republic) and its products '
       + 'Quante (AI e-commerce builder, quantecode.com) and Qbox (sandboxes for AI agents). Built from the code that charges the prices; '
       + 'free text is Czech, keys are English. A null value means "not published yet, ask" — never guess it.',
     organization: {
       name: company.name,
-      status: 'being founded',
+      status: 'not registered as a company yet',
+      contactPerson: company.person,
       companyId: company.ico,
       seat: company.seat,
       registry: company.registry,

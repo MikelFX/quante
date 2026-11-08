@@ -248,7 +248,7 @@ export default function DesignPage() {
         <BinaryStrip text="HOSTING/ZALOHY/SPRAVA/VLASTNI KOD/" />
         <GiantWordmark />
         <div className={`w ${s.bar}`}>
-          <span>© 2026 AssetraDigital s.r.o.</span>
+          <span>© 2026 AssetraDigital</span>
           <div>
             <ThemeToggle />
             <MotionToggle />

@@ -65,7 +65,7 @@ export function buildQgentKnowledge() {
     source: 'Obsah webu AssetraDigital (content/assetra/*.ts). Nic jiného není ověřené.',
     company: {
       name: company.name,
-      note: 'Firma se zakládá.',
+      note: 'Zatím bez založené firmy. Kontaktní osoba: Michal Svoboda.',
       ico: company.ico,
       seat: company.seat,
       registry: company.registry,
@@ -152,8 +152,8 @@ export function buildQgentKnowledge() {
       pages: Object.entries(QGENT_PAGES).map(([key, p]) => ({ key, path: p.path, title: p.title })),
     },
     unknownUntilConsultation: [
-      'IČO, sídlo a zápis v obchodním rejstříku (firma se zakládá)',
-      'telefon a e-mail',
+      'IČO a právní forma (firma zatím není založená)',
+      'telefon',
       'do kdy se ozveme',
       'cena a termín AI řešení a softwaru na míru (nacení se po konzultaci)',
       'cena správy při jednorázové platbě a hodinová sazba',

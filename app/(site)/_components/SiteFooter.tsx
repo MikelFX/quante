@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { BinaryStrip, GiantWordmark, InView, Logo, ParticleZone, Todo } from '@ad/ui'
-import { company, legalPages } from '@/content/assetra/site'
+import { company, contact, legalPages } from '@/content/assetra/site'
 import { productLinks, quanteHome } from '@/content/assetra/modules'
 
 // Every Quante product with its highlight (content/assetra/modules.ts); the pages are on quantecode.com.
@@ -19,9 +19,9 @@ export function SiteFooter() {
             <p>{company.name}</p>
           </div>
           <dl className="ftd">
-            <div><dt>IČO</dt><dd>{company.ico ?? <Todo>[IČO]</Todo>}</dd></div>
-            <div><dt>Sídlo</dt><dd>{company.seat ?? <Todo>[sídlo]</Todo>}</dd></div>
-            <div><dt>Zápis</dt><dd>{company.registry ?? <Todo>[obchodní rejstřík]</Todo>}</dd></div>
+            <div><dt>Kontakt</dt><dd>{company.person}</dd></div>
+            <div><dt>Adresa</dt><dd>{company.seat ?? <Todo>[adresa]</Todo>}</dd></div>
+            <div><dt>E-mail</dt><dd>{contact.email ? <a href={'mailto:' + contact.email}>{contact.email}</a> : <Todo>[e-mail]</Todo>}</dd></div>
           </dl>
           <nav className="ftl ftp" aria-labelledby="ft-produkty">
             <p className="ftk" id="ft-produkty">Produkty</p>

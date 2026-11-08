@@ -4,7 +4,7 @@
 // gracefully omitted from the rendered footer (see components/SiteFooter.tsx).
 
 // Legal entity. Quante is a product, not a company (owner, 2026-10-28):
-// the operator of the Quante platform is AssetraDigital s.r.o., the same
+// the operator of the Quante platform is AssetraDigital, the same
 // company as the AssetraDigital website, so the name comes from that site's
 // company data (`content/assetra/site.ts`). The address / IČO / DIČ /
 // contact fields stay as TODO(michal) placeholders until the company data
@@ -46,7 +46,7 @@ export function isFilled(v: string | undefined | null): v is string {
   return !!v && !v.startsWith('TODO(michal)') && !v.includes('[TO')
 }
 
-/** "AssetraDigital s.r.o., <address>" — only the fields that are filled in. */
+/** "AssetraDigital, <address>" — only the fields that are filled in. */
 export function operatorIdentity(): string {
   return [operator.companyName, operator.address].filter(isFilled).join(', ')
 }

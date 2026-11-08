@@ -126,7 +126,7 @@ function quantePage(rt: AgentRuntime): AgentPage {
 
 > ${k.quante.what} ${k.quante.relation} ${k.quante.language}
 
-Quante je produkt AssetraDigital s.r.o. Aplikace: ${APP_ORIGIN}/dashboard · Začít: ${APP_ORIGIN}/start
+Quante je produkt AssetraDigital Aplikace: ${APP_ORIGIN}/dashboard · Začít: ${APP_ORIGIN}/start
 
 ## Moduly
 

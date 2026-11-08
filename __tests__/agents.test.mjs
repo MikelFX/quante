@@ -217,7 +217,7 @@ test('JSON-LD carries the real prices and nothing that closes the script tag', a
   const app = q['@graph'].find((n) => n['@type'] === 'SoftwareApplication')
   assert.deepEqual(app.offers.map((o) => o.price), CREDIT_PACKS.map((p) => (p.priceCents / 100).toFixed(2)))
   assert.doesNotMatch(J.jsonLdString({ x: '</script>' }), /<\/script>/)
-  assert.ok(J.siteJsonLd()['@graph'].some((n) => n['@type'] === 'Organization' && n.name === 'AssetraDigital s.r.o.'))
+  assert.ok(J.siteJsonLd()['@graph'].some((n) => n['@type'] === 'Organization' && n.name === 'AssetraDigital'))
 })
 
 test('agent inquiry: consent required, the form validation, marked as from an agent', async () => {

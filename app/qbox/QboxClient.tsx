@@ -223,7 +223,7 @@ export function QboxClient({ open }: { open: boolean }) {
           <p className="qb-fine" id="terms">
             Terms: no crypto mining, spam, attacks, scanning other people’s systems or illegal content; we may stop any sandbox.
             {open ? ' Services you sell are yours: you are the seller to your buyers and handle your own taxes. Not allowed for sale: fraud, phishing, malware, illegal content, financial advice, gambling, adult content, and anything that holds or exchanges crypto for others; we may block any service.' : ''}
-            {open ? ' Paid time does not expire and is not refunded.' : ''} Qbox is a product of AssetraDigital s.r.o.
+            {open ? ' Paid time does not expire and is not refunded.' : ''} Qbox is a product of AssetraDigital
           </p>
         </section>
       </main>
