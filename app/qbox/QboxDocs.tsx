@@ -10,6 +10,7 @@ import { QBOX_BETA, QBOX_EARN, QBOX_PAID, QBOX_PAID_VCPUS, QBOX_PRICING, QBOX_TE
 
 const API = 'https://quantecode.com/api/qbox/v1'
 const MCP = `${API}/mcp`
+const CONNECTOR = 'https://quantecode.com/qbox/mcp'
 
 export function CopyBtn({ text, label = 'Copy' }: { text: string; label?: string }) {
   const [done, setDone] = useState(false)
@@ -68,6 +69,14 @@ export function snippets(key: string) {
       `}`,
     ].join('\n'),
     mcp: JSON.stringify({ mcpServers: { qbox: { type: 'http', url: MCP, headers: { Authorization: `Bearer ${k}` } } } }, null, 2),
+    connector: [
+      `# Claude (claude.ai, desktop, mobile) and other apps that take only an address:`,
+      `#   Settings → Connectors → Add custom connector`,
+      `#   Name: Qbox`,
+      `#   URL:  ${CONNECTOR}`,
+      `# Then sign in to Quante and click Allow. No key to copy: the app gets its own,`,
+      `# listed above as "… · connector". Revoke it to disconnect.`,
+    ].join('\n'),
     claude: `claude mcp add --transport http qbox ${MCP} --header "Authorization: Bearer ${k}"`,
     openai: [
       `from agents import Agent, Runner`,
@@ -99,6 +108,7 @@ export function snippets(key: string) {
 }
 
 const TABS = [
+  ['connector', 'Claude app (connector)'],
   ['mcp', 'MCP (Cursor, Claude Desktop…)'],
   ['claude', 'Claude Code'],
   ['openai', 'OpenAI Agents'],
@@ -110,7 +120,7 @@ const TABS = [
 ] as const
 
 export function CodeTabs({ apiKey }: { apiKey: string }) {
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>('mcp')
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>('connector')
   const code = snippets(apiKey)[tab]
   return (
     <div className="qb-card">

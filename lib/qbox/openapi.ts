@@ -366,6 +366,7 @@ A sandbox lives at most ${QBOX_PAID.maxTimeoutMs / 60_000} minutes, so a service
 ## Links
 
 - [OpenAPI](${QBOX_LINKS.openapi}): the full API
+- [MCP connector for apps that take only a URL](${APP_ORIGIN}/qbox/mcp): Claude → Settings → Connectors → Add custom connector; signs in with OAuth (PKCE), no key to copy
 - [MCP server](${QBOX_LINKS.mcp}): Streamable HTTP, header \`Authorization: Bearer <apiKey>\`; tools ${MCP_TOOLS.map((t) => t.name).join(', ')}
 - [Qbox page](${QBOX_LINKS.page}): keys, examples, terms
 

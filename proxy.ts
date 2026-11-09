@@ -29,6 +29,8 @@ const isCrossSiteApi = createRouteMatcher([
   '/api/qads/cron/(.*)',
   '/api/qbox/v1/(.*)', // Qbox API: authenticated by API key, never by the session cookie
   '/api/mcp', // site MCP server: no session, open to every agent (lib/agents/mcp.ts)
+  '/api/qbox/oauth/register', // Qbox connector OAuth (lib/qbox/oauth.ts): called by MCP clients, no cookie
+  '/api/qbox/oauth/token',
   '/api/agent/(.*)', // agent API (lib/agents): never the session cookie — no key, or a Qbox key
 ])
 
@@ -120,6 +122,8 @@ export function proxy(req: NextRequest, ev: NextFetchEvent) {
   // components/auth/QuanteClerk.tsx): skip it there — no session lookup, no handshake redirect.
   // /api/* always goes through Clerk.
   if (isClerkFreePage(req.nextUrl.pathname)) return NextResponse.next()
+  // The Qbox MCP connector (rewritten to /api/qbox/v1/connector) authenticates by its Qbox key only.
+  if (req.nextUrl.pathname === '/qbox/mcp') return NextResponse.next()
   return withClerk(req, ev)
 }
 
