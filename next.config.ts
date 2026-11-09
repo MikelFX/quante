@@ -63,6 +63,8 @@ const nextConfig: NextConfig = {
         { source: '/llms.txt', destination: '/api/agent/llms' },
         { source: '/llms-full.txt', destination: '/api/agent/llms-full' },
         { source: '/.well-known/:file*', destination: '/api/agent/well-known/:file*' },
+        // The Qbox MCP connector address people paste into Claude (lib/qbox/oauth.ts).
+        { source: '/qbox/mcp', destination: '/api/qbox/v1/connector' },
         // IndexNow key file (lib/agents/indexnow.ts), only when INDEXNOW_KEY is set at build time.
         ...(/^[A-Za-z0-9-]{8,128}$/.test(process.env.INDEXNOW_KEY?.trim() ?? '') ? [{ source: `/${process.env.INDEXNOW_KEY!.trim()}.txt`, destination: '/api/agent/indexnow-key' }] : []),
       ],
