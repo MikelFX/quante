@@ -123,8 +123,10 @@
       "features": [
         "Kolik můžete utratit dnes: Zadáte čistou výplatu, den výplaty, pravidelné platby a rozpočty. Kapsa z nich spočítá denní limit, tedy kolik můžete utratit dnes, aby peníze vydržely do další výplaty.",
         "Utratil jsi dnes něco?: Kapsa se vás každý den zeptá právě takhle. Odpovíte a máte přehled, jak na tom jste.",
+        "Večerní připomínka: Když jste ještě nic nezapsali, Kapsa vám kolem 19:00 pošle do telefonu připomínku. Když už máte zapsáno, neruší.",
         "Rozpočty po kategoriích: Nájem, jídlo, cigarety, předplatné nebo cokoliv dalšího. Každá kategorie má svůj rozpočet.",
         "Kam jde výplata: Na jednom místě vidíte, kolik z výplaty spotřebují pravidelné platby, rozpočty a splátky dluhů.",
+        "Co vidím: Kapsa sama upozorní, když utrácíte rychleji, než výplata stačí, když přečerpáte rozpočet, nebo kolik vás za rok stojí cigarety a předplatné.",
         "Další krok: Karta Další krok vám řekne, na co se zaměřit teď: nejdřív rezerva na jeden měsíc, pak dluhy s vysokým úrokem, potom rezerva na tři měsíce a nakonec růst.",
         "Plán splácení dluhů: Ke každému dluhu zadáte zůstatek, úrok (RPSN) a měsíční splátku. Vyberete lavinu, která splácí nejdřív dluh s nejvyšším úrokem, nebo sněhovou kouli, která splácí nejdřív nejmenší dluh.",
         "Splátka navíc: Posuvníkem přidáte k splátkám částku navíc každý měsíc. Hned vidíte, kolik přesně ušetříte na úrocích a kdy budete bez dluhů.",

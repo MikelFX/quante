@@ -43,12 +43,20 @@ export const kapsa = {
         text: 'Kapsa se vás každý den zeptá právě takhle. Odpovíte a máte přehled, jak na tom jste.',
       },
       {
+        title: 'Večerní připomínka',
+        text: 'Když jste ještě nic nezapsali, Kapsa vám kolem 19:00 pošle do telefonu připomínku. Když už máte zapsáno, neruší.',
+      },
+      {
         title: 'Rozpočty po kategoriích',
         text: 'Nájem, jídlo, cigarety, předplatné nebo cokoliv dalšího. Každá kategorie má svůj rozpočet.',
       },
       {
         title: 'Kam jde výplata',
         text: 'Na jednom místě vidíte, kolik z výplaty spotřebují pravidelné platby, rozpočty a splátky dluhů.',
+      },
+      {
+        title: 'Co vidím',
+        text: 'Kapsa sama upozorní, když utrácíte rychleji, než výplata stačí, když přečerpáte rozpočet, nebo kolik vás za rok stojí cigarety a předplatné.',
       },
       {
         title: 'Další krok',
