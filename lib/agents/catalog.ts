@@ -8,6 +8,7 @@
 
 import { buildQgentKnowledge } from '@/content/assetra/qgent'
 import { modules } from '@/content/assetra/modules'
+import { kapsa } from '@/content/assetra/kapsa'
 import { company, contact, pricing as webPricing } from '@/content/assetra/site'
 import { moduleCosts } from '@/content/assetra/quante-pricing'
 import { AGENCY_BATCH_SIZE, AGENCY_FAIR_USE, AGENCY_MONTHLY_USD, CREDIT_COSTS, HOSTING_ANNUAL_USD, QSCAN_DAILY_SCANS } from '@/lib/config'
@@ -112,7 +113,7 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
     schemaVersion: 1,
     about:
       'Machine-readable offer of AssetraDigital (AI solutions, websites and e-shops, Czech Republic) and its products '
-      + 'Quante (AI e-commerce builder, quantecode.com) and Qbox (sandboxes for AI agents). Built from the code that charges the prices; '
+      + 'Quante (AI e-commerce builder, quantecode.com), Qbox (sandboxes for AI agents) and Kapsa (AI personal-finance coach, in development). Built from the code that charges the prices; '
       + 'free text is Czech, keys are English. A null value means "not published yet, ask" — never guess it.',
     organization: {
       name: company.name,
@@ -172,6 +173,20 @@ export function agentCatalog(rt: AgentRuntime = RUNTIME_OFF) {
           note: k.agency.pricing.note,
         },
         howToBuy: { human: `${SITE_ORIGIN}/web-eshop#kontakt`, agent: { inquiry: `POST ${APP_ORIGIN}/api/agent/v1/inquiry`, mcpTool: 'request_quote', consentRequired: true } },
+      },
+      {
+        id: 'kapsa',
+        kind: 'software' as const,
+        product: 'Kapsa',
+        name: 'Kapsa: AI kouč osobních financí',
+        status: kapsa.status === 'live' ? 'available' : 'in-development',
+        summary: k.ai.kapsa.what,
+        features: k.ai.kapsa.features,
+        url: `${SITE_ORIGIN}${kapsa.path}`,
+        markdown: `${SITE_ORIGIN}${kapsa.path}.md`,
+        app: kapsa.appUrl,
+        price: { model: null, amount: kapsa.price, currency: null, note: 'Not published yet.' },
+        howToBuy: { human: kapsa.appUrl, agent: null },
       },
       ...modules.map((m) => ({
         id: `quante-${m.slug}`,

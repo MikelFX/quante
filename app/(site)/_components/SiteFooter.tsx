@@ -2,11 +2,14 @@ import Link from 'next/link'
 import { BinaryStrip, GiantWordmark, InView, Logo, ParticleZone, Todo } from '@ad/ui'
 import { company, contact, legalPages } from '@/content/assetra/site'
 import { productLinks, quanteHome } from '@/content/assetra/modules'
+import { kapsa, kapsaStatusLabel } from '@/content/assetra/kapsa'
 
-// Every Quante product with its highlight (content/assetra/modules.ts); the pages are on quantecode.com.
+// Every Quante product with its highlight (content/assetra/modules.ts; the pages are on quantecode.com),
+// then our own apps outside Quante with a page on this website (Kapsa, content/assetra/kapsa.ts).
 const products = [
   { label: 'Quante', href: quanteHome() } as { label: string; href: string; badge?: string; dev?: boolean },
   ...productLinks().map((p) => ({ label: p.name, href: p.href, badge: p.badge, dev: p.dev })),
+  { label: kapsa.name, href: kapsa.path, badge: kapsa.status === 'dev' ? kapsaStatusLabel() : undefined, dev: kapsa.status === 'dev' },
 ]
 
 export function SiteFooter() {

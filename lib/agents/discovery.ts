@@ -104,7 +104,8 @@ export function llmsTxt(kind: Kind, rt: AgentRuntime = RUNTIME_OFF): string {
   const company = `## AssetraDigital (${SITE_ORIGIN})
 
 - [AI řešení a software na míru](${by('ai').md}): AI integrace, systémy kolem AI jádra, CRM, asistenti, automatizace. Cena po konzultaci.
-- [Web & Eshop na míru](${by('web-eshop').md}): weby a e-shopy bez vstupní investice, měsíční paušál (ceník v CZK).`
+- [Web & Eshop na míru](${by('web-eshop').md}): weby a e-shopy bez vstupní investice, měsíční paušál (ceník v CZK).
+- [Kapsa](${by('kapsa').md}): AI kouč osobních financí pro lidi v Česku (denní limit do výplaty, rozpočty, plán splácení dluhů). Samostatná aplikace, ve vývoji.`
   const quante = `## Quante (${APP_ORIGIN})
 
 - [Quante: přehled a ceník](${by('quante').md}): AI e-shop builder. E-shop z textového zadání, úpravy na stránce, reklamy, kontrola 20 agenty. Kredity v USD.
