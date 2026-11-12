@@ -47,6 +47,11 @@ test('the knowledge base holds nothing that must not be on the website', () => {
   assert.deepEqual(k.quante.modulesAvailable.map((m) => m.slug).sort(), ['generate', 'qads', 'qdit', 'qgent', 'qscan'])
   assert.deepEqual(k.quante.modulesInDevelopment.map((m) => m.slug).sort(), ['qails'])
   for (const m of k.quante.modulesInDevelopment) assert.match(m.status, /ve vývoji/, m.slug)
+  // Kapsa is our own app outside Quante: never a Quante module, its address and price unknown.
+  assert.ok(![...k.quante.modulesAvailable, ...k.quante.modulesInDevelopment].some((m) => /kapsa/i.test(m.slug + m.name)))
+  assert.equal(k.ai.kapsa.appUrl, null)
+  assert.equal(k.ai.kapsa.price, null)
+  assert.equal(k.ai.kapsa.page, '/kapsa')
 })
 
 test('every section the assistant can scroll to exists on its page', () => {

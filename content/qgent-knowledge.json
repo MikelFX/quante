@@ -116,6 +116,49 @@
       "website": "https://branka-site.vercel.app",
       "note": "Cenu a podrobnosti o Brance najde návštěvník na jejím webu."
     },
+    "kapsa": {
+      "what": "Kapsa: AI kouč osobních financí. Každý den víte, kolik můžete utratit, a máte plán, jak se zbavit dluhů. Kapsa je aplikace pro lidi v Česku, která hlídá výplatu, rozpočty a dluhy. Ukáže vám, kolik můžete utratit dnes, aby peníze vydržely do další výplaty, a spočítá, jak dluhy splatit rychleji.",
+      "relation": "Kapsa je produkt AssetraDigital: samostatná aplikace s vlastní adresou. Není součástí Quante ani modul Quante.",
+      "status": "ve vývoji (termín se neuvádí, nic se neslibuje)",
+      "features": [
+        "Kolik můžete utratit dnes: Zadáte čistou výplatu, den výplaty, pravidelné platby a rozpočty. Kapsa z nich spočítá denní limit, tedy kolik můžete utratit dnes, aby peníze vydržely do další výplaty.",
+        "Utratil jsi dnes něco?: Kapsa se vás každý den zeptá právě takhle. Odpovíte a máte přehled, jak na tom jste.",
+        "Rozpočty po kategoriích: Nájem, jídlo, cigarety, předplatné nebo cokoliv dalšího. Každá kategorie má svůj rozpočet.",
+        "Kam jde výplata: Na jednom místě vidíte, kolik z výplaty spotřebují pravidelné platby, rozpočty a splátky dluhů.",
+        "Další krok: Karta Další krok vám řekne, na co se zaměřit teď: nejdřív rezerva na jeden měsíc, pak dluhy s vysokým úrokem, potom rezerva na tři měsíce a nakonec růst.",
+        "Plán splácení dluhů: Ke každému dluhu zadáte zůstatek, úrok (RPSN) a měsíční splátku. Vyberete lavinu, která splácí nejdřív dluh s nejvyšším úrokem, nebo sněhovou kouli, která splácí nejdřív nejmenší dluh.",
+        "Splátka navíc: Posuvníkem přidáte k splátkám částku navíc každý měsíc. Hned vidíte, kolik přesně ušetříte na úrocích a kdy budete bez dluhů.",
+        "Můžu si to dovolit?: Zadáte cenu věci, kterou chcete koupit. Kapsa ukáže, jaký by pak byl váš denní limit a kolik byste ušetřili na úrocích, kdybyste stejnou částku poslali na dluh.",
+        "AI kouč: Útratu napíšete do chatu jako zprávu, třeba „dnes 180 jídlo, 135 cigára“, a kouč ji zapíše. Udělá i celý rozbor vašich financí a navrhne konkrétní a reálné nápady na přivýdělek podle toho, co umíte a kolik máte času."
+      ],
+      "howItWorks": [
+        {
+          "step": 1,
+          "title": "Zadáte své finance",
+          "text": "Čistou výplatu a den výplaty, pravidelné platby, rozpočty a dluhy."
+        },
+        {
+          "step": 2,
+          "title": "Každý den denní limit",
+          "text": "Kapsa ukáže, kolik můžete dnes utratit, a zeptá se, jestli jste dnes něco utratili."
+        },
+        {
+          "step": 3,
+          "title": "Plán a další krok",
+          "text": "Uvidíte, kam jde výplata, jak splatit dluhy a na co se zaměřit jako další."
+        }
+      ],
+      "limits": [
+        "Nevybírá finanční produkty: AI kouč nedoporučuje konkrétní finanční produkty, banky, úvěry, akcie ani kryptoměny. Pomáhá s rozpočtem, dluhy a nápady na přivýdělek. Když je situace vážná, doporučí bezplatnou dluhovou poradnu.",
+        "Čísla počítá kód, ne AI: Ušetřené úroky a datum, kdy budete bez dluhů, Kapsa počítá přesně pevnými výpočty v kódu. AI si tato čísla nevymýšlí.",
+        "Vaše data jsou soukromá: Data v Kapse jsou soukromá. Každý uživatel vidí jen svoje."
+      ],
+      "install": "Kapsu si přidáte na plochu telefonu a otevíráte ji jako aplikaci (PWA).",
+      "appUrl": null,
+      "price": null,
+      "page": "/kapsa",
+      "note": "Adresa aplikace a cena Kapsy zatím nejsou zveřejněné: asistent je neuvádí ani neodhaduje. Kapsa neradí s konkrétními finančními produkty, bankami, úvěry, akciemi ani kryptoměnami."
+    },
     "automateAnything": "Branka je jeden příklad provozu, který jde automatizovat. Pošlete nám, co vás ve firmě zdržuje, a zkusíme zautomatizovat jakékoliv zadání, které nám dáte: rezervace, objednávky, dokumenty, provoz, cokoliv.",
     "process": [
       {
@@ -540,6 +583,11 @@
         "title": "Web & Eshop: weby a e-shopy na míru"
       },
       {
+        "key": "kapsa",
+        "path": "/kapsa",
+        "title": "Kapsa: AI kouč osobních financí (ve vývoji)"
+      },
+      {
         "key": "quante",
         "path": "/quante",
         "title": "Quante: přehled modulů"
@@ -599,6 +647,7 @@
     "cena správy při jednorázové platbě a hodinová sazba",
     "jestli jsou ceny s DPH, nebo bez",
     "obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)",
+    "adresa aplikace Kapsa, její cena a termín spuštění",
     "termíny modulů ve vývoji (Qails)"
   ]
 }

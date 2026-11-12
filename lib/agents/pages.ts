@@ -71,6 +71,7 @@ ${k.contact.howToReachUs} Formulář: ${SITE_ORIGIN}/#kontakt. Telefon: ${nul(k.
 ## Další stránky
 
 - [Web & Eshop na míru](${SITE_ORIGIN}/web-eshop.md)
+- [Kapsa: AI kouč osobních financí](${SITE_ORIGIN}/kapsa.md)
 - [Quante: e-shop s AI, který si uděláte sami](${APP_ORIGIN}/index.md)
 - [Pro AI agenty](${SITE_ORIGIN}/agents.md)
 ${footer(rt)}`
@@ -117,6 +118,31 @@ ${list(k.agency.work.details)}
 ${k.contact.howToReachUs} Formulář: ${SITE_ORIGIN}/web-eshop#kontakt.
 ${footer(rt)}`
   return { id: 'web-eshop', title: 'Web & Eshop na míru', url: `${SITE_ORIGIN}/web-eshop`, md: `${SITE_ORIGIN}/web-eshop.md`, markdown: md }
+}
+
+function kapsaPage(rt: AgentRuntime): AgentPage {
+  const k = buildQgentKnowledge().ai.kapsa
+  const md = `# Kapsa: AI kouč osobních financí
+
+> ${k.what}
+
+${k.relation} Stav: ${k.status}. Aplikace: ${nul(k.appUrl, 'adresa aplikace')}. Cena: ${nul(k.price, 'cena')}.
+
+## Co umí
+
+${list(k.features)}
+
+${k.install}
+
+## Jak funguje
+
+${k.howItWorks.map((s) => `${s.step}. **${s.title}**: ${s.text}`).join('\n')}
+
+## Co Kapsa dělá a co ne
+
+${list(k.limits)}
+${footer(rt)}`
+  return { id: 'kapsa', title: 'Kapsa: AI kouč osobních financí', url: `${SITE_ORIGIN}${k.page}`, md: `${SITE_ORIGIN}${k.page}.md`, markdown: md }
 }
 
 function quantePage(rt: AgentRuntime): AgentPage {
@@ -211,6 +237,7 @@ function qboxPage(rt: AgentRuntime, qboxLlms: string): AgentPage {
 export function agentPage(id: string, rt: AgentRuntime = RUNTIME_OFF, qboxLlms = ''): AgentPage | null {
   if (id === 'ai') return aiPage(rt)
   if (id === 'web-eshop') return webPage(rt)
+  if (id === 'kapsa') return kapsaPage(rt)
   if (id === 'quante') return quantePage(rt)
   if (id === 'agents') return agentsPage(rt)
   if (id === 'qbox') return qboxPage(rt, qboxLlms)
@@ -221,7 +248,7 @@ export function agentPage(id: string, rt: AgentRuntime = RUNTIME_OFF, qboxLlms =
 
 /** Every page, in reading order. */
 export function agentPages(rt: AgentRuntime = RUNTIME_OFF, qboxLlms = ''): AgentPage[] {
-  const ids = ['agents', 'ai', 'web-eshop', 'quante', ...MODULE_SLUGS.map((s) => `module:${s}`), 'qbox', 'agent-shops']
+  const ids = ['agents', 'ai', 'web-eshop', 'kapsa', 'quante', ...MODULE_SLUGS.map((s) => `module:${s}`), 'qbox', 'agent-shops']
   return ids.map((id) => agentPage(id, rt, qboxLlms)).filter((p): p is AgentPage => !!p)
 }
 
