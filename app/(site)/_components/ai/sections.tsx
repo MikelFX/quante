@@ -1,4 +1,5 @@
 import Image from 'next/image'
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 import {
   BinaryStrip, Button, Card, CharHeading, CheckList, InView, ParticleZone, Pill, SectionLabel, SectionTitle, Sub, Tapes,
@@ -6,6 +7,7 @@ import {
 } from '@ad/ui'
 import { cta } from '@/content/assetra/site'
 import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop, productScreens } from '@/content/assetra/ai'
+import { kapsa } from '@/content/assetra/kapsa'
 import { LoopVideo } from './LoopVideo'
 import { Object3D } from './Object3D'
 
@@ -120,7 +122,8 @@ export function AiIdeas() {
   )
 }
 
-/** Our own products: a short header, then one showcase section per product (Branka-style). */
+/** Our own products: a short header, then one showcase section per product (Branka-style).
+ *  Kapsa has its own page (/kapsa), so the jump row links there instead of to a section. */
 export function AiBuilt() {
   const [quante, qgent, qads] = aiBuilt.items
   return (
@@ -134,6 +137,7 @@ export function AiBuilt() {
             {[...aiBuilt.items, { id: 'branka', title: aiBranka.title }].map((p) => (
               <a key={p.id} href={'#' + p.id}>{p.title}</a>
             ))}
+            <Link href={kapsa.path}>{kapsa.name}</Link>
           </nav>
         </div>
       </InView>

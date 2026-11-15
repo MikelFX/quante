@@ -1,11 +1,12 @@
 // Qgent's knowledge base for the public website assistant, built ONLY from the website content
-// (content/assetra/ai.ts, site.ts, modules.ts, quante-pricing.ts). Written to content/qgent-knowledge.json
+// (content/assetra/ai.ts, site.ts, modules.ts, quante-pricing.ts, kapsa.ts). Written to content/qgent-knowledge.json
 // by `npm run qgent:knowledge`; a test fails when the JSON is out of date. Unknown facts stay null —
 // the assistant must say they are clarified at the consultation, never guess.
 
 import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps } from './ai'
 import { company, contact, contract, legalPages, pricing, services, steps, work } from './site'
 import { modules, quanteFlow, quanteIntro } from './modules'
+import { kapsa } from './kapsa'
 import { moduleCosts, quantePricing } from './quante-pricing'
 import { LEAD_NEEDS } from '../../lib/assetra/lead'
 
@@ -33,6 +34,7 @@ export type QgentSection = keyof typeof QGENT_SECTIONS
 export const QGENT_PAGES = {
   home: { path: '/', title: 'Hlavní stránka AssetraDigital: AI řešení a software na míru' },
   'web-eshop': { path: '/web-eshop', title: 'Web & Eshop: weby a e-shopy na míru' },
+  kapsa: { path: kapsa.path, title: `Kapsa: AI kouč osobních financí${kapsa.status === 'dev' ? ' (ve vývoji)' : ''}` },
   quante: { path: '/quante', title: 'Quante: přehled modulů' },
   ...Object.fromEntries(modules.map((m) => [`quante/${m.slug}`, { path: `/quante/${m.slug}`, title: `${m.name}${m.status === 'dev' ? ' (ve vývoji)' : ''}` }])),
   ...Object.fromEntries(legalPages.map((p) => [p.slug, { path: '/' + p.slug, title: p.title }])),
@@ -87,6 +89,19 @@ export function buildQgentKnowledge() {
         features: aiBranka.features,
         website: aiBranka.href,
         note: 'Cenu a podrobnosti o Brance najde návštěvník na jejím webu.',
+      },
+      kapsa: {
+        what: `${kapsa.name}: ${kapsa.hero.tag}. ${kapsa.hero.promise} ${kapsa.hero.lead}`,
+        relation: `${kapsa.name} je produkt ${company.name}: samostatná aplikace s vlastní adresou. Není součástí Quante ani modul Quante.`,
+        status: statusCs(kapsa.status),
+        features: kapsa.features.items.map((f) => `${f.title}: ${f.text}`),
+        howItWorks: kapsa.steps.steps.map((s, i) => ({ step: i + 1, title: s.title, text: s.text })),
+        limits: kapsa.honest.items.map((f) => `${f.title}: ${f.text}`),
+        install: kapsa.install,
+        appUrl: kapsa.appUrl,
+        price: kapsa.price,
+        page: kapsa.path,
+        note: 'Adresa aplikace a cena Kapsy zatím nejsou zveřejněné: asistent je neuvádí ani neodhaduje. Kapsa neradí s konkrétními finančními produkty, bankami, úvěry, akciemi ani kryptoměnami.',
       },
       automateAnything: aiBranka.automate.text,
       process: aiSteps.steps.map((s, i) => ({ step: i + 1, title: s.title, text: s.text })),
@@ -159,6 +174,7 @@ export function buildQgentKnowledge() {
       'cena správy při jednorázové platbě a hodinová sazba',
       'jestli jsou ceny s DPH, nebo bez',
       'obchodní podmínky, ochrana osobních údajů a vzorová smlouva (texty se připravují)',
+      'adresa aplikace Kapsa, její cena a termín spuštění',
       `termíny modulů ve vývoji (${modules.filter((m) => m.status === 'dev').map((m) => m.name).join(', ')})`,
     ],
   }

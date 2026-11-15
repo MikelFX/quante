@@ -18,6 +18,7 @@ type Entry = { path: string; priority: number; changeFrequency: 'yearly' | 'mont
 const SITE: Entry[] = [
   { path: '/',          priority: 1.0, changeFrequency: 'monthly' },
   { path: '/web-eshop', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/kapsa',     priority: 0.6, changeFrequency: 'monthly' },
 ]
 
 // quantecode.com/ is the Quante overview (the /quante page, next.config.ts rewrite).
