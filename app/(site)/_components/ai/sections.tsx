@@ -7,7 +7,6 @@ import {
 import { cta } from '@/content/assetra/site'
 import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop, productScreens } from '@/content/assetra/ai'
 import { kapsa, kapsaStatusLabel } from '@/content/assetra/kapsa'
-import { KapsaPhone } from '../kapsa/KapsaPhone'
 import { LoopVideo } from './LoopVideo'
 import { Object3D } from './Object3D'
 
@@ -205,8 +204,8 @@ export function AiBuilt() {
   )
 }
 
-/** Kapsa (content/assetra/kapsa.ts): three phones like Branka, drawn in HTML (KapsaPhone.tsx), and four
- *  smaller screens below. Its status badge comes from the data („Ve vývoji“ until it is live). */
+/** Kapsa (content/assetra/kapsa.ts): three phones like Branka with screenshots of the app, four smaller
+ *  screens below. Its status badge comes from the data („Ve vývoji“ until it is live). */
 function AiKapsa() {
   const sc = kapsa.showcase
   return (
@@ -225,22 +224,22 @@ function AiKapsa() {
           </div>
           <div className="br-stage rv" style={delay(0.15)}>
             <div className="glow" aria-hidden="true" />
-            <KapsaPhone screen="debts" className="l" />
-            <KapsaPhone screen="today" className="c" />
-            <KapsaPhone screen="coach" className="r" />
+            {sc.stage.map((p, i) => (
+              <Phone key={p.src} src={p.src} dark={'dark' in p ? p.dark : undefined} alt={p.alt} className={['l', 'c', 'r'][i]} />
+            ))}
             <span className="pr-badge glass" aria-hidden="true"><i />{kapsaStatusLabel()}</span>
           </div>
         </div>
         <ul className="br-shots">
-          {sc.shots.map((shot, i) => (
-            <li key={shot.kind} className="rv" style={delay(0.06 * i)}>
-              <KapsaPhone screen={shot.kind} />
+          {sc.screens.map((shot, i) => (
+            <li key={shot.src} className="rv" style={delay(0.06 * i)}>
+              <Phone src={shot.src} alt={`Kapsa: ${shot.caption}`} />
               <b>{shot.caption}</b>
               <span>{shot.text}</span>
             </li>
           ))}
         </ul>
-        <p className="fine kp-note-ex rv">{sc.example}. {kapsa.install}</p>
+        <p className="fine br-note rv">{sc.example}. {kapsa.install}</p>
       </div>
     </InView>
   )
@@ -285,8 +284,17 @@ function Browser({ url, className, children }: { url?: string; className?: strin
   )
 }
 
-/** A phone with a screenshot of our own product (Branka). */
-function Phone({ src, alt, className }: { src: string; alt: string; className?: string }) {
+/** A phone with a screenshot of our own product (Branka, Kapsa). With `dark`, the dark screenshot shows
+ *  in the website's dark theme and `src` in the light one (site.css .br-dk / .br-lt). */
+function Phone({ src, dark, alt, className }: { src: string; dark?: string; alt: string; className?: string }) {
+  if (dark) {
+    return (
+      <span className={cx('br-ph', className)}>
+        <Image className="br-dk" src={dark} alt={alt} width={780} height={1688} sizes="(max-width: 900px) 46vw, 240px" />
+        <Image className="br-lt" src={src} alt="" width={780} height={1688} sizes="(max-width: 900px) 46vw, 240px" />
+      </span>
+    )
+  }
   return (
     <span className={cx('br-ph', className)}>
       <Image src={src} alt={alt} width={780} height={1688} sizes="(max-width: 900px) 46vw, 240px" />
