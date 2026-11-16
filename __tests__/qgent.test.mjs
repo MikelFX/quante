@@ -49,7 +49,7 @@ test('the knowledge base holds nothing that must not be on the website', () => {
   for (const m of k.quante.modulesInDevelopment) assert.match(m.status, /ve vývoji/, m.slug)
   // Kapsa is our own app outside Quante: never a Quante module, its address and price unknown.
   assert.ok(![...k.quante.modulesAvailable, ...k.quante.modulesInDevelopment].some((m) => /kapsa/i.test(m.slug + m.name)))
-  assert.equal(k.ai.kapsa.appUrl, null)
+  assert.equal(k.ai.kapsa.appUrl, 'https://kapsa.assetradigital.agency')
   assert.equal(k.ai.kapsa.price, null)
   assert.equal(k.ai.kapsa.page, '/kapsa')
 })

@@ -3,8 +3,8 @@
 // Quante module, so it is never listed in content/assetra/modules.ts or the „Produkty Quante“ menu.
 // Data, not markup: the website page /kapsa renders it, the Qgent knowledge base and the agent
 // pages are built from it. Only facts the owner gave: every feature below exists in the app.
-// Unknown facts are null and render as visible [placeholders]: the app's address (the owner sends
-// it later) and the price. Never type a price or a date here.
+// Unknown facts are null and render as visible [placeholders]: the price. The app runs on
+// kapsa.assetradigital.agency (owner, 2026-11-16). Never type a price or a date here.
 
 /** Same words as the Quante modules: 'dev' = „Ve vývoji“, no way into the app yet. */
 export type KapsaStatus = 'live' | 'dev'
@@ -12,8 +12,8 @@ export type KapsaStatus = 'live' | 'dev'
 export const kapsa = {
   name: 'Kapsa',
   status: 'dev' as KapsaStatus,
-  /** The Kapsa app (its own domain). null = [placeholder] until the owner gives it. */
-  appUrl: null as string | null,
+  /** The Kapsa app (own Vercel project, subdomain of the website; owner, 2026-11-16). */
+  appUrl: 'https://kapsa.assetradigital.agency' as string | null,
   /** null = [placeholder]. Never type a price into copy. */
   price: null as string | null,
   path: '/kapsa',
