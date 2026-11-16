@@ -156,7 +156,7 @@
         "Vaše data jsou soukromá: Data v Kapse jsou soukromá. Každý uživatel vidí jen svoje."
       ],
       "install": "Kapsu si přidáte na plochu telefonu a otevíráte ji jako aplikaci (PWA).",
-      "appUrl": null,
+      "appUrl": "https://kapsa.assetradigital.agency",
       "price": null,
       "page": "/kapsa",
       "note": "Adresa aplikace a cena Kapsy zatím nejsou zveřejněné: asistent je neuvádí ani neodhaduje. Kapsa neradí s konkrétními finančními produkty, bankami, úvěry, akciemi ani kryptoměnami."

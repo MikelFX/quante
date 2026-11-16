@@ -82,7 +82,7 @@ test('every page has Markdown, page ids follow the host', () => {
   assert.equal(id('/web-eshop', 'app'), null)
   assert.equal(id('/kapsa.md', 'site'), 'kapsa')
   assert.equal(id('/kapsa', 'app'), null)
-  assert.match(P.agentPage('kapsa').markdown, /^# Kapsa[\s\S]*adresa aplikace: zatím nezveřejněno/)
+  assert.match(P.agentPage('kapsa').markdown, /^# Kapsa[\s\S]*Aplikace: https:\/\/kapsa\.assetradigital\.agency\./)
   assert.equal(id('/quante/qads.md', 'app'), 'module:qads')
   assert.equal(id('/qgent', 'app'), 'module:qgent')
   assert.equal(id('/qbox', 'app'), 'qbox')
