@@ -1,5 +1,4 @@
 import Image from 'next/image'
-import Link from 'next/link'
 import type { ReactNode } from 'react'
 import {
   BinaryStrip, Button, Card, CharHeading, CheckList, InView, ParticleZone, Pill, SectionLabel, SectionTitle, Sub, Tapes,
@@ -7,7 +6,8 @@ import {
 } from '@ad/ui'
 import { cta } from '@/content/assetra/site'
 import { aiAudience, aiBranka, aiBuilt, aiHero, aiIdeas, aiServices, aiSteps, aiWebShop, productScreens } from '@/content/assetra/ai'
-import { kapsa } from '@/content/assetra/kapsa'
+import { kapsa, kapsaStatusLabel } from '@/content/assetra/kapsa'
+import { KapsaPhone } from '../kapsa/KapsaPhone'
 import { LoopVideo } from './LoopVideo'
 import { Object3D } from './Object3D'
 
@@ -123,7 +123,7 @@ export function AiIdeas() {
 }
 
 /** Our own products: a short header, then one showcase section per product (Branka-style).
- *  Kapsa has its own page (/kapsa), so the jump row links there instead of to a section. */
+ *  Kapsa's showcase links on to its own page (/kapsa). */
 export function AiBuilt() {
   const [quante, qgent, qads] = aiBuilt.items
   return (
@@ -134,10 +134,9 @@ export function AiBuilt() {
           <SectionTitle>{aiBuilt.title}</SectionTitle>
           <Sub>{aiBuilt.sub}</Sub>
           <nav className="pr-jump rv" aria-label="Naše produkty">
-            {[...aiBuilt.items, { id: 'branka', title: aiBranka.title }].map((p) => (
+            {[...aiBuilt.items, { id: 'kapsa', title: kapsa.name }, { id: 'branka', title: aiBranka.title }].map((p) => (
               <a key={p.id} href={'#' + p.id}>{p.title}</a>
             ))}
-            <Link href={kapsa.path}>{kapsa.name}</Link>
           </nav>
         </div>
       </InView>
@@ -201,7 +200,49 @@ export function AiBuilt() {
           </span>
         </div>
       </Product>
+      <AiKapsa />
     </>
+  )
+}
+
+/** Kapsa (content/assetra/kapsa.ts): three phones like Branka, drawn in HTML (KapsaPhone.tsx), and four
+ *  smaller screens below. Its status badge comes from the data („Ve vývoji“ until it is live). */
+function AiKapsa() {
+  const sc = kapsa.showcase
+  return (
+    <InView className="sec pr" id="kapsa">
+      <div className="w">
+        <div className="br-grid rev">
+          <div className="br-txt">
+            <p className="br-kick rv">{kapsa.hero.tag}</p>
+            <h2 className="br-h rv" style={delay(0.08)}>{kapsa.name}</h2>
+            <p className="br-lead rv" style={delay(0.14)}>{kapsa.hero.lead}</p>
+            <ul className="feat rv" style={delay(0.2)}>{sc.features.map((f) => <li key={f}>{f}</li>)}</ul>
+            <div className="ctas rv" style={delay(0.26)}>
+              <Button href={kapsa.path} variant="pri" arrow>{sc.more}</Button>
+              {kapsa.appUrl && <Button href={kapsa.appUrl}>{kapsa.hero.cta}</Button>}
+            </div>
+          </div>
+          <div className="br-stage rv" style={delay(0.15)}>
+            <div className="glow" aria-hidden="true" />
+            <KapsaPhone screen="debts" className="l" />
+            <KapsaPhone screen="today" className="c" />
+            <KapsaPhone screen="coach" className="r" />
+            <span className="pr-badge glass" aria-hidden="true"><i />{kapsaStatusLabel()}</span>
+          </div>
+        </div>
+        <ul className="br-shots">
+          {sc.shots.map((shot, i) => (
+            <li key={shot.kind} className="rv" style={delay(0.06 * i)}>
+              <KapsaPhone screen={shot.kind} />
+              <b>{shot.caption}</b>
+              <span>{shot.text}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="fine kp-note-ex rv">{sc.example}. {kapsa.install}</p>
+      </div>
+    </InView>
   )
 }
 
