@@ -113,6 +113,68 @@ export const kapsa = {
 
   install: 'Kapsu si přidáte na plochu telefonu a otevíráte ji jako aplikaci (PWA).',
 
+  /** Homepage showcase („04 Vlastní AI produkty“): phones drawn in HTML (KapsaPhone.tsx), not screenshots.
+   *  Every screen shows a feature listed above; the money is one consistent made-up example, worked out
+   *  with the app's own rules (daily limit = what is left ÷ days to payday; avalanche + extra payment
+   *  computed month by month), so the numbers on different screens agree with each other. */
+  showcase: {
+    features: [
+      'Denní limit do výplaty',
+      'Rozpočty po kategoriích',
+      'Plán splácení: lavina nebo sněhová koule',
+      'Splátka navíc a kolik ušetříte',
+      'AI kouč: útratu napíšete jako zprávu',
+      'V telefonu jako aplikace',
+    ],
+    more: 'Více o Kapse',
+    example: 'Ukázková čísla',
+    today: {
+      days: 9, left: '3 708 Kč', limit: '412 Kč', limitLabel: 'dnes můžete utratit',
+      ask: 'Utratil jsi dnes něco?', yes: 'Ano, zapsat', no: 'Nic',
+      next: { label: 'Další krok', title: 'Rezerva na jeden měsíc', progress: 0.62, value: '19 840 / 32 000 Kč' },
+    },
+    debts: {
+      title: 'Plán splácení', modes: ['Lavina', 'Sněhová koule'],
+      items: [
+        { name: 'Kreditní karta', balance: '24 000 Kč', rate: '21,9 %', paid: 0.38 },
+        { name: 'Půjčka', balance: '68 000 Kč', rate: '12,9 %', paid: 0.14 },
+      ],
+      extraLabel: 'Splátka navíc', extra: '+1 500 Kč / měs.',
+      saved: '8 564 Kč', savedLabel: 'ušetříte na úrocích', sooner: 'bez dluhů o 13 měsíců dřív',
+    },
+    coach: {
+      title: 'AI kouč',
+      you: 'dnes 180 jídlo, 135 cigára',
+      reply: ['Zapsáno: Jídlo 180 Kč, Cigarety 135 Kč.', 'Na dnes vám zbývá 97 Kč.'],
+      tip: 'Cigarety vás za rok stojí 49 275 Kč.',
+      chips: ['Rozbor financí', 'Nápady na přivýdělek'],
+      input: 'Napište útratu nebo otázku',
+    },
+    shots: [
+      { kind: 'salary' as const, caption: 'Kam jde výplata', text: 'Platby, rozpočty a splátky z jedné výplaty.' },
+      { kind: 'afford' as const, caption: 'Můžu si to dovolit?', text: 'Denní limit po nákupu a co by udělal na dluhu.' },
+      { kind: 'remind' as const, caption: 'Večerní připomínka', text: 'V 19:00, jen když jste nic nezapsali.' },
+      { kind: 'insight' as const, caption: 'Co vidím', text: 'Kapsa sama upozorní, co se děje.' },
+    ],
+    salary: {
+      total: '32 000 Kč',
+      parts: [
+        { label: 'Pravidelné platby', value: '12 400 Kč', share: 0.3875 },
+        { label: 'Rozpočty', value: '10 200 Kč', share: 0.31875 },
+        { label: 'Splátky dluhů', value: '3 300 Kč', share: 0.103125 },
+        { label: 'Zbývá', value: '6 100 Kč', share: 0.190625 },
+      ],
+    },
+    afford: { item: 'Sluchátka', price: '2 490 Kč', limitNow: '412 Kč', limitAfter: '135 Kč', debt: '1 891 Kč', debtLabel: 'ušetříte na úrocích, když to pošlete na kartu', buy: 'Koupit', pay: 'Poslat na dluh' },
+    remind: { time: '19:00', title: 'Kapsa', text: 'Utratil jsi dnes něco? Zapiš to, ať limit sedí.' },
+    insight: [
+      { title: 'Utrácíte rychleji, než výplata stačí', text: 'Tímhle tempem vám chybí 1 240 Kč do výplaty.' },
+      { title: 'Rozpočet Jídlo přečerpán', text: 'O 340 Kč víc, než jste si nastavili.' },
+      { title: 'Předplatné za rok', text: '3 588 Kč za služby, které platíte měsíčně.' },
+      { title: 'Cigarety za rok', text: '49 275 Kč, když zůstanete u 135 Kč denně.' },
+    ],
+  },
+
   facts: {
     label: 'Stav',
     title: 'Kde Kapsu najdete',
