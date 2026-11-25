@@ -36,6 +36,7 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { authenticateStoreKey } from '../../_lib/store-auth'
 import { reserveOrderMailSlot } from '../../_lib/order-mail'
 import { reserveUnpaidMailSlotIfNeeded } from '@/lib/order-emails'
+import { dispatchSupplierOrdersSafe } from '@/lib/suppliers/dispatch'
 
 const VALID_STATUSES = ['pending', 'paid', 'shipped', 'cancelled', 'refunded'] as const
 type OrderStatus = typeof VALID_STATUSES[number]
@@ -193,6 +194,9 @@ export async function PATCH(request: Request, { params }: Context) {
 
   if (error) return NextResponse.json({ error: 'Order not found or update failed' }, { status: 404 })
   if (!order) return NextResponse.json({ error: 'Order was changed by another request. Reload and try again.' }, { status: 409 })
+
+  // A bank transfer the merchant just confirmed: catalog products go to their suppliers.
+  if (plan.resultStatus === 'paid') await dispatchSupplierOrdersSafe(orderId)
 
   // Customer mails go only to the address stored on the order, only for the row this
   // request actually moved into shipped / refunded, and only within the mail caps.

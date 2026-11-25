@@ -20,6 +20,7 @@ import { resolveLiveCodeVersion } from '@/lib/hosting/scaffold-rollout'
 import type { CodeVersionFiles } from '@/types/store-code'
 import { getActivePartnerForProject, recordCommission } from '@/lib/partner-commission'
 import { decrementStockForOrder } from '@/lib/payments/stock'
+import { dispatchSupplierOrdersSafe } from '@/lib/suppliers/dispatch'
 import { signedInvoiceUrl } from '@/lib/invoice-generator'
 
 // Stripe webhook — every money-moving event for the platform.
@@ -1496,7 +1497,12 @@ async function recordStoreSale(projectId: string, session: Stripe.Checkout.Sessi
       // Emails + stock only on the pending → paid transition, never on a Stripe retry.
       const transitioned = (updated ?? []) as Array<{ id: string; project_id: string; items: unknown }>
       shouldNotify = transitioned.length > 0
-      if (transitioned[0]) await decrementStockForOrder(transitioned[0])
+      if (transitioned[0]) {
+        await decrementStockForOrder(transitioned[0])
+        // Catalog products go to their suppliers (lib/suppliers/dispatch.ts) after the response.
+        const paidId = transitioned[0].id
+        after(() => dispatchSupplierOrdersSafe(paidId))
+      }
     }
   } else {
     // Legacy sessions without an order: notify only when this delivery booked the sale.
