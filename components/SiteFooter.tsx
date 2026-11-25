@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ConsentSettingsLink } from '@/components/consent/MarketingConsent'
 import { QuanteBrand } from '@/components/shell/QuanteBrand'
 import { operator, socialLinks, footerNav, isFilled } from '@/lib/site-config'
 
@@ -169,6 +170,7 @@ export function SiteFooter() {
                 {l.label}
               </Link>
             ))}
+            <span className="q-tap" style={{ fontSize: 11.5, color: muted }}><ConsentSettingsLink label="Cookie settings" /></span>
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import { ParticleField } from '@ad/ui/particles'
 import { ThemeScript } from '@ad/ui/ThemeScript'
 import { adFontVars } from '@ad/ui/fonts'
 import { LANG_SCRIPT } from '@/lib/lang-script'
+import { MarketingConsent } from '@/components/consent/MarketingConsent'
 import './globals.css'
 import '@ad/ui/styles/app-tokens.css'
 
@@ -56,6 +57,8 @@ export default function RootLayout({
         </TooltipProvider>
         <Analytics />
         <SpeedInsights />
+        {/* ChatGPT Ads pixel, quantecode.com only, after marketing consent (lib/marketing-pixel.ts) */}
+        <MarketingConsent />
       </body>
     </html>
   )

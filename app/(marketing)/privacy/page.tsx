@@ -114,7 +114,7 @@ export default function PrivacyPage() {
       </Section>
 
       <Section title="8. Cookies and local storage">
-        <p>We use browser cookies and local storage for authentication sessions and user preferences (such as dismissing announcements). See our Cookie Policy for details.</p>
+        <p>We use browser cookies and local storage for authentication sessions and user preferences (such as dismissing announcements). With your consent only, quantecode.com also uses the OpenAI measurement pixel (ChatGPT Ads) to learn whether a visit from one of our ads led to a sign-up or purchase; the legal basis is your consent, which you can withdraw at any time in Cookie settings. See our Cookie Policy for details.</p>
       </Section>
 
       <Section title="9. Changes to this policy">

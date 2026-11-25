@@ -4,6 +4,7 @@ import { company } from '@/content/assetra/site'
 import { productLinks, quanteApp, quanteHome, type Locale } from '@/content/assetra/modules'
 import { appHref, siteHref } from '@/lib/domains'
 import { uiCopy } from './ui-copy'
+import { ConsentSettingsLink } from '@/components/consent/MarketingConsent'
 
 // Quante's own legal pages live in the app (English, app/(marketing)).
 const docs = [
@@ -50,6 +51,7 @@ export function QuanteFooter({ locale = 'cs' }: { locale?: Locale }) {
           <nav className="ftl" aria-labelledby="ft-dokumenty">
             <p className="ftk" id="ft-dokumenty">{t.footerDocs}</p>
             {docs.map((d) => <a key={d.href} href={d.href}>{d.label}</a>)}
+            <ConsentSettingsLink label={locale === 'cs' ? 'Nastavení cookies' : 'Cookie settings'} />
           </nav>
         </div>
       </div>
