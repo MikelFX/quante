@@ -73,6 +73,16 @@ export function SuppliersAdmin() {
     }
   }
 
+  async function addDemo() {
+    const r = await post({ action: 'demo' }, 'demo')
+    if (r) {
+      setNote(r.ok
+        ? `Demo supplier ready: ${r.imported} products. Only admins see it in Studio → Products → Catalog; its orders go to ${r.orderEmail}.`
+        : `Demo supplier saved, but the import failed: ${r.error}`)
+      setTick((t) => t + 1)
+    }
+  }
+
   const edit = (s: Row) => setForm({
     id: s.id, name: s.name, slug: s.slug, feedUrl: s.feed_url, feedFormat: s.feed_format, wholesaleField: s.wholesale_field ?? '',
     wholesaleDiscountPct: s.wholesale_discount_pct === null ? '' : String(s.wholesale_discount_pct), currency: s.currency,
@@ -97,7 +107,14 @@ export function SuppliersAdmin() {
     <section style={{ margin: '0 0 2.5rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
         <h1 style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-.02em', margin: 0 }}>Suppliers (catalog)</h1>
-        {data?.setUp && !form && <button style={btn(true)} onClick={() => setForm({ ...EMPTY })}>Add supplier</button>}
+        {data?.setUp && !form && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button style={btn(false, busy === 'demo')} disabled={busy === 'demo'} onClick={addDemo} title="Made-up products so the whole flow can be tried. Admins only; orders go to your own e-mail.">
+              {busy === 'demo' ? 'Importing…' : data.suppliers.some((s) => s.slug === 'demo') ? 'Refresh demo supplier' : 'Add demo supplier'}
+            </button>
+            <button style={btn(true)} onClick={() => setForm({ ...EMPTY })}>Add supplier</button>
+          </div>
+        )}
       </div>
       {!data && !error && <p style={small}>Loading…</p>}
       {data && !data.setUp && <p style={{ fontSize: 13, color: 'var(--q-warn-text)' }}>Not set up: run <code>supabase/migration-supplier-catalog.sql</code> in Supabase first.</p>}
@@ -131,7 +148,7 @@ export function SuppliersAdmin() {
             <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', flexWrap: 'wrap', borderBottom: '1px solid rgb(var(--q-ink-rgb) / .05)' }}>
               <div style={{ flex: '1 1 260px', minWidth: 0 }}>
                 <p style={{ fontSize: 13, fontWeight: 600, margin: 0, color: 'var(--q-fg)' }}>
-                  {s.name} {s.status === 'paused' && <span style={{ ...small, color: 'var(--q-warn-text)' }}>paused</span>}
+                  {s.name} {s.slug === 'demo' && <span style={{ ...small, color: 'var(--q-acc-text)' }}>demo · admins only</span>} {s.status === 'paused' && <span style={{ ...small, color: 'var(--q-warn-text)' }}>paused</span>}
                 </p>
                 <p style={{ ...small, margin: '2px 0 0' }}>
                   {s.product_count} products · {s.linked} in stores · {s.currency} · import {when(s.last_import_at)} · orders → {s.order_email}
