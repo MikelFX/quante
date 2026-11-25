@@ -27,7 +27,8 @@ export function AnnouncementBanner() {
   }
 
   // Quante announcement — not part of the AssetraDigital website.
-  if (!visible || isSiteRoute(pathname)) return null
+  // Plnolet (age verification) is its own service: no Quante chrome on its pages.
+  if (!visible || isSiteRoute(pathname) || pathname?.startsWith('/plnolet')) return null
 
   return (
     <div

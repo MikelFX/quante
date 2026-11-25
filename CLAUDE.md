@@ -469,3 +469,12 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - Per-user rate limits + hard per-request cost cap.
 - Supabase RLS on every table.
 - Generated `.env.example` ships placeholders only — never real keys.
+
+## 13s. Plnolet — age verification for e-shops (2026-11-25)
+
+- Owner picked **age verification 18+ (not a cookie banner)** and "Postavit vlastní Plnolet" (design doc https://claude.ai/artifact/7DfoV89N5sURyWpYq5U4ar). Phase 0 = test mode only; live needs the trade licence + Bank iD / mojeID contracts (CLAUDE §13d: no company yet, nothing paid).
+- `quantecode.com/plnolet` (service page, `PLNOLET_PATHS`, Czech, own look in `app/plnolet/plnolet.css`, every selector `.pn`, tokens only), `/plnolet/ucet` (merchant account, Clerk), `/plnolet/v/<ses_…>` (shopper's window — proxy skips Clerk there and on /plnolet; no Quante chrome). Widget `public/plnolet/widget.js` (`Plnolet.verify(url)`, popup + postMessage to the return_url's origin, redirect fallback).
+- Merchant API `POST/GET /api/plnolet/v1/sessions[/id]`, Bearer `plt_test_…` / `plt_live_…` (sha256 stored, exempt from cookie CSRF). return_url only on the merchant's own https domains. The merchant must read the result from the API, never trust the browser.
+- Ways to prove the age: Bank iD / mojeID over OIDC (`lib/plnolet/providers.ts` + `oidc.ts`, on only with `PLNOLET_{MOJEID,BANKID}_CLIENT_ID/SECRET`; only on live sessions), test buttons on test sessions, and the **age pass** = a passkey (`lib/plnolet/webauthn.ts`, ES256/RS256, attestation none) saved right after a real check in the same browser (signed `pn_issue` cookie), valid 365 days, knows only over18/over21. Live keys need `PLNOLET_LIVE=1` + a provider + `plnolet_merchants.live_enabled` (operator). `PLNOLET_SECRET` (else derived from the Clerk secret), `PLNOLET_ORIGIN` moves the shopper pages (passkeys are bound to that host).
+- **Never store a shopper's identity**: claims are read once in the callback, turned into over18/over21, dropped; tables (`supabase/migration-plnolet.sql`, service role, fails closed) hold only result, method, time. Prices only in `lib/plnolet/pricing.ts` (proposed, `PLNOLET_PAID=false`). Tested in `__tests__/plnolet.test.mjs`.
+- Not built yet: Quante store integration (`ageRestricted` products + checkout gate — waits for the scaffold 7 checkout fix to merge), webhooks, document scan, billing, plnolet.cz host.
