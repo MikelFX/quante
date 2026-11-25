@@ -12,6 +12,7 @@
     "test:changelog-webhook": "node --test __tests__/changelog-webhook.test.mjs",
     "test:fulfillment-byrd": "node --test __tests__/fulfillment-byrd.test.mjs",
     "test:store-health": "node --test __tests__/store-health.test.mjs",
+    "test:store-payment-choice": "node --test __tests__/store-payment-choice.test.mjs",
     "test:partner-commission": "node --test __tests__/partner-commission.test.mjs",
     "test:marketplace": "node --test __tests__/marketplace.test.mjs",
     "test:generation-checkpoint": "node --test __tests__/generation-checkpoint.test.mjs",
