@@ -19,6 +19,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getProjectPaymentCreds, paypalForProject } from '@/lib/payments/project-providers'
 import { sendPaymentSuccessEmails, type PaidOrderRow } from '@/lib/order-emails'
 import { decrementStockForOrder } from '@/lib/payments/stock'
+import { dispatchSupplierOrdersSafe } from '@/lib/suppliers/dispatch'
 
 export type PayPalCaptureResult = {
   ok: boolean
@@ -115,6 +116,7 @@ export async function captureAndMarkPaid(paypalOrderId: string): Promise<PayPalC
   if (updated && paidStatus === 'paid') {
     await decrementStockForOrder(order)
     await sendPaymentSuccessEmails(order as PaidOrderRow)
+    await dispatchSupplierOrdersSafe(order.id)
   }
 
   return { ok: true }

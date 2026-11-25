@@ -21,6 +21,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getProjectPaymentCreds, comgateSecretForProject, comgateForProject } from '@/lib/payments/project-providers'
 import { sendPaymentSuccessEmails, type PaidOrderRow } from '@/lib/order-emails'
 import { decrementStockForOrder } from '@/lib/payments/stock'
+import { dispatchSupplierOrdersSafe } from '@/lib/suppliers/dispatch'
 
 function safeEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a)
@@ -170,6 +171,7 @@ export async function POST(request: Request) {
   if (order && newStatus === 'paid') {
     await decrementStockForOrder(order)
     await sendPaymentSuccessEmails(order as PaidOrderRow)
+    await dispatchSupplierOrdersSafe(order.id)
   }
 
   return new Response('OK', { status: 200 })

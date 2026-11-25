@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/admin'
 import { ChangelogAdmin, type ChangelogEntry } from './ChangelogAdmin'
 import { StoreUpdatesAdmin } from './StoreUpdatesAdmin'
 import { QboxAdmin } from './QboxAdmin'
+import { SuppliersAdmin } from './SuppliersAdmin'
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—'
@@ -68,6 +69,8 @@ export default async function AdminPage() {
 
   return (
     <div style={{ padding: '1.5rem 1rem 3rem', maxWidth: 900, margin: '0 auto' }}>
+      <SuppliersAdmin />
+
       <QboxAdmin />
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.75rem' }}>

@@ -17,6 +17,7 @@ import { getProjectPaymentCreds, gopayForProject, type ProjectPaymentCreds } fro
 import type { PaymentStatusResult } from '@/lib/payments/types'
 import { sendPaymentSuccessEmails, type PaidOrderRow } from '@/lib/order-emails'
 import { decrementStockForOrder } from '@/lib/payments/stock'
+import { dispatchSupplierOrdersSafe } from '@/lib/suppliers/dispatch'
 
 export async function POST(request: Request) {
   const params = new URL(request.url).searchParams
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
   if (order && newPaymentStatus === 'paid') {
     await decrementStockForOrder(order)
     await sendPaymentSuccessEmails(order as PaidOrderRow)
+    await dispatchSupplierOrdersSafe(order.id)
   }
 
   return new Response('OK', { status: 200 })

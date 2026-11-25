@@ -13,6 +13,7 @@ import { MerchantPanel } from './MerchantPanel'
 import { CodeThemePanel } from './CodeThemePanel'
 import { QgentPanel, type QgentApplied } from './QgentPanel'
 import { VisualEditor } from './VisualEditor'
+import { CatalogPanel } from './CatalogPanel'
 import { THEME_MESSAGE_SOURCE, type themePreviewPayload } from '@/lib/store-theme-shared'
 import {
   MessageCircle, Layers, Package, Paintbrush, Rocket,
@@ -656,6 +657,8 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
   const [codeProductsLoaded, setCodeProductsLoaded] = useState(false)
   const [isSavingProducts, setIsSavingProducts] = useState(false)
   const [productsSavedNote, setProductsSavedNote] = useState(false)
+  // Supplier catalog (CLAUDE.md §13r): dropship products the merchant can add
+  const [catalogOpen, setCatalogOpen] = useState(false)
   // AI Store Analyzer (Insights admin tab)
   const [insightCards, setInsightCards] = useState<InsightCard[] | null>(null)
   const [insightsUpdatedAt, setInsightsUpdatedAt] = useState<string | null>(null)
@@ -3453,6 +3456,13 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                 </button>
               )}
               <button
+                onClick={() => setCatalogOpen(true)}
+                title="Products from suppliers who ship to your customers for you"
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-ink-rgb) / .12)', background: 'transparent', color: 'var(--q-fg2)', cursor: 'pointer' }}
+              >
+                <Package size={11} /> Catalog
+              </button>
+              <button
                 onClick={() => setProductDraft(emptyProduct())}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 6, border: '1px solid rgb(var(--q-acc-rgb) / .4)', background: 'rgb(var(--q-acc-rgb) / .1)', color: 'var(--q-acc-text)', cursor: 'pointer' }}
               >
@@ -3460,6 +3470,15 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
               </button>
             </div>
           </div>
+
+          {catalogOpen && (
+            <CatalogPanel
+              projectId={projectId}
+              currency={codeCurrency}
+              onClose={() => setCatalogOpen(false)}
+              onAdded={(product) => { setCodeProducts(prev => [...(prev ?? []), product]); setProductsSavedNote(true) }}
+            />
+          )}
 
           {/* Saved note */}
           {productsSavedNote && (
@@ -3505,6 +3524,7 @@ export function StudioClient({ projectId, projectName, storeUrl, initialBalance,
                     )}
                     {p.sku && <span style={{ marginLeft: 6, fontFamily: 'var(--q-mono)', color: 'var(--q-fg4)' }}>{p.sku}</span>}
                     {p.available === false && <span style={{ marginLeft: 6, color: 'var(--q-danger-text)' }}>· unavailable</span>}
+                    {p.id.startsWith('sup-') && <span style={{ marginLeft: 6, color: 'var(--q-fg4)' }} title="From the catalog: the supplier ships it">· supplier</span>}
                   </p>
                 </div>
                 <button

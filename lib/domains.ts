@@ -59,6 +59,7 @@ export const APP_PATHS = [
   '/cookies',
   '/refund',
   '/invoice/:path*',
+  '/supplier-order/:path*',
   '/preview/:path*',
 ] as const
 
