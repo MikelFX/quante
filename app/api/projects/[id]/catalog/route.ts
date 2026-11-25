@@ -6,6 +6,7 @@
 //   PATCH  { productId, action: 'ack-price' } → the merchant saw the new wholesale price
 import { NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { requireAdmin } from '@/lib/admin'
 import { getOwnedProject } from '@/lib/auth/project'
 import { rateLimit } from '@/lib/rate-limit'
 import { acknowledgePrice, addToStore, storeLinks } from '@/lib/suppliers/catalog'
@@ -44,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = (await request.json().catch(() => ({}))) as { supplierProductId?: unknown; price?: unknown }
   if (typeof body.supplierProductId !== 'string') return NextResponse.json({ error: 'supplierProductId required' }, { status: 400 })
   try {
-    const r = await addToStore(o.userId, o.projectId, body.supplierProductId, body.price)
+    const r = await addToStore(o.userId, o.projectId, body.supplierProductId, body.price, !!(await requireAdmin()))
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status })
     return NextResponse.json({ ok: true, product: r.product, versionId: r.versionId, versionNo: r.versionNo })
   } catch (e) {

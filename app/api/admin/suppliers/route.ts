@@ -3,13 +3,18 @@
 //   POST  { action: 'save', id?, ...settings }  create / update (lib/suppliers/model.ts parseSupplierInput)
 //         { action: 'import', id }              import that supplier's feed now
 //         { action: 'pause' | 'resume', id }    paused = out of the catalog; paid orders still go out
+//         { action: 'demo' }                    add / refresh the demo supplier (lib/suppliers/demo.ts):
+//                                               feed = this host's /api/catalog/demo-feed, orders → this
+//                                               admin's own verified e-mail; then imported at once
 // Admin only (lib/admin.ts requireAdmin; fails closed). Nothing here charges anyone.
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/admin'
+import { currentUser } from '@clerk/nextjs/server'
+import { getVerifiedPrimaryEmail, requireAdmin } from '@/lib/admin'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { isMissingTable } from '@/lib/qbox/store'
 import { parseSupplierInput, type Supplier } from '@/lib/suppliers/model'
 import { importSupplier, SUPPLIER_COLUMNS } from '@/lib/suppliers/import'
+import { DEMO_SLUG, demoSupplierInput } from '@/lib/suppliers/demo'
 
 export const maxDuration = 300
 
@@ -49,6 +54,21 @@ export async function POST(request: Request) {
     if (error?.code === '23505') return err(409, 'That slug is taken.')
     if (error || !data) return err(500, 'Could not save.')
     return NextResponse.json({ ok: true, id: data.id })
+  }
+
+  if (body.action === 'demo') {
+    const email = getVerifiedPrimaryEmail(await currentUser())
+    if (!email) return err(400, 'Your account has no verified e-mail for the demo orders.')
+    const parsed = parseSupplierInput(demoSupplierInput(new URL(request.url).origin, email))
+    if (!parsed.ok) return err(500, parsed.error)
+    const { data, error } = await supabaseAdmin
+      .from('suppliers')
+      .upsert({ ...parsed.value, status: 'active', updated_at: now }, { onConflict: 'slug' })
+      .select(SUPPLIER_COLUMNS)
+      .single()
+    if (isMissingTable(error)) return err(503, 'Run supabase/migration-supplier-catalog.sql first.')
+    if (error || !data || (data as { slug: string }).slug !== DEMO_SLUG) return err(500, 'Could not save the demo supplier.')
+    return NextResponse.json({ ...(await importSupplier(data as Supplier)), demo: true, orderEmail: email })
   }
 
   if (!isId(body.id)) return err(400, 'id required')
