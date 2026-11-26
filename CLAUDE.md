@@ -461,6 +461,11 @@ Dark, high-contrast, editorial-technical. Quality bar: **Linear, Vercel, v0**.
 - **Catalog UI + demo supplier (2026-11-25, owner: "I want to see where users pick products"):** the Catalog is a full-screen browser (sidebar: top-level categories + brands from `catalogFacets` (cached 5 min), suppliers, wholesale price range, in stock; sort; cards with margin %, profit, "In your store"; detail drawer with photos, description and a live profit calculator). The **demo supplier** (`lib/suppliers/demo.ts`, slug `demo`, 20 made-up products, invented brands, our own Blender renders in `public/catalog-demo/`) is an ordinary supplier imported from `GET /api/catalog/demo-feed`; Admin → Suppliers → „Add demo supplier“ creates it with the clicking admin's verified e-mail as the order address. **Only admins ever see or add demo products** (`includeDemo` from `requireAdmin()` in every catalog read and in addToStore — tested).
 - Quante never holds or moves money for goods: the customer pays the merchant, the merchant pays the supplier (prepayment / invoice, agreed between them). Contracts with suppliers need the operator's business registration (no company yet, §13d).
 
+## 13s. ChatGPT Ads pixel + cookie consent (2026-11-25)
+
+- Owner: OpenAI Ads Manager measurement pixel (`oaiq`, pixel id in `lib/marketing-pixel.ts`, override `NEXT_PUBLIC_OAI_PIXEL_ID`) on **quantecode.com only** — never on assetradigital.agency, previews/localhost, the Studio store preview (`/preview`), `/supplier-order`, `/invoice`, and never in a customer's store. `pixelAllowed()` decides from the hostname + path.
+- Our own consent bar (`components/consent/MarketingConsent.tsx`, root layout, `--q-*` tokens, cs on Quante pages / en in the app): the pixel is loaded only after „Povolit marketing“ / „Allow marketing“ (`q:consent:v1` in localStorage, per host); both buttons equally prominent; „Nastavení cookies“ / „Cookie settings“ (`ConsentSettingsLink`) in the footers and on /cookies reopens it. Debug logging only with `NEXT_PUBLIC_OAI_PIXEL_DEBUG=1`. The pixel sends no conversions by itself — events (`oaiq('measure', …)`) are a separate step. Cookie Policy + Privacy describe `__oppref`. Tested in `__tests__/marketing-pixel.test.mjs`.
+
 ## 14. Security & guardrails
 
 - All Claude calls server-side; API key never reaches the client.

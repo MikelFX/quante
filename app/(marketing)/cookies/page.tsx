@@ -3,6 +3,7 @@
 
 import { operator, operatorIdentity, isFilled } from '@/lib/site-config'
 import { buildMetadata } from '@/lib/seo'
+import { ConsentSettingsLink } from '@/components/consent/MarketingConsent'
 
 export const metadata = buildMetadata({
   title: 'Cookie Policy',
@@ -10,7 +11,7 @@ export const metadata = buildMetadata({
   path: '/cookies',
 })
 
-const EFFECTIVE = '1 July 2026'
+const EFFECTIVE = '25 November 2026'
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -44,11 +45,25 @@ const COOKIES = [
     purpose: 'Stores whether you have dismissed the site-wide announcement banner. No personal data is stored — the value is simply "1" when dismissed.',
   },
   {
-    name: 'No analytics cookies currently set',
-    type: 'Analytics',
+    name: 'q:consent:v1',
+    type: 'Strictly necessary',
+    storage: 'localStorage',
+    duration: 'Persistent (until cleared or changed)',
+    purpose: 'Remembers whether you allowed marketing cookies on quantecode.com, so we ask only once. Stores only your choice and its date.',
+  },
+  {
+    name: '__oppref (OpenAI Ads measurement pixel)',
+    type: 'Marketing — only with your consent',
+    storage: 'First-party cookie on quantecode.com',
+    duration: '30 days',
+    purpose: 'Set by the OpenAI measurement pixel only after you click “Allow marketing”. It recognises a visit that came from an ad in ChatGPT so we can learn whether the ad led to a sign-up or a purchase. Data goes to OpenAI (ChatGPT Ads). Never on assetradigital.agency or on stores built with Quante.',
+  },
+  {
+    name: 'Vercel Web Analytics / Speed Insights',
+    type: 'Analytics (cookieless)',
     storage: '—',
     duration: '—',
-    purpose: 'Quante does not currently set any third-party analytics cookies. If this changes, this policy will be updated before any analytics cookies are placed.',
+    purpose: 'Aggregate visit and page-speed numbers without cookies; no individual visitor can be identified.',
   },
 ]
 
@@ -102,16 +117,17 @@ export default function CookiesPage() {
       <Section title="3. How to control and clear cookies">
         <p>You can control cookies through your browser settings. Disabling cookies may affect the functionality of the Quante platform — in particular, authentication requires the session cookie to function.</p>
         <p style={{ marginTop: 10 }}>To clear the announcement banner preference stored in localStorage, open your browser's developer tools, go to Application → Local Storage → your domain, and delete the <code style={{ fontFamily: 'var(--q-mono)', fontSize: 12, color: 'var(--qp-accent-deep)', background: 'rgb(var(--q-acc2-rgb) / .1)', padding: '1px 5px', borderRadius: 3 }}>quante_banner_v1_dismissed</code> key.</p>
+        <p style={{ marginTop: 10 }}>Marketing cookies are off until you allow them in the cookie bar. You can change your choice at any time: <ConsentSettingsLink label="open cookie settings" /> (also linked in the footer as “Cookie settings”).</p>
         <p style={{ marginTop: 10 }}>Most browsers also support clearing all site data via Settings → Privacy. Refer to your browser's help documentation for specific instructions.</p>
       </Section>
 
       <Section title="4. Third-party cookies">
         <p>Some of our sub-processors (notably Clerk for authentication and Stripe for payments) may set their own cookies when you interact with their embedded components. These are governed by their respective privacy policies.</p>
-        <p style={{ marginTop: 10 }}>We do not sell or share cookie data with advertising networks. Quante does not currently use any advertising or tracking cookies.</p>
+        <p style={{ marginTop: 10 }}>With your consent only, quantecode.com loads the OpenAI measurement pixel (ChatGPT Ads), which sets the <code>__oppref</code> cookie and tells OpenAI when a visit that came from one of our ChatGPT ads leads to an action on our site. Without consent the pixel is not loaded at all. We do not sell cookie data.</p>
       </Section>
 
       <Section title="5. Changes to this policy">
-        <p>If we introduce new cookies or change how existing ones are used, we will update this policy and notify you via email or an in-app notice before the new cookies are placed.</p>
+        <p>If we introduce new cookies or change how existing ones are used, we will update this policy first. Cookies that need consent are only placed after you give it in the cookie bar.</p>
       </Section>
 
       <Section title="6. Contact">
