@@ -262,3 +262,60 @@ test('wiring: every way an order becomes paid hands it to the suppliers; crons a
   }
   assert.ok(!/CREATE POLICY/i.test(sql), 'service role only')
 })
+
+// ── demo supplier + catalog filters (lib/suppliers/demo.ts) ─────────────────────
+const D = await import('../lib/suppliers/demo.ts')
+
+test('demo feed: every product imports through the normal Heureka parser with wholesale price and stock', () => {
+  const items = F.parseFeed(D.demoFeedXml('https://quantecode.com/'), 'auto')
+  assert.equal(items.length, D.DEMO_PRODUCTS.length)
+  for (const [i, it] of items.entries()) {
+    const p = D.DEMO_PRODUCTS[i]
+    assert.equal(it.externalId, `demo-${p.key}`)
+    assert.equal(it.wholesalePrice, p.wholesale)
+    assert.equal(it.retailPrice, p.retail)
+    assert.equal(it.currency, 'CZK')
+    assert.equal(it.stock, p.stock)
+    assert.equal(it.available, true)
+    assert.deepEqual(it.images, [`https://quantecode.com/catalog-demo/${p.key}.jpg`])
+    assert.ok(p.wholesale < p.retail && p.retail <= p.wholesale * 10, p.key)
+  }
+  assert.equal(new Set(D.DEMO_PRODUCTS.map((p) => p.key)).size, D.DEMO_PRODUCTS.length)
+})
+
+test('demo feed: every photo exists in public/catalog-demo', () => {
+  for (const p of D.DEMO_PRODUCTS) assert.ok(readFileSync(`${ROOT}public/catalog-demo/${p.key}.jpg`).length > 10_000, p.key)
+})
+
+test('demo supplier: valid settings, slug demo, orders to the given admin address', () => {
+  const r = M.parseSupplierInput(D.demoSupplierInput('https://quantecode.com', 'admin@example.com'))
+  assert.equal(r.ok, true)
+  assert.equal(r.value.slug, D.DEMO_SLUG)
+  assert.equal(r.value.order_email, 'admin@example.com')
+  assert.equal(r.value.feed_url, 'https://quantecode.com/api/catalog/demo-feed')
+  assert.equal(r.value.currency, 'CZK')
+})
+
+test('catalog filters: facets, category prefix pattern, sort', () => {
+  const f = D.facetsOf([
+    { brand: 'Lumo', category: 'Domácnost | Dekorace' }, { brand: 'Lumo', category: 'Domácnost > Svíčky' },
+    { brand: 'Pura', category: 'Kosmetika | Pleť' }, { brand: '', category: '' },
+  ])
+  assert.deepEqual(f.categories, [{ name: 'Domácnost', count: 2 }, { name: 'Kosmetika', count: 1 }])
+  assert.deepEqual(f.brands, [{ name: 'Lumo', count: 2 }, { name: 'Pura', count: 1 }])
+  assert.equal(D.categoryPrefixPattern('Dům_a%zahrada'), 'Dům\\_a\\%zahrada%')
+  assert.equal(D.parseSort('price-asc'), 'price-asc')
+  assert.equal(D.parseSort('drop table'), 'relevance')
+})
+
+test('demo supplier is admin-only in every catalog read', () => {
+  const src = readFileSync(`${ROOT}lib/suppliers/catalog.ts`, 'utf8')
+  assert.match(src, /if \(!query\.includeDemo\) req = req\.neq\('suppliers\.slug', DEMO_SLUG\)/)
+  assert.match(src, /if \(!query\.includeDemo\) supReq = supReq\.neq\('slug', DEMO_SLUG\)/)
+  assert.match(src, /if \(!opts\.includeDemo\) req = req\.neq\('suppliers\.slug', DEMO_SLUG\)/)
+  assert.match(src, /suppliers\?\.slug === DEMO_SLUG && !includeDemo\) return null/)
+  assert.match(src, /row\.suppliers\.slug === DEMO_SLUG && !includeDemo/)
+  for (const f of ['app/api/catalog/route.ts', 'app/api/catalog/[id]/route.ts', 'app/api/projects/[id]/catalog/route.ts']) {
+    assert.match(readFileSync(`${ROOT}${f}`, 'utf8'), /requireAdmin\(\)/, f)
+  }
+})
