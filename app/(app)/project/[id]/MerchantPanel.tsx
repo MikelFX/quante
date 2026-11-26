@@ -706,11 +706,11 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 10px', borderRadius: 6, background: 'rgb(var(--q-ok-rgb) / 0.06)', border: '1px solid rgb(var(--q-ok-rgb) / 0.2)' }}>
           <span style={{ fontSize: 12, marginTop: 1 }}>🔒</span>
           <div>
-            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--q-ok-text)', margin: '0 0 2px' }}>Payments managed by Quante</p>
+            <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--q-ok-text)', margin: '0 0 2px' }}>Card payments work without setup</p>
             <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-              Selected methods are automatically configured — no API keys required.
-              Revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via bank transfer.
-              Prefer receiving money directly? Enter your own gateway credentials in the section below.
+              Card (Stripe) runs through Quante — revenue appears in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab and is paid out via bank transfer.
+              Comgate, GoPay and PayPal are offered to customers only once you enter your own credentials in the section below.
+              Bank transfer and cash on delivery need no account.
             </p>
           </div>
         </div>
@@ -727,13 +727,13 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
               <input type="checkbox" id="pay_comgate" checked={payComgate} onChange={(e) => setPayComgate(e.target.checked)} style={{ margin: 0 }} />
               <label htmlFor="pay_comgate" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>Comgate (card, Apple Pay, bank buttons)</label>
-              {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ok-rgb) / 0.1)', color: 'var(--q-ok-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
+              {payComgate && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ink-rgb) / 0.06)', color: 'var(--muted-foreground)', fontWeight: 600, whiteSpace: 'nowrap' }}>Your account below</span>}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'rgb(var(--q-ink-rgb) / .02)' }}>
               <input type="checkbox" id="pay_gopay" checked={payGopay} onChange={(e) => setPayGopay(e.target.checked)} style={{ margin: 0 }} />
               <label htmlFor="pay_gopay" style={{ fontSize: 11, cursor: 'pointer', flex: 1 }}>GoPay (card, Google Pay, bank transfer)</label>
-              {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ok-rgb) / 0.1)', color: 'var(--q-ok-text)', fontWeight: 600, whiteSpace: 'nowrap' }}>Quante</span>}
+              {payGopay && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 3, background: 'rgb(var(--q-ink-rgb) / 0.06)', color: 'var(--muted-foreground)', fontWeight: 600, whiteSpace: 'nowrap' }}>Your account below</span>}
             </div>
           </>
         )}
@@ -763,8 +763,8 @@ export function MerchantPanel({ projectId, onBalanceRefresh, section }: Props) {
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Own gateway credentials (optional)</p>
         <p style={{ fontSize: 10, color: 'var(--muted-foreground)', margin: 0, lineHeight: 1.5 }}>
-          By default payments run through Quante&apos;s accounts and revenue lands in the <strong style={{ color: 'var(--foreground)' }}>Payouts</strong> tab.
-          Enter your own credentials below to receive money directly on your gateway account instead. Secrets are stored encrypted and never shown again.
+          Comgate, GoPay and PayPal take payments straight into your own gateway account — there is no shared Quante account for them.
+          Secrets are stored encrypted and never shown again.
         </p>
 
         {isCz && (
