@@ -32,6 +32,7 @@ const isCrossSiteApi = createRouteMatcher([
   '/api/qbox/oauth/register', // Qbox connector OAuth (lib/qbox/oauth.ts): called by MCP clients, no cookie
   '/api/qbox/oauth/token',
   '/api/agent/(.*)', // agent API (lib/agents): never the session cookie — no key, or a Qbox key
+  '/api/plnolet/v1/(.*)', // Plnolet merchant API (lib/plnolet): authenticated by a plt_ key only
 ])
 
 const STATE_CHANGING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
@@ -124,6 +125,10 @@ export function proxy(req: NextRequest, ev: NextFetchEvent) {
   if (isClerkFreePage(req.nextUrl.pathname)) return NextResponse.next()
   // The Qbox MCP connector (rewritten to /api/qbox/v1/connector) authenticates by its Qbox key only.
   if (req.nextUrl.pathname === '/qbox/mcp') return NextResponse.next()
+  // Plnolet's service page and the shopper's verification window need no session: a shopper of
+  // someone else's e-shop must never go through a Quante sign-in handshake. (/plnolet/ucet does.)
+  const path = req.nextUrl.pathname
+  if (path === '/plnolet' || path.startsWith('/plnolet/v/') || path === '/plnolet/widget.js') return NextResponse.next()
   return withClerk(req, ev)
 }
 

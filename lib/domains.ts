@@ -36,6 +36,12 @@ export const QUANTE_PATHS = ['/quante', '/quante/:path*', '/en', '/en/:path*'] a
 /** The English Quante pages (owner 2026-11-07): quantecode.com/en and /en/<modul>. */
 export const QUANTE_EN_PATHS = ['/en', '/en/:path*'] as const
 
+/**
+ * Plnolet, age verification for e-shops (owner 2026-11-25, lib/plnolet): its page, the merchant
+ * account and the shopper's verification window. On the app host (passkeys are bound to it), Czech.
+ */
+export const PLNOLET_PATHS = ['/plnolet', '/plnolet/:path*'] as const
+
 /** App paths: on the website host they redirect to APP_ORIGIN, so Clerk only ever runs on one host. */
 export const APP_PATHS = [
   '/dashboard/:path*',
@@ -61,6 +67,7 @@ export const APP_PATHS = [
   '/invoice/:path*',
   '/supplier-order/:path*',
   '/preview/:path*',
+  ...PLNOLET_PATHS,
 ] as const
 
 const matches = (paths: readonly string[], pathname: string) =>
@@ -84,7 +91,7 @@ export function isQuantePath(pathname: string): boolean {
  */
 export function pageLang(pathname: string): 'cs' | 'en' {
   if (matches(QUANTE_EN_PATHS, pathname)) return 'en'
-  return pathname === '/' || isSitePath(pathname) || isQuantePath(pathname) ? 'cs' : 'en'
+  return pathname === '/' || isSitePath(pathname) || isQuantePath(pathname) || matches(PLNOLET_PATHS, pathname) ? 'cs' : 'en'
 }
 
 /** Pages rendered by app/(site) — the website and the Quante product pages. proxy.ts skips Clerk on

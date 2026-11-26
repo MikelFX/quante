@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import { withBotId } from 'botid/next/config';
-import { APP_HOST_PATTERN, APP_ORIGIN, APP_PATHS, QUANTE_EN_PATHS, SITE_HOST_PATTERN, SITE_ORIGIN, SITE_PATHS } from './lib/domains';
+import { APP_HOST_PATTERN, APP_ORIGIN, APP_PATHS, PLNOLET_PATHS, QUANTE_EN_PATHS, SITE_HOST_PATTERN, SITE_ORIGIN, SITE_PATHS } from './lib/domains';
 
 // Baseline security headers for every platform response. Deliberately NO script-src
 // CSP yet: Clerk, Stripe and Supabase need an allowlist rolled out in Report-Only
@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
       { source: '/((?!api/|_next/).*)', headers: [{ key: 'Link', value: AGENT_LINK_HEADER }] },
       // The page's language for crawlers that don't run the root layout's lang script (lib/domains.ts
       // pageLang): the website and the Quante pages are Czech, /en English.
-      ...['/', ...SITE_PATHS.filter((p) => !p.startsWith('/og')), '/quante', '/quante/:path*'].map((source) => ({ source, headers: [{ key: 'Content-Language', value: 'cs' }] })),
+      ...['/', ...SITE_PATHS.filter((p) => !p.startsWith('/og')), '/quante', '/quante/:path*', ...PLNOLET_PATHS].map((source) => ({ source, headers: [{ key: 'Content-Language', value: 'cs' }] })),
       ...QUANTE_EN_PATHS.map((source) => ({ source, headers: [{ key: 'Content-Language', value: 'en' }] })),
     ]
   },
