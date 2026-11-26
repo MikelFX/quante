@@ -15,6 +15,7 @@ import { isMissingTable } from '@/lib/qbox/store'
 import { parseProductsFile, serializeProductsFile, PRODUCTS_FILE } from '@/lib/store-products'
 import type { CodeVersionFiles, StoreProduct } from '@/types/store-code'
 import { CatalogNotSetUpError, setInventory, storeStock } from './import'
+import { categoryPrefixPattern, DEMO_SLUG, facetsOf, type CatalogSort, type Facet } from './demo'
 import {
   CATALOG_LIMITS, catalogProductId, checkRetailPrice, margin, sameCurrency, searchWords, suggestedPrice, toStoreProduct,
 } from './model'
@@ -35,7 +36,7 @@ export interface CatalogCard {
   stock: number | null
   available: boolean
   dispatchDays: number | null
-  supplier: { id: string; name: string; shipsTo: string[] }
+  supplier: { id: string; name: string; shipsTo: string[]; demo: boolean }
 }
 
 interface ProductRow {
@@ -55,10 +56,10 @@ interface ProductRow {
   dispatch_days: number | null
   external_id: string
   supplier_id: string
-  suppliers: { id: string; name: string; status: string; ships_to: string[]; dispatch_days: number } | null
+  suppliers: { id: string; name: string; slug: string; status: string; ships_to: string[]; dispatch_days: number } | null
 }
 
-const PRODUCT_COLUMNS = 'id, name, description, brand, category, images, wholesale_cents, retail_cents, currency, ean, sku, stock, available, dispatch_days, external_id, supplier_id, suppliers!inner(id, name, status, ships_to, dispatch_days)'
+const PRODUCT_COLUMNS = 'id, name, description, brand, category, images, wholesale_cents, retail_cents, currency, ean, sku, stock, available, dispatch_days, external_id, supplier_id, suppliers!inner(id, name, slug, status, ships_to, dispatch_days)'
 
 function card(r: ProductRow): CatalogCard {
   const suggested = suggestedPrice(r)
@@ -66,7 +67,7 @@ function card(r: ProductRow): CatalogCard {
     id: r.id, name: r.name, brand: r.brand, category: r.category, image: r.images[0] ?? null,
     wholesale: r.wholesale_cents / 100, suggested, margin: Math.round(margin(suggested, r.wholesale_cents).share * 100),
     currency: r.currency, stock: r.stock, available: r.available, dispatchDays: r.dispatch_days ?? r.suppliers?.dispatch_days ?? null,
-    supplier: { id: r.supplier_id, name: r.suppliers?.name ?? '', shipsTo: r.suppliers?.ships_to ?? [] },
+    supplier: { id: r.supplier_id, name: r.suppliers?.name ?? '', shipsTo: r.suppliers?.ships_to ?? [], demo: r.suppliers?.slug === DEMO_SLUG },
   }
 }
 
@@ -74,25 +75,44 @@ export interface CatalogQuery {
   q?: string | null
   supplier?: string | null
   brand?: string | null
+  category?: string | null
   inStock?: boolean
   currency?: string | null
+  minPrice?: number | null // wholesale, whole currency units
+  maxPrice?: number | null
+  sort?: CatalogSort
   page?: number
+  /** The demo supplier (lib/suppliers/demo.ts) is shown to admins only. */
+  includeDemo?: boolean
 }
 
-export async function searchCatalog(query: CatalogQuery): Promise<{ items: CatalogCard[]; total: number; page: number; suppliers: Array<{ id: string; name: string; products: number }> }> {
+export interface CatalogSupplier { id: string; name: string; products: number; demo: boolean }
+
+export async function searchCatalog(query: CatalogQuery): Promise<{ items: CatalogCard[]; total: number; page: number; suppliers: CatalogSupplier[] }> {
   const page = Math.max(0, Math.min(CATALOG_LIMITS.maxPage, Math.floor(query.page ?? 0)))
   let req = supabaseAdmin
     .from('supplier_products')
     .select(PRODUCT_COLUMNS, { count: 'estimated' })
     .eq('suppliers.status', 'active')
+  if (!query.includeDemo) req = req.neq('suppliers.slug', DEMO_SLUG)
+  if (query.category) req = req.ilike('category', categoryPrefixPattern(query.category))
+  if (query.minPrice != null && Number.isFinite(query.minPrice) && query.minPrice > 0) req = req.gte('wholesale_cents', Math.round(query.minPrice * 100))
+  if (query.maxPrice != null && Number.isFinite(query.maxPrice) && query.maxPrice > 0) req = req.lte('wholesale_cents', Math.round(query.maxPrice * 100))
   for (const w of searchWords(query.q)) req = req.ilike('search_text', `%${w}%`)
   if (query.supplier && /^[0-9a-f-]{36}$/i.test(query.supplier)) req = req.eq('supplier_id', query.supplier)
   if (query.brand) req = req.eq('brand', query.brand.slice(0, 120))
   if (query.inStock) req = req.eq('available', true)
   if (query.currency && /^[A-Za-z]{3}$/.test(query.currency)) req = req.eq('currency', query.currency.toUpperCase())
+  req = req.order('available', { ascending: false })
+  if (query.sort === 'price-asc') req = req.order('wholesale_cents', { ascending: true })
+  else if (query.sort === 'price-desc') req = req.order('wholesale_cents', { ascending: false })
+  else if (query.sort === 'name') req = req.order('name')
+  else req = req.order('stock', { ascending: false, nullsFirst: false }).order('name')
+  let supReq = supabaseAdmin.from('suppliers').select('id, name, slug, product_count').eq('status', 'active').order('name')
+  if (!query.includeDemo) supReq = supReq.neq('slug', DEMO_SLUG)
   const [{ data, error, count }, sup] = await Promise.all([
-    req.order('available', { ascending: false }).order('name').range(page * CATALOG_LIMITS.pageSize, page * CATALOG_LIMITS.pageSize + CATALOG_LIMITS.pageSize - 1),
-    supabaseAdmin.from('suppliers').select('id, name, product_count').eq('status', 'active').order('name'),
+    req.range(page * CATALOG_LIMITS.pageSize, page * CATALOG_LIMITS.pageSize + CATALOG_LIMITS.pageSize - 1),
+    supReq,
   ])
   if (isMissingTable(error) || isMissingTable(sup.error)) throw new CatalogNotSetUpError()
   if (error) throw new Error(error.message)
@@ -100,16 +120,38 @@ export async function searchCatalog(query: CatalogQuery): Promise<{ items: Catal
     items: ((data ?? []) as unknown as ProductRow[]).map(card),
     total: count ?? 0,
     page,
-    suppliers: (sup.data ?? []).map((s) => ({ id: s.id as string, name: s.name as string, products: (s.product_count as number) ?? 0 })),
+    suppliers: (sup.data ?? []).map((s) => ({ id: s.id as string, name: s.name as string, products: (s.product_count as number) ?? 0, demo: s.slug === DEMO_SLUG })),
   }
 }
 
-export async function catalogProduct(id: string): Promise<(CatalogCard & { description: string; images: string[] }) | null> {
+// Filter counts change only on an import (daily), so they are kept a few minutes per instance.
+const FACET_TTL_MS = 5 * 60_000
+const facetCache = new Map<string, { at: number; value: { categories: Facet[]; brands: Facet[] } }>()
+
+/** Top-level categories and brands of the active catalog with product counts (filter sidebar). */
+export async function catalogFacets(opts: { currency?: string | null; includeDemo?: boolean }): Promise<{ categories: Facet[]; brands: Facet[] }> {
+  const currency = opts.currency && /^[A-Za-z]{3}$/.test(opts.currency) ? opts.currency.toUpperCase() : ''
+  const key = `${currency}|${opts.includeDemo ? 1 : 0}`
+  const hit = facetCache.get(key)
+  if (hit && Date.now() - hit.at < FACET_TTL_MS) return hit.value
+  let req = supabaseAdmin.from('supplier_products').select('brand, category, suppliers!inner(status, slug)').eq('suppliers.status', 'active')
+  if (!opts.includeDemo) req = req.neq('suppliers.slug', DEMO_SLUG)
+  if (currency) req = req.eq('currency', currency)
+  const { data, error } = await req.limit(5000)
+  if (isMissingTable(error)) throw new CatalogNotSetUpError()
+  if (error) throw new Error(error.message)
+  const value = facetsOf((data ?? []) as Array<{ brand: string; category: string }>)
+  facetCache.set(key, { at: Date.now(), value })
+  return value
+}
+
+export async function catalogProduct(id: string, includeDemo = false): Promise<(CatalogCard & { description: string; images: string[] }) | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null
   const { data, error } = await supabaseAdmin.from('supplier_products').select(PRODUCT_COLUMNS).eq('id', id).maybeSingle()
   if (isMissingTable(error)) throw new CatalogNotSetUpError()
   if (!data) return null
   const r = data as unknown as ProductRow
+  if (r.suppliers?.slug === DEMO_SLUG && !includeDemo) return null
   return { ...card(r), description: r.description, images: r.images }
 }
 
@@ -137,11 +179,11 @@ export type AddResult =
   | { ok: true; product: StoreProduct; versionId: string; versionNo: number }
   | { ok: false; status: number; error: string }
 
-export async function addToStore(userId: string, projectId: string, supplierProductId: string, priceInput: unknown): Promise<AddResult> {
+export async function addToStore(userId: string, projectId: string, supplierProductId: string, priceInput: unknown, includeDemo = false): Promise<AddResult> {
   const { data: raw, error: readErr } = await supabaseAdmin.from('supplier_products').select(PRODUCT_COLUMNS).eq('id', supplierProductId).maybeSingle()
   if (isMissingTable(readErr)) throw new CatalogNotSetUpError()
   const row = raw as unknown as ProductRow | null
-  if (!row || row.suppliers?.status !== 'active') return { ok: false, status: 404, error: 'This product is no longer in the catalog.' }
+  if (!row || row.suppliers?.status !== 'active' || (row.suppliers.slug === DEMO_SLUG && !includeDemo)) return { ok: false, status: 404, error: 'This product is no longer in the catalog.' }
   if (!row.available) return { ok: false, status: 409, error: 'The supplier has this product out of stock.' }
 
   const price = checkRetailPrice(priceInput, row.wholesale_cents)
