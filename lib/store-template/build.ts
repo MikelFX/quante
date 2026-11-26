@@ -40,7 +40,10 @@ export function toStoreSlug(s: string): string {
 //       font-heading, rounded-store … — withThemeTokens)
 //   6 = agent-ready store 2026-11-06 (/.well-known/agent-shop.json, /llms.txt, agent
 //       catalog / quote / order, store MCP server — lib/store-template/agent-shop.ts)
-export const SCAFFOLD_VERSION = 6
+//   7 = payment choice 2026-11-25 (cart offers the merchant's payment methods from
+//       /api/shipping — bank transfer, cash on delivery, gateways — and the success page
+//       shows verified bank-transfer details via the locked app/api/order-status)
+export const SCAFFOLD_VERSION = 7
 
 // ─── Store theme (config.design → CSS variables) ──────────────────────────────
 // data/config.ts `design` is the single source of the store's colors / fonts / radius:
@@ -1367,7 +1370,7 @@ function checkAstStoreFile(filePath: string, src: string): string | null {
 // not; lib/i18n.ts is the dictionary every scaffold component and future scaffold
 // update relies on.
 export const PLATFORM_LOCKED_FILES: ReadonlySet<string> = new Set([
-  'app/api/checkout/route.ts', 'app/api/shipping/route.ts',
+  'app/api/checkout/route.ts', 'app/api/shipping/route.ts', 'app/api/order-status/route.ts',
   'components/legal/LegalPageView.tsx',
   'app/terms/page.tsx', 'app/privacy/page.tsx', 'app/cookies/page.tsx', 'app/contact/page.tsx',
   'lib/i18n.ts',
@@ -1886,7 +1889,7 @@ export function cn(...classes: ClassValue[]): string {
 
   // ── lib/store/cart.tsx ────────────────────────────────────────────────────
   add('lib/store/cart.tsx', `'use client'
-import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef, createContext, useContext, type ReactNode } from 'react'
 import type { StoreProduct, CartItem } from '@/types/store-code'
 
 interface CartContextValue {
@@ -1905,8 +1908,12 @@ const STORAGE_KEY = 'store-cart'
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
+  // The success page clears the cart in its own effect, which React runs BEFORE this
+  // provider's load effect — without this flag the saved cart came back after a purchase.
+  const cleared = useRef(false)
 
   useEffect(() => {
+    if (cleared.current) return
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) setItems(JSON.parse(saved) as CartItem[])
@@ -1934,7 +1941,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.map((i) => i.product.id === productId ? { ...i, quantity: qty } : i))
   }, [removeItem])
 
-  const clearCart = useCallback(() => setItems([]), [])
+  const clearCart = useCallback(() => {
+    cleared.current = true
+    try { localStorage.removeItem(STORAGE_KEY) } catch {}
+    setItems([])
+  }, [])
 
   const total = items.reduce((sum, i) => sum + i.product.price * i.quantity, 0)
   const count = items.reduce((sum, i) => sum + i.quantity, 0)
@@ -1992,6 +2003,10 @@ type StringKey =
   | 'cookieMessage' | 'learnMore' | 'accept'
   | 'pageNotFound' | 'pageNotFoundBody' | 'backTo' | 'legalNotConfigured'
   | 'termsOfService' | 'privacyPolicy' | 'cookiePolicy' | 'contact'
+  | 'paymentMethod' | 'payCard' | 'payGateway' | 'payPaypal' | 'payBankTransfer' | 'payCod'
+  | 'noFee' | 'codFee' | 'placeOrder' | 'orderNumber' | 'paymentInstructions' | 'accountNumber'
+  | 'amount' | 'variableSymbol' | 'amountInEmail' | 'shipAfterPayment'
+  | 'payOnDelivery' | 'payOnDeliveryNote'
 
 const STRINGS: Record<'en' | 'cs', Record<StringKey, string>> = {
   en: {
@@ -2017,6 +2032,15 @@ const STRINGS: Record<'en' | 'cs', Record<StringKey, string>> = {
     backTo: 'Back to', legalNotConfigured: 'This page has not been set up yet.',
     termsOfService: 'Terms of Service', privacyPolicy: 'Privacy Policy',
     cookiePolicy: 'Cookies', contact: 'Contact',
+    paymentMethod: 'Payment method', payCard: 'Card (Apple Pay, Google Pay)',
+    payGateway: 'Online payment (card or bank button)', payPaypal: 'PayPal',
+    payBankTransfer: 'Bank transfer', payCod: 'Cash on delivery', noFee: 'no fee',
+    codFee: 'Cash on delivery fee', placeOrder: 'Place order', orderNumber: 'Order number',
+    paymentInstructions: 'Payment instructions', accountNumber: 'Account number', amount: 'Amount',
+    variableSymbol: 'Reference',
+    amountInEmail: 'You will find the amount and reference in the order confirmation email.',
+    shipAfterPayment: 'We ship your order as soon as the payment arrives.',
+    payOnDelivery: 'Cash on delivery', payOnDeliveryNote: 'You pay when the parcel is delivered.',
   },
   cs: {
     cart: 'Váš košík', cartEmpty: 'Váš košík je prázdný.', continueShopping: 'Pokračovat v nákupu',
@@ -2041,6 +2065,15 @@ const STRINGS: Record<'en' | 'cs', Record<StringKey, string>> = {
     backTo: 'Zpět na', legalNotConfigured: 'Tato stránka zatím není nastavena.',
     termsOfService: 'Obchodní podmínky', privacyPolicy: 'Zásady ochrany osobních údajů',
     cookiePolicy: 'Cookies', contact: 'Kontakt',
+    paymentMethod: 'Způsob platby', payCard: 'Platební karta (Apple Pay, Google Pay)',
+    payGateway: 'Online platba (karta nebo platební tlačítko banky)', payPaypal: 'PayPal',
+    payBankTransfer: 'Bankovní převod', payCod: 'Dobírka', noFee: 'bez poplatku',
+    codFee: 'Poplatek za dobírku', placeOrder: 'Odeslat objednávku', orderNumber: 'Číslo objednávky',
+    paymentInstructions: 'Platební údaje', accountNumber: 'Číslo účtu', amount: 'Částka',
+    variableSymbol: 'Variabilní symbol',
+    amountInEmail: 'Částku a variabilní symbol najdete v potvrzovacím e-mailu objednávky.',
+    shipAfterPayment: 'Zboží odešleme, jakmile platba dorazí na účet.',
+    payOnDelivery: 'Platba na dobírku', payOnDeliveryNote: 'Zaplatíte při převzetí zásilky.',
   },
 }
 
@@ -2211,6 +2244,13 @@ import { config } from '@/data/config'
 import { t, formatMoney, postalLabel, usesStateField } from '@/lib/i18n'
 
 interface ShippingMethod { id: string; label: string; price: number }
+interface PaymentOption { id: string; kind: string; fee: number }
+
+const PAYMENT_LABEL_KEYS = { stripe: 'payCard', comgate: 'payGateway', gopay: 'payGateway', paypal: 'payPaypal', prevod: 'payBankTransfer', dobirka: 'payCod' } as const
+function paymentLabel(id: string): string {
+  const key = PAYMENT_LABEL_KEYS[id as keyof typeof PAYMENT_LABEL_KEYS]
+  return key ? t(key) : id
+}
 
 export default function CartPage() {
   const { items, total, count, updateQty, removeItem } = useCart()
@@ -2225,6 +2265,10 @@ export default function CartPage() {
   const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
   const [freeShippingFrom, setFreeShippingFrom] = useState(0)
   const [selectedShipping, setSelectedShipping] = useState('')
+  // Payment methods the merchant offers (from the platform via /api/shipping). Empty =
+  // none reported (self-hosted / older platform): the order goes to card as before.
+  const [payments, setPayments] = useState<PaymentOption[]>([])
+  const [selectedPayment, setSelectedPayment] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const currency = config.brand.currency
@@ -2238,6 +2282,11 @@ export default function CartPage() {
         setShippingMethods(methods)
         setFreeShippingFrom(d.freeShippingFrom ?? 0)
         if (methods[0]) setSelectedShipping(methods[0].id)
+        const pays: PaymentOption[] = Array.isArray(d.payments)
+          ? d.payments.filter((p: PaymentOption) => p && typeof p.id === 'string' && PAYMENT_LABEL_KEYS[p.id as keyof typeof PAYMENT_LABEL_KEYS])
+          : []
+        setPayments(pays)
+        if (pays[0]) setSelectedPayment(pays[0].id)
       })
       .catch(() => setShippingMethods([{ id: 'standard', label: 'Standard shipping', price: 0 }]))
   }, [])
@@ -2245,7 +2294,10 @@ export default function CartPage() {
   const selectedMethod = shippingMethods.find((m) => m.id === selectedShipping)
   const qualifiesFreeShipping = freeShippingFrom > 0 && total >= freeShippingFrom
   const shippingCost = qualifiesFreeShipping ? 0 : (selectedMethod?.price ?? 0)
-  const orderTotal = total + shippingCost
+  const selectedPay = payments.find((p) => p.id === selectedPayment)
+  const codFee = selectedPay?.kind === 'cash_on_delivery' ? Math.max(0, Number(selectedPay.fee) || 0) : 0
+  const orderTotal = total + shippingCost + codFee
+  const paysOnline = !selectedPay || selectedPay.kind === 'online'
 
   async function handleCheckout() {
     if (!customerEmail.trim()) { setError(t('errorEmail')); return }
@@ -2265,6 +2317,7 @@ export default function CartPage() {
           customerName: customerName.trim() || undefined,
           customerPhone: customerPhone.trim() || undefined,
           shippingMethod: selectedMethod?.label,
+          paymentMethod: selectedPay?.id,
           shippingCents: Math.round(shippingCost * 100),
           shippingCountry: country || undefined,
           shippingAddress: { ulice: street.trim(), mesto: city.trim(), psc: postal.trim(), zeme: country || undefined },
@@ -2297,7 +2350,7 @@ export default function CartPage() {
         <ArrowLeft size={14} /> {t('continueShopping')}
       </Link>
       <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 28, marginBottom: 28 }}>{t('cart')}</h1>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 40, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 40, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {items.map(({ product, quantity }) => (
@@ -2333,6 +2386,25 @@ export default function CartPage() {
                     </span>
                     <span style={{ fontSize: 14, fontWeight: 500, color: (qualifiesFreeShipping || m.price === 0) ? '#059669' : 'var(--color-text)' }}>
                       {qualifiesFreeShipping || m.price === 0 ? t('free') : formatMoney(m.price)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {payments.length > 1 && (
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 12 }}>{t('paymentMethod')}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {payments.map((p) => (
+                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '0.75rem 1rem', border: '1px solid ' + (selectedPayment === p.id ? 'var(--color-accent)' : 'var(--color-border)'), borderRadius: 'var(--radius)', cursor: 'pointer' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
+                      <input type="radio" name="payment" checked={selectedPayment === p.id} onChange={() => setSelectedPayment(p.id)} style={{ accentColor: 'var(--color-accent)' }} />
+                      {paymentLabel(p.id)}
+                    </span>
+                    <span style={{ fontSize: 13, color: 'var(--color-muted)', whiteSpace: 'nowrap' }}>
+                      {p.kind === 'cash_on_delivery' && p.fee > 0 ? '+' + formatMoney(p.fee) : p.kind === 'online' ? '' : t('noFee')}
                     </span>
                   </label>
                 ))}
@@ -2397,6 +2469,12 @@ export default function CartPage() {
                 <span style={{ color: shippingCost === 0 ? '#059669' : 'var(--color-text)' }}>{shippingCost === 0 ? t('free') : formatMoney(shippingCost)}</span>
               </div>
             )}
+            {codFee > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
+                <span style={{ color: 'var(--color-muted)' }}>{t('codFee')}</span>
+                <span>{formatMoney(codFee)}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, paddingTop: 8, borderTop: '1px solid var(--color-border)' }}>
               <span>{t('total')}</span>
               <span>{formatMoney(orderTotal)}</span>
@@ -2404,7 +2482,7 @@ export default function CartPage() {
           </div>
           {error && <p style={{ fontSize: 13, color: '#dc2626', marginBottom: 12 }}>{error}</p>}
           <button onClick={handleCheckout} disabled={loading} style={{ width: '100%', padding: '0.85rem', background: 'var(--color-accent)', color: 'var(--color-accent-text)', border: 'none', borderRadius: 'var(--radius)', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
-            {loading ? t('redirecting') : t('proceedToPayment')}
+            {loading ? t('redirecting') : paysOnline ? t('proceedToPayment') : t('placeOrder')}
           </button>
         </div>
       </div>
@@ -2415,26 +2493,124 @@ export default function CartPage() {
 
   // ── app/success/page.tsx ──────────────────────────────────────────────────
   add('app/success/page.tsx', `'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useCart } from '@/lib/store/cart'
-import { t } from '@/lib/i18n'
+import { t, formatMoney } from '@/lib/i18n'
+
+interface PaymentInfo { orderNumber: string; method: string; amount: number; currency: string; vs: string; account: string }
 
 export default function SuccessPage() {
   const { clearCart } = useCart()
+  const [method, setMethod] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
+  const [info, setInfo] = useState<PaymentInfo | null>(null)
 
   useEffect(() => {
     clearCart()
+    // Payment details are never read from the URL (anyone can send a crafted link):
+    // /api/order-status asks the platform, which checks the per-order token.
+    const p = new URLSearchParams(window.location.search)
+    const m = p.get('method') ?? ''
+    const order = p.get('order') ?? ''
+    const orderId = p.get('orderId') ?? ''
+    const token = p.get('t') ?? ''
+    setMethod(m === 'prevod' || m === 'dobirka' ? m : '')
+    setOrderNumber(/^[A-Za-z0-9-]{1,40}$/.test(order) ? order : '')
+    if (m === 'prevod' && order && token) {
+      const q = new URLSearchParams({ order, t: token })
+      if (/^[0-9a-fA-F-]{36}$/.test(orderId)) q.set('orderId', orderId)
+      fetch('/api/order-status?' + q.toString(), { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: PaymentInfo | null) => { if (d && typeof d.amount === 'number' && d.amount > 0) setInfo(d) })
+        .catch(() => {})
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const box = { marginTop: 24, padding: '1.25rem 1.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius)', textAlign: 'left' as const, width: '100%', maxWidth: 440 }
+  const row = { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14, padding: '4px 0' }
 
   return (
     <div style={{ minHeight: '60vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '4rem 1.5rem', textAlign: 'center' }}>
       <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: 26 }}>{t('thankYou')}</h1>
+      {orderNumber && (
+        <p style={{ fontSize: 14, color: 'var(--color-muted)' }}>{t('orderNumber')}: <strong style={{ color: 'var(--color-text)', fontFamily: 'monospace' }}>{orderNumber}</strong></p>
+      )}
       <p style={{ fontSize: 14, color: 'var(--color-muted)', maxWidth: 420 }}>{t('confirmationNote')}</p>
+
+      {method === 'prevod' && (
+        <div style={box}>
+          <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 10 }}>{t('paymentInstructions')}</p>
+          {info ? (
+            <>
+              <div style={row}><span style={{ color: 'var(--color-muted)' }}>{t('accountNumber')}</span><strong style={{ fontFamily: 'monospace' }}>{info.account || '—'}</strong></div>
+              <div style={row}><span style={{ color: 'var(--color-muted)' }}>{t('amount')}</span><strong>{formatMoney(info.amount)}</strong></div>
+              <div style={row}><span style={{ color: 'var(--color-muted)' }}>{t('variableSymbol')}</span><strong style={{ fontFamily: 'monospace' }}>{info.vs || '—'}</strong></div>
+            </>
+          ) : (
+            <p style={{ fontSize: 14, color: 'var(--color-muted)' }}>{t('amountInEmail')}</p>
+          )}
+          <p style={{ fontSize: 13, color: 'var(--color-muted)', marginTop: 10 }}>{t('shipAfterPayment')}</p>
+        </div>
+      )}
+      {method === 'dobirka' && (
+        <div style={box}>
+          <p style={{ fontWeight: 600, fontSize: 15, marginBottom: 6 }}>{t('payOnDelivery')}</p>
+          <p style={{ fontSize: 14, color: 'var(--color-muted)' }}>{t('payOnDeliveryNote')}</p>
+        </div>
+      )}
+
       <Link href="/collections/all" style={{ marginTop: 12, color: 'var(--color-accent)', fontWeight: 600, textDecoration: 'none' }}>{t('continueShopping')} →</Link>
     </div>
   )
+}
+`)
+
+  // ── app/api/order-status/route.ts (LOCKED) ───────────────────────────────
+  // 2026-11-25 (scaffold 7): same proxy as the legacy template — the success page shows a
+  // bank-transfer order's verified account, amount and variable symbol.
+  // Hosted mode only: asks the platform for the verified payment instructions of
+  // one order (the platform checks the unguessable per-order token `t` that it put
+  // in the /success redirect). Returns only the fields the success page renders.
+  add('app/api/order-status/route.ts', `import { NextResponse } from 'next/server'
+import { platformUrl } from '@/lib/platform'
+
+${STORE_KEY_HEADERS_FN}
+
+function notFound() {
+  return NextResponse.json({ error: 'Not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const order = searchParams.get('order') ?? ''
+  const orderId = searchParams.get('orderId') ?? ''
+  const token = searchParams.get('t') ?? ''
+  const projectId = process.env.QUANTE_PROJECT_ID
+  const base = platformUrl()
+  if (!projectId || !base) return notFound()
+  if (!/^[A-Za-z0-9-]{1,40}$/.test(order) || !/^[A-Za-z0-9_-]{16,200}$/.test(token)) return notFound()
+  try {
+    // The platform checks the token (and this store's key) before answering.
+    const qs = new URLSearchParams({ projectId, order, t: token })
+    if (/^[0-9a-fA-F-]{36}$/.test(orderId)) qs.set('orderId', orderId)
+    const res = await fetch(base + '/api/store/order-status?' + qs.toString(), { headers: storeKeyHeaders(), cache: 'no-store' })
+    if (!res.ok) return notFound()
+    const d = await res.json() as Record<string, unknown>
+    const amount = Number(d.amount)
+    if (!Number.isFinite(amount) || amount <= 0) return notFound()
+    return NextResponse.json({
+      orderNumber: typeof d.orderNumber === 'string' ? d.orderNumber.slice(0, 40) : order,
+      method: typeof d.method === 'string' ? d.method.slice(0, 20) : '',
+      amount,
+      currency: typeof d.currency === 'string' ? d.currency.toUpperCase().slice(0, 3) : '',
+      vs: String(d.vs ?? '').replace(/\\D/g, '').slice(0, 10),
+      account: typeof d.account === 'string' ? d.account.slice(0, 64) : '',
+    }, { headers: { 'Cache-Control': 'no-store' } })
+  } catch {
+    return notFound()
+  }
 }
 `)
 

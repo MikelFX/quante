@@ -10,23 +10,29 @@ import { isUuid } from '@/lib/auth/project'
 import { getHostingGate } from '@/lib/hosting/gate'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { loadStorePricing } from '../_lib/pricing'
-import { storeAgentInfo } from '@/lib/agent-shops/store-info'
+import { storeAgentInfo, usableOnlineMethods } from '@/lib/agent-shops/store-info'
+import { getProjectPaymentCreds, comgateForProject, gopayForProject, paypalForProject } from '@/lib/payments/project-providers'
 
 export async function GET(request: Request) {
   const projectId = new URL(request.url).searchParams.get('projectId')
   if (!isUuid(projectId)) return NextResponse.json({ error: 'projectId required' }, { status: 400 })
   if (!rateLimit(`store-agent:${getClientIp(request)}`, 600, 60_000).allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
-  const [pricing, gate, inv] = await Promise.all([
+  const [pricing, gate, inv, creds] = await Promise.all([
     loadStorePricing(projectId),
     getHostingGate(projectId),
     supabaseAdmin.from('store_inventory').select('product_id, variant_id, stock_qty').eq('project_id', projectId).limit(5000),
+    getProjectPaymentCreds(projectId),
   ])
   if (!pricing) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
   const live = gate.everLive === true && gate.canDeployProduction === true
   // A missing store_inventory table (migration not run) = stock is not tracked.
   const rows = inv.error ? [] : (inv.data ?? []) as Array<{ product_id: string; variant_id: string | null; stock_qty: number }>
-  return NextResponse.json(storeAgentInfo(pricing, rows, live), {
+  // A gateway without the merchant's own credentials can't take an order — don't offer it.
+  const onlineMethods = usableOnlineMethods(pricing.onlineMethods, {
+    comgate: !!comgateForProject(creds), gopay: !!gopayForProject(creds), paypal: !!paypalForProject(creds),
+  })
+  return NextResponse.json(storeAgentInfo({ ...pricing, onlineMethods }, rows, live), {
     headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60' },
   })
 }
